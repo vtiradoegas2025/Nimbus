@@ -17,6 +17,10 @@ venv/
 # IDE files
 .cursor/
 
+# Local formatting / AI assistant config (not for GitHub)
+.clang-format
+.claude/
+
 # Test artifacts (compiled binaries, run outputs)
 tests/artifacts/
 

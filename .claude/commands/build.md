@@ -1,1 +1,0 @@
-Build the project. Run `make -j$(sysctl -n hw.ncpu)` for the main sim. If the user says "vulkan", also run `make vulkan`. Report any errors clearly with file and line number. If a specific target is mentioned (e.g., "radiation", "tests", "clean"), run only that make target.
