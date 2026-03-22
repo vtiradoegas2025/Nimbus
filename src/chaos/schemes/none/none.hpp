@@ -8,7 +8,7 @@
  */
 
 #pragma once
-#include "chaos_base.hpp"
+#include "physics/chaos_base.hpp"
 
 namespace chaos {
 

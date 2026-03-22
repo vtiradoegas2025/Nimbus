@@ -7,32 +7,20 @@
  * This file belongs to the primary src/core execution layer.
  */
 
-#include "simulation.hpp"
+#include "core/simulation.hpp"
 #include "terrain/factory.hpp"
 #include "terrain/base/topography.hpp"
-#include "string_utils.hpp"
+#include "util/string_utils.hpp"
+#include "util/log.hpp"
 #include <iostream>
-#include <algorithm>
 #include <cmath>
-#include <cctype>
 
 
 namespace
 {
-std::string trim_copy(std::string value)
-{
-    const auto first = std::find_if_not(value.begin(), value.end(), [](unsigned char c) { return std::isspace(c) != 0; });
-    if (first == value.end())
-    {
-        return "";
-    }
-    const auto last = std::find_if_not(value.rbegin(), value.rend(), [](unsigned char c) { return std::isspace(c) != 0; }).base();
-    return std::string(first, last);
-}
-
 std::string normalize_terrain_scheme_id(const std::string& value)
 {
-    const std::string normalized = tmv::strutil::lower_copy(trim_copy(value));
+    const std::string normalized = tmv::strutil::trim_and_lower(value);
     if (normalized.empty() || normalized == "none" || normalized == "flat")
     {
         return "none";
@@ -50,7 +38,7 @@ std::string normalize_terrain_scheme_id(const std::string& value)
 
 std::string normalize_terrain_coord_id(const std::string& value)
 {
-    const std::string normalized = tmv::strutil::lower_copy(trim_copy(value));
+    const std::string normalized = tmv::strutil::trim_and_lower(value);
     if (normalized.empty() || normalized == "btf" || normalized == "terrain_following" ||
         normalized == "terrain-following" || normalized == "sigma")
     {
@@ -71,8 +59,7 @@ double sanitize_positive(double value, double fallback, const char* label)
 {
     if (!std::isfinite(value) || value <= terrain_constants::epsilon)
     {
-        std::cerr << "Warning: Invalid " << label << "=" << value
-                  << ". Using " << fallback << "." << std::endl;
+        tmv::log_warn("Invalid ", label, "=", value, ". Using ", fallback, ".");
         return fallback;
     }
     return value;
@@ -84,8 +71,7 @@ double sanitize_non_negative(double value,
 {
     if (!std::isfinite(value) || value < 0.0)
     {
-        std::cerr << "Warning: Invalid " << label << "=" << value
-                  << ". Using " << fallback << "." << std::endl;
+        tmv::log_warn("Invalid ", label, "=", value, ". Using ", fallback, ".");
         return fallback;
     }
     return value;
@@ -96,8 +82,7 @@ void sanitize_terrain_config(TerrainConfig& cfg)
     const std::string scheme = normalize_terrain_scheme_id(cfg.scheme_id);
     if (scheme.empty())
     {
-        std::cerr << "Warning: Unknown terrain.scheme '" << cfg.scheme_id
-                  << "'. Falling back to 'none'." << std::endl;
+        tmv::log_warn("Unknown terrain.scheme '", cfg.scheme_id, "'. Falling back to 'none'.");
         cfg.scheme_id = "none";
     }
     else
@@ -108,8 +93,7 @@ void sanitize_terrain_config(TerrainConfig& cfg)
     const std::string coord = normalize_terrain_coord_id(cfg.coord_id);
     if (coord.empty())
     {
-        std::cerr << "Warning: Unknown terrain.coord_id '" << cfg.coord_id
-                  << "'. Falling back to 'btf'." << std::endl;
+        tmv::log_warn("Unknown terrain.coord_id '", cfg.coord_id, "'. Falling back to 'btf'.");
         cfg.coord_id = "btf";
     }
     else
@@ -156,9 +140,9 @@ void enforce_safe_metric_top(TerrainConfig& cfg, const Topography2D& topo)
     }
 
     const double adjusted = std::max(max_height + 1.0, max_height * 1.05);
-    std::cerr << "Warning: terrain.ztop (" << cfg.ztop
-              << ") must exceed max terrain height (" << max_height
-              << ") for terrain-following metrics. Using ztop=" << adjusted << "." << std::endl;
+    tmv::log_warn("terrain.ztop (", cfg.ztop,
+                  ") must exceed max terrain height (", max_height,
+                  ") for terrain-following metrics. Using ztop=", adjusted, ".");
     cfg.ztop = adjusted;
 }
 }
@@ -191,12 +175,12 @@ void initialize_terrain(const std::string& scheme_name, const TerrainConfig& cfg
 
         build_terrain_fields();
 
-        std::cout << "Initialized terrain scheme: " << global_terrain_config.scheme_id << std::endl;
+        tmv::log_info("Initialized terrain scheme: ", global_terrain_config.scheme_id);
 
     } 
     catch (const std::exception& e) 
     {
-        std::cerr << "Error initializing terrain: " << e.what() << std::endl;
+        tmv::log_error("Error initializing terrain: ", e.what());
         throw;
     }
 }
@@ -250,15 +234,14 @@ void build_terrain_fields()
 
     const double max_height = compute_max_terrain_height(global_topography);
 
-    std::cout << "Terrain fields built:"
-              << " scheme=" << global_terrain_config.scheme_id
-              << ", max_height=" << max_height << " m"
-              << ", min_J=" << diag.min_jacobian
-              << ", max_J=" << diag.max_jacobian
-              << std::endl;
+    tmv::log_info("Terrain fields built:",
+                  " scheme=", global_terrain_config.scheme_id,
+                  ", max_height=", max_height, " m",
+                  ", min_J=", diag.min_jacobian,
+                  ", max_J=", diag.max_jacobian);
     if (diag.coordinate_folding)
     {
-        std::cerr << "Terrain warning: coordinate folding detected in terrain metrics" << std::endl;
+        tmv::log_warn("Terrain warning: coordinate folding detected in terrain metrics");
     }
 
     refresh_grid_metrics_from_terrain();

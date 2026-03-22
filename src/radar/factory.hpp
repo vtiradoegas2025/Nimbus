@@ -11,27 +11,19 @@
 
 #include <memory>
 #include <string>
-#include "radar_base.hpp"
+#include <vector>
+#include "diagnostics/radar_base.hpp"
+
+class ReflectivityScheme;
+class VelocityScheme;
+class ZDRScheme;
 
 /**
- * @brief Factory for creating radar schemes
- *
- * Follows the same pattern as microphysics, turbulence, etc.
+ * @brief Creates a radar scheme by configured name.
  */
+std::unique_ptr<RadarSchemeBase> create_radar_scheme(const std::string& scheme_name);
 
-class RadarFactory 
-{
-public:
-    /**
-     * @brief Create a radar scheme by ID
-     *
-     * @param scheme_id Scheme identifier ("reflectivity", "velocity", "zdr")
-     * @return Unique pointer to the radar scheme
-     */
-    static std::unique_ptr<RadarSchemeBase> create(const std::string& scheme_id);
-
-    /**
-     * @brief Get list of available radar schemes
-     */
-    static std::vector<std::string> available_schemes();
-};
+/**
+ * @brief Returns names of available radar schemes.
+ */
+std::vector<std::string> get_available_radar_schemes();

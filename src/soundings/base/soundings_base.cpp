@@ -7,8 +7,8 @@
  * This file is part of the src/soundings subsystem.
  */
 
-#include "soundings_base.hpp"
-#include "physical_constants.hpp"
+#include "data/soundings_base.hpp"
+#include "core/physical_constants.hpp"
 #include <iostream>
 #include <algorithm>
 #include <cmath>

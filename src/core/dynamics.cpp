@@ -7,11 +7,12 @@
  * This file belongs to the primary src/core execution layer.
  */
 
-#include "simulation.hpp"
-#include "diffusion_base.hpp"
-#include "turbulence_base.hpp"
+#include "core/simulation.hpp"
+#include "numerics/diffusion_base.hpp"
+#include "physics/turbulence_base.hpp"
 #include "dynamics/factory.hpp"
-#include "field_contract.hpp"
+#include "diagnostics/field_contract.hpp"
+#include "util/log.hpp"
 #include <algorithm>
 #include <cctype>
 #include <cmath>
@@ -126,7 +127,7 @@ bool diffusion_runtime_enabled()
 void log_runtime_diffusion_path_once()
 {
     static bool logged = false;
-    if (logged || !log_normal_enabled())
+    if (logged)
     {
         return;
     }
@@ -134,14 +135,14 @@ void log_runtime_diffusion_path_once()
 
     if (!diffusion_scheme)
     {
-        std::cout << "[DIFFUSION] Runtime path: disabled (no diffusion scheme)." << std::endl;
+        tmv::log_info("[DIFFUSION] Runtime path: disabled (no diffusion scheme).");
         return;
     }
 
-    std::cout << "[DIFFUSION] Runtime path: src/numerics/diffusion/" << diffusion_scheme->name()
-              << " (apply_to=" << global_diffusion_config.apply_to
-              << ", K_h=" << global_diffusion_config.K_h
-              << ", K_v=" << global_diffusion_config.K_v << ")" << std::endl;
+    tmv::log_info("[DIFFUSION] Runtime path: src/numerics/diffusion/", diffusion_scheme->name(),
+                  " (apply_to=", global_diffusion_config.apply_to,
+                  ", K_h=", global_diffusion_config.K_h,
+                  ", K_v=", global_diffusion_config.K_v, ")");
 }
 
 void apply_runtime_diffusion(double dt_dynamics)
@@ -181,10 +182,7 @@ void apply_runtime_diffusion(double dt_dynamics)
     }
     catch (const std::exception& e)
     {
-        if (log_normal_enabled())
-        {
-            std::cerr << "[DIFFUSION] tendency computation failed: " << e.what() << std::endl;
-        }
+        tmv::log_error("[DIFFUSION] tendency computation failed: ", e.what());
         return;
     }
 
@@ -196,10 +194,7 @@ void apply_runtime_diffusion(double dt_dynamics)
         field_matches_domain(diffusion_tend_buf.dqvdt_diff);
     if (!shape_ok)
     {
-        if (log_normal_enabled())
-        {
-            std::cerr << "[DIFFUSION] tendency buffers have invalid shape; skipping diffusion update." << std::endl;
-        }
+        tmv::log_error("[DIFFUSION] tendency buffers have invalid shape; skipping diffusion update.");
         return;
     }
 
@@ -262,11 +257,11 @@ void apply_runtime_diffusion(double dt_dynamics)
         }
     }
 
-    if(log_debug_enabled() &&lower_copy(global_diffusion_config.scheme_id) == "explicit" && diffusion_diag_buf.max_diffusion_number > 1.0)
+    if(lower_copy(global_diffusion_config.scheme_id) == "explicit" && diffusion_diag_buf.max_diffusion_number > 1.0)
     {
-        std::cerr << "[DIFFUSION] max diffusion number exceeds 1 ("
-                  << diffusion_diag_buf.max_diffusion_number
-                  << "); reduce dt or diffusivity for stronger explicit stability margin." << std::endl;
+        tmv::log_warn("[DIFFUSION] max diffusion number exceeds 1 (",
+                      diffusion_diag_buf.max_diffusion_number,
+                      "); reduce dt or diffusivity for stronger explicit stability margin.");
     }
 }
 
@@ -466,16 +461,26 @@ void report_budget_transition(const char* stage, const ConservationBudget& befor
         return;
     }
 
-    const char* prefix = warn ? "[PHYSICS BUDGET WARN]" : "[PHYSICS BUDGET]";
-    std::cerr << prefix
-              << " stage=" << stage
-              << " d_dry_mass=" << d_dry_mass
-              << " d_total_water=" << d_total_water
-              << " d_thermal_energy=" << d_thermal_energy
-              << " dry_tendency=" << (d_dry_mass / dt_stage)
-              << " water_tendency=" << (d_total_water / dt_stage)
-              << " energy_tendency=" << (d_thermal_energy / dt_stage)
-              << std::endl;
+    if (warn)
+    {
+        tmv::log_warn("[PHYSICS BUDGET WARN] stage=", stage,
+                      " d_dry_mass=", d_dry_mass,
+                      " d_total_water=", d_total_water,
+                      " d_thermal_energy=", d_thermal_energy,
+                      " dry_tendency=", (d_dry_mass / dt_stage),
+                      " water_tendency=", (d_total_water / dt_stage),
+                      " energy_tendency=", (d_thermal_energy / dt_stage));
+    }
+    else
+    {
+        tmv::log_debug("[PHYSICS BUDGET] stage=", stage,
+                       " d_dry_mass=", d_dry_mass,
+                       " d_total_water=", d_total_water,
+                       " d_thermal_energy=", d_thermal_energy,
+                       " dry_tendency=", (d_dry_mass / dt_stage),
+                       " water_tendency=", (d_total_water / dt_stage),
+                       " energy_tendency=", (d_thermal_energy / dt_stage));
+    }
 }
 
 /**
@@ -535,11 +540,10 @@ int enforce_primary_state_bounds(const char* stage)
         apply(qh_data[idx], clamp_hydrometeor_kgkg(qh_data[idx]));
     }
 
-    if (corrected > 0 && (log_debug_enabled() || log_normal_enabled()))
+    if (corrected > 0)
     {
-        std::cerr << "[PHYSICS GUARD] stage=" << stage
-                  << " corrected_primary_state_samples=" << corrected
-                  << std::endl;
+        tmv::log_warn("[PHYSICS GUARD] stage=", stage,
+                      " corrected_primary_state_samples=", corrected);
     }
     return corrected;
 }
@@ -554,7 +558,7 @@ void initialize_dynamics(const std::string& scheme_name)
     {
         dynamics_scheme = create_dynamics_scheme(scheme_name);
         const std::string active_scheme_name = dynamics_scheme ? dynamics_scheme->get_scheme_name() : scheme_name;
-        std::cout << "Initialized dynamics scheme: " << active_scheme_name << std::endl;
+        tmv::log_info("Initialized dynamics scheme: ", active_scheme_name);
 
         vorticity_r.resize(NR, NTH, NZ, 0.0f);
         vorticity_theta.resize(NR, NTH, NZ, 0.0f);
@@ -573,7 +577,7 @@ void initialize_dynamics(const std::string& scheme_name)
     } 
     catch (const std::runtime_error& e) 
     {
-        std::cerr << "Error initializing dynamics scheme: " << e.what() << std::endl;
+        tmv::log_error("Error initializing dynamics scheme: ", e.what());
         throw;
     }
 }
@@ -585,7 +589,7 @@ void step_dynamics_new(double dt_dynamics, double current_time)
 {
     if (!dynamics_scheme) 
     {
-        std::cerr << "Warning: No dynamics scheme initialized, using old dynamics" << std::endl;
+        tmv::log_warn("No dynamics scheme initialized, using old dynamics");
         step_dynamics_old(current_time);
         return;
     }
@@ -783,9 +787,9 @@ void compute_dynamics_diagnostics()
     sanitized += sanitize_field_nonfinite_and_contract_bounds(dynamic_pressure, "dynamic_pressure");
     sanitized += sanitize_field_nonfinite_and_contract_bounds(buoyancy_pressure, "buoyancy_pressure");
 
-    if (sanitized > 0 && log_debug_enabled())
+    if (sanitized > 0)
     {
-        std::cerr << "[DYNAMICS GUARD] sanitized diagnostic values: " << sanitized << std::endl;
+        tmv::log_debug("[DYNAMICS GUARD] sanitized diagnostic values: ", sanitized);
     }
 }
 
@@ -960,16 +964,10 @@ void step_dynamics_old(double current_time)
         }
     }
 
-    if (log_debug_enabled())
-    {
-        std::cout << "[DYNAMICS DEBUG] advect_thermodynamics dt_eff=" << dt_eff << std::endl;
-    }
+    tmv::log_debug("[DYNAMICS] advect_thermodynamics dt_eff=", dt_eff);
     advect_tracer(dt_eff);
     advect_thermodynamics(dt_eff);
-    if (log_debug_enabled())
-    {
-        std::cout << "[DYNAMICS DEBUG] advection complete" << std::endl;
-    }
+    tmv::log_debug("[DYNAMICS] advection complete");
     step_microphysics(dt_eff);
     apply_runtime_diffusion(dt_eff);
 

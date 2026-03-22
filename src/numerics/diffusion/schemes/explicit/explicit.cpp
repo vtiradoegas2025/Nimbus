@@ -8,11 +8,19 @@
  */
 
 #include "explicit.hpp"
-#include "grid_metric_utils.hpp"
+#include "core/field_pool.hpp"
+#include "numerics/compute_kernel_template.hpp"
+#include "util/grid_metric_utils.hpp"
+#include "util/simd_utils.hpp"
+#include "util/log.hpp"
 #include <algorithm>
 #include <cmath>
-#include <iostream>
+#include <limits>
 #include <stdexcept>
+
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 namespace
 {
@@ -69,8 +77,8 @@ void ExplicitDiffusionScheme::initialize(const DiffusionConfig& cfg)
 {
     config_ = cfg;
 
-    std::cout << "Initialized explicit diffusion scheme" << std::endl;
-    std::cout << "  K_h = " << cfg.K_h << " m²/s, K_v = " << cfg.K_v << " m²/s" << std::endl;
+    tmv::log_info("Initialized explicit diffusion scheme");
+    tmv::log_info("  K_h = ", cfg.K_h, " m²/s, K_v = ", cfg.K_v, " m²/s");
 }
 
 /**
@@ -213,6 +221,72 @@ void ExplicitDiffusionScheme::compute_scalar_diffusion(
         return;
     }
 
+    // GPU dispatch: uniform-K, no terrain metrics, uniform dz.
+    // The shader computes dst = src + dt*kappa*laplacian. We pass very large
+    // dr/dtheta values to suppress horizontal terms, leaving only vertical
+    // diffusion (matching the CPU path). Then convert to tendency.
+    if (K_field == nullptr && !grid_metric::has_terrain_metrics(grid))
+    {
+        // Use a unit timestep to get tendency = kappa * d²field/dz²
+        const float dt_unit = 1.0f;
+        const float kappa_f = static_cast<float>(K_default);
+        // Large values suppress horizontal Laplacian terms: 1/dr² ≈ 0, 1/(r²dθ²) ≈ 0
+        const float large_spacing = 1.0e+12f;
+        const float dz_f = static_cast<float>(grid_metric::local_dz(grid, 0, 0, 1, nz));
+
+        auto dst_guard = FieldPool::instance().scoped_acquire(nr, nth, nz);
+        Field3D& dst = dst_guard.field;
+        // Copy src into dst (shader writes interior only; boundaries need valid data)
+        std::memcpy(dst.data(), field.data(), field.size() * sizeof(float));
+
+        if (dispatch_diffusion_backend(
+                field.data(), dst.data(),
+                nr, nth, nz,
+                large_spacing, large_spacing, dz_f,
+                dt_unit, kappa_f))
+        {
+            // Convert updated field to tendency: tendency = dst - src
+            tendency.resize(nr, nth, nz);
+            const int total = static_cast<int>(field.size());
+            simd_utils::subtract_vectors(dst.data(), field.data(), tendency.data(), total);
+            return;
+        }
+        // GPU dispatch failed — fall through to CPU path
+    }
+
+    // SIMD-accelerated path: uniform K, uniform dz, no terrain.
+    // diffuse_1d() computes dst[k] = src[k] + scale*(src[k-1] - 2*src[k] + src[k+1]).
+    // We subtract src afterwards to get tendency = scale * laplacian.
+    if (K_field == nullptr && !grid_metric::has_terrain_metrics(grid) && nz >= 3)
+    {
+        const double dz_uniform = grid_metric::local_dz(grid, 0, 0, 1, nz);
+        const float scale = static_cast<float>(K_default / (dz_uniform * dz_uniform));
+
+        #pragma omp parallel for collapse(2)
+        for (int i = 0; i < nr; ++i)
+        {
+            for (int j = 0; j < nth; ++j)
+            {
+                // diffuse_1d processes elements [0, nz_inner).
+                // Caller must ensure src has valid data at index -1 and nz_inner.
+                // Since field(i,j,*) starts at k=0 and ends at k=nz-1,
+                // we pass &field(i,j,1) as src so src[-1]=field(i,j,0) and
+                // src[nz_inner]=field(i,j,nz-1) are valid.
+                const int nz_inner = nz - 2;
+                const float* src = &field(i, j, 1);
+                float* dst = &tendency(i, j, 1);
+                simd_utils::diffuse_1d(src, dst, scale, nz_inner);
+                // diffuse_1d gives: dst[k] = src[k] + scale*laplacian
+                // We want tendency = scale * laplacian = dst[k] - src[k]
+                simd_utils::subtract_vectors(dst, src, dst, nz_inner);
+                tendency(i, j, 0) = 0.0f;
+                tendency(i, j, nz - 1) = 0.0f;
+            }
+        }
+        return;
+    }
+
+    // General CPU path: variable K, terrain-corrected dz, or non-uniform grid.
     auto dz_at = [&](int i, int j, int level) -> double
     {
         return grid_metric::local_dz(grid, i, j, level, nz);
@@ -227,38 +301,47 @@ void ExplicitDiffusionScheme::compute_scalar_diffusion(
         return std::max(0.0, value);
     };
 
+    // Cache-blocked j-tiling: keeps stencil neighborhood in L1/L2 cache.
+    // At TILE_J=32, NZ=128: working set per tile ≈ 3×34×128×8 = 104 KB.
+    static constexpr int TILE_J = 32;
+
+    #pragma omp parallel for collapse(2)
     for (int i = 0; i < nr; ++i)
     {
-        for (int j = 0; j < nth; ++j)
+        for (int jt = 0; jt < nth; jt += TILE_J)
         {
-            for (int k = 1; k < nz - 1; ++k)
+            const int j_end = std::min(jt + TILE_J, nth);
+            for (int j = jt; j < j_end; ++j)
             {
-                const double dz = dz_at(i, j, k);
-                const double dz_up = dz_at(i, j, k - 1);
-                const double dz_down = dz_at(i, j, k + 1);
+                for (int k = 1; k < nz - 1; ++k)
+                {
+                    const double dz = dz_at(i, j, k);
+                    const double dz_up = dz_at(i, j, k - 1);
+                    const double dz_down = dz_at(i, j, k + 1);
 
-                const double phi_km = field(i, j, k - 1);
-                const double phi_k = field(i, j, k);
-                const double phi_kp = field(i, j, k + 1);
+                    const double phi_km = field(i, j, k - 1);
+                    const double phi_k = field(i, j, k);
+                    const double phi_kp = field(i, j, k + 1);
 
-                const double dphi_dz_up = (phi_k - phi_km) / dz_up;
-                const double dphi_dz_down = (phi_kp - phi_k) / dz_down;
+                    const double dphi_dz_up = (phi_k - phi_km) / dz_up;
+                    const double dphi_dz_down = (phi_kp - phi_k) / dz_down;
 
-                const double k_here_raw = (K_field != nullptr) ? (*K_field)(i, j, k) : K_default;
-                const double k_up_raw = (K_field != nullptr) ? (*K_field)(i, j, k - 1) : K_default;
-                const double k_down_raw = (K_field != nullptr) ? (*K_field)(i, j, k + 1) : K_default;
-                const double k_here = sanitize_diffusivity(k_here_raw);
-                const double k_up = sanitize_diffusivity(k_up_raw);
-                const double k_down = sanitize_diffusivity(k_down_raw);
+                    const double k_here_raw = (K_field != nullptr) ? (*K_field)(i, j, k) : K_default;
+                    const double k_up_raw = (K_field != nullptr) ? (*K_field)(i, j, k - 1) : K_default;
+                    const double k_down_raw = (K_field != nullptr) ? (*K_field)(i, j, k + 1) : K_default;
+                    const double k_here = sanitize_diffusivity(k_here_raw);
+                    const double k_up = sanitize_diffusivity(k_up_raw);
+                    const double k_down = sanitize_diffusivity(k_down_raw);
 
-                const double K_avg_up = 0.5 * (k_here + k_up);
-                const double K_avg_down = 0.5 * (k_here + k_down);
+                    const double K_avg_up = 0.5 * (k_here + k_up);
+                    const double K_avg_down = 0.5 * (k_here + k_down);
 
-                const double flux_up = -K_avg_up * dphi_dz_up;
-                const double flux_down = -K_avg_down * dphi_dz_down;
-                const double dflux_dz = (flux_down - flux_up) / dz;
+                    const double flux_up = -K_avg_up * dphi_dz_up;
+                    const double flux_down = -K_avg_down * dphi_dz_down;
+                    const double dflux_dz = (flux_down - flux_up) / dz;
 
-                tendency(i, j, k) = static_cast<float>(-dflux_dz);
+                    tendency(i, j, k) = static_cast<float>(-dflux_dz);
+                }
             }
         }
     }
@@ -318,10 +401,16 @@ void ExplicitDiffusionScheme::compute_momentum_diffusion(
         return std::max(0.0, value);
     };
 
+    static constexpr int TILE_J_MOM = 32;
+
+    #pragma omp parallel for collapse(2)
     for (int i = 0; i < nr; ++i)
     {
-        for (int j = 0; j < nth; ++j)
+        for (int jt = 0; jt < nth; jt += TILE_J_MOM)
         {
+            const int j_end = std::min(jt + TILE_J_MOM, nth);
+            for (int j = jt; j < j_end; ++j)
+            {
             for (int k = 1; k < nz - 1; ++k)
             {
                 const double dz = dz_at(i, j, k);
@@ -346,6 +435,7 @@ void ExplicitDiffusionScheme::compute_momentum_diffusion(
                 const double dw_dz_up = (w(i, j, k) - w(i, j, k - 1)) / dz_at(i, j, k - 1);
                 const double dw_dz_down = (w(i, j, k + 1) - w(i, j, k)) / dz_at(i, j, k + 1);
                 dw_dt(i, j, k) = static_cast<float>(-(nu_avg_down * dw_dz_down - nu_avg_up * dw_dz_up) / dz);
+            }
             }
         }
     }

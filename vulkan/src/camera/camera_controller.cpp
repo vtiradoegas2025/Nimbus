@@ -7,7 +7,7 @@
  * used to keep storm views stable and physically coherent during motion.
  */
 
-#include "camera_controller.hpp"
+#include "camera/camera_controller.hpp"
 
 #include <algorithm>
 #include <cctype>

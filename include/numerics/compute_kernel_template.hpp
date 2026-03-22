@@ -1,0 +1,188 @@
+#pragma once
+
+#include <string>
+#include <vector>
+
+#include "numerics/advection_base.hpp"
+
+/**
+ * @file compute_kernel_template.hpp
+ * @brief Registry and dispatch surface for backend-managed compute kernel templates.
+ *
+ * The intent is to isolate backend plumbing from meteorology kernel logic.
+ * Template authors define kernel-level numerical behavior, while this runtime
+ * layer owns backend selection, validation/fallback, and dispatch routing.
+ */
+
+struct VerticalFluxTemplateDescriptor
+{
+    std::string id;
+    std::string summary;
+    bool backend_dispatch_ready = false;
+};
+
+/**
+ * @brief Sets the active vertical-flux template id.
+ *
+ * Unknown ids are ignored to preserve a safe default template.
+ */
+void set_active_vertical_flux_template_id(const std::string& template_id);
+
+/**
+ * @brief Returns active vertical-flux template id.
+ */
+const std::string& active_vertical_flux_template_id();
+
+/**
+ * @brief Returns true if a vertical-flux template id is available.
+ */
+bool has_vertical_flux_template(const std::string& template_id);
+
+/**
+ * @brief Lists available vertical-flux templates.
+ */
+std::vector<VerticalFluxTemplateDescriptor> list_vertical_flux_templates();
+
+/**
+ * @brief Dispatches active vertical-flux template using backend-managed path.
+ *
+ * Returns false when the template cannot execute the backend dispatch path.
+ */
+bool dispatch_vertical_flux_template_backend(
+    const AdvectionConfig& cfg,
+    const AdvectionStateView& state,
+    AdvectionTendencies& tendencies,
+    AdvectionDiagnostics* diag_opt = nullptr);
+
+/**
+ * @brief Dispatches radial advection via GPU backend if available.
+ *
+ * @return True if GPU dispatch succeeded. False means caller should use CPU path.
+ */
+bool dispatch_radial_advection_backend(
+    const float* src, const float* u_data, float* dst,
+    int nr, int nth, int nz,
+    float dr, float dt);
+
+/**
+ * @brief Dispatches azimuthal advection via GPU backend if available.
+ *
+ * @return True if GPU dispatch succeeded. False means caller should use CPU path.
+ */
+bool dispatch_azimuthal_advection_backend(
+    const float* src, const float* v_data, float* dst,
+    int nr, int nth, int nz,
+    float dr, float dtheta, float dt);
+
+/**
+ * @brief Dispatches cylindrical diffusion via GPU backend if available.
+ *
+ * @return True if GPU dispatch succeeded. False means caller should use CPU path.
+ */
+bool dispatch_diffusion_backend(
+    const float* src, float* dst,
+    int nr, int nth, int nz,
+    float dr, float dtheta, float dz,
+    float dt, float kappa);
+
+/**
+ * @brief Dispatches supercell momentum tendencies via GPU backend if available.
+ *
+ * Computes 5 tendency fields from 6 input state fields. Only dispatches when
+ * terrain metrics are NOT active (uniform grid spacing assumption).
+ *
+ * @return True if GPU dispatch succeeded. False means caller should use CPU path.
+ */
+bool dispatch_supercell_tendencies_backend(
+    const float* u_r_data, const float* u_theta_data, const float* u_z_data,
+    const float* rho_data, const float* p_data, const float* theta_data,
+    float* du_r_dt_data, float* du_theta_dt_data, float* du_z_dt_data,
+    float* drho_dt_data, float* dp_dt_data,
+    int nr, int nth, int nz,
+    float dr, float dtheta, float dz,
+    float g, float gamma_val, float theta0);
+
+/**
+ * @brief Dispatches tornado momentum tendencies via GPU backend if available.
+ *
+ * Uses only radial and vertical derivatives (no azimuthal). Includes vortex
+ * damping friction. Computes all (i,j,k) interior points on GPU.
+ *
+ * @return True if GPU dispatch succeeded. False means caller should use CPU path.
+ */
+bool dispatch_tornado_tendencies_backend(
+    const float* u_r_data, const float* u_theta_data, const float* u_z_data,
+    const float* rho_data, const float* p_data, const float* theta_data,
+    float* du_r_dt_data, float* du_theta_dt_data, float* du_z_dt_data,
+    float* drho_dt_data, float* dp_dt_data,
+    int nr, int nth, int nz,
+    float dr, float dz,
+    float g, float theta0, float eps, float friction_coeff);
+
+/**
+ * @brief Dispatches fused Kessler point-wise microphysics via GPU backend.
+ *
+ * Computes warm rain + ice + melting tendencies in a single GPU dispatch.
+ *
+ * @return True if GPU dispatch succeeded. False means caller should use CPU path.
+ */
+bool dispatch_kessler_pointwise_backend(
+    const float* temperature_data, const float* qv_data,
+    const float* qc_data, const float* qr_data,
+    const float* qg_data, const float* qh_data,
+    float* dtheta_dt_data, float* dqv_dt_data,
+    float* dqc_dt_data, float* dqr_dt_data,
+    float* dqg_dt_data, float* dqh_dt_data,
+    int nr, int nth, int nz,
+    float qc0, float c_auto, float c_accr, float c_evap,
+    float c_freeze, float c_rime, float c_melt, float c_subl,
+    float Lv_cp, float Lf_cp, float Ls_cp, float T0);
+
+/**
+ * @brief Dispatches Kessler sedimentation via GPU backend (column-wise).
+ *
+ * Reads existing tendency values and adds sedimentation contributions.
+ *
+ * @return True if GPU dispatch succeeded. False means caller should use CPU path.
+ */
+bool dispatch_kessler_sedimentation_backend(
+    const float* qr_data, const float* qg_data, const float* qh_data,
+    float* dqr_dt_data, float* dqg_dt_data, float* dqh_dt_data,
+    int nr, int nth, int nz,
+    float dz_val,
+    float a_rain, float b_rain, float Vt_max_rain,
+    float a_grau, float b_grau, float Vt_max_grau,
+    float a_hail, float b_hail, float Vt_max_hail);
+
+/**
+ * @brief Returns true when batched advection dispatch is available.
+ */
+bool supports_batched_advection_dispatch();
+
+/**
+ * @brief Dispatches pre-vertical advection batch (radial+azimuthal).
+ *
+ * Records both steps in a single GPU command buffer submission.
+ *
+ * @return True if GPU dispatch succeeded. False means caller should use CPU path.
+ */
+bool dispatch_advection_batch_pre_vertical_backend(
+    const float* scalar_in, float* result_out,
+    const float* u_data, const float* v_theta_data,
+    int nr, int nth, int nz,
+    float dr, float dtheta, float dt_half);
+
+/**
+ * @brief Dispatches post-vertical advection batch (azimuthal+radial+diffusion).
+ *
+ * Records all three steps in a single GPU command buffer submission.
+ *
+ * @return True if GPU dispatch succeeded. False means caller should use CPU path.
+ */
+bool dispatch_advection_batch_post_vertical_backend(
+    const float* scalar_in, float* result_out,
+    const float* u_data, const float* v_theta_data,
+    int nr, int nth, int nz,
+    float dr, float dtheta, float dz,
+    float dt_half, float dt_full, float kappa);
+

@@ -8,7 +8,7 @@
  */
 
 #pragma once
-#include "diffusion_base.hpp"
+#include "numerics/diffusion_base.hpp"
 
 /**
  * @brief Implements the explicit diffusion scheme.

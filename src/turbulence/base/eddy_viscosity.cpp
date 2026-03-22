@@ -8,7 +8,7 @@
  */
 
 #include "eddy_viscosity.hpp"
-#include "grid_metric_utils.hpp"
+#include "util/grid_metric_utils.hpp"
 #include <cmath>
 #include <algorithm>
 #ifdef _OPENMP
@@ -16,8 +16,59 @@
 #endif
 
 
-namespace eddy_viscosity 
+namespace eddy_viscosity
 {
+
+namespace
+{
+/**
+ * @brief Boundary-aware finite difference in a horizontal dimension.
+ *
+ * Uses central differencing when not at a boundary, otherwise falls
+ * back to one-sided (forward or backward) differencing.
+ *
+ * @param f_minus Value at index-1 (only valid when idx > 0).
+ * @param f_center Value at current index.
+ * @param f_plus Value at index+1 (only valid when idx < n-1).
+ * @param dx Grid spacing.
+ * @param idx Current index in this dimension.
+ * @param n Total extent in this dimension.
+ */
+double horiz_diff(double f_minus, double f_center, double f_plus,
+                  double dx, int idx, int n)
+{
+    if (idx > 0 && idx < n - 1)
+    {
+        return (f_plus - f_minus) / (2.0 * dx);
+    }
+    if (idx == 0)
+    {
+        return (f_plus - f_center) / dx;
+    }
+    return (f_center - f_minus) / dx;
+}
+
+/**
+ * @brief Boundary-aware vertical finite difference.
+ *
+ * Uses centered differencing over the actual vertical span in the
+ * interior, one-sided at top/bottom.
+ */
+double vert_diff(double f_minus, double f_center, double f_plus,
+                 double dz_one_sided, double dz_centered,
+                 int k, int nz)
+{
+    if (k > 0 && k < nz - 1)
+    {
+        return (f_plus - f_minus) / dz_centered;
+    }
+    if (k == 0)
+    {
+        return (f_plus - f_center) / dz_one_sided;
+    }
+    return (f_center - f_minus) / dz_one_sided;
+}
+} // anonymous namespace
 
 /**
  * @brief Computes the strain rate.
@@ -26,98 +77,33 @@ StrainRate compute_strain_rate_3d(
     const TurbulenceStateView& state,
     const GridMetrics& grid,
     int i, int j, int k
-) 
+)
 {
     StrainRate S;
 
     const double dx = std::max(grid_metric::local_dx(grid, i, j, k), 1.0);
     const double dy = std::max(grid_metric::local_dy(grid, i, j, k), 1.0);
     const double dz_k = std::max(grid_metric::local_dz(grid, i, j, k, state.NZ), 1.0);
+    const double dz_centered = std::max(grid_metric::centered_dz_span(grid, i, j, k, state.NZ), 1.0);
 
-    double dudx;
-    if (i > 0 && i < state.NR - 1) {
-        dudx = ((*state.u)[i+1][j][k] - (*state.u)[i-1][j][k]) / (2.0 * dx);
-    } else if (i == 0) {
-        dudx = ((*state.u)[i+1][j][k] - (*state.u)[i][j][k]) / dx;
-    } else {
-        dudx = ((*state.u)[i][j][k] - (*state.u)[i-1][j][k]) / dx;
-    }
+    // Horizontal derivatives (radial direction, index i)
+    const auto& u = *state.u;
+    const auto& v = *state.v;
+    const auto& w = *state.w;
 
-    double dudy;
-    if (j > 0 && j < state.NTH - 1) {
-        dudy = ((*state.u)[i][j+1][k] - (*state.u)[i][j-1][k]) / (2.0 * dy);
-    } else if (j == 0) {
-        dudy = ((*state.u)[i][j+1][k] - (*state.u)[i][j][k]) / dy;
-    } else {
-        dudy = ((*state.u)[i][j][k] - (*state.u)[i][j-1][k]) / dy;
-    }
+    const double dudx = horiz_diff(u[std::max(i-1,0)][j][k], u[i][j][k], u[std::min(i+1,state.NR-1)][j][k], dx, i, state.NR);
+    const double dvdx = horiz_diff(v[std::max(i-1,0)][j][k], v[i][j][k], v[std::min(i+1,state.NR-1)][j][k], dx, i, state.NR);
+    const double dwdx = horiz_diff(w[std::max(i-1,0)][j][k], w[i][j][k], w[std::min(i+1,state.NR-1)][j][k], dx, i, state.NR);
 
-    double dvdx;
-    if (i > 0 && i < state.NR - 1) {
-        dvdx = ((*state.v)[i+1][j][k] - (*state.v)[i-1][j][k]) / (2.0 * dx);
-    } else if (i == 0) {
-        dvdx = ((*state.v)[i+1][j][k] - (*state.v)[i][j][k]) / dx;
-    } else {
-        dvdx = ((*state.v)[i][j][k] - (*state.v)[i-1][j][k]) / dx;
-    }
+    // Horizontal derivatives (azimuthal direction, index j)
+    const double dudy = horiz_diff(u[i][std::max(j-1,0)][k], u[i][j][k], u[i][std::min(j+1,state.NTH-1)][k], dy, j, state.NTH);
+    const double dvdy = horiz_diff(v[i][std::max(j-1,0)][k], v[i][j][k], v[i][std::min(j+1,state.NTH-1)][k], dy, j, state.NTH);
+    const double dwdy = horiz_diff(w[i][std::max(j-1,0)][k], w[i][j][k], w[i][std::min(j+1,state.NTH-1)][k], dy, j, state.NTH);
 
-    double dwdx;
-    if (i > 0 && i < state.NR - 1) {
-        dwdx = ((*state.w)[i+1][j][k] - (*state.w)[i-1][j][k]) / (2.0 * dx);
-    } else if (i == 0) {
-        dwdx = ((*state.w)[i+1][j][k] - (*state.w)[i][j][k]) / dx;
-    } else {
-        dwdx = ((*state.w)[i][j][k] - (*state.w)[i-1][j][k]) / dx;
-    }
-
-
-    double dvdy;
-    if (j > 0 && j < state.NTH - 1) {
-        dvdy = ((*state.v)[i][j+1][k] - (*state.v)[i][j-1][k]) / (2.0 * dy);
-    } else if (j == 0) {
-        dvdy = ((*state.v)[i][j+1][k] - (*state.v)[i][j][k]) / dy;
-    } else {
-        dvdy = ((*state.v)[i][j][k] - (*state.v)[i][j-1][k]) / dy;
-    }
-
-    double dwdy;
-    if (j > 0 && j < state.NTH - 1) {
-        dwdy = ((*state.w)[i][j+1][k] - (*state.w)[i][j-1][k]) / (2.0 * dy);
-    } else if (j == 0) {
-        dwdy = ((*state.w)[i][j+1][k] - (*state.w)[i][j][k]) / dy;
-    } else {
-        dwdy = ((*state.w)[i][j][k] - (*state.w)[i][j-1][k]) / dy;
-    }
-
-    double dudz;
-    if (k > 0 && k < state.NZ - 1) {
-        const double denom = std::max(grid_metric::centered_dz_span(grid, i, j, k, state.NZ), 1.0);
-        dudz = ((*state.u)[i][j][k+1] - (*state.u)[i][j][k-1]) / denom;
-    } else if (k == 0) {
-        dudz = ((*state.u)[i][j][k+1] - (*state.u)[i][j][k]) / dz_k;
-    } else {
-        dudz = ((*state.u)[i][j][k] - (*state.u)[i][j][k-1]) / dz_k;
-    }
-
-    double dvdz;
-    if (k > 0 && k < state.NZ - 1) {
-        const double denom = std::max(grid_metric::centered_dz_span(grid, i, j, k, state.NZ), 1.0);
-        dvdz = ((*state.v)[i][j][k+1] - (*state.v)[i][j][k-1]) / denom;
-    } else if (k == 0) {
-        dvdz = ((*state.v)[i][j][k+1] - (*state.v)[i][j][k]) / dz_k;
-    } else {
-        dvdz = ((*state.v)[i][j][k] - (*state.v)[i][j][k-1]) / dz_k;
-    }
-
-    double dwdz;
-    if (k > 0 && k < state.NZ - 1) {
-        const double denom = std::max(grid_metric::centered_dz_span(grid, i, j, k, state.NZ), 1.0);
-        dwdz = ((*state.w)[i][j][k+1] - (*state.w)[i][j][k-1]) / denom;
-    } else if (k == 0) {
-        dwdz = ((*state.w)[i][j][k+1] - (*state.w)[i][j][k]) / dz_k;
-    } else {
-        dwdz = ((*state.w)[i][j][k] - (*state.w)[i][j][k-1]) / dz_k;
-    }
+    // Vertical derivatives (index k)
+    const double dudz = vert_diff(u[i][j][std::max(k-1,0)], u[i][j][k], u[i][j][std::min(k+1,state.NZ-1)], dz_k, dz_centered, k, state.NZ);
+    const double dvdz = vert_diff(v[i][j][std::max(k-1,0)], v[i][j][k], v[i][j][std::min(k+1,state.NZ-1)], dz_k, dz_centered, k, state.NZ);
+    const double dwdz = vert_diff(w[i][j][std::max(k-1,0)], w[i][j][k], w[i][j][std::min(k+1,state.NZ-1)], dz_k, dz_centered, k, state.NZ);
 
     S.S11 = dudx;
     S.S12 = 0.5 * (dudy + dvdx);

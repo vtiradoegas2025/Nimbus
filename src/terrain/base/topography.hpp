@@ -8,7 +8,7 @@
  */
 
 #pragma once
-#include "terrain_base.hpp"
+#include "physics/terrain_base.hpp"
 
 
 namespace topography {

@@ -10,7 +10,7 @@
 #pragma once
 #include <memory>
 #include <string>
-#include "turbulence_base.hpp"
+#include "physics/turbulence_base.hpp"
 
 class SmagorinskyScheme;
 class TKEScheme;

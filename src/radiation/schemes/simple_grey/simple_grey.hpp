@@ -9,7 +9,7 @@
 
 #pragma once
 #include "radiation/base/radiative_transfer.hpp"
-#include "radiation_base.hpp"
+#include "physics/radiation_base.hpp"
 
 /**
  * @brief Implements the simple grey radiation scheme.

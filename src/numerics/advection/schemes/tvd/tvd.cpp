@@ -8,7 +8,7 @@
  */
 
 #include "tvd.hpp"
-#include "grid_metric_utils.hpp"
+#include "util/grid_metric_utils.hpp"
 #include <algorithm>
 #include <cctype>
 #include <cmath>

@@ -4,7 +4,7 @@ This module provides support for loading and interpolating atmospheric sounding 
 
 ## Architecture
 
-The soundings module follows the same factory pattern as other SupercellModel components (microphysics, terrain, radiation, etc.):
+The soundings module follows the same factory pattern as other Nimbus components (microphysics, terrain, radiation, etc.):
 
 ```
 src/soundings/
@@ -21,7 +21,7 @@ src/soundings/
 
 ## Features
 
-- **Multiple data formats**: SHARPY-style ingestion with native NetCDF classic support and extractor fallback for HDF5/NetCDF4
+- **Multiple data formats**: SHARPY-style ingestion with native NetCDF classic, NetCDF4, and HDF5 support
 - **Quality control**: Automatic validation and filtering of sounding data
 - **Optional-field safety**: Incomplete dewpoint/wind vectors are discarded during QC/interpolation to avoid mismatched profile application
 - **Interpolation**: Linear, monotone spline (PCHIP-style), and log-linear (pressure) interpolation to model grid heights
@@ -33,7 +33,7 @@ src/soundings/
 ### Basic Usage
 
 ```cpp
-#include "soundings.hpp"
+#include "data/soundings.hpp"
 
 // Configure sounding system
 SoundingConfig config;
@@ -104,23 +104,25 @@ SHARPY is a Python package for analyzing atmospheric sounding data. This module 
 - ✅ Monotone spline interpolation (PCHIP-style)
 - ✅ Log-linear pressure interpolation
 - ✅ Native in-process NetCDF classic reader path (CDF1/CDF2), including record-variable layouts
-- ✅ Python-backed SHARPY extractor (`sharpy_extract.py`) fallback path for HDF5/NetCDF4 and unsupported NetCDF layouts
+- ✅ Native in-process NetCDF C API reader path for NetCDF4/HDF-backed layouts
+- ✅ Native in-process HDF5 (HL API) reader path for SHARPY-style HDF5 datasets
+- ✅ Packaging/runtime library validation report in backend regression (`tests/test_backend_physics.sh`)
 - ✅ Integration examples and documentation
 
 ### Still Incomplete / Deferred
-- 🔄 Native in-process HDF5/NetCDF4 readers (current path falls back to Python extractor)
+- 🔄 Broader real-case atmospheric validation suite across multiple observed events
 
 ## Dependencies
 
 ### Runtime Dependencies
-- **No Python dependency required** for native NetCDF classic (CDF1/CDF2) path
-- **Python 3 + numpy + xarray + backend** are required for fallback ingestion paths:
-  - **scipy**: NetCDF3 fallback
-  - **h5py/h5netcdf/netCDF4**: HDF5 / NetCDF4 fallback
+- **No Python dependency is required** for sounding ingestion.
+- Native readers use shared libraries loaded at runtime:
+  - **libnetcdf**: NetCDF classic/64-bit-offset/NetCDF4-compatible paths
+  - **libhdf5 + libhdf5_hl**: SHARPY-style HDF5 dataset paths
 
 ### Build Integration
 
-No additional C++ link-time libraries are required for current ingestion path.
+No additional C++ link-time libraries are required for default build; readers resolve shared libraries at runtime.
 
 ## Testing
 
@@ -128,6 +130,14 @@ Run focused soundings regression tests:
 
 ```bash
 make test-soundings
+```
+
+Run backend packaging validation report (and strict fail mode if desired):
+
+```bash
+make test-backend-physics
+# Optional strict packaging gate:
+# SOUNDINGS_PACKAGING_STRICT=1 make test-backend-physics
 ```
 
 To test with a synthetic NetCDF profile:
@@ -155,7 +165,7 @@ To test with a synthetic NetCDF profile:
 
 ## Future Enhancements
 
-- Native C++ HDF5/NetCDF4 readers (avoid Python fallback path)
+- Expanded metadata extraction coverage across non-canonical SHARPY exports
 - Support for multiple sounding sources
 - Sounding data assimilation
 - Real-time sounding updates

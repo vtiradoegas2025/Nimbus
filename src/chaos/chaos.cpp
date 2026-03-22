@@ -7,15 +7,17 @@
  * This file is part of the src/chaos subsystem.
  */
 
-#include "simulation.hpp"
-#include "boundary_layer_base.hpp"
+#include "core/simulation.hpp"
+#include "physics/boundary_layer_base.hpp"
 #include "factory.hpp"
-#include "turbulence_base.hpp"
+#include "physics/turbulence_base.hpp"
+#include "util/string_utils.hpp"
+#include "util/simd_utils.hpp"
+#include "util/log.hpp"
 #include <iostream>
 #include <memory>
+#include <sstream>
 #include <cmath>
-#include <algorithm>
-#include <cctype>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -38,16 +40,9 @@ Field3D base_dtheta_dt_pbl;
 Field3D base_dqv_dt_pbl;
 bool pbl_base_tendencies_valid = false;
 
-std::string to_lower_copy(std::string value)
+std::string normalize_tendency_block_name(const std::string& block_raw)
 {
-    std::transform(value.begin(), value.end(), value.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-    return value;
-}
-
-std::string normalize_tendency_block_name(std::string block)
-{
-    block = to_lower_copy(std::move(block));
+    std::string block = tmv::strutil::trim_and_lower(block_raw);
     if (block == "pbl" || block == "boundary_layer" || block == "boundarylayer" || block == "bl")
     {
         return "pbl";
@@ -237,19 +232,9 @@ int sanitize_nonfinite_field(Field3D* field)
         return 0;
     }
 
-    int sanitized = 0;
     float* const data = field->data();
-    const std::size_t count = field->size();
-    #pragma omp parallel for reduction(+:sanitized)
-    for (long long idx = 0; idx < static_cast<long long>(count); ++idx)
-    {
-        if (!std::isfinite(static_cast<double>(data[idx])))
-        {
-            data[idx] = 0.0f;
-            ++sanitized;
-        }
-    }
-    return sanitized;
+    const int count = static_cast<int>(field->size());
+    return simd_utils::sanitize_nonfinite(data, 0.0f, data, count);
 }
 
 int sanitize_field_with_clamp(Field3D* field, float (*clamp_fn)(float))
@@ -350,39 +335,39 @@ void initialize_chaos(const chaos::ChaosConfig& cfg)
         canonicalize_tendency_blocks(global_chaos_config);
         if (!std::isfinite(global_chaos_config.dt_chaos) || global_chaos_config.dt_chaos <= 0.0)
         {
-            std::cerr << "[CHAOS CONFIG] invalid dt_chaos=" << global_chaos_config.dt_chaos
-                      << "; using " << k_default_dt_chaos << " s" << std::endl;
+            tmv::log_info("[CHAOS CONFIG] invalid dt_chaos=", global_chaos_config.dt_chaos,
+                         "; using ", k_default_dt_chaos, " s");
             global_chaos_config.dt_chaos = k_default_dt_chaos;
         }
         if (!std::isfinite(global_chaos_config.tau_t) || global_chaos_config.tau_t < 0.0)
         {
-            std::cerr << "[CHAOS CONFIG] invalid tau_t=" << global_chaos_config.tau_t
-                      << "; using " << k_default_tau_t << " s" << std::endl;
+            tmv::log_info("[CHAOS CONFIG] invalid tau_t=", global_chaos_config.tau_t,
+                         "; using ", k_default_tau_t, " s");
             global_chaos_config.tau_t = k_default_tau_t;
         }
         if (!std::isfinite(global_chaos_config.xi_max) || global_chaos_config.xi_max <= 0.0)
         {
-            std::cerr << "[CHAOS CONFIG] invalid xi_max=" << global_chaos_config.xi_max
-                      << "; using " << k_default_xi_max << std::endl;
+            tmv::log_info("[CHAOS CONFIG] invalid xi_max=", global_chaos_config.xi_max,
+                         "; using ", k_default_xi_max);
             global_chaos_config.xi_max = k_default_xi_max;
         }
         if (!std::isfinite(global_chaos_config.taper_z1))
         {
-            std::cerr << "[CHAOS CONFIG] invalid taper_z1=" << global_chaos_config.taper_z1
-                      << "; using " << k_default_taper_z1 << " m" << std::endl;
+            tmv::log_info("[CHAOS CONFIG] invalid taper_z1=", global_chaos_config.taper_z1,
+                         "; using ", k_default_taper_z1, " m");
             global_chaos_config.taper_z1 = k_default_taper_z1;
         }
         if (!std::isfinite(global_chaos_config.taper_z2))
         {
-            std::cerr << "[CHAOS CONFIG] invalid taper_z2=" << global_chaos_config.taper_z2
-                      << "; using " << k_default_taper_z2 << " m" << std::endl;
+            tmv::log_info("[CHAOS CONFIG] invalid taper_z2=", global_chaos_config.taper_z2,
+                         "; using ", k_default_taper_z2, " m");
             global_chaos_config.taper_z2 = k_default_taper_z2;
         }
         if (global_chaos_config.taper_z2 <= global_chaos_config.taper_z1)
         {
-            std::cerr << "[CHAOS CONFIG] taper_z2 (" << global_chaos_config.taper_z2
-                      << ") must be greater than taper_z1 (" << global_chaos_config.taper_z1
-                      << "); expanding taper_z2 by 1 m" << std::endl;
+            tmv::log_info("[CHAOS CONFIG] taper_z2 (", global_chaos_config.taper_z2,
+                         ") must be greater than taper_z1 (", global_chaos_config.taper_z1,
+                         "); expanding taper_z2 by 1 m");
             global_chaos_config.taper_z2 = global_chaos_config.taper_z1 + 1.0;
         }
         reset_cadence_counters();
@@ -392,42 +377,44 @@ void initialize_chaos(const chaos::ChaosConfig& cfg)
         GridMetrics init_grid = (global_grid_metrics.dx > 0.0) ? global_grid_metrics : fallback_grid_metrics();
         chaos_scheme->initialize(global_chaos_config, init_grid);
 
-        std::cout << "Initialized chaos scheme: " << global_chaos_config.scheme_id << std::endl;
+        tmv::log_info("Initialized chaos scheme: ", global_chaos_config.scheme_id);
         if (global_chaos_config.scheme_id == "boundary_layer")
         {
-            std::cout << "  [CHAOS NOTE] 'boundary_layer' here means stochastic PBL tendency perturbations.\n"
-                      << "  It does not replace the physical PBL solver (boundary_layer.scheme="
-                      << global_boundary_layer_config.scheme_id << ")." << std::endl;
+            tmv::log_info("[CHAOS NOTE] 'boundary_layer' here means stochastic PBL tendency perturbations.\n"
+                          "  It does not replace the physical PBL solver (boundary_layer.scheme=",
+                          global_boundary_layer_config.scheme_id, ").");
         }
 
         if (global_chaos_config.scheme_id != "none") {
-            std::cout << "  Perturbation amplitudes:" << std::endl;
+            tmv::log_info("  Perturbation amplitudes:");
             if (!global_chaos_config.apply_to_ic.empty()) {
-                std::cout << "    IC variables: ";
+                std::ostringstream oss;
+                oss << "    IC variables: ";
                 for (const auto& var : global_chaos_config.apply_to_ic) {
                     auto it = global_chaos_config.sigma_ic.find(var);
                     if (it != global_chaos_config.sigma_ic.end()) {
-                        std::cout << var << "(σ=" << it->second << ") ";
+                        oss << var << "(σ=" << it->second << ") ";
                     }
                 }
-                std::cout << std::endl;
+                tmv::log_info(oss.str());
             }
             if (!global_chaos_config.apply_to_tendencies.empty()) {
-                std::cout << "    Tendency blocks: ";
+                std::ostringstream oss;
+                oss << "    Tendency blocks: ";
                 for (const auto& block : global_chaos_config.apply_to_tendencies) {
                     auto it = global_chaos_config.alpha_tend.find(block);
                     if (it != global_chaos_config.alpha_tend.end()) {
-                        std::cout << block << "(α=" << it->second << ") ";
+                        oss << block << "(α=" << it->second << ") ";
                     }
                 }
-                std::cout << std::endl;
+                tmv::log_info(oss.str());
             }
-            std::cout << "  Correlation: Lx=" << global_chaos_config.Lx << "m, Ly=" << global_chaos_config.Ly << "m" << std::endl;
-            std::cout << "  Temporal decorrelation: τ=" << global_chaos_config.tau_t << "s" << std::endl;
+            tmv::log_info("  Correlation: Lx=", global_chaos_config.Lx, "m, Ly=", global_chaos_config.Ly, "m");
+            tmv::log_info("  Temporal decorrelation: τ=", global_chaos_config.tau_t, "s");
         }
 
     } catch (const std::exception& e) {
-        std::cerr << "Error initializing chaos: " << e.what() << std::endl;
+        tmv::log_error("Error initializing chaos: ", e.what());
         throw;
     }
 }
@@ -440,7 +427,7 @@ void apply_chaos_initial_conditions()
 {
     if (!chaos_scheme) 
     {
-        std::cerr << "Warning: Chaos scheme not initialized" << std::endl;
+        tmv::log_warn("Chaos scheme not initialized");
         return;
     }
 
@@ -470,16 +457,16 @@ void apply_chaos_initial_conditions()
         const int sanitized_state = sanitize_chaos_initial_state(sim_state);
         if (sanitized_state > 0)
         {
-            std::cerr << "[CHAOS GUARD] sanitized initial-condition state values: "
-                      << sanitized_state << std::endl;
+            tmv::log_warn("[CHAOS GUARD] sanitized initial-condition state values: ",
+                         sanitized_state);
         }
 
-        if (!global_chaos_diagnostics.warnings.empty()) 
+        if (!global_chaos_diagnostics.warnings.empty())
         {
-            std::cout << "Chaos IC warnings:" << std::endl;
-            for (const auto& warning : global_chaos_diagnostics.warnings) 
+            tmv::log_info("Chaos IC warnings:");
+            for (const auto& warning : global_chaos_diagnostics.warnings)
             {
-                std::cout << "  " << warning << std::endl;
+                tmv::log_info("  ", warning);
             }
         }
         
@@ -498,19 +485,18 @@ void apply_chaos_initial_conditions()
                     }
                 }
             }
-            std::cout << "\n[CHAOS DEBUG] After chaos perturbations:" << std::endl;
-            std::cout << "  Theta: min=" << theta_min << "K, max=" << theta_max << "K" << std::endl;
-            std::cout << "  NaN count: " << nan_count << ", Inf count: " << inf_count << std::endl;
+            tmv::log_debug("[CHAOS DEBUG] After chaos perturbations:");
+            tmv::log_debug("  Theta: min=", theta_min, "K, max=", theta_max, "K");
+            tmv::log_debug("  NaN count: ", nan_count, ", Inf count: ", inf_count);
             if (theta_min < 0 || theta_max > 500) {
-                std::cerr << "  WARNING: Theta corrupted by chaos perturbations!" << std::endl;
+                tmv::log_warn("  Theta corrupted by chaos perturbations!");
             }
-            std::cout << std::endl;
         }
 
     }
     catch (const std::exception& e) 
     {
-        std::cerr << "Error applying chaos IC perturbations: " << e.what() << std::endl;
+        tmv::log_error("Error applying chaos IC perturbations: ", e.what());
         throw;
     }
 }
@@ -573,14 +559,14 @@ void apply_chaos_tendencies()
         const int sanitized_tendencies = sanitize_chaos_tendencies(tendencies);
         if (sanitized_tendencies > 0)
         {
-            std::cerr << "[CHAOS GUARD] sanitized non-finite PBL tendencies: "
-                      << sanitized_tendencies << std::endl;
+            tmv::log_warn("[CHAOS GUARD] sanitized non-finite PBL tendencies: ",
+                         sanitized_tendencies);
         }
 
     } 
     catch (const std::exception& e) 
     {
-        std::cerr << "Error applying chaos tendency perturbations: " << e.what() << std::endl;
+        tmv::log_error("Error applying chaos tendency perturbations: ", e.what());
 	}
 }
 
@@ -634,13 +620,13 @@ void apply_chaos_to_microphysics_tendencies(
         const int sanitized_tendencies = sanitize_chaos_tendencies(tendencies);
         if (sanitized_tendencies > 0)
         {
-            std::cerr << "[CHAOS GUARD] sanitized non-finite microphysics tendencies: "
-                      << sanitized_tendencies << std::endl;
+            tmv::log_warn("[CHAOS GUARD] sanitized non-finite microphysics tendencies: ",
+                         sanitized_tendencies);
         }
     }
     catch (const std::exception& e)
     {
-        std::cerr << "Error applying chaos microphysics perturbations: " << e.what() << std::endl;
+        tmv::log_error("Error applying chaos microphysics perturbations: ", e.what());
 	}
 }
 
@@ -682,13 +668,13 @@ void apply_chaos_to_turbulence_tendencies(TurbulenceTendencies& tendencies_in)
         const int sanitized_tendencies = sanitize_chaos_tendencies(tendencies);
         if (sanitized_tendencies > 0)
         {
-            std::cerr << "[CHAOS GUARD] sanitized non-finite turbulence tendencies: "
-                      << sanitized_tendencies << std::endl;
+            tmv::log_warn("[CHAOS GUARD] sanitized non-finite turbulence tendencies: ",
+                         sanitized_tendencies);
         }
     }
     catch (const std::exception& e)
     {
-        std::cerr << "Error applying chaos turbulence perturbations: " << e.what() << std::endl;
+        tmv::log_error("Error applying chaos turbulence perturbations: ", e.what());
     }
 }
 
@@ -711,7 +697,7 @@ void step_chaos_noise(double dt)
     } 
     catch (const std::exception& e) 
     {
-        std::cerr << "Error stepping chaos noise: " << e.what() << std::endl;
+        tmv::log_error("Error stepping chaos noise: ", e.what());
     }
 }
 

@@ -8,7 +8,7 @@
  */
 
 #pragma once
-#include "chaos_base.hpp"
+#include "physics/chaos_base.hpp"
 #include "chaos/base/random_generator.hpp"
 #include "chaos/base/correlation_filter.hpp"
 

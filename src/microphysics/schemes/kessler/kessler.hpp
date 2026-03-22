@@ -9,7 +9,7 @@
 
 #pragma once
 #include "microphysics/base/thermodynamics.hpp"
-#include "microphysics_base.hpp"
+#include "physics/microphysics_base.hpp"
 
 /**
  * @brief Implements the Kessler scheme for microphysics.

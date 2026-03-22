@@ -10,7 +10,7 @@
 #pragma once
 #include <memory>
 #include <string>
-#include "radiation_base.hpp"
+#include "physics/radiation_base.hpp"
 
 class SimpleGreyScheme;
 
@@ -23,3 +23,18 @@ std::unique_ptr<RadiationSchemeBase> create_radiation_scheme(const std::string& 
  * @brief Returns names of available radiation schemes.
  */
 std::vector<std::string> get_available_radiation_schemes();
+
+/**
+ * @brief Returns canonical identifiers for implemented and planned schemes.
+ */
+std::vector<std::string> get_known_radiation_schemes();
+
+/**
+ * @brief Canonicalizes configured scheme aliases.
+ */
+std::string canonicalize_radiation_scheme_id(const std::string& scheme_name);
+
+/**
+ * @brief Reports whether a canonicalized scheme has a runtime implementation.
+ */
+bool is_radiation_scheme_implemented(const std::string& scheme_name);

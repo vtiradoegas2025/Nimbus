@@ -1,5 +1,13 @@
 CXX := g++
-CXXFLAGS := -std=c++17 -O3 -march=native -mtune=native -I include -I src
+CXXFLAGS := -std=c++17 -O3 -march=native -mtune=native -I include -I src -I vulkan/include
+UNAME_S := $(shell uname -s)
+BREW_PREFIX := $(shell brew --prefix 2>/dev/null)
+ifneq ($(BREW_PREFIX),)
+  VULKAN_HEADERS_PREFIX := $(shell brew --prefix vulkan-headers 2>/dev/null)
+  ifneq ($(VULKAN_HEADERS_PREFIX),)
+    CXXFLAGS += -I$(VULKAN_HEADERS_PREFIX)/include
+  endif
+endif
 # Detect OpenMP support - handle both g++ and clang++
 # On macOS, g++ is actually clang++, so check for libomp
 # Try to find libomp via brew
@@ -47,18 +55,30 @@ ifeq ($(LIBOMP_PATH),)
   endif
 endif
 OPENMP_LDLIBS := $(OPENMP_LIB)
-# Optional: uncomment to see vectorization reports
-# CXXFLAGS += -ftree-vectorize -fopt-info-vec
 # Optional GUI (SFML) support; default off
 GUI ?= 0
 # Optional: enable slice export from GUI with S key
-# Default to enabled for data export functionality
 EXPORT_NPY ?= 1
 ifeq ($(EXPORT_NPY),1)
   CXXFLAGS += -DEXPORT_NPY
 endif
+# Optional: ZFP scientific compression (install: brew install zfp)
+ZFP ?= 0
+ifeq ($(ZFP),1)
+  ZFP_PREFIX := $(shell brew --prefix zfp 2>/dev/null)
+  ifneq ($(ZFP_PREFIX),)
+    CXXFLAGS += -DHAVE_ZFP -I$(ZFP_PREFIX)/include
+    LDLIBS += -L$(ZFP_PREFIX)/lib -lzfp
+  else
+    $(warning ZFP=1 but zfp library not found via brew; building without ZFP)
+  endif
+endif
+
+# ---------------------------------------------------------------------------
+# Source files
+# ---------------------------------------------------------------------------
 VALIDATION_SRCS := src/validation/field_contract.cpp src/validation/field_validation.cpp
-SRCS := src/core/equations.cpp src/core/dynamics.cpp src/core/tornado_sim.cpp src/core/headless_runtime.cpp src/core/runtime_config.cpp src/core/radiation.cpp src/core/boundary_layer.cpp src/core/turbulence.cpp src/core/numerics.cpp src/core/simd_utils.cpp \
+SRCS := src/core/equations.cpp src/core/dynamics.cpp src/core/tornado_sim.cpp src/core/headless_runtime.cpp src/core/runtime_config.cpp src/core/compute_backend.cpp src/core/compute_kernel_template.cpp src/core/hardware_info.cpp src/core/npy_writer.cpp src/core/output_config.cpp src/core/output_writer.cpp src/core/shm_writer.cpp src/core/radiation.cpp src/core/boundary_layer.cpp src/core/turbulence.cpp src/core/numerics.cpp src/core/simd_utils.cpp \
          src/advection/advection.cpp \
          src/core/radar.cpp \
          src/radar/base/radar_base.cpp \
@@ -115,15 +135,17 @@ SRCS := src/core/equations.cpp src/core/dynamics.cpp src/core/tornado_sim.cpp sr
          src/terrain/schemes/bell/bell.cpp \
          src/terrain/schemes/schar/schar.cpp \
          src/terrain/schemes/none.cpp \
+         vulkan/src/compute/compute_backend_vulkan.cpp \
          $(VALIDATION_SRCS)
-FIELD_VALIDATOR_SRCS := src/tools/field_validator.cpp $(VALIDATION_SRCS) vulkan/src/npy_reader.cpp
-RADIATION_REGRESSION_SRCS := tests/radiation_regression.cpp src/radiation/base/radiative_transfer.cpp
-SOUNDINGS_REGRESSION_SRCS := tests/test_soundings.cpp src/soundings/base/soundings_base.cpp src/soundings/factory.cpp src/soundings/schemes/sharpy/sharpy_sounding.cpp
-TERRAIN_REGRESSION_SRCS := tests/terrain_regression.cpp src/core/terrain.cpp src/terrain/base/topography.cpp src/terrain/factory.cpp src/terrain/schemes/bell/bell.cpp src/terrain/schemes/schar/schar.cpp src/terrain/schemes/none.cpp
+FIELD_VALIDATOR_SRCS := src/tools/field_validator.cpp $(VALIDATION_SRCS) vulkan/src/data/npy_reader.cpp
+BACKEND_COMMON_SRCS := src/core/compute_kernel_template.cpp src/core/compute_backend.cpp src/core/hardware_info.cpp src/core/simd_utils.cpp vulkan/src/compute/compute_backend_vulkan.cpp
+
 CPPFLAGS :=
 LDLIBS := $(OPENMP_LDLIBS)
+ifeq ($(UNAME_S),Linux)
+  LDLIBS += -ldl
+endif
 ifeq ($(GUI),1)
-  # Detect SFML via pkg-config if available; fallback to Homebrew prefix
   PKG_CONFIG := $(shell command -v pkg-config 2>/dev/null)
   ifeq ($(PKG_CONFIG),)
     SFML_PREFIX ?= $(shell brew --prefix sfml 2>/dev/null)
@@ -137,11 +159,12 @@ ifeq ($(GUI),1)
   LDLIBS += $(SFML_LIBS)
   SRCS += src/core/gui.cpp
 endif
+
+# ---------------------------------------------------------------------------
+# Main binary
+# ---------------------------------------------------------------------------
 BIN := bin/tornado_sim
 FIELD_VALIDATOR := bin/field_validator
-RADIATION_REGRESSION_BIN := bin/radiation_regression_test
-SOUNDINGS_REGRESSION_BIN := bin/soundings_regression_test
-TERRAIN_REGRESSION_BIN := bin/terrain_regression_test
 
 $(BIN): $(SRCS) | bin
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(SRCS) $(LDLIBS) -o $(BIN)
@@ -149,21 +172,22 @@ $(BIN): $(SRCS) | bin
 $(FIELD_VALIDATOR): $(FIELD_VALIDATOR_SRCS) | bin
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -I vulkan/include $(FIELD_VALIDATOR_SRCS) $(LDLIBS) -o $(FIELD_VALIDATOR)
 
-$(RADIATION_REGRESSION_BIN): $(RADIATION_REGRESSION_SRCS) | bin
-	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(RADIATION_REGRESSION_SRCS) $(LDLIBS) -o $(RADIATION_REGRESSION_BIN)
-
-$(SOUNDINGS_REGRESSION_BIN): $(SOUNDINGS_REGRESSION_SRCS) | bin
-	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(SOUNDINGS_REGRESSION_SRCS) $(LDLIBS) -o $(SOUNDINGS_REGRESSION_BIN)
-
-$(TERRAIN_REGRESSION_BIN): $(TERRAIN_REGRESSION_SRCS) | bin
-	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(TERRAIN_REGRESSION_SRCS) $(LDLIBS) -o $(TERRAIN_REGRESSION_BIN)
-
 bin:
 	mkdir -p bin
 
-.PHONY: run clean clean-vulkan vulkan run-vulkan legacy validate-fields test-guards test-backend-physics test-radiation-regression test-soundings test-terrain-regression test
 run: $(BIN)
 	./$(BIN)
+
+# ---------------------------------------------------------------------------
+# Vulkan viewer and compute shaders
+# ---------------------------------------------------------------------------
+vulkan-compute-shaders:
+	@GLSLANG=$$(command -v glslangValidator 2>/dev/null); \
+	if [ -n "$$GLSLANG" ]; then \
+		for comp in vulkan/shaders/compute/*.comp; do \
+			[ -f "$$comp" ] && $$GLSLANG -V -S comp "$$comp" -o "$$comp.spv"; \
+		done; \
+	fi
 
 vulkan:
 	$(MAKE) -C vulkan
@@ -174,29 +198,135 @@ run-vulkan: vulkan
 validate-fields: $(FIELD_VALIDATOR)
 	./$(FIELD_VALIDATOR) --input data/exports --contract cm1 --mode report --json data/exports/validation_dataset_report.json
 
-test-guards: $(BIN) $(FIELD_VALIDATOR)
-	bash ./tests/test_guards.sh
+# ---------------------------------------------------------------------------
+# Catch2 Test Suite
+# ---------------------------------------------------------------------------
+TEST_INFRA := tests/test_main.cpp tests/test_harness.cpp
+TEST_CXXFLAGS := $(CXXFLAGS) -O0 -I tests
 
-test-backend-physics: $(BIN) $(FIELD_VALIDATOR)
-	bash ./tests/test_backend_physics.sh
+# Core tests
+bin/test_core_field: $(TEST_INFRA) tests/core/test_field3d.cpp tests/core/test_field_pool.cpp | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
 
-test-radiation-regression: $(RADIATION_REGRESSION_BIN)
-	bash ./tests/test_radiation_regression.sh
+bin/test_core_output: $(TEST_INFRA) tests/core/test_output_config.cpp src/core/output_config.cpp | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
 
-test-soundings: $(SOUNDINGS_REGRESSION_BIN)
-	./$(SOUNDINGS_REGRESSION_BIN)
+bin/test_core_hardware: $(TEST_INFRA) tests/core/test_hardware_info.cpp src/core/hardware_info.cpp src/core/simd_utils.cpp | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
 
-test-terrain-regression: $(TERRAIN_REGRESSION_BIN)
-	./$(TERRAIN_REGRESSION_BIN)
+bin/test_core_npy: $(TEST_INFRA) tests/core/test_npy_writer.cpp src/core/npy_writer.cpp | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
 
-test: test-guards test-radiation-regression test-terrain-regression
+bin/test_core_output_writer: $(TEST_INFRA) tests/core/test_output_writer.cpp src/core/output_writer.cpp src/core/output_config.cpp src/core/npy_writer.cpp | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
 
+bin/test_core_shm: $(TEST_INFRA) tests/core/test_shm_transport.cpp src/core/shm_writer.cpp | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
+
+# Diagnostics tests
+bin/test_diagnostics_contract: $(TEST_INFRA) tests/diagnostics/test_field_contract.cpp src/validation/field_contract.cpp | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
+
+bin/test_diagnostics_validation: $(TEST_INFRA) tests/diagnostics/test_field_validation.cpp src/validation/field_validation.cpp src/validation/field_contract.cpp | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
+
+# Numerics tests
+bin/test_numerics_advection: $(TEST_INFRA) tests/numerics/test_advection_tvd.cpp src/numerics/advection/factory.cpp src/numerics/advection/schemes/tvd/tvd.cpp src/numerics/advection/schemes/weno5/weno5.cpp src/advection/advection.cpp $(BACKEND_COMMON_SRCS) | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
+
+bin/test_numerics_diffusion: $(TEST_INFRA) tests/numerics/test_diffusion.cpp src/numerics/diffusion/factory.cpp src/numerics/diffusion/schemes/explicit/explicit.cpp src/numerics/diffusion/schemes/implicit/implicit.cpp $(BACKEND_COMMON_SRCS) | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
+
+bin/test_numerics_timestepping: $(TEST_INFRA) tests/numerics/test_time_stepping.cpp src/numerics/time_stepping/factory.cpp src/numerics/time_stepping/schemes/rk3/rk3.cpp src/numerics/time_stepping/schemes/rk4/rk4.cpp | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
+
+# Physics tests
+bin/test_physics_microphysics: $(TEST_INFRA) tests/physics/test_microphysics.cpp src/microphysics/factory.cpp src/microphysics/schemes/kessler/kessler.cpp src/microphysics/schemes/lin/lin.cpp src/microphysics/schemes/thompson/thompson.cpp src/microphysics/schemes/milbrandt/milbrandt.cpp src/microphysics/base/thermodynamics.cpp $(BACKEND_COMMON_SRCS) | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
+
+bin/test_physics_radiation: $(TEST_INFRA) tests/physics/test_radiation.cpp src/radiation/factory.cpp src/radiation/base/radiative_transfer.cpp src/radiation/schemes/simple_grey/simple_grey.cpp | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
+
+bin/test_physics_terrain: $(TEST_INFRA) tests/physics/test_terrain.cpp src/terrain/base/topography.cpp src/terrain/factory.cpp src/terrain/schemes/bell/bell.cpp src/terrain/schemes/schar/schar.cpp src/terrain/schemes/none.cpp | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
+
+# Data tests
+bin/test_data_soundings: $(TEST_INFRA) tests/data/test_soundings.cpp src/soundings/factory.cpp src/soundings/base/soundings_base.cpp src/soundings/schemes/sharpy/sharpy_sounding.cpp | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
+
+# Vulkan/compute tests
+bin/test_vulkan_backend: $(TEST_INFRA) tests/vulkan/test_compute_backend.cpp $(BACKEND_COMMON_SRCS) | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
+
+bin/test_vulkan_gpu_parity: $(TEST_INFRA) tests/vulkan/test_gpu_parity.cpp $(BACKEND_COMMON_SRCS) src/microphysics/factory.cpp src/microphysics/schemes/kessler/kessler.cpp src/microphysics/schemes/lin/lin.cpp src/microphysics/schemes/thompson/thompson.cpp src/microphysics/schemes/milbrandt/milbrandt.cpp src/microphysics/base/thermodynamics.cpp | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
+
+# Integration tests
+bin/test_integration: $(TEST_INFRA) tests/integration/test_config_presets.cpp tests/integration/test_performance.cpp src/core/output_config.cpp src/core/npy_writer.cpp src/core/hardware_info.cpp src/core/simd_utils.cpp | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
+
+bin/test_shm_e2e: $(TEST_INFRA) tests/integration/test_shm_e2e.cpp src/core/shm_writer.cpp vulkan/src/data/shm_dataset.cpp | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
+
+CATCH2_BINS := bin/test_core_field bin/test_core_output bin/test_core_hardware bin/test_core_npy \
+               bin/test_core_output_writer bin/test_core_shm \
+               bin/test_diagnostics_contract bin/test_diagnostics_validation \
+               bin/test_numerics_advection bin/test_numerics_diffusion bin/test_numerics_timestepping \
+               bin/test_physics_microphysics bin/test_physics_radiation bin/test_physics_terrain \
+               bin/test_data_soundings bin/test_vulkan_backend bin/test_vulkan_gpu_parity \
+               bin/test_integration bin/test_shm_e2e
+
+# ---------------------------------------------------------------------------
+# Test targets
+# ---------------------------------------------------------------------------
+.PHONY: run clean clean-vulkan vulkan vulkan-compute-shaders run-vulkan validate-fields \
+        test test-all test-core test-diagnostics test-numerics test-physics test-data \
+        test-vulkan test-integration test-shm-e2e smoke-test smoke-test-e2e benchmark-point2
+
+test-core: bin/test_core_field bin/test_core_output bin/test_core_hardware bin/test_core_npy bin/test_core_output_writer bin/test_core_shm
+	./bin/test_core_field && ./bin/test_core_output && ./bin/test_core_hardware && ./bin/test_core_npy && ./bin/test_core_output_writer && ./bin/test_core_shm
+
+test-diagnostics: bin/test_diagnostics_contract bin/test_diagnostics_validation
+	./bin/test_diagnostics_contract && ./bin/test_diagnostics_validation
+
+test-numerics: bin/test_numerics_advection bin/test_numerics_diffusion bin/test_numerics_timestepping
+	./bin/test_numerics_advection && ./bin/test_numerics_diffusion && ./bin/test_numerics_timestepping
+
+test-physics: bin/test_physics_microphysics bin/test_physics_radiation bin/test_physics_terrain
+	./bin/test_physics_microphysics && ./bin/test_physics_radiation && ./bin/test_physics_terrain
+
+test-data: bin/test_data_soundings
+	./bin/test_data_soundings
+
+test-vulkan: bin/test_vulkan_backend bin/test_vulkan_gpu_parity
+	./bin/test_vulkan_backend && ./bin/test_vulkan_gpu_parity
+
+test-integration: bin/test_integration
+	./bin/test_integration
+
+test-shm-e2e: bin/test_shm_e2e
+	./bin/test_shm_e2e
+
+test: test-core test-diagnostics test-numerics test-physics test-data test-vulkan test-integration test-shm-e2e
+	@echo "=== All tests passed ==="
+
+smoke-test: $(BIN)
+	./$(BIN) --headless --config=configs/student.yaml --duration=5 2>/dev/null && echo "[smoke-test] PASS"
+
+smoke-test-e2e: $(BIN) $(VULKAN_BIN)
+	bash ./tools/smoke_test_e2e.sh
+
+test-all: test smoke-test smoke-test-e2e
+
+benchmark-point2: $(BIN)
+	bash ./tools/benchmark_point2_first_kernel_offload.sh
+
+# ---------------------------------------------------------------------------
+# Clean
+# ---------------------------------------------------------------------------
 clean-vulkan:
 	$(MAKE) -C vulkan clean
 
 clean:
-	rm -f $(BIN) $(FIELD_VALIDATOR) $(RADIATION_REGRESSION_BIN) $(SOUNDINGS_REGRESSION_BIN) $(TERRAIN_REGRESSION_BIN)
+	rm -f $(BIN) $(FIELD_VALIDATOR) $(CATCH2_BINS)
 	@$(MAKE) -C vulkan clean >/dev/null 2>&1 || true
-
-legacy:
-	@echo "Legacy modules are archived under ./legacy"

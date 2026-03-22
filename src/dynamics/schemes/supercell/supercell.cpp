@@ -8,10 +8,15 @@
  */
 
 #include "supercell.hpp"
-#include "simulation.hpp"
-#include "grid_metric_utils.hpp"
+#include "core/simulation.hpp"
+#include "numerics/compute_kernel_template.hpp"
+#include "util/grid_metric_utils.hpp"
 #include <cmath>
 #include <algorithm>
+
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 /**
  * @brief Initializes the supercell scheme.
@@ -40,11 +45,12 @@ void SupercellScheme::compute_momentum_tendencies(
     Field3D& drho_dt,
     Field3D& dp_dt)
 {
-    for (int i = 0; i < NR_; ++i) 
+    #pragma omp parallel for collapse(2)
+    for (int i = 0; i < NR_; ++i)
     {
-        for (int j = 0; j < NTH_; ++j) 
+        for (int j = 0; j < NTH_; ++j)
         {
-            for (int k = 0; k < NZ_; ++k) 
+            for (int k = 0; k < NZ_; ++k)
             {
                 du_r_dt[i][j][k] = 0.0f;
                 du_theta_dt[i][j][k] = 0.0f;
@@ -55,12 +61,29 @@ void SupercellScheme::compute_momentum_tendencies(
         }
     }
 
-    for (int i = 1; i < NR_ - 1; ++i) 
+    // Try GPU dispatch for interior points (only when terrain metrics are NOT active)
+    if (!grid_metric::has_terrain_metrics(global_grid_metrics) &&
+        dispatch_supercell_tendencies_backend(
+            u_r.data(), u_theta.data(), u_z.data(),
+            rho.data(), p.data(), theta.data(),
+            du_r_dt.data(), du_theta_dt.data(), du_z_dt.data(),
+            drho_dt.data(), dp_dt.data(),
+            NR_, NTH_, NZ_,
+            static_cast<float>(dr_), static_cast<float>(dtheta_), static_cast<float>(dz_),
+            static_cast<float>(dynamics_constants::g),
+            static_cast<float>(dynamics_constants::gamma),
+            static_cast<float>(dynamics_constants::theta0)))
     {
-        double r = i * dr_ + dynamics_constants::eps; 
+        return;
+    }
 
-        for (int j = 0; j < NTH_; ++j) 
+    // CPU fallback
+    #pragma omp parallel for collapse(2)
+    for (int i = 1; i < NR_ - 1; ++i)
+    {
+        for (int j = 0; j < NTH_; ++j)
         {
+            double r = i * dr_ + dynamics_constants::eps;
             int j_prev = (j - 1 + NTH_) % NTH_;
             int j_next = (j + 1) % NTH_;
 
@@ -162,13 +185,13 @@ void SupercellScheme::compute_vorticity_diagnostics(
     Field3D& tilting_term,
     Field3D& baroclinic_term)
 {
-    for (int i = 1; i < NR_ - 1; ++i) 
+    #pragma omp parallel for collapse(2)
+    for (int i = 1; i < NR_ - 1; ++i)
     {
-        double r = i * dr_ + dynamics_constants::eps;
-
-        for (int j = 0; j < NTH_; ++j) 
+        for (int j = 0; j < NTH_; ++j)
         {
-            for (int k = 1; k < NZ_ - 1; ++k) 
+            double r = i * dr_ + dynamics_constants::eps;
+            for (int k = 1; k < NZ_ - 1; ++k)
             {
                 double duth_dz = compute_dz(u_theta, i, j, k);
                 double duz_dth = compute_dtheta(u_z, i, j, k);
@@ -251,11 +274,12 @@ void SupercellScheme::compute_pressure_diagnostics(
     Field3D& buoyancy_pressure)
 {
 
-    for (int i = 1; i < NR_ - 1; ++i) 
+    #pragma omp parallel for collapse(2)
+    for (int i = 1; i < NR_ - 1; ++i)
     {
-        for (int j = 0; j < NTH_; ++j) 
+        for (int j = 0; j < NTH_; ++j)
         {
-            for (int k = 1; k < NZ_ - 1; ++k) 
+            for (int k = 1; k < NZ_ - 1; ++k)
             {
                 double dur_dr = compute_dr(u_r, i, j, k);
                 double dur_dth = compute_dtheta(u_r, i, j, k);

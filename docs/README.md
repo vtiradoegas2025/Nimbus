@@ -1,12 +1,12 @@
-# SupercellModel Technical Reference
+# Nimbus Technical Reference
 
-This document is the technical entry point for the active SupercellModel codebase.
+This document is the technical entry point for the active Nimbus codebase.
 
 For current project state, gaps, and recent validation outcomes, see [STATUS.md](STATUS.md).
 
 ## Scope
 
-SupercellModel is a research atmospheric model for supercell/tornado dynamics with:
+Nimbus is a research atmospheric model for supercell/tornado dynamics with:
 - C++17 simulation runtime (`bin/tornado_sim`)
 - Modular physics factories (microphysics, turbulence, PBL, radar, terrain, chaos, soundings)
 - Native Vulkan renderer (`bin/vulkan_viewer`) for direct NPY export ingest
@@ -138,7 +138,8 @@ Example offline validation:
 
 The soundings pipeline currently supports:
 - Native in-process NetCDF classic parsing (CDF1/CDF2)
-- Python extractor fallback for HDF5/NetCDF4 or unsupported layouts
+- Native NetCDF C API ingest for NetCDF4/HDF-backed layouts
+- Native HDF5 (HL API) ingest for SHARPY-style dataset layouts
 
 See `src/soundings/README.md` for full details and test workflow.
 
@@ -160,7 +161,7 @@ From the current contract/QA baseline:
 - Required-now exported field set is covered.
 - Remaining backlog is primarily diagnostic breadth (surface, column, trajectory, synthetic sweep products).
 - Terrain/chaos are integrated, but broader science calibration remains ongoing.
-- Radiation currently exposes `simple_grey`; RRTMG remains planned.
+- Radiation runtime remains `simple_grey` by default; `rrtmg` is recognized as a planned interface target.
 
 See [STATUS.md](STATUS.md) for the dated audit snapshot.
 

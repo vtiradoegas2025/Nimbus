@@ -7,10 +7,10 @@
  * This file is part of the src/tools subsystem.
  */
 
-#include "field_contract.hpp"
-#include "field_validation.hpp"
-#include "string_utils.hpp"
-#include "npy_reader.hpp"
+#include "diagnostics/field_contract.hpp"
+#include "diagnostics/field_validation.hpp"
+#include "util/string_utils.hpp"
+#include "data/npy_reader.hpp"
 
 #include <algorithm>
 #include <filesystem>

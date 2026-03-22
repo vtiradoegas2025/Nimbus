@@ -7,10 +7,11 @@
  * This file belongs to the primary src/core execution layer.
  */
 
-#include "simulation.hpp"
-#include "boundary_layer_base.hpp"
-#include "radiation_base.hpp"
+#include "core/simulation.hpp"
+#include "physics/boundary_layer_base.hpp"
+#include "physics/radiation_base.hpp"
 #include "radiation/factory.hpp"
+#include "util/log.hpp"
 #include <algorithm>
 #include <iostream>
 #include <vector>
@@ -59,45 +60,51 @@ void initialize_radiation(const std::string& scheme_name, const RadiationConfig&
     try 
     {
         global_radiation_config = cfg;
-        global_radiation_config.scheme_id = scheme_name;
+        const std::string requested_scheme = scheme_name;
+        std::string resolved_scheme = canonicalize_radiation_scheme_id(scheme_name);
+        if (resolved_scheme.empty())
+        {
+            resolved_scheme = "simple_grey";
+        }
+        if (!is_radiation_scheme_implemented(resolved_scheme))
+        {
+            tmv::log_warn("[RADIATION CONFIG] Requested scheme '", requested_scheme,
+                         "' maps to '", resolved_scheme,
+                         "', which is known but not implemented in this build. ",
+                         "Using default 'simple_grey'.");
+            resolved_scheme = "simple_grey";
+        }
+        global_radiation_config.scheme_id = resolved_scheme;
 
         if (!std::isfinite(global_radiation_config.dt_radiation) || global_radiation_config.dt_radiation <= 0.0)
         {
-            std::cerr << "[RADIATION CONFIG] Invalid dt_radiation="
-                      << global_radiation_config.dt_radiation
-                      << "; using default " << k_default_radiation_dt << " s" << std::endl;
+            tmv::log_warn("[RADIATION CONFIG] Invalid dt_radiation=", global_radiation_config.dt_radiation, "; using default ", k_default_radiation_dt, " s");
             global_radiation_config.dt_radiation = k_default_radiation_dt;
         }
         if (!std::isfinite(global_radiation_config.tau_lw_ref) || global_radiation_config.tau_lw_ref < 0.0)
         {
-            std::cerr << "[RADIATION CONFIG] Invalid tau_lw_ref="
-                      << global_radiation_config.tau_lw_ref
-                      << "; using default " << k_default_tau_lw_ref << std::endl;
+            tmv::log_warn("[RADIATION CONFIG] Invalid tau_lw_ref=", global_radiation_config.tau_lw_ref, "; using default ", k_default_tau_lw_ref);
             global_radiation_config.tau_lw_ref = k_default_tau_lw_ref;
         }
         if (!std::isfinite(global_radiation_config.tau_sw_ref) || global_radiation_config.tau_sw_ref < 0.0)
         {
-            std::cerr << "[RADIATION CONFIG] Invalid tau_sw_ref="
-                      << global_radiation_config.tau_sw_ref
-                      << "; using default " << k_default_tau_sw_ref << std::endl;
+            tmv::log_warn("[RADIATION CONFIG] Invalid tau_sw_ref=", global_radiation_config.tau_sw_ref, "; using default ", k_default_tau_sw_ref);
             global_radiation_config.tau_sw_ref = k_default_tau_sw_ref;
         }
         if (!std::isfinite(global_radiation_config.n_lw) || global_radiation_config.n_lw <= 0.0)
         {
-            std::cerr << "[RADIATION CONFIG] Invalid n_lw=" << global_radiation_config.n_lw
-                      << "; using default " << k_default_n_lw << std::endl;
+            tmv::log_warn("[RADIATION CONFIG] Invalid n_lw=", global_radiation_config.n_lw, "; using default ", k_default_n_lw);
             global_radiation_config.n_lw = k_default_n_lw;
         }
         if (!std::isfinite(global_radiation_config.n_sw) || global_radiation_config.n_sw <= 0.0)
         {
-            std::cerr << "[RADIATION CONFIG] Invalid n_sw=" << global_radiation_config.n_sw
-                      << "; using default " << k_default_n_sw << std::endl;
+            tmv::log_warn("[RADIATION CONFIG] Invalid n_sw=", global_radiation_config.n_sw, "; using default ", k_default_n_sw);
             global_radiation_config.n_sw = k_default_n_sw;
         }
 
-        radiation_scheme = create_radiation_scheme(scheme_name);
+        radiation_scheme = create_radiation_scheme(global_radiation_config.scheme_id);
         radiation_scheme->initialize(global_radiation_config);
-        std::cout << "Initialized radiation scheme: " << scheme_name << std::endl;
+        tmv::log_info("Initialized radiation scheme: ", global_radiation_config.scheme_id);
 
         dtheta_dt_rad.resize(NR, NTH, NZ, 0.0f);
         last_radiation_time = -global_radiation_config.dt_radiation;
@@ -105,7 +112,7 @@ void initialize_radiation(const std::string& scheme_name, const RadiationConfig&
     } 
     catch (const std::exception& e) 
     {
-        std::cerr << "Error initializing radiation: " << e.what() << std::endl;
+        tmv::log_error("Error initializing radiation: ", e.what());
         throw;
     }
 }
@@ -168,10 +175,10 @@ void step_radiation(double current_time)
                     double z = k * dz;
                     T_col[k] = theta0 - 0.0065 * z;
 
-                    if (i == 0 && j == 0 && k < 3) 
+                    if (i == 0 && j == 0 && k < 3)
                     {
-                        std::cerr << "[RADIATION WARNING] Invalid theta/p at i=" << i << ",j=" << j << ",k=" << k 
-                                  << ": theta=" << theta_val << "K, p=" << p_val << "Pa, using default T=" << T_col[k] << "K" << std::endl;
+                        tmv::log_warn("[RADIATION WARNING] Invalid theta/p at i=", i, ",j=", j, ",k=", k,
+                                      ": theta=", theta_val, "K, p=", p_val, "Pa, using default T=", T_col[k], "K");
                     }
                 } 
                 else 
@@ -255,11 +262,10 @@ void step_radiation(double current_time)
 
     if (sanitized_nonfinite > 0)
     {
-        std::cerr << "[RADIATION GUARD] sanitized non-finite tendencies: " << sanitized_nonfinite << std::endl;
+        tmv::log_warn("[RADIATION GUARD] sanitized non-finite tendencies: ", sanitized_nonfinite);
     }
     if (tendency_shape_mismatch_columns > 0)
     {
-        std::cerr << "[RADIATION GUARD] columns with malformed tendency sizes: "
-                  << tendency_shape_mismatch_columns << std::endl;
+        tmv::log_warn("[RADIATION GUARD] columns with malformed tendency sizes: ", tendency_shape_mismatch_columns);
     }
 }

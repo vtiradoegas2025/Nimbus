@@ -7,7 +7,7 @@
  * This file is part of the src/radar subsystem.
  */
 
-#include "radar_base.hpp"
+#include "diagnostics/radar_base.hpp"
 #include <cmath>
 #include <algorithm>
 

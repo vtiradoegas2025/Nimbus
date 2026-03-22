@@ -10,7 +10,7 @@
 #pragma once
 #include <memory>
 #include <string>
-#include "advection_base.hpp"
+#include "numerics/advection_base.hpp"
 
 class TVDScheme;
 class WENO5Scheme;

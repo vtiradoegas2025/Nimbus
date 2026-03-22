@@ -10,55 +10,35 @@
 #include "factory.hpp"
 #include "schemes/smagorinsky/smagorinsky.hpp"
 #include "schemes/tke/tke.hpp"
-#include <algorithm>
-#include <cctype>
+#include "util/scheme_factory.hpp"
 
 namespace
 {
-/**
- * @brief Normalizes turbulence scheme names and aliases.
- */
-std::string normalize_scheme_name(std::string value)
-{
-    std::transform(value.begin(), value.end(), value.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-
-    if (value == "smag" || value == "smagorinsky_lilly" || value == "smagorinsky-lilly")
-    {
-        return "smagorinsky";
-    }
-    if (value == "1.5" || value == "1.5order" || value == "1.5-order")
-    {
-        return "tke";
-    }
-    return value;
-}
+const tmv::SchemeRegistry<TurbulenceSchemeBase> registry({
+    {"smagorinsky", [] { return std::make_unique<SmagorinskyScheme>(); }},
+    {"tke",         [] { return std::make_unique<TKEScheme>(); }},
+}, {
+    {"smag",              "smagorinsky"},
+    {"smagorinsky_lilly", "smagorinsky"},
+    {"smagorinsky-lilly", "smagorinsky"},
+    {"1.5",               "tke"},
+    {"1.5order",          "tke"},
+    {"1.5-order",         "tke"},
+});
 }
 
 /**
  * @brief Creates a turbulence scheme instance from configured id.
  */
-std::unique_ptr<TurbulenceSchemeBase> create_turbulence_scheme(const std::string& scheme_name) 
+std::unique_ptr<TurbulenceSchemeBase> create_turbulence_scheme(const std::string& scheme_name)
 {
-    const std::string normalized = normalize_scheme_name(scheme_name);
-    if (normalized == "smagorinsky") 
-    {
-        return std::make_unique<SmagorinskyScheme>();
-    }
-    else if (normalized == "tke") 
-    {
-        return std::make_unique<TKEScheme>();
-    }
-    else 
-    {
-        throw std::runtime_error("Unknown turbulence scheme: " + scheme_name);
-    }
+    return registry.create("turbulence", scheme_name);
 }
 
 /**
  * @brief Gets the available turbulence schemes.
  */
-std::vector<std::string> get_available_turbulence_schemes() 
+std::vector<std::string> get_available_turbulence_schemes()
 {
-    return {"smagorinsky", "tke"};
+    return registry.available_ids();
 }

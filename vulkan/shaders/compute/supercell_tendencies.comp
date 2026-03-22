@@ -1,0 +1,166 @@
+// supercell_tendencies.comp
+//
+// GLSL compute shader implementing supercell momentum tendencies.
+//
+// GPU equivalent of SupercellScheme::compute_momentum_tendencies
+// in src/dynamics/schemes/supercell/supercell.cpp.
+//
+// Each invocation processes one interior grid point (i,j,k).
+// Periodic boundary conditions in theta via modulo arithmetic.
+// Boundary points in r (i=0, i=NR-1) and z (k=0, k=NZ-1) are skipped.
+//
+// Data layout is row-major [nr][nth][nz].
+//
+// Computes 5 output tendency fields from 6 input state fields using
+// centered finite differences (3-point stencil) for all spatial derivatives.
+//
+// NOTE: This shader assumes uniform grid spacing (no terrain metrics).
+// The CPU dispatch guard checks for terrain and falls back if active.
+
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+// Input fields (6 SSBOs, readonly)
+layout(set = 0, binding = 0) readonly buffer URadialBuf    { float u_r[];     };
+layout(set = 0, binding = 1) readonly buffer UThetaBuf     { float u_theta[]; };
+layout(set = 0, binding = 2) readonly buffer UVerticalBuf  { float u_z[];     };
+layout(set = 0, binding = 3) readonly buffer RhoBuf        { float rho[];     };
+layout(set = 0, binding = 4) readonly buffer PressureBuf   { float pressure[];};
+layout(set = 0, binding = 5) readonly buffer ThetaBuf      { float theta[];   };
+
+// Output tendency fields (5 SSBOs)
+layout(set = 0, binding = 6)  buffer DuRadialDtBuf  { float du_r_dt[];     };
+layout(set = 0, binding = 7)  buffer DuThetaDtBuf   { float du_theta_dt[]; };
+layout(set = 0, binding = 8)  buffer DuVertDtBuf    { float du_z_dt[];     };
+layout(set = 0, binding = 9)  buffer DrhoDtBuf      { float drho_dt[];     };
+layout(set = 0, binding = 10) buffer DpDtBuf        { float dp_dt[];       };
+
+// Push constants (40 bytes)
+layout(push_constant) uniform PushConstants {
+    int   nr;
+    int   nth;
+    int   nz;
+    float dr;
+    float dtheta;
+    float dz_val;
+    float g;
+    float gamma_val;
+    float theta0;
+    float padding;
+};
+
+// Small epsilon for cylindrical singularity at r=0
+// Matches dynamics_constants::eps = 1e-8
+const float EPS = 1.0e-8;
+
+// Minimum density threshold for safe division
+const float RHO_MIN = 1.0e-6;
+
+// Sanitize tendency: replace NaN/Inf with 0
+float sanitize(float val) {
+    return (isnan(val) || isinf(val)) ? 0.0 : val;
+}
+
+void main() {
+    uint gid = gl_GlobalInvocationID.x;
+
+    int interior_nz = nz - 2;
+    int interior_nr = nr - 2;
+    uint total_interior = uint(interior_nr) * uint(nth) * uint(interior_nz);
+
+    if (gid >= total_interior) {
+        return;
+    }
+
+    // Map flat gid to (i_interior, j, k_interior)
+    int k_interior = int(gid % uint(interior_nz));
+    uint ij = gid / uint(interior_nz);
+    int j = int(ij % uint(nth));
+    int i_interior = int(ij / uint(nth));
+
+    int i = i_interior + 1;
+    int k = k_interior + 1;
+
+    // Cylindrical radius
+    float r = float(i) * dr + EPS;
+
+    // Periodic theta neighbors
+    int j_prev = (j - 1 + nth) % nth;
+    int j_next = (j + 1) % nth;
+
+    // Flat index helpers
+    uint c  = uint((i * nth + j) * nz + k);
+    uint ip = uint(((i + 1) * nth + j) * nz + k);
+    uint im = uint(((i - 1) * nth + j) * nz + k);
+    uint jp = uint((i * nth + j_next) * nz + k);
+    uint jm = uint((i * nth + j_prev) * nz + k);
+    uint kp = uint((i * nth + j) * nz + (k + 1));
+    uint km = uint((i * nth + j) * nz + (k - 1));
+
+    // Read center-point values
+    float ur  = u_r[c];
+    float uth = u_theta[c];
+    float uz  = u_z[c];
+    float rho_val = rho[c];
+    float p_val   = pressure[c];
+    float theta_val = theta[c];
+
+    // Safe density for division
+    float rho_safe = (rho_val > RHO_MIN && !isinf(rho_val)) ? rho_val : 1.0;
+
+    // Precompute inverse spacings for centered differences
+    float inv_2dr     = 1.0 / (2.0 * dr);
+    float inv_2dtheta = 1.0 / (2.0 * dtheta);
+    float inv_2dz     = 1.0 / (2.0 * dz_val);
+
+    // --- 12 centered finite differences ---
+
+    // u_r derivatives
+    float dur_dr  = (u_r[ip] - u_r[im]) * inv_2dr;
+    float dur_dth = (u_r[jp] - u_r[jm]) * inv_2dtheta;
+    float dur_dz  = (u_r[kp] - u_r[km]) * inv_2dz;
+
+    // u_theta derivatives
+    float duth_dr  = (u_theta[ip] - u_theta[im]) * inv_2dr;
+    float duth_dth = (u_theta[jp] - u_theta[jm]) * inv_2dtheta;
+    float duth_dz  = (u_theta[kp] - u_theta[km]) * inv_2dz;
+
+    // u_z derivatives
+    float duz_dr  = (u_z[ip] - u_z[im]) * inv_2dr;
+    float duz_dth = (u_z[jp] - u_z[jm]) * inv_2dtheta;
+    float duz_dz  = (u_z[kp] - u_z[km]) * inv_2dz;
+
+    // pressure derivatives
+    float dp_dr_val  = (pressure[ip] - pressure[im]) * inv_2dr;
+    float dp_dth_val = (pressure[jp] - pressure[jm]) * inv_2dtheta;
+    float dp_dz_val  = (pressure[kp] - pressure[km]) * inv_2dz;
+
+    // --- du_r/dt: advection + centrifugal + pressure gradient ---
+    float advective_r = -ur * dur_dr - (uth / r) * dur_dth - uz * dur_dz;
+    float centrifugal = uth * uth / r;
+    float pressure_grad_r = -dp_dr_val / rho_safe;
+    du_r_dt[c] = sanitize(advective_r + centrifugal + pressure_grad_r);
+
+    // --- du_theta/dt: advection + Coriolis + pressure gradient ---
+    float advective_th = -ur * duth_dr - (uth / r) * duth_dth - uz * duth_dz;
+    float coriolis_th = -ur * uth / r;
+    float pressure_grad_th = -dp_dth_val / (rho_safe * r);
+    du_theta_dt[c] = sanitize(advective_th + coriolis_th + pressure_grad_th);
+
+    // --- du_z/dt: advection + pressure gradient + buoyancy - gravity ---
+    float advective_z = -ur * duz_dr - (uth / r) * duz_dth - uz * duz_dz;
+    float pressure_grad_z = -dp_dz_val / rho_safe;
+    float theta_prime = theta_val - theta0;
+    float buoyancy = g * (theta_prime / theta0);
+    du_z_dt[c] = sanitize(advective_z + pressure_grad_z - g + buoyancy);
+
+    // --- drho/dt: mass continuity ---
+    float divergence = dur_dr + duz_dz + ur / r + duth_dth / r;
+    drho_dt[c] = sanitize(-rho_safe * divergence);
+
+    // --- dp/dt: pressure tendency ---
+    float gamma_term = gamma_val * p_val * divergence;
+    float advection_p = -ur * dp_dr_val - (uth / r) * dp_dth_val - uz * dp_dz_val;
+    dp_dt[c] = sanitize(-gamma_term + advection_p);
+}

@@ -1,6 +1,6 @@
 # vulkan
 
-Experimental Vulkan rendering scaffold for TornadoModel.
+Experimental Vulkan rendering scaffold for Nimbus.
 
 Legacy OpenGL/Python stacks are no longer part of the active Vulkan build path in this workspace.
 

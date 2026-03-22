@@ -8,7 +8,8 @@
  */
 
 #include "implicit.hpp"
-#include "grid_metric_utils.hpp"
+#include "core/field_pool.hpp"
+#include "util/grid_metric_utils.hpp"
 #include <algorithm>
 #include <cmath>
 #include <iostream>
@@ -105,9 +106,12 @@ void ImplicitDiffusionScheme::compute_diffusion_tendencies(
     const double scalar_k_default = positive_or_fallback(cfg.K_v, positive_or_fallback(cfg.K_h, 0.0));
     const double momentum_k_default = positive_or_fallback(cfg.K_v, positive_or_fallback(cfg.K_h, 0.0));
 
+    auto& pool = FieldPool::instance();
+
     if (state.theta && matches_shape(state.theta, nr, nth, nz))
     {
-        Field3D theta_new = *state.theta;
+        auto theta_guard = pool.scoped_acquire_copy(*state.theta);
+        Field3D& theta_new = theta_guard.field;
         implicit_vertical_diffusion(*state.theta, scalar_k, scalar_k_default, *state.grid, dt_eff, theta_new);
 
         for (int i = 0; i < nr; ++i)
@@ -125,7 +129,8 @@ void ImplicitDiffusionScheme::compute_diffusion_tendencies(
 
     if (state.qv && matches_shape(state.qv, nr, nth, nz))
     {
-        Field3D qv_new = *state.qv;
+        auto qv_guard = pool.scoped_acquire_copy(*state.qv);
+        Field3D& qv_new = qv_guard.field;
         implicit_vertical_diffusion(*state.qv, scalar_k, scalar_k_default, *state.grid, dt_eff, qv_new);
 
         for (int i = 0; i < nr; ++i)
@@ -146,9 +151,12 @@ void ImplicitDiffusionScheme::compute_diffusion_tendencies(
         matches_shape(state.v, nr, nth, nz) &&
         matches_shape(state.w, nr, nth, nz))
     {
-        Field3D u_new = *state.u;
-        Field3D v_new = *state.v;
-        Field3D w_new = *state.w;
+        auto u_guard = pool.scoped_acquire_copy(*state.u);
+        auto v_guard = pool.scoped_acquire_copy(*state.v);
+        auto w_guard = pool.scoped_acquire_copy(*state.w);
+        Field3D& u_new = u_guard.field;
+        Field3D& v_new = v_guard.field;
+        Field3D& w_new = w_guard.field;
 
         implicit_vertical_momentum_diffusion(*state.u, *state.v, *state.w, momentum_k,
                                              momentum_k_default, *state.grid, dt_eff,

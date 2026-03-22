@@ -1,0 +1,59 @@
+# Teaching exercise: Rising thermal bubble
+#
+# A warm bubble in a neutrally stable atmosphere rises and develops a
+# characteristic mushroom-cap shape. This is the simplest convection
+# exercise and runs in ~2 minutes on any hardware.
+#
+# Learning objectives:
+#   - Buoyancy-driven convection
+#   - Thermal structure of rising plumes
+#   - Basic model output interpretation
+#
+# Usage:
+#   ./bin/tornado_sim --headless --config=configs/teaching/thermal_bubble.yaml
+#
+# Expected output: ~50 MB in data/exports/
+# Expected runtime: ~2 minutes on a laptop
+
+case_name: thermal_bubble
+grid:
+  nx: 64
+  ny: 32
+  nz: 32
+  dx: 1000.0
+  dy: 1000.0
+  dz: 500.0
+  dt: 2.0
+environment:
+  cape_target_jkg: 500
+  shear_0_6km_ms: 0
+  sfc_theta_k: 300.0
+  sfc_qv_kgkg: 0.005
+  tropopause_z_m: 12000
+  midlevel_drying: false
+  hodograph:
+    type: wk_param
+    u_sfc_ms: 0
+    v_sfc_ms: 0
+    u_1km_ms: 0
+    v_1km_ms: 0
+    u_6km_ms: 0
+    v_6km_ms: 0
+trigger:
+  bubble:
+    center_x_km: 32
+    center_y_km: 16
+    center_z_km: 1.5
+    radius_km: 5
+    dtheta_k: 3.0
+microphysics:
+  scheme: kessler
+radiation:
+  scheme: simple_grey
+  dt: 300
+output:
+  write_every_s: 30
+  fields: minimal
+  format: npy_3d
+  estimate_disk_budget: true
+duration_s: 600

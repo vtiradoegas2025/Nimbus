@@ -8,7 +8,7 @@ __pycache__/
 *.pyc
 
 # Simulation data and outputs
-data/
+/data/
 
 # Virtual environments
 venv/
@@ -17,12 +17,8 @@ venv/
 # IDE files
 .cursor/
 
-# Test scripts and directories
-/test_*.py
-/test_*.sh
-*_test.py
-*_tests.py
-tests/
+# Test artifacts (compiled binaries, run outputs)
+tests/artifacts/
 
 # macOS
 .DS_Store
@@ -30,4 +26,11 @@ tests/
 # Specific files
 .venv/lib/python3.12/site-packages/fontTools/ufoLib/validators.py
 
-# Project status (local development context)
+# Personal project diary (not for GitHub)
+Journey.md
+
+# Development tooling (not for GitHub)
+tools/
+screenshots/
+templates/
+docs/SpatialBenchmarks.md

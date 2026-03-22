@@ -1,0 +1,43 @@
+# Research preset: standard grid, presentation fields, moderate output cadence.
+# The default for serious simulation work on 16-32GB machines.
+case_name: research
+grid:
+  nx: 256
+  ny: 256
+  nz: 64
+  dx: 1000.0
+  dy: 1000.0
+  dz: 250.0
+  dt: 1.0
+environment:
+  cape_target_jkg: 3000
+  shear_0_6km_ms: 35
+  sfc_theta_k: 301.0
+  sfc_qv_kgkg: 0.012
+  tropopause_z_m: 12000
+  midlevel_drying: true
+  hodograph:
+    type: wk_param
+    u_sfc_ms: 4
+    v_sfc_ms: 1
+    u_1km_ms: 14
+    v_1km_ms: 6
+    u_6km_ms: 28
+    v_6km_ms: 22
+trigger:
+  bubble:
+    center_x_km: 50
+    center_y_km: 50
+    center_z_km: 1.5
+    radius_km: 10
+    dtheta_k: 2.0
+microphysics:
+  scheme: kessler
+output:
+  write_every_s: 30
+  fields: presentation
+  format: zfp
+  async_io: true
+  zfp_tolerance: 1.0e-5
+  zfp_mode: accuracy
+duration_s: 7200

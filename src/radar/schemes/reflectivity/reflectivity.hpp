@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "radar_base.hpp"
+#include "diagnostics/radar_base.hpp"
 #include <vector>
 #include <algorithm>
 #include <cmath>

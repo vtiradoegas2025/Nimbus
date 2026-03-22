@@ -1,0 +1,158 @@
+// tornado_tendencies.comp
+//
+// GLSL compute shader implementing tornado momentum tendencies.
+//
+// GPU equivalent of TornadoScheme::compute_momentum_tendencies
+// in src/dynamics/schemes/tornado/tornado.cpp.
+//
+// Each invocation processes one interior grid point (i,j,k).
+// Unlike the CPU version (which computes for j=0 and copies to all j),
+// the GPU version computes all (i,j,k) points directly — parallelism is free.
+//
+// Only radial and vertical centered differences are used (no azimuthal).
+// Includes vortex damping friction for peak azimuthal velocity detection.
+//
+// Data layout is row-major [nr][nth][nz].
+//
+// NOTE: This shader assumes uniform grid spacing (no terrain metrics).
+// The CPU dispatch guard checks for terrain and falls back if active.
+
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+// Input fields (6 SSBOs, readonly)
+layout(set = 0, binding = 0) readonly buffer URadialBuf    { float u_r[];     };
+layout(set = 0, binding = 1) readonly buffer UThetaBuf     { float u_theta[]; };
+layout(set = 0, binding = 2) readonly buffer UVerticalBuf  { float u_z[];     };
+layout(set = 0, binding = 3) readonly buffer RhoBuf        { float rho[];     };
+layout(set = 0, binding = 4) readonly buffer PressureBuf   { float pressure[];};
+layout(set = 0, binding = 5) readonly buffer ThetaBuf      { float theta[];   };
+
+// Output tendency fields (5 SSBOs)
+layout(set = 0, binding = 6)  buffer DuRadialDtBuf  { float du_r_dt[];     };
+layout(set = 0, binding = 7)  buffer DuThetaDtBuf   { float du_theta_dt[]; };
+layout(set = 0, binding = 8)  buffer DuVertDtBuf    { float du_z_dt[];     };
+layout(set = 0, binding = 9)  buffer DrhoDtBuf      { float drho_dt[];     };
+layout(set = 0, binding = 10) buffer DpDtBuf        { float dp_dt[];       };
+
+// Push constants (40 bytes, padded to 4-byte alignment)
+layout(push_constant) uniform PushConstants {
+    int   nr;
+    int   nth;
+    int   nz;
+    float dr;
+    float dz_val;
+    float g;
+    float theta0;
+    float eps;
+    float friction_coeff;   // Vortex damping coefficient (0.01 in CPU code)
+    float padding;
+};
+
+// Minimum density threshold for safe division
+const float RHO_MIN = 1.0e-6;
+
+// Sanitize tendency: replace NaN/Inf with 0
+float sanitize(float val) {
+    return (isnan(val) || isinf(val)) ? 0.0 : val;
+}
+
+void main() {
+    uint gid = gl_GlobalInvocationID.x;
+
+    int interior_nz = nz - 2;
+    int interior_nr = nr - 2;
+    uint total_interior = uint(interior_nr) * uint(nth) * uint(interior_nz);
+
+    if (gid >= total_interior) {
+        return;
+    }
+
+    // Map flat gid to (i_interior, j, k_interior)
+    int k_interior = int(gid % uint(interior_nz));
+    uint ij = gid / uint(interior_nz);
+    int j = int(ij % uint(nth));
+    int i_interior = int(ij / uint(nth));
+
+    int i = i_interior + 1;
+    int k = k_interior + 1;
+
+    // Cylindrical radius
+    float r = float(i) * dr + eps;
+
+    // Flat index helpers (row-major [nr][nth][nz])
+    uint c  = uint((i * nth + j) * nz + k);
+    uint ip = uint(((i + 1) * nth + j) * nz + k);
+    uint im = uint(((i - 1) * nth + j) * nz + k);
+    uint kp = uint((i * nth + j) * nz + (k + 1));
+    uint km = uint((i * nth + j) * nz + (k - 1));
+
+    // Read center-point values
+    float ur  = u_r[c];
+    float uth = u_theta[c];
+    float uz  = u_z[c];
+    float rho_val = rho[c];
+    float p_val   = pressure[c];
+
+    // Safe density for division
+    float rho_safe = (rho_val > RHO_MIN && !isinf(rho_val)) ? rho_val : 1.0;
+
+    // Precompute inverse spacings for centered differences (radial + vertical only)
+    float inv_2dr = 1.0 / (2.0 * dr);
+    float inv_2dz = 1.0 / (2.0 * dz_val);
+
+    // --- Centered finite differences (radial and vertical only) ---
+
+    // u_r derivatives
+    float dur_dr = (u_r[ip] - u_r[im]) * inv_2dr;
+    float dur_dz = (u_r[kp] - u_r[km]) * inv_2dz;
+
+    // u_theta derivatives
+    float duth_dr = (u_theta[ip] - u_theta[im]) * inv_2dr;
+    float duth_dz = (u_theta[kp] - u_theta[km]) * inv_2dz;
+
+    // u_z derivatives
+    float duz_dr = (u_z[ip] - u_z[im]) * inv_2dr;
+    float duz_dz = (u_z[kp] - u_z[km]) * inv_2dz;
+
+    // pressure derivatives
+    float dp_dr_val = (pressure[ip] - pressure[im]) * inv_2dr;
+    float dp_dz_val = (pressure[kp] - pressure[km]) * inv_2dz;
+
+    // --- du_r/dt: advection + centrifugal + pressure gradient ---
+    float advective_r = -ur * dur_dr - uz * dur_dz;
+    float centrifugal = uth * uth / r;
+    float pressure_grad_r = -dp_dr_val / rho_safe;
+    du_r_dt[c] = sanitize(advective_r + centrifugal + pressure_grad_r);
+
+    // --- du_theta/dt: advection + Coriolis + vortex damping ---
+    float advective_th = -ur * duth_dr - uz * duth_dz;
+    float coriolis_th = -ur * uth / r;
+
+    // Vortex damping friction: if v_here > v_inner AND v_here > v_outer
+    // Read neighbor azimuthal velocities for friction check
+    float v_inner = u_theta[im];
+    float v_outer = u_theta[ip];
+    float fv = 0.0;
+    if (uth > v_inner && uth > v_outer) {
+        fv = -friction_coeff * uth;
+    }
+    du_theta_dt[c] = sanitize(advective_th + coriolis_th + fv);
+
+    // --- du_z/dt: advection + pressure gradient + buoyancy - gravity ---
+    float advective_z = -ur * duz_dr - uz * duz_dz;
+    float pressure_grad_z = -dp_dz_val / rho_safe;
+    float theta_prime = theta[c] - theta0;
+    float buoyancy = g * (theta_prime / theta0);
+    du_z_dt[c] = sanitize(advective_z + pressure_grad_z - g + buoyancy);
+
+    // --- drho/dt: mass continuity ---
+    float divergence = dur_dr + duz_dz + ur / r;
+    drho_dt[c] = sanitize(-rho_safe * divergence);
+
+    // --- dp/dt: pressure tendency (cyclostrophic) ---
+    float cyclostrophic_dp_dr = rho_safe * uth * uth / r;
+    float dp_tendency = -ur * dp_dr_val - uz * dp_dz_val + cyclostrophic_dp_dr;
+    dp_dt[c] = sanitize(dp_tendency);
+}

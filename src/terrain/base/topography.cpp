@@ -126,20 +126,29 @@ double TerrainFollowingCoordinate::z_to_zeta(double z, int i, int j) const
     double ztop = sanitize_positive(config_.ztop, 20000.0);
 
     if (config_.coord_id == "btf") {
-        if (std::abs(ztop - h) > terrain_constants::epsilon) {
+        if (std::abs(ztop - h) > terrain_constants::epsilon) 
+        {
             return ztop * (z - h) / (ztop - h);
-        } else {
-            return z;
         }
-    } else if (config_.coord_id == "smoothed") {
-        double h_eff_avg = h * 0.5;
-        if (std::abs(ztop - h_eff_avg) > terrain_constants::epsilon) {
-            return ztop * (z - h_eff_avg) / (ztop - h_eff_avg);
-        } else {
+         else 
+        {
             return z;
         }
     } 
-    else {
+    else if (config_.coord_id == "smoothed") 
+    {
+        double h_eff_avg = h * 0.5;
+        if (std::abs(ztop - h_eff_avg) > terrain_constants::epsilon) 
+        {
+            return ztop * (z - h_eff_avg) / (ztop - h_eff_avg);
+        } 
+        else 
+        {
+            return z;
+        }
+    } 
+    else 
+    {
         return z;
     }
 }
@@ -171,7 +180,8 @@ void TerrainFollowingCoordinate::compute_metrics(double zeta, int i, int j,
             my = 0.0;
         }
     }
-    else if (config_.coord_id == "smoothed") {
+    else if (config_.coord_id == "smoothed") 
+    {
         double h_eff = apply_coordinate_smoothing(h, zeta);
         double hx_eff = hx;
         double hy_eff = hy;
@@ -181,10 +191,13 @@ void TerrainFollowingCoordinate::compute_metrics(double zeta, int i, int j,
         J = 1.0 - h_eff/ztop;
 
         double zeta_factor = 1.0 - zeta/ztop;
-        if (std::abs(J) > terrain_constants::epsilon) {
+        if (std::abs(J) > terrain_constants::epsilon) 
+        {
             mx = -zeta_factor * hx_eff / J;
             my = -zeta_factor * hy_eff / J;
-        } else {
+        } 
+        else 
+        {
             mx = 0.0;
             my = 0.0;
         }

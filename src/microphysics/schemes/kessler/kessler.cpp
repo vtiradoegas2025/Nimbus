@@ -8,7 +8,9 @@
  */
 
 #include "kessler.hpp"
-#include "simulation.hpp"
+#include "core/field_pool.hpp"
+#include "core/simulation.hpp"
+#include "numerics/compute_kernel_template.hpp"
 #include <algorithm>
 #include <cmath>
 #ifdef _OPENMP
@@ -61,22 +63,59 @@ void KesslerScheme::compute_tendencies(
     if (NTH == 0) return;
     int NZ = p.size_z();
 
-    Field3D temperature(NR, NTH, NZ);
+    auto temp_guard = FieldPool::instance().scoped_acquire(NR, NTH, NZ);
+    Field3D& temperature = temp_guard.field;
     thermodynamics::convert_theta_to_temperature_field(theta, p, temperature);
 
-    dtheta_dt.resize(NR, NTH, NZ, 0.0f);
-    dqv_dt.resize(NR, NTH, NZ, 0.0f);
-    dqc_dt.resize(NR, NTH, NZ, 0.0f);
-    dqr_dt.resize(NR, NTH, NZ, 0.0f);
-    dqi_dt.resize(NR, NTH, NZ, 0.0f);
-    dqs_dt.resize(NR, NTH, NZ, 0.0f);
-    dqg_dt.resize(NR, NTH, NZ, 0.0f);
-    dqh_dt.resize(NR, NTH, NZ, 0.0f);
+    init_tendency_fields(NR, NTH, NZ, dtheta_dt, dqv_dt, dqc_dt, dqr_dt,
+                         dqi_dt, dqs_dt, dqg_dt, dqh_dt);
 
-    compute_warm_rain_processes(temperature, qv, qc, qr, dqc_dt, dqr_dt, dqv_dt, dtheta_dt);
-    compute_ice_processes(temperature, qv, qc, qr, qg, qh, dqc_dt, dqg_dt, dqh_dt, dqv_dt, dtheta_dt);
-    compute_melting_processes(temperature, qg, qh, dqg_dt, dqh_dt, dqr_dt, dtheta_dt);
-    compute_sedimentation(qr, qg, qh, dqr_dt, dqg_dt, dqh_dt);
+    // Try GPU dispatch for fused point-wise processes (warm rain + ice + melting)
+    const float Lv_cp = static_cast<float>(microphysics_constants::L_v / microphysics_constants::cp);
+    const float Lf_cp = static_cast<float>(microphysics_constants::L_f / microphysics_constants::cp);
+    const float Ls_cp = static_cast<float>(microphysics_constants::L_s / microphysics_constants::cp);
+
+    bool gpu_pointwise_ok = dispatch_kessler_pointwise_backend(
+        temperature.data(), qv.data(), qc.data(), qr.data(), qg.data(), qh.data(),
+        dtheta_dt.data(), dqv_dt.data(), dqc_dt.data(), dqr_dt.data(),
+        dqg_dt.data(), dqh_dt.data(),
+        NR, NTH, NZ,
+        static_cast<float>(qc0_), static_cast<float>(c_auto_),
+        static_cast<float>(c_accr_), static_cast<float>(c_evap_),
+        static_cast<float>(c_freeze_), static_cast<float>(c_rime_),
+        static_cast<float>(c_melt_), static_cast<float>(c_subl_),
+        Lv_cp, Lf_cp, Ls_cp,
+        static_cast<float>(microphysics_constants::T0));
+
+    if (gpu_pointwise_ok)
+    {
+        // Try GPU sedimentation (operates on tendencies from point-wise pass)
+        const double dz_local = std::max(::dz, 1.0e-6);
+        bool gpu_sed_ok = dispatch_kessler_sedimentation_backend(
+            qr.data(), qg.data(), qh.data(),
+            dqr_dt.data(), dqg_dt.data(), dqh_dt.data(),
+            NR, NTH, NZ,
+            static_cast<float>(dz_local),
+            static_cast<float>(a_term_), static_cast<float>(b_term_),
+            static_cast<float>(Vt_max_),
+            static_cast<float>(a_grau_), static_cast<float>(b_grau_),
+            static_cast<float>(Vt_max_grau_),
+            static_cast<float>(a_hail_), static_cast<float>(b_hail_),
+            static_cast<float>(Vt_max_hail_));
+
+        if (!gpu_sed_ok)
+        {
+            compute_sedimentation(qr, qg, qh, dqr_dt, dqg_dt, dqh_dt);
+        }
+    }
+    else
+    {
+        // CPU fallback for all processes
+        compute_warm_rain_processes(temperature, qv, qc, qr, dqc_dt, dqr_dt, dqv_dt, dtheta_dt);
+        compute_ice_processes(temperature, qv, qc, qr, qg, qh, dqc_dt, dqg_dt, dqh_dt, dqv_dt, dtheta_dt);
+        compute_melting_processes(temperature, qg, qh, dqg_dt, dqh_dt, dqr_dt, dtheta_dt);
+        compute_sedimentation(qr, qg, qh, dqr_dt, dqg_dt, dqh_dt);
+    }
 
     #pragma omp parallel for collapse(2)
     for (int i = 0; i < NR; ++i) 
@@ -401,11 +440,12 @@ void KesslerScheme::compute_radar_reflectivity(
     const float Z_dbz_min = -30.0f;
     const float Z_dbz_max = 120.0f;
 
-    for (int i = 0; i < NR; ++i) 
+    #pragma omp parallel for collapse(2)
+    for (int i = 0; i < NR; ++i)
     {
-        for (int j = 0; j < NTH; ++j) 
+        for (int j = 0; j < NTH; ++j)
         {
-            for (int k = 0; k < NZ; ++k) 
+            for (int k = 0; k < NZ; ++k)
             {
                 float qc_val = static_cast<float>(qc[i][j][k]);
                 float qr_val = static_cast<float>(qr[i][j][k]);

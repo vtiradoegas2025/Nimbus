@@ -9,337 +9,28 @@
 
 #include "sharpy_sounding.hpp"
 #include "soundings/base/soundings_base.hpp"
-#include <iostream>
-#include <fstream>
 #include <algorithm>
 #include <array>
 #include <cctype>
 #include <cstdint>
 #include <cstring>
 #include <cmath>
-#include <cstdio>
-#include <cstdlib>
+#include <dlfcn.h>
+#include <filesystem>
+#include <fstream>
+#include <iostream>
 #include <limits>
 #include <map>
+#include <memory>
 #include <optional>
+#include <set>
 #include <sstream>
 #include <stdexcept>
-#include <filesystem>
+#include <utility>
 
 
 namespace
 {
-
-/**
- * @brief Applies POSIX-safe single-quote escaping for shell arguments.
- */
-std::string shell_quote_posix(const std::string& value)
-{
-    std::string out;
-    out.reserve(value.size() + 2);
-    out.push_back('\'');
-    for (char ch : value)
-    {
-        if (ch == '\'')
-        {
-            out += "'\\''";
-        }
-        else
-        {
-            out.push_back(ch);
-        }
-    }
-    out.push_back('\'');
-    return out;
-}
-
-/**
- * @brief Parses a floating-point token and validates full-token consumption.
- */
-bool parse_double_token(const std::string& token, double& out)
-{
-    try
-    {
-        std::size_t consumed = 0;
-        out = std::stod(token, &consumed);
-        return consumed == token.size();
-    }
-    catch (const std::exception&)
-    {
-        return false;
-    }
-}
-
-/**
- * @brief Splits one tab-separated row into token fields.
- */
-bool split_tsv(const std::string& line, std::vector<std::string>& tokens)
-{
-    tokens.clear();
-    std::size_t start = 0;
-    while (start <= line.size())
-    {
-        const std::size_t tab = line.find('\t', start);
-        if (tab == std::string::npos)
-        {
-            tokens.push_back(line.substr(start));
-            break;
-        }
-        tokens.push_back(line.substr(start, tab - start));
-        start = tab + 1;
-    }
-    return !tokens.empty();
-}
-
-/**
- * @brief Resolves the local path to the Python SHARPY extractor script.
- */
-std::filesystem::path resolve_extractor_script_path()
-{
-    const std::filesystem::path from_source = std::filesystem::path(__FILE__).parent_path() / "sharpy_extract.py";
-    if (std::filesystem::exists(from_source))
-    {
-        return from_source;
-    }
-
-    const std::filesystem::path from_cwd = std::filesystem::path("src/soundings/schemes/sharpy/sharpy_extract.py");
-    if (std::filesystem::exists(from_cwd))
-    {
-        return from_cwd;
-    }
-
-    return from_source;
-}
-
-/**
- * @brief Executes the Python extractor and returns its stdout payload.
- */
-std::string run_python_extractor(const std::string& file_path)
-{
-    const std::filesystem::path script_path = resolve_extractor_script_path();
-    if (!std::filesystem::exists(script_path))
-    {
-        throw std::runtime_error("SHARPY extractor script not found: " + script_path.string());
-    }
-
-    const std::string command = std::string("python3 ") +
-        shell_quote_posix(script_path.string()) + " " + shell_quote_posix(file_path) + " 2>&1";
-
-    FILE* pipe = popen(command.c_str(), "r");
-    if (pipe == nullptr)
-    {
-        throw std::runtime_error("Failed to launch python3 for SHARPY extraction");
-    }
-
-    std::array<char, 4096> buffer{};
-    std::string output;
-    while (fgets(buffer.data(), static_cast<int>(buffer.size()), pipe) != nullptr)
-    {
-        output.append(buffer.data());
-    }
-
-    const int status = pclose(pipe);
-    if (status != 0)
-    {
-        throw std::runtime_error(
-            "Python SHARPY extractor failed for '" + file_path + "': " + output);
-    }
-
-    return output;
-}
-
-/**
- * @brief Parses structured extractor output into `SoundingData`.
- */
-SoundingData parse_extractor_output(const std::string& output)
-{
-    std::istringstream in(output);
-    std::string line;
-    if (!std::getline(in, line))
-    {
-        throw std::runtime_error("SHARPY extractor produced empty output");
-    }
-    if (line != "TMV_SHARPY_PROFILE_V1")
-    {
-        throw std::runtime_error("SHARPY extractor returned unexpected header: " + line);
-    }
-
-    SoundingData data;
-    data.latitude_deg = std::numeric_limits<double>::quiet_NaN();
-    data.longitude_deg = std::numeric_limits<double>::quiet_NaN();
-    data.elevation_m = std::numeric_limits<double>::quiet_NaN();
-    std::size_t expected_levels = 0;
-    bool have_expected_levels = false;
-    bool dewpoint_all_finite = true;
-    bool wind_speed_all_finite = true;
-    bool wind_dir_all_finite = true;
-    std::vector<double> dewpoint_values;
-    std::vector<double> wind_speed_values;
-    std::vector<double> wind_dir_values;
-
-    std::vector<std::string> tokens;
-    while (std::getline(in, line))
-    {
-        if (line.empty())
-        {
-            continue;
-        }
-        if (!split_tsv(line, tokens))
-        {
-            continue;
-        }
-
-        if (tokens.size() == 2)
-        {
-            const std::string& key = tokens[0];
-            const std::string& value = tokens[1];
-            if (key == "station_id")
-            {
-                data.station_id = value;
-                continue;
-            }
-            if (key == "timestamp_utc")
-            {
-                data.timestamp_utc = value;
-                continue;
-            }
-            if (key == "latitude_deg")
-            {
-                double parsed = std::numeric_limits<double>::quiet_NaN();
-                if (parse_double_token(value, parsed))
-                {
-                    data.latitude_deg = parsed;
-                }
-                continue;
-            }
-            if (key == "longitude_deg")
-            {
-                double parsed = std::numeric_limits<double>::quiet_NaN();
-                if (parse_double_token(value, parsed))
-                {
-                    data.longitude_deg = parsed;
-                }
-                continue;
-            }
-            if (key == "elevation_m")
-            {
-                double parsed = std::numeric_limits<double>::quiet_NaN();
-                if (parse_double_token(value, parsed))
-                {
-                    data.elevation_m = parsed;
-                }
-                continue;
-            }
-            if (key == "levels")
-            {
-                double parsed = 0.0;
-                if (!parse_double_token(value, parsed) || parsed < 0.0)
-                {
-                    throw std::runtime_error("Invalid levels value from SHARPY extractor: " + value);
-                }
-                expected_levels = static_cast<std::size_t>(parsed);
-                have_expected_levels = true;
-                continue;
-            }
-        }
-
-        if (tokens.size() < 3)
-        {
-            throw std::runtime_error("Malformed SHARPY profile row from extractor: " + line);
-        }
-
-        double h = 0.0;
-        double p = 0.0;
-        double t = 0.0;
-        if (!parse_double_token(tokens[0], h) ||
-            !parse_double_token(tokens[1], p) ||
-            !parse_double_token(tokens[2], t))
-        {
-            throw std::runtime_error("Failed to parse required SHARPY row values: " + line);
-        }
-
-        if (!std::isfinite(h) || !std::isfinite(p) || !std::isfinite(t))
-        {
-            throw std::runtime_error("Non-finite required SHARPY profile values: " + line);
-        }
-
-        data.height_m.push_back(h);
-        data.pressure_hpa.push_back(p);
-        data.temperature_k.push_back(t);
-
-        double td = std::numeric_limits<double>::quiet_NaN();
-        if (tokens.size() > 3 && parse_double_token(tokens[3], td))
-        {
-            dewpoint_values.push_back(td);
-            if (!std::isfinite(td))
-            {
-                dewpoint_all_finite = false;
-            }
-        }
-        else
-        {
-            dewpoint_values.push_back(std::numeric_limits<double>::quiet_NaN());
-            dewpoint_all_finite = false;
-        }
-
-        double ws = std::numeric_limits<double>::quiet_NaN();
-        if (tokens.size() > 4 && parse_double_token(tokens[4], ws))
-        {
-            wind_speed_values.push_back(ws);
-            if (!std::isfinite(ws))
-            {
-                wind_speed_all_finite = false;
-            }
-        }
-        else
-        {
-            wind_speed_values.push_back(std::numeric_limits<double>::quiet_NaN());
-            wind_speed_all_finite = false;
-        }
-
-        double wd = std::numeric_limits<double>::quiet_NaN();
-        if (tokens.size() > 5 && parse_double_token(tokens[5], wd))
-        {
-            wind_dir_values.push_back(wd);
-            if (!std::isfinite(wd))
-            {
-                wind_dir_all_finite = false;
-            }
-        }
-        else
-        {
-            wind_dir_values.push_back(std::numeric_limits<double>::quiet_NaN());
-            wind_dir_all_finite = false;
-        }
-    }
-
-    if (!data.is_valid())
-    {
-        throw std::runtime_error("SHARPY extractor output did not include a valid profile");
-    }
-
-    if (have_expected_levels && expected_levels != data.num_levels())
-    {
-        throw std::runtime_error(
-            "SHARPY extractor level count mismatch. expected=" + std::to_string(expected_levels) +
-            " parsed=" + std::to_string(data.num_levels()));
-    }
-
-    if (dewpoint_all_finite && dewpoint_values.size() == data.num_levels())
-    {
-        data.dewpoint_k = std::move(dewpoint_values);
-    }
-
-    if (wind_speed_all_finite && wind_dir_all_finite &&
-        wind_speed_values.size() == data.num_levels() &&
-        wind_dir_values.size() == data.num_levels())
-    {
-        data.wind_speed_ms = std::move(wind_speed_values);
-        data.wind_direction_deg = std::move(wind_dir_values);
-    }
-
-    return data;
-}
 
 /**
  * @brief Converts an ASCII string to lowercase.
@@ -1226,6 +917,138 @@ std::vector<double> try_read_profile_variable(
 }
 
 /**
+ * @brief Candidate aliases for profile height fields.
+ */
+const std::vector<std::string>& profile_height_candidates()
+{
+    static const std::vector<std::string> k_candidates = {
+        "profiles/height_m", "height_m", "height", "z", "altitude"
+    };
+    return k_candidates;
+}
+
+/**
+ * @brief Candidate aliases for profile pressure fields.
+ */
+const std::vector<std::string>& profile_pressure_candidates()
+{
+    static const std::vector<std::string> k_candidates = {
+        "profiles/pressure_hpa", "pressure_hpa", "pressure", "pres", "p"
+    };
+    return k_candidates;
+}
+
+/**
+ * @brief Candidate aliases for profile temperature fields.
+ */
+const std::vector<std::string>& profile_temperature_candidates()
+{
+    static const std::vector<std::string> k_candidates = {
+        "profiles/temperature_k", "temperature_k", "temperature", "temp", "t"
+    };
+    return k_candidates;
+}
+
+/**
+ * @brief Candidate aliases for profile dewpoint fields.
+ */
+const std::vector<std::string>& profile_dewpoint_candidates()
+{
+    static const std::vector<std::string> k_candidates = {
+        "profiles/dewpoint_k", "dewpoint_k", "dewpoint", "td"
+    };
+    return k_candidates;
+}
+
+/**
+ * @brief Candidate aliases for profile wind-speed fields.
+ */
+const std::vector<std::string>& profile_wind_speed_candidates()
+{
+    static const std::vector<std::string> k_candidates = {
+        "profiles/wind_speed_ms", "wind_speed_ms", "wind_speed", "wspd"
+    };
+    return k_candidates;
+}
+
+/**
+ * @brief Candidate aliases for profile wind-direction fields.
+ */
+const std::vector<std::string>& profile_wind_direction_candidates()
+{
+    static const std::vector<std::string> k_candidates = {
+        "profiles/wind_direction_deg", "wind_direction_deg", "wind_direction", "wdir"
+    };
+    return k_candidates;
+}
+
+/**
+ * @brief Fits profile vectors to the target profile length.
+ */
+std::vector<double> resize_profile_series(const std::vector<double>& values, std::size_t target_count)
+{
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    std::vector<double> out(target_count, nan);
+    if (target_count == 0)
+    {
+        return out;
+    }
+    if (values.empty())
+    {
+        return out;
+    }
+    if (values.size() == 1)
+    {
+        std::fill(out.begin(), out.end(), values.front());
+        return out;
+    }
+
+    const std::size_t ncopy = std::min(values.size(), target_count);
+    for (std::size_t i = 0; i < ncopy; ++i)
+    {
+        out[i] = values[i];
+    }
+    return out;
+}
+
+/**
+ * @brief Converts profile vectors into canonical extraction rows.
+ */
+NativeProfileExtraction build_native_profile_rows(
+    const std::vector<double>& height,
+    const std::vector<double>& pressure,
+    const std::vector<double>& temperature,
+    const std::vector<double>& dewpoint,
+    const std::vector<double>& wind_speed,
+    const std::vector<double>& wind_direction)
+{
+    const std::size_t n = std::min({height.size(), pressure.size(), temperature.size()});
+    if (n < 2)
+    {
+        throw std::runtime_error("Native reader found insufficient profile levels");
+    }
+
+    const std::vector<double> dewpoint_resized = resize_profile_series(dewpoint, n);
+    const std::vector<double> wind_speed_resized = resize_profile_series(wind_speed, n);
+    const std::vector<double> wind_direction_resized = resize_profile_series(wind_direction, n);
+
+    NativeProfileExtraction extracted;
+    extracted.rows.reserve(n);
+    for (std::size_t i = 0; i < n; ++i)
+    {
+        extracted.rows.push_back({
+            height[i],
+            pressure[i],
+            temperature[i],
+            dewpoint_resized[i],
+            wind_speed_resized[i],
+            wind_direction_resized[i]
+        });
+    }
+    return extracted;
+}
+
+/**
  * @brief Extracts a vertical profile from a NetCDF classic SHARPY file.
  */
 NativeProfileExtraction parse_netcdf_classic_profile_native(const std::string& file_path)
@@ -1238,50 +1061,20 @@ NativeProfileExtraction parse_netcdf_classic_profile_native(const std::string& f
     }
 
     const std::vector<double> height = try_read_profile_variable(
-        in, header,
-        {"profiles/height_m", "height_m", "height", "z", "altitude"},
-        true, "height");
+        in, header, profile_height_candidates(), true, "height");
     const std::vector<double> pressure = try_read_profile_variable(
-        in, header,
-        {"profiles/pressure_hpa", "pressure_hpa", "pressure", "pres", "p"},
-        true, "pressure");
+        in, header, profile_pressure_candidates(), true, "pressure");
     const std::vector<double> temperature = try_read_profile_variable(
-        in, header,
-        {"profiles/temperature_k", "temperature_k", "temperature", "temp", "t"},
-        true, "temperature");
+        in, header, profile_temperature_candidates(), true, "temperature");
     const std::vector<double> dewpoint = try_read_profile_variable(
-        in, header,
-        {"profiles/dewpoint_k", "dewpoint_k", "dewpoint", "td"},
-        false, "dewpoint");
+        in, header, profile_dewpoint_candidates(), false, "dewpoint");
     const std::vector<double> wind_speed = try_read_profile_variable(
-        in, header,
-        {"profiles/wind_speed_ms", "wind_speed_ms", "wind_speed", "wspd"},
-        false, "wind_speed");
+        in, header, profile_wind_speed_candidates(), false, "wind_speed");
     const std::vector<double> wind_dir = try_read_profile_variable(
-        in, header,
-        {"profiles/wind_direction_deg", "wind_direction_deg", "wind_direction", "wdir"},
-        false, "wind_direction");
+        in, header, profile_wind_direction_candidates(), false, "wind_direction");
 
-    const std::size_t n = std::min({height.size(), pressure.size(), temperature.size()});
-    if (n < 2)
-    {
-        throw std::runtime_error("Native NetCDF reader found insufficient profile levels");
-    }
-
-    const double nan = std::numeric_limits<double>::quiet_NaN();
-    NativeProfileExtraction extracted;
-    extracted.rows.reserve(n);
-    for (std::size_t i = 0; i < n; ++i)
-    {
-        extracted.rows.push_back({
-            height[i],
-            pressure[i],
-            temperature[i],
-            i < dewpoint.size() ? dewpoint[i] : nan,
-            i < wind_speed.size() ? wind_speed[i] : nan,
-            i < wind_dir.size() ? wind_dir[i] : nan
-        });
-    }
+    NativeProfileExtraction extracted = build_native_profile_rows(
+        height, pressure, temperature, dewpoint, wind_speed, wind_dir);
 
     if (const NetcdfAttribute* station = find_netcdf_attribute(header.global_attributes, {"station_id"}))
     {
@@ -1314,6 +1107,1054 @@ NativeProfileExtraction parse_netcdf_classic_profile_native(const std::string& f
     }
 
     return extracted;
+}
+
+/**
+ * @brief Normalizes a path-like identifier for case-insensitive comparisons.
+ */
+std::string normalize_profile_lookup_key(const std::string& value)
+{
+    std::string out = to_lower_ascii(value);
+    while (!out.empty() && out.front() == '/')
+    {
+        out.erase(out.begin());
+    }
+    return out;
+}
+
+/**
+ * @brief Returns candidate variants for profile lookup across backends.
+ */
+std::vector<std::string> expand_profile_candidates(const std::vector<std::string>& candidates)
+{
+    std::set<std::string> dedup;
+    for (const std::string& candidate : candidates)
+    {
+        std::string base = candidate;
+        while (!base.empty() && base.front() == '/')
+        {
+            base.erase(base.begin());
+        }
+        if (base.empty())
+        {
+            continue;
+        }
+
+        dedup.insert(base);
+        dedup.insert("/" + base);
+
+        const std::size_t slash = base.find_last_of('/');
+        const std::string leaf = (slash == std::string::npos)
+            ? base
+            : base.substr(slash + 1);
+        if (!leaf.empty())
+        {
+            dedup.insert(leaf);
+            dedup.insert("/" + leaf);
+            dedup.insert("profiles/" + leaf);
+            dedup.insert("/profiles/" + leaf);
+            dedup.insert("metadata/" + leaf);
+            dedup.insert("/metadata/" + leaf);
+        }
+    }
+    return std::vector<std::string>(dedup.begin(), dedup.end());
+}
+
+/**
+ * @brief Stores one backend attempt diagnostic for native profile loading.
+ */
+struct NativeReadAttempt
+{
+    std::string backend;
+    std::string detail;
+};
+
+/**
+ * @brief Appends a backend failure diagnostic.
+ */
+void append_native_attempt_failure(std::vector<NativeReadAttempt>& attempts,
+                                   std::string backend,
+                                   const std::exception& error)
+{
+    attempts.push_back(NativeReadAttempt{std::move(backend), error.what()});
+}
+
+/**
+ * @brief Throws an aggregated error for failed native ingestion attempts.
+ */
+[[noreturn]] void throw_native_ingest_failure(const std::string& file_path,
+                                              const std::vector<NativeReadAttempt>& attempts)
+{
+    std::ostringstream oss;
+    oss << "Native sounding ingest failed for '" << file_path << "'";
+    if (attempts.empty())
+    {
+        oss << " with no backend attempts recorded.";
+        throw std::runtime_error(oss.str());
+    }
+
+    oss << " (attempts:";
+    for (const NativeReadAttempt& attempt : attempts)
+    {
+        oss << "\n  - " << attempt.backend << ": " << attempt.detail;
+    }
+    oss << "\n)";
+    throw std::runtime_error(oss.str());
+}
+
+/**
+ * @brief Applies native metadata fields onto parsed sounding output.
+ */
+void apply_native_metadata(SoundingData& data, const NativeProfileExtraction& native)
+{
+    data.station_id = native.station_id;
+    data.timestamp_utc = native.timestamp_utc;
+    data.latitude_deg = native.latitude_deg;
+    data.longitude_deg = native.longitude_deg;
+    data.elevation_m = native.elevation_m;
+}
+
+/**
+ * @brief RAII wrapper for a `dlopen`-acquired shared library handle.
+ */
+class SharedLibraryHandle
+{
+public:
+    SharedLibraryHandle() = default;
+    explicit SharedLibraryHandle(void* handle)
+        : handle_(handle)
+    {
+    }
+
+    SharedLibraryHandle(const SharedLibraryHandle&) = delete;
+    SharedLibraryHandle& operator=(const SharedLibraryHandle&) = delete;
+
+    SharedLibraryHandle(SharedLibraryHandle&& other) noexcept
+        : handle_(other.handle_)
+    {
+        other.handle_ = nullptr;
+    }
+    SharedLibraryHandle& operator=(SharedLibraryHandle&& other) noexcept
+    {
+        if (this != &other)
+        {
+            reset();
+            handle_ = other.handle_;
+            other.handle_ = nullptr;
+        }
+        return *this;
+    }
+
+    ~SharedLibraryHandle()
+    {
+        reset();
+    }
+
+    void* get() const { return handle_; }
+    explicit operator bool() const { return handle_ != nullptr; }
+
+    void* release()
+    {
+        void* out = handle_;
+        handle_ = nullptr;
+        return out;
+    }
+
+private:
+    void reset()
+    {
+        if (handle_ != nullptr)
+        {
+            dlclose(handle_);
+            handle_ = nullptr;
+        }
+    }
+
+    void* handle_ = nullptr;
+};
+
+/**
+ * @brief Opens the first available shared library path from a candidate list.
+ */
+SharedLibraryHandle open_shared_library_first(const std::vector<std::string>& candidates,
+                                              std::string& opened_path,
+                                              std::string& error_out)
+{
+    std::ostringstream errors;
+    for (const std::string& candidate : candidates)
+    {
+        dlerror();
+        void* handle = dlopen(candidate.c_str(), RTLD_NOW | RTLD_LOCAL);
+        if (handle != nullptr)
+        {
+            opened_path = candidate;
+            return SharedLibraryHandle(handle);
+        }
+
+        const char* dl_err = dlerror();
+        errors << candidate << ": " << (dl_err ? dl_err : "unknown dlopen error") << "; ";
+    }
+
+    error_out = errors.str();
+    return SharedLibraryHandle{};
+}
+
+/**
+ * @brief Loads one symbol function pointer from a dynamic library.
+ */
+template <typename FnPtr>
+bool load_symbol(void* handle, const char* symbol, FnPtr& out)
+{
+    dlerror();
+    void* raw = dlsym(handle, symbol);
+    const char* err = dlerror();
+    if (raw == nullptr || err != nullptr)
+    {
+        out = nullptr;
+        return false;
+    }
+    out = reinterpret_cast<FnPtr>(raw);
+    return true;
+}
+
+/**
+ * @brief Dynamic adapter for the NetCDF C API.
+ */
+struct DynamicNetcdfApi
+{
+    using NcOpenFn = int (*)(const char*, int, int*);
+    using NcCloseFn = int (*)(int);
+    using NcInqFn = int (*)(int, int*, int*, int*, int*);
+    using NcInqVarFn = int (*)(int, int, char*, int*, int*, int*, int*);
+    using NcInqDimFn = int (*)(int, int, char*, std::size_t*);
+    using NcGetVarDoubleFn = int (*)(int, int, double*);
+    using NcInqAttFn = int (*)(int, int, const char*, int*, std::size_t*);
+    using NcGetAttTextFn = int (*)(int, int, const char*, char*);
+    using NcGetAttDoubleFn = int (*)(int, int, const char*, double*);
+    using NcGetAttStringFn = int (*)(int, int, const char*, char**);
+    using NcFreeStringFn = int (*)(std::size_t, char**);
+    using NcStrErrorFn = const char* (*)(int);
+    using NcInqGrpsFn = int (*)(int, int*, int*);
+    using NcInqGrpNameFn = int (*)(int, char*);
+
+    SharedLibraryHandle library;
+    std::string library_path;
+
+    NcOpenFn nc_open = nullptr;
+    NcCloseFn nc_close = nullptr;
+    NcInqFn nc_inq = nullptr;
+    NcInqVarFn nc_inq_var = nullptr;
+    NcInqDimFn nc_inq_dim = nullptr;
+    NcGetVarDoubleFn nc_get_var_double = nullptr;
+    NcInqAttFn nc_inq_att = nullptr;
+    NcGetAttTextFn nc_get_att_text = nullptr;
+    NcGetAttDoubleFn nc_get_att_double = nullptr;
+    NcGetAttStringFn nc_get_att_string = nullptr;
+    NcFreeStringFn nc_free_string = nullptr;
+    NcStrErrorFn nc_strerror = nullptr;
+    NcInqGrpsFn nc_inq_grps = nullptr;
+    NcInqGrpNameFn nc_inq_grpname = nullptr;
+};
+
+/**
+ * @brief Loads the NetCDF C API dynamically (without link-time dependency).
+ */
+DynamicNetcdfApi load_dynamic_netcdf_api()
+{
+    const std::vector<std::string> library_candidates = {
+        "libnetcdf.dylib",
+        "libnetcdf.so",
+        "libnetcdf.so.19",
+        "/opt/homebrew/lib/libnetcdf.dylib",
+        "/usr/local/lib/libnetcdf.dylib",
+        "/opt/homebrew/opt/netcdf/lib/libnetcdf.dylib",
+        "/usr/local/opt/netcdf/lib/libnetcdf.dylib"
+    };
+
+    std::string opened_path;
+    std::string open_error;
+    SharedLibraryHandle handle = open_shared_library_first(library_candidates, opened_path, open_error);
+    if (!handle)
+    {
+        throw std::runtime_error("Unable to load NetCDF shared library: " + open_error);
+    }
+
+    DynamicNetcdfApi api;
+    api.library = std::move(handle);
+    api.library_path = opened_path;
+
+    if (!load_symbol(api.library.get(), "nc_open", api.nc_open) ||
+        !load_symbol(api.library.get(), "nc_close", api.nc_close) ||
+        !load_symbol(api.library.get(), "nc_inq", api.nc_inq) ||
+        !load_symbol(api.library.get(), "nc_inq_var", api.nc_inq_var) ||
+        !load_symbol(api.library.get(), "nc_inq_dim", api.nc_inq_dim) ||
+        !load_symbol(api.library.get(), "nc_get_var_double", api.nc_get_var_double) ||
+        !load_symbol(api.library.get(), "nc_inq_att", api.nc_inq_att) ||
+        !load_symbol(api.library.get(), "nc_get_att_text", api.nc_get_att_text) ||
+        !load_symbol(api.library.get(), "nc_get_att_double", api.nc_get_att_double) ||
+        !load_symbol(api.library.get(), "nc_strerror", api.nc_strerror))
+    {
+        throw std::runtime_error(
+            "NetCDF shared library '" + api.library_path + "' is missing required symbols");
+    }
+
+    // Optional symbols (available in NetCDF4-enabled builds).
+    load_symbol(api.library.get(), "nc_get_att_string", api.nc_get_att_string);
+    load_symbol(api.library.get(), "nc_free_string", api.nc_free_string);
+    load_symbol(api.library.get(), "nc_inq_grps", api.nc_inq_grps);
+    load_symbol(api.library.get(), "nc_inq_grpname", api.nc_inq_grpname);
+
+    return api;
+}
+
+/**
+ * @brief Builds a consistent NetCDF status message.
+ */
+std::string netcdf_status_message(const DynamicNetcdfApi& api, int status)
+{
+    if (api.nc_strerror != nullptr)
+    {
+        const char* text = api.nc_strerror(status);
+        if (text != nullptr)
+        {
+            return std::string(text);
+        }
+    }
+    return "status=" + std::to_string(status);
+}
+
+/**
+ * @brief RAII close wrapper for dynamically opened NetCDF files.
+ */
+class NetcdfFileHandle
+{
+public:
+    NetcdfFileHandle(const DynamicNetcdfApi* api, int id)
+        : api_(api), id_(id)
+    {
+    }
+
+    NetcdfFileHandle(const NetcdfFileHandle&) = delete;
+    NetcdfFileHandle& operator=(const NetcdfFileHandle&) = delete;
+
+    NetcdfFileHandle(NetcdfFileHandle&& other) noexcept
+        : api_(other.api_), id_(other.id_)
+    {
+        other.api_ = nullptr;
+        other.id_ = -1;
+    }
+
+    ~NetcdfFileHandle()
+    {
+        if (api_ != nullptr && id_ >= 0 && api_->nc_close != nullptr)
+        {
+            api_->nc_close(id_);
+        }
+    }
+
+    int id() const { return id_; }
+
+private:
+    const DynamicNetcdfApi* api_ = nullptr;
+    int id_ = -1;
+};
+
+/**
+ * @brief Lightweight descriptor for NetCDF variables discovered via C API.
+ */
+struct DynamicNetcdfVariable
+{
+    int group_id = -1;
+    int var_id = -1;
+    int type = 0;
+    std::string short_name;
+    std::string full_name;
+    std::vector<std::size_t> dim_lengths;
+};
+
+/**
+ * @brief Recursively enumerates variables across NetCDF groups.
+ */
+void enumerate_netcdf_variables_recursive(const DynamicNetcdfApi& api,
+                                          int group_id,
+                                          const std::string& group_path,
+                                          std::vector<DynamicNetcdfVariable>& out)
+{
+    int ndims = 0;
+    int nvars = 0;
+    int ngatts = 0;
+    int unlim = -1;
+    const int rc_inq = api.nc_inq(group_id, &ndims, &nvars, &ngatts, &unlim);
+    if (rc_inq != 0)
+    {
+        throw std::runtime_error("nc_inq failed while enumerating variables: " +
+                                 netcdf_status_message(api, rc_inq));
+    }
+
+    constexpr int k_name_buffer_size = 1024;
+    for (int var_id = 0; var_id < nvars; ++var_id)
+    {
+        char var_name[k_name_buffer_size];
+        std::memset(var_name, 0, sizeof(var_name));
+
+        int var_type = 0;
+        int var_ndims = 0;
+        int var_natts = 0;
+        const int rc_meta = api.nc_inq_var(
+            group_id, var_id, var_name, &var_type, &var_ndims, nullptr, &var_natts);
+        if (rc_meta != 0)
+        {
+            throw std::runtime_error("nc_inq_var failed for variable metadata: " +
+                                     netcdf_status_message(api, rc_meta));
+        }
+
+        std::vector<int> dim_ids(static_cast<std::size_t>(std::max(0, var_ndims)), 0);
+        const int rc_dims = api.nc_inq_var(
+            group_id, var_id, var_name, &var_type, &var_ndims,
+            dim_ids.empty() ? nullptr : dim_ids.data(), &var_natts);
+        if (rc_dims != 0)
+        {
+            throw std::runtime_error("nc_inq_var failed while reading dimensions: " +
+                                     netcdf_status_message(api, rc_dims));
+        }
+
+        DynamicNetcdfVariable desc;
+        desc.group_id = group_id;
+        desc.var_id = var_id;
+        desc.type = var_type;
+        desc.short_name = std::string(var_name);
+        desc.full_name = group_path.empty() ? desc.short_name : (group_path + "/" + desc.short_name);
+        desc.dim_lengths.reserve(dim_ids.size());
+
+        for (const int dim_id : dim_ids)
+        {
+            std::size_t dim_len = 0;
+            const int rc_dim = api.nc_inq_dim(group_id, dim_id, nullptr, &dim_len);
+            if (rc_dim != 0)
+            {
+                throw std::runtime_error("nc_inq_dim failed for variable '" + desc.full_name + "': " +
+                                         netcdf_status_message(api, rc_dim));
+            }
+            desc.dim_lengths.push_back(dim_len);
+        }
+
+        out.push_back(std::move(desc));
+    }
+
+    if (api.nc_inq_grps == nullptr || api.nc_inq_grpname == nullptr)
+    {
+        return;
+    }
+
+    int child_count = 0;
+    const int rc_child_count = api.nc_inq_grps(group_id, &child_count, nullptr);
+    if (rc_child_count != 0 || child_count <= 0)
+    {
+        return;
+    }
+
+    std::vector<int> child_ids(static_cast<std::size_t>(child_count), -1);
+    int child_count_req = child_count;
+    const int rc_children = api.nc_inq_grps(group_id, &child_count_req, child_ids.data());
+    if (rc_children != 0)
+    {
+        return;
+    }
+
+    for (int child_id : child_ids)
+    {
+        char group_name[k_name_buffer_size];
+        std::memset(group_name, 0, sizeof(group_name));
+        if (api.nc_inq_grpname(child_id, group_name) != 0)
+        {
+            continue;
+        }
+
+        const std::string child_path = group_path.empty()
+            ? std::string(group_name)
+            : group_path + "/" + std::string(group_name);
+        enumerate_netcdf_variables_recursive(api, child_id, child_path, out);
+    }
+}
+
+/**
+ * @brief Finds a variable in NetCDF C API metadata using candidate aliases.
+ */
+const DynamicNetcdfVariable* find_dynamic_netcdf_variable(
+    const std::vector<DynamicNetcdfVariable>& vars,
+    const std::vector<std::string>& candidates)
+{
+    for (const std::string& candidate_raw : candidates)
+    {
+        const std::string candidate = normalize_profile_lookup_key(candidate_raw);
+        if (candidate.empty())
+        {
+            continue;
+        }
+
+        const std::string candidate_norm = normalize_profile_name(candidate);
+        const std::size_t slash = candidate.find_last_of('/');
+        const std::string candidate_leaf = (slash == std::string::npos)
+            ? candidate
+            : candidate.substr(slash + 1);
+
+        for (const DynamicNetcdfVariable& var : vars)
+        {
+            const std::string full = normalize_profile_lookup_key(var.full_name);
+            const std::string short_name = normalize_profile_lookup_key(var.short_name);
+            const std::string full_norm = normalize_profile_name(full);
+            const std::string short_norm = normalize_profile_name(short_name);
+
+            if (full == candidate ||
+                short_name == candidate ||
+                full_norm == candidate_norm ||
+                short_norm == candidate_norm ||
+                ends_with(full, "/" + candidate_leaf) ||
+                ends_with(full, "_" + candidate_leaf) ||
+                ends_with(short_name, "_" + candidate_leaf))
+            {
+                return &var;
+            }
+        }
+    }
+    return nullptr;
+}
+
+/**
+ * @brief Reads one discovered NetCDF variable and flattens values to doubles.
+ */
+std::vector<double> read_dynamic_netcdf_variable_as_double(const DynamicNetcdfApi& api,
+                                                           const DynamicNetcdfVariable& var)
+{
+    std::size_t total = var.dim_lengths.empty() ? 1 : 1;
+    if (!var.dim_lengths.empty())
+    {
+        for (const std::size_t dim_len : var.dim_lengths)
+        {
+            std::size_t updated = 0;
+            if (!checked_multiply_size(total, dim_len, updated))
+            {
+                throw std::runtime_error("Variable size overflow for '" + var.full_name + "'");
+            }
+            total = updated;
+        }
+    }
+
+    std::vector<double> values(total, 0.0);
+    if (total == 0)
+    {
+        return values;
+    }
+
+    const int rc = api.nc_get_var_double(var.group_id, var.var_id, values.data());
+    if (rc != 0)
+    {
+        throw std::runtime_error("nc_get_var_double failed for '" + var.full_name + "': " +
+                                 netcdf_status_message(api, rc));
+    }
+    return values;
+}
+
+/**
+ * @brief Reads a global NetCDF string attribute by candidate names.
+ */
+std::optional<std::string> read_dynamic_netcdf_global_attr_string(
+    const DynamicNetcdfApi& api,
+    int ncid,
+    const std::vector<std::string>& candidates)
+{
+    constexpr int kNcGlobal = -1;
+    constexpr int kNcChar = 2;
+    constexpr int kNcString = 12;
+
+    for (const std::string& name : candidates)
+    {
+        int attr_type = 0;
+        std::size_t attr_len = 0;
+        const int rc_inq = api.nc_inq_att(ncid, kNcGlobal, name.c_str(), &attr_type, &attr_len);
+        if (rc_inq != 0)
+        {
+            continue;
+        }
+
+        if (attr_type == kNcChar)
+        {
+            std::string value(attr_len, '\0');
+            if (!value.empty())
+            {
+                const int rc_read = api.nc_get_att_text(ncid, kNcGlobal, name.c_str(), value.data());
+                if (rc_read != 0)
+                {
+                    continue;
+                }
+            }
+            while (!value.empty() && value.back() == '\0')
+            {
+                value.pop_back();
+            }
+            return value;
+        }
+
+        if (attr_type == kNcString &&
+            api.nc_get_att_string != nullptr &&
+            api.nc_free_string != nullptr &&
+            attr_len > 0)
+        {
+            std::vector<char*> values(attr_len, nullptr);
+            const int rc_read = api.nc_get_att_string(ncid, kNcGlobal, name.c_str(), values.data());
+            if (rc_read != 0)
+            {
+                continue;
+            }
+
+            std::string value;
+            if (!values.empty() && values[0] != nullptr)
+            {
+                value = values[0];
+            }
+            api.nc_free_string(attr_len, values.data());
+            return value;
+        }
+    }
+
+    return std::nullopt;
+}
+
+/**
+ * @brief Reads a global NetCDF numeric attribute by candidate names.
+ */
+std::optional<double> read_dynamic_netcdf_global_attr_numeric(
+    const DynamicNetcdfApi& api,
+    int ncid,
+    const std::vector<std::string>& candidates)
+{
+    constexpr int kNcGlobal = -1;
+    constexpr int kNcChar = 2;
+    constexpr int kNcString = 12;
+
+    for (const std::string& name : candidates)
+    {
+        int attr_type = 0;
+        std::size_t attr_len = 0;
+        const int rc_inq = api.nc_inq_att(ncid, kNcGlobal, name.c_str(), &attr_type, &attr_len);
+        if (rc_inq != 0 || attr_len == 0)
+        {
+            continue;
+        }
+        if (attr_type == kNcChar || attr_type == kNcString)
+        {
+            continue;
+        }
+
+        std::vector<double> values(attr_len, std::numeric_limits<double>::quiet_NaN());
+        const int rc_read = api.nc_get_att_double(ncid, kNcGlobal, name.c_str(), values.data());
+        if (rc_read == 0 && !values.empty())
+        {
+            return values[0];
+        }
+    }
+
+    return std::nullopt;
+}
+
+/**
+ * @brief Extracts profiles using a dynamic NetCDF C API backend.
+ */
+NativeProfileExtraction parse_netcdf_dynamic_profile_native(const std::string& file_path)
+{
+    DynamicNetcdfApi api = load_dynamic_netcdf_api();
+
+    constexpr int kNcNowrite = 0;
+    int ncid = -1;
+    const int rc_open = api.nc_open(file_path.c_str(), kNcNowrite, &ncid);
+    if (rc_open != 0 || ncid < 0)
+    {
+        throw std::runtime_error("nc_open failed: " + netcdf_status_message(api, rc_open));
+    }
+
+    NetcdfFileHandle file_guard(&api, ncid);
+    std::vector<DynamicNetcdfVariable> variables;
+    enumerate_netcdf_variables_recursive(api, ncid, "", variables);
+    if (variables.empty())
+    {
+        throw std::runtime_error("No variables found in NetCDF file");
+    }
+
+    const DynamicNetcdfVariable* height_var = find_dynamic_netcdf_variable(variables, profile_height_candidates());
+    const DynamicNetcdfVariable* pressure_var = find_dynamic_netcdf_variable(variables, profile_pressure_candidates());
+    const DynamicNetcdfVariable* temp_var = find_dynamic_netcdf_variable(variables, profile_temperature_candidates());
+    if (height_var == nullptr || pressure_var == nullptr || temp_var == nullptr)
+    {
+        throw std::runtime_error("Missing required profile variables in NetCDF file");
+    }
+
+    const DynamicNetcdfVariable* dewpoint_var = find_dynamic_netcdf_variable(variables, profile_dewpoint_candidates());
+    const DynamicNetcdfVariable* wind_speed_var = find_dynamic_netcdf_variable(variables, profile_wind_speed_candidates());
+    const DynamicNetcdfVariable* wind_dir_var = find_dynamic_netcdf_variable(variables, profile_wind_direction_candidates());
+
+    const std::vector<double> height = read_dynamic_netcdf_variable_as_double(api, *height_var);
+    const std::vector<double> pressure = read_dynamic_netcdf_variable_as_double(api, *pressure_var);
+    const std::vector<double> temperature = read_dynamic_netcdf_variable_as_double(api, *temp_var);
+    const std::vector<double> dewpoint = (dewpoint_var != nullptr)
+        ? read_dynamic_netcdf_variable_as_double(api, *dewpoint_var)
+        : std::vector<double>{};
+    const std::vector<double> wind_speed = (wind_speed_var != nullptr)
+        ? read_dynamic_netcdf_variable_as_double(api, *wind_speed_var)
+        : std::vector<double>{};
+    const std::vector<double> wind_dir = (wind_dir_var != nullptr)
+        ? read_dynamic_netcdf_variable_as_double(api, *wind_dir_var)
+        : std::vector<double>{};
+
+    NativeProfileExtraction extracted = build_native_profile_rows(
+        height, pressure, temperature, dewpoint, wind_speed, wind_dir);
+
+    if (auto station = read_dynamic_netcdf_global_attr_string(api, ncid, {"station_id"}); station.has_value())
+    {
+        extracted.station_id = *station;
+    }
+    if (auto timestamp = read_dynamic_netcdf_global_attr_string(api, ncid, {"timestamp_utc"}); timestamp.has_value())
+    {
+        extracted.timestamp_utc = *timestamp;
+    }
+    if (auto latitude = read_dynamic_netcdf_global_attr_numeric(api, ncid, {"latitude_deg", "latitude"}); latitude.has_value())
+    {
+        extracted.latitude_deg = *latitude;
+    }
+    if (auto longitude = read_dynamic_netcdf_global_attr_numeric(api, ncid, {"longitude_deg", "longitude"}); longitude.has_value())
+    {
+        extracted.longitude_deg = *longitude;
+    }
+    if (auto elevation = read_dynamic_netcdf_global_attr_numeric(api, ncid, {"elevation_m", "elevation"}); elevation.has_value())
+    {
+        extracted.elevation_m = *elevation;
+    }
+
+    return extracted;
+}
+
+/**
+ * @brief Dynamic adapter for HDF5 core + high-level APIs.
+ */
+struct DynamicHdf5Api
+{
+    using HidT = long long;
+    using HerrT = int;
+    using HSizeT = unsigned long long;
+
+    using H5OpenFn = HerrT (*)();
+    using H5FOpenFn = HidT (*)(const char*, unsigned, HidT);
+    using H5FCloseFn = HerrT (*)(HidT);
+    using H5LTGetDatasetNdimsFn = HerrT (*)(HidT, const char*, int*);
+    using H5LTGetDatasetInfoFn = HerrT (*)(HidT, const char*, HSizeT*, int*, std::size_t*);
+    using H5LTReadDatasetDoubleFn = HerrT (*)(HidT, const char*, double*);
+    using H5LTReadDatasetStringFn = HerrT (*)(HidT, const char*, char*);
+    using H5LTGetAttributeStringFn = HerrT (*)(HidT, const char*, const char*, char*);
+    using H5LTGetAttributeDoubleFn = HerrT (*)(HidT, const char*, const char*, double*);
+
+    SharedLibraryHandle core_library;
+    SharedLibraryHandle hl_library;
+    std::string core_path;
+    std::string hl_path;
+
+    H5OpenFn H5open = nullptr;
+    H5FOpenFn H5Fopen = nullptr;
+    H5FCloseFn H5Fclose = nullptr;
+    H5LTGetDatasetNdimsFn H5LTget_dataset_ndims = nullptr;
+    H5LTGetDatasetInfoFn H5LTget_dataset_info = nullptr;
+    H5LTReadDatasetDoubleFn H5LTread_dataset_double = nullptr;
+    H5LTReadDatasetStringFn H5LTread_dataset_string = nullptr;
+    H5LTGetAttributeStringFn H5LTget_attribute_string = nullptr;
+    H5LTGetAttributeDoubleFn H5LTget_attribute_double = nullptr;
+};
+
+/**
+ * @brief Loads HDF5 + HDF5-HL shared libraries dynamically.
+ */
+DynamicHdf5Api load_dynamic_hdf5_api()
+{
+    const std::vector<std::string> core_candidates = {
+        "libhdf5.dylib",
+        "libhdf5.so",
+        "libhdf5.so.310",
+        "/opt/homebrew/lib/libhdf5.dylib",
+        "/usr/local/lib/libhdf5.dylib",
+        "/opt/homebrew/opt/hdf5/lib/libhdf5.dylib",
+        "/usr/local/opt/hdf5/lib/libhdf5.dylib"
+    };
+    const std::vector<std::string> hl_candidates = {
+        "libhdf5_hl.dylib",
+        "libhdf5_hl.so",
+        "libhdf5_hl.so.310",
+        "/opt/homebrew/lib/libhdf5_hl.dylib",
+        "/usr/local/lib/libhdf5_hl.dylib",
+        "/opt/homebrew/opt/hdf5/lib/libhdf5_hl.dylib",
+        "/usr/local/opt/hdf5/lib/libhdf5_hl.dylib"
+    };
+
+    std::string core_path;
+    std::string core_error;
+    SharedLibraryHandle core = open_shared_library_first(core_candidates, core_path, core_error);
+    if (!core)
+    {
+        throw std::runtime_error("Unable to load HDF5 shared library: " + core_error);
+    }
+
+    std::string hl_path;
+    std::string hl_error;
+    SharedLibraryHandle hl = open_shared_library_first(hl_candidates, hl_path, hl_error);
+    if (!hl)
+    {
+        throw std::runtime_error("Unable to load HDF5 HL shared library: " + hl_error);
+    }
+
+    DynamicHdf5Api api;
+    api.core_library = std::move(core);
+    api.hl_library = std::move(hl);
+    api.core_path = core_path;
+    api.hl_path = hl_path;
+
+    if (!load_symbol(api.core_library.get(), "H5open", api.H5open) ||
+        !load_symbol(api.core_library.get(), "H5Fopen", api.H5Fopen) ||
+        !load_symbol(api.core_library.get(), "H5Fclose", api.H5Fclose) ||
+        !load_symbol(api.hl_library.get(), "H5LTget_dataset_ndims", api.H5LTget_dataset_ndims) ||
+        !load_symbol(api.hl_library.get(), "H5LTget_dataset_info", api.H5LTget_dataset_info) ||
+        !load_symbol(api.hl_library.get(), "H5LTread_dataset_double", api.H5LTread_dataset_double))
+    {
+        throw std::runtime_error("HDF5 shared libraries are missing required symbols");
+    }
+
+    // Optional metadata helpers.
+    load_symbol(api.hl_library.get(), "H5LTread_dataset_string", api.H5LTread_dataset_string);
+    load_symbol(api.hl_library.get(), "H5LTget_attribute_string", api.H5LTget_attribute_string);
+    load_symbol(api.hl_library.get(), "H5LTget_attribute_double", api.H5LTget_attribute_double);
+
+    return api;
+}
+
+/**
+ * @brief Reads an HDF5 dataset (matched via alias candidates) as doubles.
+ */
+std::vector<double> read_dynamic_hdf5_dataset_as_double(const DynamicHdf5Api& api,
+                                                        DynamicHdf5Api::HidT file_id,
+                                                        const std::vector<std::string>& candidates,
+                                                        bool required,
+                                                        const char* label)
+{
+    const std::vector<std::string> expanded = expand_profile_candidates(candidates);
+    for (const std::string& candidate_raw : expanded)
+    {
+        if (candidate_raw.empty())
+        {
+            continue;
+        }
+        const std::string candidate = candidate_raw;
+
+        int rank = 0;
+        if (api.H5LTget_dataset_ndims(file_id, candidate.c_str(), &rank) < 0)
+        {
+            continue;
+        }
+
+        std::vector<DynamicHdf5Api::HSizeT> dims(static_cast<std::size_t>(std::max(1, rank)), 1u);
+        int type_class = 0;
+        std::size_t type_size = 0;
+        if (api.H5LTget_dataset_info(
+                file_id,
+                candidate.c_str(),
+                rank > 0 ? dims.data() : nullptr,
+                &type_class,
+                &type_size) < 0)
+        {
+            continue;
+        }
+
+        std::size_t count = 1;
+        if (rank > 0)
+        {
+            for (int i = 0; i < rank; ++i)
+            {
+                std::size_t updated = 0;
+                if (!checked_multiply_size(count, static_cast<std::size_t>(dims[static_cast<std::size_t>(i)]), updated))
+                {
+                    throw std::runtime_error("HDF5 dataset size overflow for '" + candidate + "'");
+                }
+                count = updated;
+            }
+        }
+
+        std::vector<double> values(count, 0.0);
+        if (count > 0 &&
+            api.H5LTread_dataset_double(file_id, candidate.c_str(), values.data()) < 0)
+        {
+            throw std::runtime_error("Failed to read HDF5 dataset '" + candidate + "' as doubles");
+        }
+        return values;
+    }
+
+    if (required)
+    {
+        throw std::runtime_error(std::string("Missing required HDF5 dataset: ") + label);
+    }
+    return {};
+}
+
+/**
+ * @brief Reads a string metadata field from HDF5 attributes or scalar datasets.
+ */
+std::optional<std::string> read_dynamic_hdf5_string_metadata(
+    const DynamicHdf5Api& api,
+    DynamicHdf5Api::HidT file_id,
+    const std::vector<std::string>& candidates)
+{
+    const std::array<const char*, 2> metadata_objects = {"/metadata", "/"};
+
+    if (api.H5LTget_attribute_string != nullptr)
+    {
+        for (const char* object : metadata_objects)
+        {
+            for (const std::string& candidate : candidates)
+            {
+                std::array<char, 1024> buf{};
+                if (api.H5LTget_attribute_string(file_id, object, candidate.c_str(), buf.data()) >= 0)
+                {
+                    std::string value(buf.data());
+                    while (!value.empty() && value.back() == '\0')
+                    {
+                        value.pop_back();
+                    }
+                    return value;
+                }
+            }
+        }
+    }
+
+    if (api.H5LTread_dataset_string != nullptr)
+    {
+        const std::vector<std::string> expanded = expand_profile_candidates(candidates);
+        for (const std::string& candidate_raw : expanded)
+        {
+            if (candidate_raw.empty())
+            {
+                continue;
+            }
+            const std::string candidate = candidate_raw;
+
+            int rank = 0;
+            if (api.H5LTget_dataset_ndims(file_id, candidate.c_str(), &rank) < 0)
+            {
+                continue;
+            }
+
+            std::array<char, 1024> buf{};
+            if (api.H5LTread_dataset_string(file_id, candidate.c_str(), buf.data()) >= 0)
+            {
+                std::string value(buf.data());
+                while (!value.empty() && value.back() == '\0')
+                {
+                    value.pop_back();
+                }
+                return value;
+            }
+        }
+    }
+
+    return std::nullopt;
+}
+
+/**
+ * @brief Reads a numeric metadata field from HDF5 attributes.
+ */
+std::optional<double> read_dynamic_hdf5_numeric_metadata(
+    const DynamicHdf5Api& api,
+    DynamicHdf5Api::HidT file_id,
+    const std::vector<std::string>& candidates)
+{
+    if (api.H5LTget_attribute_double == nullptr)
+    {
+        return std::nullopt;
+    }
+
+    const std::array<const char*, 2> metadata_objects = {"/metadata", "/"};
+    for (const char* object : metadata_objects)
+    {
+        for (const std::string& candidate : candidates)
+        {
+            double value = std::numeric_limits<double>::quiet_NaN();
+            if (api.H5LTget_attribute_double(file_id, object, candidate.c_str(), &value) >= 0)
+            {
+                return value;
+            }
+        }
+    }
+    return std::nullopt;
+}
+
+/**
+ * @brief Extracts profiles using a dynamic HDF5 backend.
+ */
+NativeProfileExtraction parse_hdf5_profile_native(const std::string& file_path)
+{
+    DynamicHdf5Api api = load_dynamic_hdf5_api();
+    if (api.H5open != nullptr)
+    {
+        (void)api.H5open();
+    }
+
+    constexpr unsigned kH5fAccRdonly = 0u;
+    constexpr DynamicHdf5Api::HidT kH5pDefault = 0;
+    const DynamicHdf5Api::HidT file_id = api.H5Fopen(file_path.c_str(), kH5fAccRdonly, kH5pDefault);
+    if (file_id < 0)
+    {
+        throw std::runtime_error("H5Fopen failed for '" + file_path + "'");
+    }
+
+    try
+    {
+        const std::vector<double> height = read_dynamic_hdf5_dataset_as_double(
+            api, file_id, profile_height_candidates(), true, "height");
+        const std::vector<double> pressure = read_dynamic_hdf5_dataset_as_double(
+            api, file_id, profile_pressure_candidates(), true, "pressure");
+        const std::vector<double> temperature = read_dynamic_hdf5_dataset_as_double(
+            api, file_id, profile_temperature_candidates(), true, "temperature");
+        const std::vector<double> dewpoint = read_dynamic_hdf5_dataset_as_double(
+            api, file_id, profile_dewpoint_candidates(), false, "dewpoint");
+        const std::vector<double> wind_speed = read_dynamic_hdf5_dataset_as_double(
+            api, file_id, profile_wind_speed_candidates(), false, "wind_speed");
+        const std::vector<double> wind_direction = read_dynamic_hdf5_dataset_as_double(
+            api, file_id, profile_wind_direction_candidates(), false, "wind_direction");
+
+        NativeProfileExtraction extracted = build_native_profile_rows(
+            height, pressure, temperature, dewpoint, wind_speed, wind_direction);
+
+        if (auto station = read_dynamic_hdf5_string_metadata(api, file_id, {"station_id"}); station.has_value())
+        {
+            extracted.station_id = *station;
+        }
+        if (auto timestamp = read_dynamic_hdf5_string_metadata(api, file_id, {"timestamp_utc"}); timestamp.has_value())
+        {
+            extracted.timestamp_utc = *timestamp;
+        }
+        if (auto latitude = read_dynamic_hdf5_numeric_metadata(api, file_id, {"latitude_deg", "latitude"}); latitude.has_value())
+        {
+            extracted.latitude_deg = *latitude;
+        }
+        if (auto longitude = read_dynamic_hdf5_numeric_metadata(api, file_id, {"longitude_deg", "longitude"}); longitude.has_value())
+        {
+            extracted.longitude_deg = *longitude;
+        }
+        if (auto elevation = read_dynamic_hdf5_numeric_metadata(api, file_id, {"elevation_m", "elevation"}); elevation.has_value())
+        {
+            extracted.elevation_m = *elevation;
+        }
+
+        (void)api.H5Fclose(file_id);
+        return extracted;
+    }
+    catch (...)
+    {
+        (void)api.H5Fclose(file_id);
+        throw;
+    }
 }
 
 /**
@@ -1865,24 +2706,43 @@ bool SharpySoundingScheme::validate_sharpy_file(const std::string& file_path)
  */
 SoundingData SharpySoundingScheme::read_sharpy_hdf5(const std::string& file_path) 
 {
+    auto finalize = [&](const NativeProfileExtraction& native, const char* backend) -> SoundingData
+    {
+        SoundingData data = parse_sharpy_profile(native.rows);
+        apply_native_metadata(data, native);
+        std::cout << "Loaded sounding via native backend: " << backend << std::endl;
+        return data;
+    };
+
+    std::vector<NativeReadAttempt> attempts;
     try
     {
-        const NativeProfileExtraction native = parse_netcdf_classic_profile_native(file_path);
-        SoundingData data = parse_sharpy_profile(native.rows);
-        data.station_id = native.station_id;
-        data.timestamp_utc = native.timestamp_utc;
-        data.latitude_deg = native.latitude_deg;
-        data.longitude_deg = native.longitude_deg;
-        data.elevation_m = native.elevation_m;
-        std::cout << "Loaded sounding via native NetCDF parser path." << std::endl;
-        return data;
+        return finalize(parse_hdf5_profile_native(file_path), "hdf5_api");
     }
-    catch (const std::exception&)
+    catch (const std::exception& e)
     {
+        append_native_attempt_failure(attempts, "hdf5_api", e);
     }
 
-    const std::string extractor_output = run_python_extractor(file_path);
-    return parse_extractor_output(extractor_output);
+    try
+    {
+        return finalize(parse_netcdf_dynamic_profile_native(file_path), "netcdf_c_api");
+    }
+    catch (const std::exception& e)
+    {
+        append_native_attempt_failure(attempts, "netcdf_c_api", e);
+    }
+
+    try
+    {
+        return finalize(parse_netcdf_classic_profile_native(file_path), "netcdf_classic");
+    }
+    catch (const std::exception& e)
+    {
+        append_native_attempt_failure(attempts, "netcdf_classic", e);
+    }
+
+    throw_native_ingest_failure(file_path, attempts);
 }
 
 /**
@@ -1890,27 +2750,43 @@ SoundingData SharpySoundingScheme::read_sharpy_hdf5(const std::string& file_path
  */
 SoundingData SharpySoundingScheme::read_sharpy_netcdf(const std::string& file_path) 
 {
+    auto finalize = [&](const NativeProfileExtraction& native, const char* backend) -> SoundingData
+    {
+        SoundingData data = parse_sharpy_profile(native.rows);
+        apply_native_metadata(data, native);
+        std::cout << "Loaded sounding via native backend: " << backend << std::endl;
+        return data;
+    };
+
+    std::vector<NativeReadAttempt> attempts;
     try
     {
-        const NativeProfileExtraction native = parse_netcdf_classic_profile_native(file_path);
-        SoundingData data = parse_sharpy_profile(native.rows);
-        data.station_id = native.station_id;
-        data.timestamp_utc = native.timestamp_utc;
-        data.latitude_deg = native.latitude_deg;
-        data.longitude_deg = native.longitude_deg;
-        data.elevation_m = native.elevation_m;
-        std::cout << "Loaded sounding via native NetCDF parser path." << std::endl;
-        return data;
+        return finalize(parse_netcdf_classic_profile_native(file_path), "netcdf_classic");
     }
-    catch (const std::exception& native_error)
+    catch (const std::exception& e)
     {
-        std::cerr << "Warning: Native NetCDF parse failed for '" << file_path
-                  << "' (" << native_error.what() << "); falling back to Python extractor."
-                  << std::endl;
+        append_native_attempt_failure(attempts, "netcdf_classic", e);
     }
 
-    const std::string extractor_output = run_python_extractor(file_path);
-    return parse_extractor_output(extractor_output);
+    try
+    {
+        return finalize(parse_netcdf_dynamic_profile_native(file_path), "netcdf_c_api");
+    }
+    catch (const std::exception& e)
+    {
+        append_native_attempt_failure(attempts, "netcdf_c_api", e);
+    }
+
+    try
+    {
+        return finalize(parse_hdf5_profile_native(file_path), "hdf5_api");
+    }
+    catch (const std::exception& e)
+    {
+        append_native_attempt_failure(attempts, "hdf5_api", e);
+    }
+
+    throw_native_ingest_failure(file_path, attempts);
 }
 
 

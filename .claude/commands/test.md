@@ -1,0 +1,1 @@
+Run the test suite with `make test`. If a specific module is mentioned (e.g., "radiation", "soundings", "terrain", "guards", "backend-physics", "compute-backend", "point2-parity"), run only that test target (e.g., `make test-radiation-regression`). Report pass/fail for each test. If tests fail, read the failure output, identify the root cause, and suggest or apply a fix.

@@ -10,8 +10,8 @@
 #include "full_stochastic.hpp"
 #include "chaos/base/perturbation_field.hpp"
 #include "chaos/base/correlation_filter.hpp"
-#include "simulation.hpp"
-#include "turbulence_base.hpp"
+#include "core/simulation.hpp"
+#include "physics/turbulence_base.hpp"
 #include <iostream>
 #include <chrono>
 #include <algorithm>

@@ -12,7 +12,7 @@
 #include <algorithm>
 #include <iostream>
 
-namespace chaos 
+namespace chaos
 {
 
 namespace {
@@ -29,7 +29,6 @@ uint64_t mix_field_key(uint64_t stream_key, const std::string& field_name)
 
 }
 
-
 ChaosRNG::ChaosRNG(uint64_t base_seed, int member_id)
     : base_seed_(base_seed), member_id_(member_id),
       normal_dist_(0.0, 1.0), uniform_dist_(0.0, 1.0)
@@ -37,17 +36,14 @@ ChaosRNG::ChaosRNG(uint64_t base_seed, int member_id)
     base_generator_.seed(base_seed_ + static_cast<uint64_t>(member_id_));
 }
 
-/**
- * @brief Generates the normal distribution for the stream.
- */
-std::vector<double> ChaosRNG::normal_stream(size_t count, uint64_t stream_key) 
+std::vector<double> ChaosRNG::normal_stream(size_t count, uint64_t stream_key)
 {
     std::vector<double> result(count);
 
     uint64_t stream_seed = make_stream_seed(stream_key, 0);
     auto generator = create_stream_generator(stream_seed);
 
-    for (size_t i = 0; i < count; ++i) 
+    for (size_t i = 0; i < count; ++i)
     {
         result[i] = normal_dist_(generator);
     }
@@ -55,27 +51,21 @@ std::vector<double> ChaosRNG::normal_stream(size_t count, uint64_t stream_key)
     return result;
 }
 
-/**
- * @brief Generates the normal distribution for the stream.
- */
-double ChaosRNG::normal(uint64_t stream_key) 
+double ChaosRNG::normal(uint64_t stream_key)
 {
     uint64_t stream_seed = make_stream_seed(stream_key, 0);
     auto generator = create_stream_generator(stream_seed);
     return normal_dist_(generator);
 }
 
-/**
- * @brief Generates the uniform distribution for the stream.
- */
-std::vector<double> ChaosRNG::uniform_stream(size_t count, uint64_t stream_key) 
+std::vector<double> ChaosRNG::uniform_stream(size_t count, uint64_t stream_key)
 {
     std::vector<double> result(count);
 
     uint64_t stream_seed = make_stream_seed(stream_key, 0);
     auto generator = create_stream_generator(stream_seed);
 
-    for (size_t i = 0; i < count; ++i) 
+    for (size_t i = 0; i < count; ++i)
     {
         result[i] = uniform_dist_(generator);
     }
@@ -83,45 +73,11 @@ std::vector<double> ChaosRNG::uniform_stream(size_t count, uint64_t stream_key)
     return result;
 }
 
-/**
- * @brief Generates the uniform distribution for the stream.
- */
-double ChaosRNG::uniform(uint64_t stream_key) 
+double ChaosRNG::uniform(uint64_t stream_key)
 {
     uint64_t stream_seed = make_stream_seed(stream_key, 0);
     auto generator = create_stream_generator(stream_seed);
     return uniform_dist_(generator);
-}
-
-/**
- * @brief Fills the field with the normal distribution.
- */
-void ChaosRNG::fill_field_normal(
-    std::vector<std::vector<std::vector<double>>>& field,
-    uint64_t stream_key,
-    const std::string& field_name
-) 
-{
-    if (field.empty() || field[0].empty() || field[0][0].empty()) {return;}
-
-    const size_t NR = field.size();
-    const size_t NTH = field[0].size();
-    const size_t NZ = field[0][0].size();
-
-    const uint64_t field_key = mix_field_key(stream_key, field_name);
-    const uint64_t stream_seed = make_stream_seed(field_key, 0);
-    auto generator = create_stream_generator(stream_seed);
-
-    for (size_t i = 0; i < NR; ++i) 
-    {
-        for (size_t j = 0; j < NTH; ++j) 
-        {
-            for (size_t k = 0; k < NZ; ++k) 
-            {
-                field[i][j][k] = normal_dist_(generator);
-            }
-        }
-    }
 }
 
 void ChaosRNG::fill_field_normal(
@@ -147,45 +103,12 @@ void ChaosRNG::fill_field_normal(
     }
 }
 
-/**
- * @brief Fills the field with the normal distribution.
- */
-void ChaosRNG::fill_field_normal(
-    std::vector<std::vector<double>>& field,
-    uint64_t stream_key,
-    const std::string& field_name
-) 
-{
-    if (field.empty() || field[0].empty()) {return;}
-
-    const size_t NR = field.size();
-    const size_t NTH = field[0].size();
-
-    const uint64_t field_key = mix_field_key(stream_key, field_name);
-    const uint64_t stream_seed = make_stream_seed(field_key, 0);
-    auto generator = create_stream_generator(stream_seed);
-
-    for (size_t i = 0; i < NR; ++i) 
-    {
-        for (size_t j = 0; j < NTH; ++j) 
-        {
-            field[i][j] = normal_dist_(generator);
-        }
-    }
-}
-
-/**
- * @brief Resets the random number generator.
- */
-void ChaosRNG::reset() 
+void ChaosRNG::reset()
 {
     base_generator_.seed(base_seed_ + static_cast<uint64_t>(member_id_));
 }
 
-/**
- * @brief Makes the stream seed.
- */
-uint64_t ChaosRNG::make_stream_seed(uint64_t stream_key, uint64_t sub_key) const 
+uint64_t ChaosRNG::make_stream_seed(uint64_t stream_key, uint64_t sub_key) const
 {
     uint64_t combined = base_seed_;
     combined = combined * 6364136223846793005ULL + static_cast<uint64_t>(member_id_);
@@ -194,53 +117,11 @@ uint64_t ChaosRNG::make_stream_seed(uint64_t stream_key, uint64_t sub_key) const
     return combined;
 }
 
-/**
- * @brief Creates the stream generator.
- */
-std::mt19937_64 ChaosRNG::create_stream_generator(uint64_t stream_seed) const 
+std::mt19937_64 ChaosRNG::create_stream_generator(uint64_t stream_seed) const
 {
     std::mt19937_64 generator;
     generator.seed(stream_seed);
     return generator;
-}
-
-/**
- * @brief Bounds the perturbation field.
- */
-
-void bound_perturbation_field(
-    std::vector<std::vector<std::vector<double>>>& xi,
-    double xi_max,
-    bool use_tanh
-) 
-{
-    if (xi.empty() || xi[0].empty() || xi[0][0].empty()) {return;}
-
-    const double xi_max_eff = (std::isfinite(xi_max) && xi_max > 0.0) ? xi_max : 1.0;
-
-    const size_t NR = xi.size();
-    const size_t NTH = xi[0].size();
-    const size_t NZ = xi[0][0].size();
-
-    for (size_t i = 0; i < NR; ++i) 
-    {
-        for (size_t j = 0; j < NTH; ++j) 
-        {
-            for (size_t k = 0; k < NZ; ++k) 
-            {
-                double& val = xi[i][j][k];
-
-                if (use_tanh) 
-                {
-                    val = xi_max_eff * std::tanh(val / xi_max_eff);
-                } 
-                else 
-                {
-                    val = std::max(-xi_max_eff, std::min(xi_max_eff, val));
-                }
-            }
-        }
-    }
 }
 
 void bound_perturbation_field(
@@ -270,70 +151,6 @@ void bound_perturbation_field(
             val = std::max(-xi_max_eff, std::min(xi_max_eff, val));
         }
         values[idx] = static_cast<float>(val);
-    }
-}
-
-/**
- * @brief Applies the vertical taper to the perturbation field.
- */
-void apply_vertical_taper(
-    std::vector<std::vector<std::vector<double>>>& xi,
-    const std::vector<double>& z_levels,
-    const std::string& taper_id,
-    double z1,
-    double z2
-) 
-{
-    if (xi.empty() || xi[0].empty() || xi[0][0].empty() || z_levels.empty()) {return;}
-
-    const size_t NR = xi.size();
-    const size_t NTH = xi[0].size();
-    const size_t NZ = xi[0][0].size();
-
-    if (taper_id == "none") 
-    {
-        return;
-    }
-
-    for (size_t i = 0; i < NR; ++i) 
-    {
-        for (size_t j = 0; j < NTH; ++j) 
-        {
-            for (size_t k = 0; k < NZ; ++k) 
-            {
-                double z = z_levels[k];
-                double taper_factor = 1.0;
-
-                if (taper_id == "pbl_only") 
-                {
-                    taper_factor = (z <= z1) ? 1.0 : 0.0;
-                } 
-                else if (taper_id == "cosine") 
-                {
-                    if (z <= z1) 
-                    {
-                        taper_factor = 1.0;
-                    }
-                     else if (z >= z2) 
-                    {
-                        taper_factor = 0.0;
-                    }
-                     else 
-                    {
-                        if (z2 > z1)
-                        {
-                            double phase = M_PI * (z - z1) / (z2 - z1);
-                            taper_factor = 0.5 * (1.0 + std::cos(phase));
-                        }
-                        else
-                        {
-                            taper_factor = (z <= z1) ? 1.0 : 0.0;
-                        }
-                    }
-                }
-                xi[i][j][k] *= taper_factor;
-            }
-        }
     }
 }
 
@@ -401,41 +218,6 @@ void apply_vertical_taper(
             for (int j = 0; j < nth; ++j)
             {
                 xi(i, j, k) = static_cast<float>(static_cast<double>(xi(i, j, k)) * taper_factor);
-            }
-        }
-    }
-}
-
-/**
- * @brief Applies the horizontal mask to the perturbation field.
- */
-void apply_horizontal_mask(
-    std::vector<std::vector<std::vector<double>>>& xi,
-    const std::vector<std::vector<double>>& mask
-) 
-{
-    if (xi.empty() || xi[0].empty() || xi[0][0].empty() ||
-        mask.empty() || mask[0].empty()) {return;}
-
-    const size_t NR = xi.size();
-    const size_t NTH = xi[0].size();
-    const size_t NZ = xi[0][0].size();
-
-    if (mask.size() != NR || mask[0].size() != NTH) 
-    {
-        std::cerr << "Warning: Mask dimensions don't match perturbation field" << std::endl;
-        return;
-    }
-
-    for (size_t i = 0; i < NR; ++i) 
-    {
-        for (size_t j = 0; j < NTH; ++j) 
-        {
-            double mask_val = mask[i][j];
-
-            for (size_t k = 0; k < NZ; ++k) 
-            {
-                xi[i][j][k] *= mask_val;
             }
         }
     }

@@ -1,0 +1,80 @@
+// advect_radial.comp
+//
+// GLSL compute shader implementing first-order upwind radial advection.
+//
+// GPU equivalent of advect_scalar_1d_r_kernel in src/advection/advection.cpp.
+//
+// Each invocation processes one interior grid point (i,j,k).
+// Boundary points (i=0, i=NR-1, k=0, k=NZ-1) are skipped — the CPU handles
+// boundary copies before/after the GPU dispatch.
+//
+// Data layout is row-major [nr][nth][nz].
+// Index for element (i, j, k) = (i * nth + j) * nz + k.
+
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+// SSBOs
+layout(set = 0, binding = 0) readonly buffer SrcBuf {
+    float src[];
+};
+
+layout(set = 0, binding = 1) readonly buffer UBuf {
+    float u_field[];
+};
+
+layout(set = 0, binding = 2) buffer DstBuf {
+    float dst[];
+};
+
+// Push constants
+layout(push_constant) uniform PushConstants {
+    int   nr;
+    int   nth;
+    int   nz;
+    float dr;
+    float dt;
+    float padding[3]; // Pad to 32 bytes
+};
+
+void main() {
+    uint gid = gl_GlobalInvocationID.x;
+
+    // Total interior points: (nr-2) * nth * (nz-2)
+    int interior_nth = nth;
+    int interior_nz = nz - 2;
+    int interior_nr = nr - 2;
+    uint total_interior = uint(interior_nr) * uint(interior_nth) * uint(interior_nz);
+
+    if (gid >= total_interior) {
+        return;
+    }
+
+    // Map flat gid to (i_interior, j, k_interior)
+    int k_interior = int(gid % uint(interior_nz));
+    uint ij = gid / uint(interior_nz);
+    int j = int(ij % uint(interior_nth));
+    int i_interior = int(ij / uint(interior_nth));
+
+    // Actual grid indices (i starts at 1, k starts at 1)
+    int i = i_interior + 1;
+    int k = k_interior + 1;
+
+    // Flat indexing into [nr][nth][nz]
+    uint c  = uint((i * nth + j) * nz + k);
+    uint im = uint(((i - 1) * nth + j) * nz + k);
+    uint ip = uint(((i + 1) * nth + j) * nz + k);
+
+    float u_val = u_field[c];
+    float q_c = src[c];
+    float dq_dr = 0.0;
+
+    if (u_val > 0.0) {
+        dq_dr = (q_c - src[im]) / dr;
+    } else if (u_val < 0.0) {
+        dq_dr = (src[ip] - q_c) / dr;
+    }
+
+    dst[c] = q_c - dt * u_val * dq_dr;
+}

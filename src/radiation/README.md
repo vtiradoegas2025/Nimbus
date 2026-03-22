@@ -11,6 +11,8 @@ src/radiation/base/radiative_transfer.*     # Transfer/math utilities
 src/radiation/schemes/simple_grey/*         # Implemented scheme
 ```
 
+`rrtmg` is recognized as a canonical planned scheme id for platform-fidelity config compatibility, but current runtime execution remains `simple_grey`.
+
 ## Implemented Scheme
 
 ### `simple_grey`
@@ -35,7 +37,8 @@ dT/dt = -(1 / (rho * cp)) * dFnet/dz
 
 ```yaml
 radiation:
-  scheme: simple_grey        # currently implemented scheme
+  scheme: simple_grey        # implemented runtime scheme (default)
+  # scheme: rrtmg            # recognized planned id; currently falls back to simple_grey
   dt: 300.0                  # cadence (s); alias: dt_radiation
   do_lw: true
   do_sw: true

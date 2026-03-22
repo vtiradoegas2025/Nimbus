@@ -1,111 +1,68 @@
 # Header Files
 
-This directory contains the header files defining interfaces, base classes, and type definitions for SupercellModel. Headers are organized by physics module and provide the public API for the simulation framework.
+This directory contains the header files defining interfaces, base classes, and type definitions for Nimbus. Headers are organized by domain and provide the public API for the simulation framework.
 
-## Core Headers
+## Directory Layout
 
-### Main Simulation Interface
-- **`simulation.hpp`** - Primary simulation class and configuration structures
-  - Defines `SimulationState`, `WindProfile`, grid metrics
-  - Contains main initialization and stepping functions
-  - Entry point for external coupling
+Headers are organized into domain-specific subdirectories:
 
-### Runtime/Validation Headers
+```
+include/
+├── core/           # Simulation state, Field3D, runtime config, output
+├── physics/        # Physics module base classes
+├── numerics/       # Advection, diffusion, time-stepping interfaces
+├── diagnostics/    # Radar, field validation, field contracts
+├── data/           # Sounding data structures
+└── util/           # SIMD, string, grid metric utilities
+```
+
+## Core Headers (`core/`)
+
+- **`simulation.hpp`** - Primary simulation class, `SimulationState`, `WindProfile`, grid metrics
+- **`field3d.hpp`** - Contiguous 3D field storage with flattened indexing
 - **`runtime_config.hpp`** - Runtime configuration globals and parser-facing declarations
-- **`field_contract.hpp`** - CM1-style export/validation contract metadata
-- **`field_validation.hpp`** - Field-level guard/validation result structures and checks
 - **`physical_constants.hpp`** - Shared constants consumed across physics modules
+- **`headless_runtime.hpp`** - Headless simulation loop entry point
+- **`output_writer.hpp`** - NPY export and manifest generation
 
-## Physics Module Base Classes
+## Diagnostics Headers (`diagnostics/`)
 
-Each physics module provides a base class defining the interface for all schemes within that module. These headers contain:
+- **`field_contract.hpp`** - CM1-style export/validation contract metadata
+- **`field_validation.hpp`** - Field-level guard/validation result structures
+- **`radar.hpp`** / **`radar_base.hpp`** - Radar forward operator interfaces
 
-### advection_base.hpp - Scalar Transport
-- **`AdvectionScheme`** - Base class for advection algorithms
-- **TVD/MC and WENO implementations**
-- **Conservative transport interfaces**
+## Numerics Headers (`numerics/`)
 
-### boundary_layer_base.hpp - Planetary Boundary Layer
-- **`BoundaryLayerScheme`** - PBL parameterization interface
-- **Surface flux calculations (MOST similarity theory)**
-- **Non-local mixing algorithms**
-- **See `src/boundary_layer/README.md` for implementation details**
+- **`advection.hpp`** / **`advection_base.hpp`** - Scalar transport interfaces
+- **`diffusion_base.hpp`** - Diffusion algorithm interface
+- **`time_stepping_base.hpp`** - Time integration interface
+- **`numerics_base.hpp`** - Numerical methods coordinator
+- **`compute_backend.hpp`** - Compute backend abstraction
+- **`compute_kernel_template.hpp`** - Kernel-template registry/dispatch API
 
-### chaos_base.hpp - Stochastic Perturbations
-- **`ChaosScheme`** - Stochastic parameterization interface
-- **Perturbation field definitions**
-- **SPPT (Stochastically Perturbed Parameterization Tendencies)**
-- **See `src/chaos/README.md` for implementation details**
+## Physics Module Base Classes (`physics/`)
 
-### diffusion_base.hpp - Momentum/Heat Diffusion
-- **`DiffusionScheme`** - Diffusion algorithm interface
-- **Explicit and implicit Laplacian methods**
-- **Hyper-viscosity options**
-- **See `src/numerics/README.md` for implementation details**
+Each physics module provides a base class defining the interface for all schemes:
 
-### dynamics_base.hpp - Large-Scale Dynamics
-- **`DynamicsScheme`** - Atmospheric dynamics interface
-- **Compressible Euler equations**
-- **Pressure gradient and buoyancy terms**
-- **See `src/dynamics/README.md` for implementation details**
+- **`boundary_layer_base.hpp`** - PBL parameterization interface (MOST surface fluxes, non-local mixing)
+- **`chaos_base.hpp`** - Stochastic parameterization interface (SPPT, perturbation fields)
+- **`dynamics_base.hpp`** - Compressible Euler equations interface
+- **`microphysics_base.hpp`** - Cloud microphysics interface (phase changes, precipitation fallout)
+- **`radiation_base.hpp`** - Radiative transfer interface (LW/SW heating)
+- **`terrain_base.hpp`** - Terrain/orographic forcing interface
+- **`turbulence_base.hpp`** - Sub-grid turbulence closures (eddy viscosity, TKE prognostic)
 
-### microphysics_base.hpp - Cloud Microphysics
-- **`MicrophysicsScheme`** - Microphysics parameterization interface
-- **Phase change rates and latent heating**
-- **Precipitation fallout algorithms**
-- **See `src/microphysics/README.md` for implementation details**
+## Data Headers (`data/`)
 
-### numerics_base.hpp - Numerical Methods Coordination
-- **`NumericsManager`** - Coordinator for advection/diffusion/time-stepping
-- **CFL condition monitoring**
-- **Stability diagnostics**
-- **See `src/numerics/README.md` for implementation details**
+- **`soundings_base.hpp`** - Vertical profile ingestion interface
+- **`soundings.hpp`** - Sounding data containers and profile utilities
 
-### radar_base.hpp - Radar Forward Operators
-- **`RadarSchemeBase`** - Base class for radar observation operators
-- **`RadarConfig`** - Configuration structure for radar settings
-- **`RadarStateView`** - Read-only view of model state for radar calculations
-- **`RadarOut`** - Output structure for radar observables
-- **Reflectivity operators** (Z/Ze from hydrometeor mixing ratios)
-- **Doppler velocity operators** (V_r from wind field projections)
-- **Polarimetric operators** (Z_DR with ZH/ZV components)
-- **See `src/radar/README.md` for implementation details**
+## Utility Headers (`util/`)
 
-### radiation_base.hpp - Atmospheric Radiation
-- **`RadiationScheme`** - Radiative transfer interface
-- **Longwave/shortwave cooling/heating**
-- **Gray atmosphere approximations**
-- **See `src/radiation/README.md` for implementation details**
-
-### soundings_base.hpp - Atmospheric Soundings
-- **`SoundingScheme`** - Vertical profile interface
-- **Observational data ingestion**
-- **Profile interpolation algorithms**
-- **See `src/soundings/README.md` for implementation details**
-
-### soundings.hpp - Sounding Data Structures
-- **Sounding data containers**
-- **Profile manipulation utilities**
-- **Quality control interfaces**
-- **See `src/soundings/README.md` for implementation details**
-
-### terrain_base.hpp - Terrain/Orography
-- **`TerrainScheme`** - Terrain parameterization interface
-- **Topographic forcing**
-- **Coordinate transformation**
-- **See `src/terrain/README.md` for implementation details**
-
-### time_stepping_base.hpp - Time Integration
-- **`TimeSteppingScheme`** - Time integration interface
-- **Runge-Kutta implementations**
-- **Splitting methods (HEVI)**
-- **See `src/numerics/README.md` for implementation details**
-
-### turbulence_base.hpp - Sub-Grid Turbulence
-- **`TurbulenceScheme`** - Turbulence parameterization interface
-- **Eddy viscosity models**
-- **TKE prognostic schemes**
-- **See `src/turbulence/README.md` for implementation details**
+- **`simd_utils.hpp`** - Runtime SIMD detection and vectorized operations
+- **`grid_metric_utils.hpp`** - Cylindrical grid metric computations
+- **`string_utils.hpp`** - String parsing utilities
+- **`log.hpp`** - Logging infrastructure
 
 ## Design Principles
 
@@ -136,39 +93,26 @@ All base classes follow consistent patterns:
 
 ## Usage Patterns
 
-### Implementing New Schemes
+### Implementing a New Scheme
 ```cpp
-#include "microphysics_base.hpp"
+#include "physics/microphysics_base.hpp"
 
 class MyMicrophysics : public MicrophysicsScheme {
 public:
-    void initialize(const MicrophysicsConfig& config) override {
-        // Implementation
-    }
-
-    void compute_tendencies(/* parameters */) override {
-        // Implementation
-    }
+    void initialize(const MicrophysicsConfig& config) override { /* ... */ }
+    void compute_tendencies(/* params */) override { /* ... */ }
 };
-
-// Register with factory
-REGISTER_MICROPHYSICS_SCHEME(MyMicrophysics, "my_scheme");
 ```
 
 ### Using Physics Modules
 ```cpp
-#include "simulation.hpp"
-#include "microphysics_base.hpp"
+#include "core/simulation.hpp"
+#include "physics/microphysics_base.hpp"
 
-// Initialize simulation
 SimulationState state;
 initialize_simulation(state, config);
 
-// Get microphysics scheme
 auto microphysics = create_microphysics_scheme("kessler");
-microphysics->initialize(microphysics_config);
-
-// Apply in time loop
 microphysics->compute_tendencies(state, tendencies, dt);
 ```
 

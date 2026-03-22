@@ -1,0 +1,64 @@
+# Teaching exercise: Tornadogenesis
+#
+# A tornado-producing supercell develops over 2-4 hours. The simulation
+# captures the full lifecycle: supercell spin-up, mesocyclone intensification,
+# low-level vortex stretching, and tornado formation.
+#
+# Learning objectives:
+#   - Tornadogenesis mechanisms: tilting, stretching, baroclinic generation
+#   - Role of the rear-flank downdraft (RFD)
+#   - Vorticity budget analysis in cylindrical coordinates
+#   - Relationship between CAPE, shear, and tornado potential
+#
+# Usage:
+#   ./bin/tornado_sim --headless --config=configs/teaching/tornado_genesis.yaml
+#
+# Expected output: ~800 MB in data/exports/
+# Expected runtime: 2-4 hours on a modern laptop (8+ GB RAM recommended)
+
+case_name: tornado_genesis
+grid:
+  nx: 128
+  ny: 128
+  nz: 64
+  dx: 1000.0
+  dy: 1000.0
+  dz: 250.0
+  dt: 1.0
+environment:
+  cape_target_jkg: 3500
+  shear_0_6km_ms: 40
+  sfc_theta_k: 302.0
+  sfc_qv_kgkg: 0.016
+  tropopause_z_m: 12000
+  midlevel_drying: true
+  hodograph:
+    type: wk_param
+    u_sfc_ms: 5
+    v_sfc_ms: 2
+    u_1km_ms: 16
+    v_1km_ms: 8
+    u_6km_ms: 35
+    v_6km_ms: 25
+trigger:
+  bubble:
+    center_x_km: 64
+    center_y_km: 64
+    center_z_km: 1.5
+    radius_km: 10
+    dtheta_k: 3.0
+microphysics:
+  scheme: kessler
+dynamics:
+  scheme: tornado
+radiation:
+  scheme: simple_grey
+  dt: 300
+boundary_layer:
+  scheme: slab
+output:
+  write_every_s: 60
+  fields: presentation
+  format: npy_3d
+  estimate_disk_budget: true
+duration_s: 7200

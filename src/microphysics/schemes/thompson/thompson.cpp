@@ -8,7 +8,7 @@
  */
 
 #include "thompson.hpp"
-#include "simulation.hpp"
+#include "core/simulation.hpp"
 #include <algorithm>
 #include <cmath>
 #ifdef _OPENMP
@@ -64,14 +64,8 @@ void ThompsonScheme::compute_tendencies(
     Field3D temperature(NR, NTH, NZ);
     thermodynamics::convert_theta_to_temperature_field(theta, p, temperature);
 
-    dtheta_dt.resize(NR, NTH, NZ, 0.0f);
-    dqv_dt.resize(NR, NTH, NZ, 0.0f);
-    dqc_dt.resize(NR, NTH, NZ, 0.0f);
-    dqr_dt.resize(NR, NTH, NZ, 0.0f);
-    dqi_dt.resize(NR, NTH, NZ, 0.0f);
-    dqs_dt.resize(NR, NTH, NZ, 0.0f);
-    dqg_dt.resize(NR, NTH, NZ, 0.0f);
-    dqh_dt.resize(NR, NTH, NZ, 0.0f);
+    init_tendency_fields(NR, NTH, NZ, dtheta_dt, dqv_dt, dqc_dt, dqr_dt,
+                         dqi_dt, dqs_dt, dqg_dt, dqh_dt);
     dNi_dt_.resize(NR, NTH, NZ, 0.0f);
 
     Field3D qv_temp = qv;
@@ -245,11 +239,12 @@ void ThompsonScheme::compute_ice_processes(
     int NTH = temperature.size_th();
     int NZ = temperature.size_z();
 
-    for (int i = 0; i < NR; ++i) 
+    #pragma omp parallel for collapse(2)
+    for (int i = 0; i < NR; ++i)
     {
-        for (int j = 0; j < NTH; ++j) 
+        for (int j = 0; j < NTH; ++j)
         {
-            for (int k = 0; k < NZ; ++k) 
+            for (int k = 0; k < NZ; ++k)
             {
                 float qc_val = static_cast<float>(qc[i][j][k]);
                 float qi_val = static_cast<float>(qi[i][j][k]);
@@ -360,11 +355,12 @@ void ThompsonScheme::compute_melting_processes(
     int NTH = temperature.size_th();
     int NZ = temperature.size_z();
 
-    for (int i = 0; i < NR; ++i) 
+    #pragma omp parallel for collapse(2)
+    for (int i = 0; i < NR; ++i)
     {
-        for (int j = 0; j < NTH; ++j) 
+        for (int j = 0; j < NTH; ++j)
         {
-            for (int k = 0; k < NZ; ++k) 
+            for (int k = 0; k < NZ; ++k)
             {
                 float qs_val = static_cast<float>(qs[i][j][k]);
                 float qg_val = static_cast<float>(qg[i][j][k]);
@@ -421,9 +417,10 @@ void ThompsonScheme::compute_sedimentation(
     int NZ = qr.size_z();
     const double dz_local = std::max(::dz, 1.0e-6);
 
-    for (int i = 0; i < NR; ++i) 
+    #pragma omp parallel for collapse(2)
+    for (int i = 0; i < NR; ++i)
     {
-        for (int j = 0; j < NTH; ++j) 
+        for (int j = 0; j < NTH; ++j)
         {
             for (int k = 0; k < NZ; ++k) 
             {
@@ -499,9 +496,10 @@ void ThompsonScheme::compute_radar_reflectivity(
     const float Z_dbz_min = -30.0f;
     const float Z_dbz_max = 120.0f;
 
-    for (int i = 0; i < NR; ++i) 
+    #pragma omp parallel for collapse(2)
+    for (int i = 0; i < NR; ++i)
     {
-        for (int j = 0; j < NTH; ++j) 
+        for (int j = 0; j < NTH; ++j)
         {
             for (int k = 0; k < NZ; ++k) 
             {

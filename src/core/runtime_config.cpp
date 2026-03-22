@@ -7,7 +7,9 @@
  * This file belongs to the primary src/core execution layer.
  */
 
-#include "runtime_config.hpp"
+#include "core/runtime_config.hpp"
+
+#include "core/output_config.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -17,18 +19,21 @@
 #include <iostream>
 #include <limits>
 #include <sstream>
+#include <stdexcept>
 #include <vector>
 
-#include "advection_base.hpp"
-#include "boundary_layer_base.hpp"
-#include "chaos_base.hpp"
-#include "diffusion_base.hpp"
-#include "radiation_base.hpp"
-#include "simulation.hpp"
-#include "string_utils.hpp"
-#include "terrain_base.hpp"
-#include "time_stepping_base.hpp"
-#include "turbulence_base.hpp"
+#include "numerics/advection_base.hpp"
+#include "physics/boundary_layer_base.hpp"
+#include "physics/chaos_base.hpp"
+#include "numerics/compute_backend.hpp"
+#include "numerics/compute_kernel_template.hpp"
+#include "numerics/diffusion_base.hpp"
+#include "physics/radiation_base.hpp"
+#include "core/simulation.hpp"
+#include "util/string_utils.hpp"
+#include "physics/terrain_base.hpp"
+#include "numerics/time_stepping_base.hpp"
+#include "physics/turbulence_base.hpp"
 
 /**
  * @brief Returns a lowercase copy of the input string.
@@ -667,7 +672,7 @@ std::string global_validation_report_path;
 /**
  * @brief Loads the configuration from a YAML file.
  */
-void load_config(const std::string& config_path, int& duration_s, int& write_every_s, std::string& outdir)
+void load_config(const std::string& config_path, int& duration_s, int& write_every_s, std::string& outdir, OutputConfig* output_config, bool* live_shm, std::vector<std::string>* live_shm_fields)
 {
     if (config_path.empty()) 
     {
@@ -789,6 +794,33 @@ void load_config(const std::string& config_path, int& duration_s, int& write_eve
         {
             warn_invalid_config_value("output.write_every_s", config["output.write_every_s"], "an integer");
         }
+    }
+
+    if (live_shm && config.count("output.live_shm"))
+    {
+        *live_shm = parse_bool_value(config["output.live_shm"]);
+    }
+    if (live_shm_fields && config.count("output.live_shm_fields"))
+    {
+        const std::string& raw = config["output.live_shm_fields"];
+        live_shm_fields->clear();
+        std::istringstream stream(raw);
+        std::string token;
+        while (std::getline(stream, token, ','))
+        {
+            // Trim whitespace from each field name
+            auto start = token.find_first_not_of(" \t");
+            auto end = token.find_last_not_of(" \t");
+            if (start != std::string::npos)
+            {
+                live_shm_fields->push_back(token.substr(start, end - start + 1));
+            }
+        }
+    }
+
+    if (output_config)
+    {
+        *output_config = parse_output_config(config);
     }
 
     if (config.count("environment.cape_target_jkg"))
@@ -1319,29 +1351,40 @@ void load_config(const std::string& config_path, int& duration_s, int& write_eve
 
     if (config.count("radiation.scheme"))
     {
-        const std::string requested_scheme = to_lower_copy(config["radiation.scheme"]);
-        const std::vector<std::string> valid_schemes = get_available_radiation_schemes();
-        bool valid = false;
-        for (const auto& scheme : valid_schemes)
+        const std::string requested_scheme = config["radiation.scheme"];
+        const std::string canonical = canonicalize_radiation_scheme_id(requested_scheme);
+        const std::vector<std::string> known_schemes = get_known_radiation_schemes();
+
+        bool known = false;
+        for (const auto& scheme : known_schemes)
         {
-            if (requested_scheme == scheme)
+            if (canonical == scheme)
             {
-                valid = true;
+                known = true;
                 break;
             }
         }
 
-        if (valid)
+        if (known && is_radiation_scheme_implemented(canonical))
         {
-            global_radiation_config.scheme_id = requested_scheme;
+            global_radiation_config.scheme_id = canonical;
+        }
+        else if (known)
+        {
+            std::cout << "Warning: Requested radiation scheme '" << requested_scheme
+                      << "' maps to '" << canonical
+                      << "', which is recognized but not implemented in this build. "
+                      << "Using default: simple_grey" << std::endl;
+            global_radiation_config.scheme_id = "simple_grey";
         }
         else
         {
-            std::cout << "Warning: Invalid radiation scheme '" << requested_scheme << "'. Valid options: ";
-            for (size_t i = 0; i < valid_schemes.size(); ++i)
+            std::cout << "Warning: Invalid radiation scheme '" << requested_scheme
+                      << "'. Known options: ";
+            for (size_t i = 0; i < known_schemes.size(); ++i)
             {
-                std::cout << valid_schemes[i];
-                if (i + 1 < valid_schemes.size()) std::cout << ", ";
+                std::cout << known_schemes[i];
+                if (i + 1 < known_schemes.size()) std::cout << ", ";
             }
             std::cout << ". Using default: simple_grey" << std::endl;
             global_radiation_config.scheme_id = "simple_grey";
@@ -1844,6 +1887,71 @@ void load_config(const std::string& config_path, int& duration_s, int& write_eve
     if (config.count("dynamics.scheme"))
     {
         global_dynamics_scheme_name = config["dynamics.scheme"];
+    }
+
+    if (config.count("numerics.compute.backend"))
+    {
+        ComputeBackendKind parsed = ComputeBackendKind::Cpu;
+        if (parse_compute_backend_kind(config["numerics.compute.backend"], parsed))
+        {
+            global_compute_backend_config.backend = compute_backend_kind_name(parsed);
+        }
+        else
+        {
+            throw std::runtime_error(
+                "Invalid numerics.compute.backend '" + config["numerics.compute.backend"] +
+                "'; expected one of: cpu, vulkan");
+        }
+    }
+    if (config.count("numerics.compute.device_index"))
+    {
+        int parsed = 0;
+        if (try_parse_int_value(config["numerics.compute.device_index"], parsed) && parsed >= -1)
+        {
+            global_compute_backend_config.device_index = parsed;
+        }
+        else
+        {
+            warn_invalid_config_value(
+                "numerics.compute.device_index",
+                config["numerics.compute.device_index"],
+                "an integer >= -1");
+        }
+    }
+    if (config.count("numerics.compute.allow_fallback"))
+    {
+        global_compute_backend_config.allow_fallback =
+            parse_bool_value(config["numerics.compute.allow_fallback"]);
+    }
+    if (config.count("numerics.compute.validate_parity"))
+    {
+        global_compute_backend_config.validate_parity =
+            parse_bool_value(config["numerics.compute.validate_parity"]);
+    }
+    if (config.count("numerics.compute.templates.vertical_flux"))
+    {
+        const std::string template_id = config["numerics.compute.templates.vertical_flux"];
+        if (has_vertical_flux_template(template_id))
+        {
+            set_active_vertical_flux_template_id(template_id);
+        }
+        else
+        {
+            std::string supported;
+            const auto templates = list_vertical_flux_templates();
+            for (std::size_t i = 0; i < templates.size(); ++i)
+            {
+                if (i > 0)
+                {
+                    supported += ", ";
+                }
+                supported += templates[i].id;
+            }
+            warn_invalid_config_value(
+                "numerics.compute.templates.vertical_flux",
+                template_id,
+                supported.empty() ? "a known template id" : supported.c_str());
+        }
     }
 
     if (config.count("numerics.advection"))
@@ -2392,6 +2500,13 @@ void load_config(const std::string& config_path, int& duration_s, int& write_eve
                   << ", dt_min: " << global_time_stepping_config.dt_min
                   << "s, dt_max: " << global_time_stepping_config.dt_max
                   << "s, cfl_safety: " << global_time_stepping_config.cfl_safety << ")" << std::endl;
+        std::cout << "  Numerics-Compute: " << global_compute_backend_config.backend
+                  << " (device_index: " << global_compute_backend_config.device_index
+                  << ", fallback: " << (global_compute_backend_config.allow_fallback ? "on" : "off")
+                  << ", parity: " << (global_compute_backend_config.validate_parity ? "on" : "off")
+                  << ")" << std::endl;
+        std::cout << "  Numerics-KernelTemplate: vertical_flux=" << active_vertical_flux_template_id()
+                  << std::endl;
         std::cout << "  Chaos: " << global_chaos_config.scheme_id << std::endl;
         std::cout << "  Terrain: " << global_terrain_config.scheme_id
                   << " (coord: " << global_terrain_config.coord_id

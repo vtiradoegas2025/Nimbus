@@ -1,6 +1,6 @@
 # Source Code Structure
 
-This directory contains the main implementation of SupercellModel's atmospheric simulation framework. The code is organized by physics modules following a factory pattern for extensibility.
+This directory contains the main implementation of Nimbus's atmospheric simulation framework. The code is organized by physics modules following a factory pattern for extensibility.
 
 ## Core Runtime Files
 

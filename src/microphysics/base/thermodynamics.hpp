@@ -11,8 +11,8 @@
 #include <vector>
 #include <algorithm>
 #include <cmath>
-#include "microphysics_base.hpp"
-#include "field3d.hpp"
+#include "physics/microphysics_base.hpp"
+#include "core/field3d.hpp"
 
 /**
  * @brief Thermodynamic conversions and moist-air utility functions.

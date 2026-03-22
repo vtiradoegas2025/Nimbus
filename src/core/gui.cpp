@@ -18,7 +18,7 @@
 #include <fstream>
 #include <string>
 #endif
-#include "simulation.hpp"
+#include "core/simulation.hpp"
 
 const double CELL_SIZE = 4.0;
 

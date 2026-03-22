@@ -7,7 +7,7 @@
  * free-fly and orbit camera rigs behave consistently across platforms.
  */
 
-#include "camera_input_tracker.hpp"
+#include "camera/camera_input_tracker.hpp"
 
 #include <algorithm>
 

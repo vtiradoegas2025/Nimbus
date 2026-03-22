@@ -8,7 +8,7 @@
  */
 
 #pragma once
-#include <soundings_base.hpp>
+#include <data/soundings_base.hpp>
 
 /**
  * @brief Quality control for sounding data

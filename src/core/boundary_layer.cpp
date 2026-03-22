@@ -7,8 +7,9 @@
  * This file belongs to the primary src/core execution layer.
  */
 
-#include "simulation.hpp"
+#include "core/simulation.hpp"
 #include "boundary_layer/factory.hpp"
+#include "util/log.hpp"
 #include <iostream>
 #include <vector>
 #include <cmath>
@@ -43,22 +44,22 @@ void initialize_boundary_layer(const std::string& scheme_name,const BoundaryLaye
         if (!std::isfinite(global_boundary_layer_config.dt_pbl) ||
             global_boundary_layer_config.dt_pbl <= 0.0)
         {
-            std::cerr << "[PBL CONFIG] Invalid dt_pbl=" << global_boundary_layer_config.dt_pbl
-                      << "; using default " << k_default_pbl_dt << " s" << std::endl;
+            tmv::log_warn("[PBL CONFIG] Invalid dt_pbl=", global_boundary_layer_config.dt_pbl,
+                         "; using default ", k_default_pbl_dt, " s");
             global_boundary_layer_config.dt_pbl = k_default_pbl_dt;
         }
         if (!std::isfinite(global_boundary_layer_config.pbl_max_height) ||
             global_boundary_layer_config.pbl_max_height <= 0.0)
         {
-            std::cerr << "[PBL CONFIG] Invalid pbl_max_height=" << global_boundary_layer_config.pbl_max_height
-                      << "; using default " << k_default_pbl_max_height << " m" << std::endl;
+            tmv::log_warn("[PBL CONFIG] Invalid pbl_max_height=", global_boundary_layer_config.pbl_max_height,
+                         "; using default ", k_default_pbl_max_height, " m");
             global_boundary_layer_config.pbl_max_height = k_default_pbl_max_height;
         }
         if (!std::isfinite(global_boundary_layer_config.min_ustar) ||
             global_boundary_layer_config.min_ustar < 0.0)
         {
-            std::cerr << "[PBL CONFIG] Invalid min_ustar=" << global_boundary_layer_config.min_ustar
-                      << "; using default " << k_default_min_ustar << " m/s" << std::endl;
+            tmv::log_warn("[PBL CONFIG] Invalid min_ustar=", global_boundary_layer_config.min_ustar,
+                         "; using default ", k_default_min_ustar, " m/s");
             global_boundary_layer_config.min_ustar = k_default_min_ustar;
         }
         boundary_layer_scheme = create_boundary_layer_scheme(scheme_name);
@@ -72,14 +73,14 @@ void initialize_boundary_layer(const std::string& scheme_name,const BoundaryLaye
         last_boundary_layer_time = -global_boundary_layer_config.dt_pbl;
         g_boundary_layer_updated_this_step = false;
 
-        std::cout << "Initialized boundary layer scheme: " << scheme_name << std::endl;
-        std::cout << "  PBL cadence: " << global_boundary_layer_config.dt_pbl << " s" << std::endl;
-        std::cout << "  Surface fluxes: " << (global_boundary_layer_config.apply_surface_fluxes ? "enabled" : "disabled") << std::endl;
+        tmv::log_info("Initialized boundary layer scheme: ", scheme_name);
+        tmv::log_info("  PBL cadence: ", global_boundary_layer_config.dt_pbl, " s");
+        tmv::log_info("  Surface fluxes: ", (global_boundary_layer_config.apply_surface_fluxes ? "enabled" : "disabled"));
 
     } 
     catch (const std::exception& e) 
     {
-        std::cerr << "Error initializing boundary layer: " << e.what() << std::endl;
+        tmv::log_error("Error initializing boundary layer: ", e.what());
         throw;
     }
 }
@@ -229,12 +230,12 @@ void step_boundary_layer(double current_time)
 
     if (sanitized_nonfinite > 0)
     {
-        std::cerr << "[PBL GUARD] sanitized non-finite tendencies: " << sanitized_nonfinite << std::endl;
+        tmv::log_warn("[PBL GUARD] sanitized non-finite tendencies: ", sanitized_nonfinite);
     }
     if (tendency_shape_mismatch_columns > 0)
     {
-        std::cerr << "[PBL GUARD] columns with malformed tendency sizes: "
-                  << tendency_shape_mismatch_columns << std::endl;
+        tmv::log_warn("[PBL GUARD] columns with malformed tendency sizes: ",
+                     tendency_shape_mismatch_columns);
     }
     g_boundary_layer_updated_this_step = true;
 }

@@ -8,7 +8,7 @@
  */
 
 #include "weno5.hpp"
-#include "grid_metric_utils.hpp"
+#include "util/grid_metric_utils.hpp"
 #include <cmath>
 #include <algorithm>
 #include <iostream>

@@ -8,7 +8,7 @@
  */
 
 #include "milbrandt.hpp"
-#include "simulation.hpp"
+#include "core/simulation.hpp"
 #include <algorithm>
 #include <cmath>
 #ifdef _OPENMP
@@ -91,14 +91,8 @@ void MilbrandtScheme::compute_tendencies(
         }
     }
 
-    dtheta_dt.resize(NR, NTH, NZ, 0.0f);
-    dqv_dt.resize(NR, NTH, NZ, 0.0f);
-    dqc_dt.resize(NR, NTH, NZ, 0.0f);
-    dqr_dt.resize(NR, NTH, NZ, 0.0f);
-    dqi_dt.resize(NR, NTH, NZ, 0.0f);
-    dqs_dt.resize(NR, NTH, NZ, 0.0f);
-    dqg_dt.resize(NR, NTH, NZ, 0.0f);
-    dqh_dt.resize(NR, NTH, NZ, 0.0f);
+    init_tendency_fields(NR, NTH, NZ, dtheta_dt, dqv_dt, dqc_dt, dqr_dt,
+                         dqi_dt, dqs_dt, dqg_dt, dqh_dt);
 
     dNr_dt_.resize(NR, NTH, NZ, 0.0f);
     dNi_dt_.resize(NR, NTH, NZ, 0.0f);

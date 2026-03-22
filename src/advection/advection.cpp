@@ -7,9 +7,11 @@
  * This file is part of the src/advection subsystem.
  */
 
-#include "advection.hpp"
-#include "advection_base.hpp"
-#include "simulation.hpp"
+#include "numerics/advection.hpp"
+#include "numerics/advection_base.hpp"
+#include "numerics/compute_backend.hpp"
+#include "numerics/compute_kernel_template.hpp"
+#include "core/simulation.hpp"
 #include <algorithm>
 #include <chrono>
 #include <cctype>
@@ -46,6 +48,34 @@ struct AdvectionPerfTotals
  * @brief Aggregated advection timing counters for runtime diagnostics.
  */
 AdvectionPerfTotals g_advection_perf_totals;
+
+/**
+ * @brief Accumulator for per-step first-kernel timing diagnostics.
+ */
+struct AdvectionKernelStepTimingAccumulator
+{
+    uint64_t calls = 0;
+    uint64_t cpu_calls = 0;
+    uint64_t gpu_calls = 0;
+    double cpu_kernel_s = 0.0;
+    double gpu_dispatch_s = 0.0;
+    double sync_copy_s = 0.0;
+    double kernel_total_s = 0.0;
+};
+
+/**
+ * @brief Per-call timing breakdown for the selected offload kernel.
+ */
+struct VerticalFluxKernelTiming
+{
+    bool gpu_dispatch = false;
+    double cpu_kernel_s = 0.0;
+    double gpu_dispatch_s = 0.0;
+    double sync_copy_s = 0.0;
+    double kernel_total_s = 0.0;
+};
+
+AdvectionKernelStepTimingAccumulator g_advection_kernel_step_timing;
 
 /**
  * @brief Returns whether advection performance timing is enabled.
@@ -156,6 +186,77 @@ std::string lower_copy(std::string value)
 }
 
 /**
+ * @brief Returns true when compute backend request enables first-kernel GPU dispatch.
+ */
+bool first_kernel_gpu_dispatch_enabled()
+{
+    if (compute_backend_fallback_active())
+    {
+        return false;
+    }
+    const ComputeBackend* backend = active_compute_backend();
+    if (backend == nullptr)
+    {
+        return false;
+    }
+    return lower_copy(backend->name()) == "vulkan";
+}
+
+/**
+ * @brief Records per-call first-kernel timing into current-step counters.
+ */
+void record_vertical_flux_kernel_timing(const VerticalFluxKernelTiming& timing)
+{
+    ++g_advection_kernel_step_timing.calls;
+    g_advection_kernel_step_timing.cpu_kernel_s += timing.cpu_kernel_s;
+    g_advection_kernel_step_timing.gpu_dispatch_s += timing.gpu_dispatch_s;
+    g_advection_kernel_step_timing.sync_copy_s += timing.sync_copy_s;
+    g_advection_kernel_step_timing.kernel_total_s += timing.kernel_total_s;
+    if (timing.gpu_dispatch)
+    {
+        ++g_advection_kernel_step_timing.gpu_calls;
+    }
+    else
+    {
+        ++g_advection_kernel_step_timing.cpu_calls;
+    }
+}
+
+/**
+ * @brief Logs selected vertical-flux kernel path once.
+ */
+void log_vertical_flux_kernel_path_once()
+{
+    static bool logged = false;
+    if (logged || !log_normal_enabled())
+    {
+        return;
+    }
+    logged = true;
+
+    if (first_kernel_gpu_dispatch_enabled())
+    {
+        std::cout << "[ADVECTION][KERNEL] first_offload=tvd_vertical_flux_divergence"
+                  << ", dispatch=gpu"
+                  << ", template=" << active_vertical_flux_template_id()
+                  << ", active_backend=" << compute_backend_kind_name(active_compute_backend_kind())
+                  << ", requested_backend=" << requested_compute_backend_name()
+                  << ", fallback=" << (compute_backend_fallback_active() ? "active" : "off")
+                  << std::endl;
+    }
+    else
+    {
+        std::cout << "[ADVECTION][KERNEL] first_offload=tvd_vertical_flux_divergence"
+                  << ", dispatch=cpu_reference"
+                  << ", template=" << active_vertical_flux_template_id()
+                  << ", active_backend=" << compute_backend_kind_name(active_compute_backend_kind())
+                  << ", requested_backend=" << requested_compute_backend_name()
+                  << ", fallback=" << (compute_backend_fallback_active() ? "active" : "off")
+                  << std::endl;
+    }
+}
+
+/**
  * @brief Checks whether the runtime should use numerics vertical transport.
  */
 bool use_numerics_vertical_advection()
@@ -203,43 +304,62 @@ static void apply_diffusion_kernel(const Field3D& src, Field3D& dst, double dt, 
         return;
     }
 
+    copy_cylindrical_boundaries(src, dst);
+
+    // Try GPU dispatch for interior points
+    if (dispatch_diffusion_backend(
+            src.data(), dst.data(),
+            NR, NTH, NZ,
+            static_cast<float>(dr), static_cast<float>(dtheta),
+            static_cast<float>(dz), static_cast<float>(dt),
+            static_cast<float>(kappa)))
+    {
+        return;
+    }
+
+    // CPU fallback
     const float* src_data = src.data();
     float* dst_data = dst.data();
 
-    copy_cylindrical_boundaries(src, dst);
     const double inv_dr2 = 1.0 / (dr * dr);
     const double inv_dz2 = 1.0 / (dz * dz);
 
-    #pragma omp parallel for collapse(2) 
+    // Cache-blocked j-tiling: keeps the stencil neighborhood (3 i-planes × tile_j × NZ)
+    // in L1/L2 cache. At tile_j=32, NZ=128: working set ≈ 3×34×128×4 = 52 KB per tile.
+    static constexpr int TILE_J = 32;
 
+    #pragma omp parallel for collapse(2)
     for (int i = 1; i < NR - 1; ++i)
     {
-        const double r = i * dr + 1.0e-6;
-
-        const double inv_r2_dtheta2 = 1.0 / (dtheta * dtheta * r * r);
-
-        for (int j = 0; j < NTH; ++j)
+        for (int jt = 0; jt < NTH; jt += TILE_J)
         {
-            const int j_prev = (j - 1 + NTH) % NTH;
-            const int j_next = (j + 1) % NTH;
+            const double r = i * dr + 1.0e-6;
+            const double inv_r2_dtheta2 = 1.0 / (dtheta * dtheta * r * r);
+            const int j_end = std::min(jt + TILE_J, NTH);
 
-            for (int k = 1; k < NZ - 1; ++k)
+            for (int j = jt; j < j_end; ++j)
             {
-                const size_t c = idx3(i, j, k);
-                const size_t ip = idx3(i + 1, j, k);
-                const size_t im = idx3(i - 1, j, k);
-                const size_t kp = idx3(i, j, k + 1);
-                const size_t km = idx3(i, j, k - 1);
-                const size_t jp = idx3(i, j_next, k);
-                const size_t jm = idx3(i, j_prev, k);
+                const int j_prev = (j - 1 + NTH) % NTH;
+                const int j_next = (j + 1) % NTH;
 
-                const double q = static_cast<double>(src_data[c]);
-                const double lap_s =
-                    (static_cast<double>(src_data[ip]) - 2.0 * q + static_cast<double>(src_data[im])) * inv_dr2 +
-                    (static_cast<double>(src_data[kp]) - 2.0 * q + static_cast<double>(src_data[km])) * inv_dz2 +
-                    (static_cast<double>(src_data[jp]) - 2.0 * q + static_cast<double>(src_data[jm])) * inv_r2_dtheta2;
+                for (int k = 1; k < NZ - 1; ++k)
+                {
+                    const size_t c = idx3(i, j, k);
+                    const size_t ip = idx3(i + 1, j, k);
+                    const size_t im = idx3(i - 1, j, k);
+                    const size_t kp = idx3(i, j, k + 1);
+                    const size_t km = idx3(i, j, k - 1);
+                    const size_t jp = idx3(i, j_next, k);
+                    const size_t jm = idx3(i, j_prev, k);
 
-                dst_data[c] = static_cast<float>(q + dt * kappa * lap_s);
+                    const double q = static_cast<double>(src_data[c]);
+                    const double lap_s =
+                        (static_cast<double>(src_data[ip]) - 2.0 * q + static_cast<double>(src_data[im])) * inv_dr2 +
+                        (static_cast<double>(src_data[kp]) - 2.0 * q + static_cast<double>(src_data[km])) * inv_dz2 +
+                        (static_cast<double>(src_data[jp]) - 2.0 * q + static_cast<double>(src_data[jm])) * inv_r2_dtheta2;
+
+                    dst_data[c] = static_cast<float>(q + dt * kappa * lap_s);
+                }
             }
         }
     }
@@ -254,13 +374,21 @@ static void advect_scalar_1d_r_kernel(const Field3D& src, Field3D& dst, double d
 
     copy_cylindrical_boundaries(src, dst);
 
+    // Try GPU dispatch for interior points
+    if (dispatch_radial_advection_backend(
+            src.data(), u.data(), dst.data(),
+            NR, NTH, NZ,
+            static_cast<float>(dr), static_cast<float>(dt)))
+    {
+        return;
+    }
+
+    // CPU fallback
     const float* src_data = src.data();
     const float* u_data = u.data();
     float* dst_data = dst.data();
 
-    
     #pragma omp parallel for collapse(2)
-
     for (int i = 1; i < NR - 1; ++i)
     {
         for (int j = 0; j < NTH; ++j)
@@ -298,11 +426,20 @@ static void advect_scalar_1d_theta_kernel(const Field3D& src, Field3D& dst, doub
 
     copy_cylindrical_boundaries(src, dst);
 
+    // Try GPU dispatch for interior points
+    if (dispatch_azimuthal_advection_backend(
+            src.data(), v_theta.data(), dst.data(),
+            NR, NTH, NZ,
+            static_cast<float>(dr), static_cast<float>(dtheta), static_cast<float>(dt)))
+    {
+        return;
+    }
+
+    // CPU fallback
     const float* src_data = src.data();
     const float* v_data = v_theta.data();
     float* dst_data = dst.data();
 
-    
     #pragma omp parallel for collapse(2)
 
     for (int i = 1; i < NR - 1; ++i)
@@ -388,6 +525,7 @@ static void advect_scalar_1d_z_numerics_kernel(const Field3D& src, Field3D& dst,
     ensure_field_shape(dst);
     copy_field(src, dst);
     copy_cylindrical_boundaries(src, dst);
+    log_vertical_flux_kernel_path_once();
 
     if (!advection_scheme || !use_numerics_vertical_advection())
     {
@@ -404,21 +542,58 @@ static void advect_scalar_1d_z_numerics_kernel(const Field3D& src, Field3D& dst,
     state.grid = &global_grid_metrics;
     AdvectionConfig runtime_cfg = global_advection_config;
     runtime_cfg.positivity_dt = std::max(std::abs(dt), 1.0e-12);
+    const auto kernel_t0 = std::chrono::steady_clock::now();
+    VerticalFluxKernelTiming kernel_timing{};
 
-    try
+    bool computed = false;
+    const bool prefer_gpu_dispatch =
+        first_kernel_gpu_dispatch_enabled() && lower_copy(advection_scheme->name()) == "tvd";
+
+    if (prefer_gpu_dispatch)
     {
-        advection_scheme->compute_flux_divergence(runtime_cfg, state, tendencies, nullptr);
+        const auto gpu_t0 = std::chrono::steady_clock::now();
+        computed = dispatch_vertical_flux_template_backend(runtime_cfg, state, tendencies, nullptr);
+        kernel_timing.gpu_dispatch_s =
+            std::chrono::duration<double>(std::chrono::steady_clock::now() - gpu_t0).count();
+        kernel_timing.gpu_dispatch = computed;
     }
-    catch (const std::exception& e)
+
+    if (prefer_gpu_dispatch && !computed)
     {
         if (log_normal_enabled())
         {
-            std::cerr << "[ADVECTION] numerics vertical advection failed ('"
-                      << advection_scheme->name() << "'): " << e.what()
-                      << ". Falling back to legacy vertical kernel." << std::endl;
+            std::cerr << "[ADVECTION][KERNEL] GPU dispatch requested but fell back to CPU reference path"
+                      << std::endl;
         }
-        advect_scalar_1d_z_kernel(src, dst, dt, 0.0);
-        return;
+    }
+
+    if (!computed)
+    {
+        const auto cpu_t0 = std::chrono::steady_clock::now();
+        try
+        {
+            advection_scheme->compute_flux_divergence(runtime_cfg, state, tendencies, nullptr);
+        }
+        catch (const std::exception& e)
+        {
+            if (log_normal_enabled())
+            {
+                std::cerr << "[ADVECTION] numerics vertical advection failed ('"
+                          << advection_scheme->name() << "'): " << e.what()
+                          << ". Falling back to legacy vertical kernel." << std::endl;
+            }
+            advect_scalar_1d_z_kernel(src, dst, dt, 0.0);
+            kernel_timing.gpu_dispatch = false;
+            kernel_timing.cpu_kernel_s =
+                std::chrono::duration<double>(std::chrono::steady_clock::now() - cpu_t0).count();
+            kernel_timing.kernel_total_s =
+                std::chrono::duration<double>(std::chrono::steady_clock::now() - kernel_t0).count();
+            record_vertical_flux_kernel_timing(kernel_timing);
+            return;
+        }
+        kernel_timing.gpu_dispatch = false;
+        kernel_timing.cpu_kernel_s =
+            std::chrono::duration<double>(std::chrono::steady_clock::now() - cpu_t0).count();
     }
 
     if (tendencies.dqdt_adv.size_r() != NR ||
@@ -431,9 +606,15 @@ static void advect_scalar_1d_z_numerics_kernel(const Field3D& src, Field3D& dst,
                       << "Falling back to legacy vertical kernel." << std::endl;
         }
         advect_scalar_1d_z_kernel(src, dst, dt, 0.0);
+        kernel_timing.kernel_total_s =
+            std::chrono::duration<double>(std::chrono::steady_clock::now() - kernel_t0).count();
+        record_vertical_flux_kernel_timing(kernel_timing);
         return;
     }
 
+    const auto sync_t0 = (kernel_timing.gpu_dispatch)
+        ? std::chrono::steady_clock::now()
+        : std::chrono::steady_clock::time_point{};
     #pragma omp parallel for collapse(2)
     for (int i = 1; i < NR - 1; ++i)
     {
@@ -456,6 +637,15 @@ static void advect_scalar_1d_z_numerics_kernel(const Field3D& src, Field3D& dst,
             }
         }
     }
+
+    if (kernel_timing.gpu_dispatch)
+    {
+        kernel_timing.sync_copy_s =
+            std::chrono::duration<double>(std::chrono::steady_clock::now() - sync_t0).count();
+    }
+    kernel_timing.kernel_total_s =
+        std::chrono::duration<double>(std::chrono::steady_clock::now() - kernel_t0).count();
+    record_vertical_flux_kernel_timing(kernel_timing);
 }
 
 /**
@@ -475,20 +665,49 @@ void advect_scalar_3d(Field3D& scalar, double dt, double kappa)
 
     const double dt_half = dt * 0.5;
 
-    const auto r1_t0 = perf_on ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
-    advect_scalar_1d_r_kernel(scalar, scratch_a, dt_half, kappa);
-    if (perf_on)
+    // ── Try batched GPU dispatch (eliminates intermediate round-trips) ──
+    const bool batched_available = supports_batched_advection_dispatch();
+    bool pre_batch_ok = false;
+
+    if (batched_available)
     {
-        g_advection_perf_totals.r_s += std::chrono::duration<double>(std::chrono::steady_clock::now() - r1_t0).count();
+        // Pre-vertical batch: radial(half) + azimuthal(half) in one GPU submit
+        const auto batch_t0 = perf_on ? std::chrono::steady_clock::now()
+                                      : std::chrono::steady_clock::time_point{};
+        pre_batch_ok = dispatch_advection_batch_pre_vertical_backend(
+            scalar.data(), scratch_b.data(),
+            u.data(), v_theta.data(),
+            NR, NTH, NZ,
+            static_cast<float>(dr), static_cast<float>(dtheta),
+            static_cast<float>(dt_half));
+        if (perf_on && pre_batch_ok)
+        {
+            const double batch_s = std::chrono::duration<double>(
+                std::chrono::steady_clock::now() - batch_t0).count();
+            g_advection_perf_totals.r_s += batch_s * 0.5;
+            g_advection_perf_totals.theta_s += batch_s * 0.5;
+        }
     }
 
-    const auto th1_t0 = perf_on ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
-    advect_scalar_1d_theta_kernel(scratch_a, scratch_b, dt_half, kappa);
-    if (perf_on)
+    if (!pre_batch_ok)
     {
-        g_advection_perf_totals.theta_s += std::chrono::duration<double>(std::chrono::steady_clock::now() - th1_t0).count();
+        // Fallback: individual dispatches
+        const auto r1_t0 = perf_on ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
+        advect_scalar_1d_r_kernel(scalar, scratch_a, dt_half, kappa);
+        if (perf_on)
+        {
+            g_advection_perf_totals.r_s += std::chrono::duration<double>(std::chrono::steady_clock::now() - r1_t0).count();
+        }
+
+        const auto th1_t0 = perf_on ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
+        advect_scalar_1d_theta_kernel(scratch_a, scratch_b, dt_half, kappa);
+        if (perf_on)
+        {
+            g_advection_perf_totals.theta_s += std::chrono::duration<double>(std::chrono::steady_clock::now() - th1_t0).count();
+        }
     }
 
+    // ── Vertical step (always individual dispatch) ──
     const auto z_t0 = perf_on ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
     if (use_numerics_vertical_advection())
     {
@@ -503,25 +722,58 @@ void advect_scalar_3d(Field3D& scalar, double dt, double kappa)
         g_advection_perf_totals.z_s += std::chrono::duration<double>(std::chrono::steady_clock::now() - z_t0).count();
     }
 
-    const auto th2_t0 = perf_on ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
-    advect_scalar_1d_theta_kernel(scratch_a, scratch_b, dt_half, kappa);
-    if (perf_on)
+    // ── Try post-vertical batch: azimuthal(half) + radial(half) + diffusion ──
+    bool post_batch_ok = false;
+
+    if (batched_available)
     {
-        g_advection_perf_totals.theta_s += std::chrono::duration<double>(std::chrono::steady_clock::now() - th2_t0).count();
+        const auto batch_t0 = perf_on ? std::chrono::steady_clock::now()
+                                      : std::chrono::steady_clock::time_point{};
+        post_batch_ok = dispatch_advection_batch_post_vertical_backend(
+            scratch_a.data(), scalar.data(),
+            u.data(), v_theta.data(),
+            NR, NTH, NZ,
+            static_cast<float>(dr), static_cast<float>(dtheta),
+            static_cast<float>(dz),
+            static_cast<float>(dt_half), static_cast<float>(dt),
+            static_cast<float>(kappa));
+        if (perf_on && post_batch_ok)
+        {
+            const double batch_s = std::chrono::duration<double>(
+                std::chrono::steady_clock::now() - batch_t0).count();
+            g_advection_perf_totals.theta_s += batch_s * 0.33;
+            g_advection_perf_totals.r_s += batch_s * 0.33;
+            g_advection_perf_totals.diffusion_s += batch_s * 0.34;
+        }
     }
 
-    const auto r2_t0 = perf_on ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
-    advect_scalar_1d_r_kernel(scratch_b, scratch_a, dt_half, kappa);
-    if (perf_on)
+    if (!post_batch_ok)
     {
-        g_advection_perf_totals.r_s += std::chrono::duration<double>(std::chrono::steady_clock::now() - r2_t0).count();
+        // Fallback: individual dispatches
+        const auto th2_t0 = perf_on ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
+        advect_scalar_1d_theta_kernel(scratch_a, scratch_b, dt_half, kappa);
+        if (perf_on)
+        {
+            g_advection_perf_totals.theta_s += std::chrono::duration<double>(std::chrono::steady_clock::now() - th2_t0).count();
+        }
+
+        const auto r2_t0 = perf_on ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
+        advect_scalar_1d_r_kernel(scratch_b, scratch_a, dt_half, kappa);
+        if (perf_on)
+        {
+            g_advection_perf_totals.r_s += std::chrono::duration<double>(std::chrono::steady_clock::now() - r2_t0).count();
+        }
+
+        const auto diff_t0 = perf_on ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
+        apply_diffusion_kernel(scratch_a, scalar, dt, kappa);
+        if (perf_on)
+        {
+            g_advection_perf_totals.diffusion_s += std::chrono::duration<double>(std::chrono::steady_clock::now() - diff_t0).count();
+        }
     }
 
-    const auto diff_t0 = perf_on ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
-    apply_diffusion_kernel(scratch_a, scalar, dt, kappa);
     if (perf_on)
     {
-        g_advection_perf_totals.diffusion_s += std::chrono::duration<double>(std::chrono::steady_clock::now() - diff_t0).count();
         g_advection_perf_totals.scalar_total_s +=
             std::chrono::duration<double>(std::chrono::steady_clock::now() - scalar_t0).count();
         ++g_advection_perf_totals.scalar_calls;
@@ -687,6 +939,26 @@ void advect_tracer_3d(double dt_advect, double kappa)
 void reset_advection_perf_stats()
 {
     g_advection_perf_totals = AdvectionPerfTotals{};
+}
+
+void reset_advection_kernel_step_timing()
+{
+    g_advection_kernel_step_timing = AdvectionKernelStepTimingAccumulator{};
+}
+
+AdvectionKernelStepTiming current_advection_kernel_step_timing()
+{
+    AdvectionKernelStepTiming snapshot{};
+    snapshot.calls = g_advection_kernel_step_timing.calls;
+    snapshot.cpu_calls = g_advection_kernel_step_timing.cpu_calls;
+    snapshot.gpu_calls = g_advection_kernel_step_timing.gpu_calls;
+    snapshot.cpu_kernel_s = g_advection_kernel_step_timing.cpu_kernel_s;
+    snapshot.gpu_dispatch_s = g_advection_kernel_step_timing.gpu_dispatch_s;
+    snapshot.sync_copy_s = g_advection_kernel_step_timing.sync_copy_s;
+    snapshot.kernel_total_s = g_advection_kernel_step_timing.kernel_total_s;
+    snapshot.backend = compute_backend_kind_name(active_compute_backend_kind());
+    snapshot.fallback_active = compute_backend_fallback_active();
+    return snapshot;
 }
 
 /**

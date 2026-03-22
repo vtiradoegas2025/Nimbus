@@ -8,8 +8,9 @@
  */
 
 #include "tke.hpp"
-#include "grid_metric_utils.hpp"
-#include <iostream>
+#include "core/field_pool.hpp"
+#include "util/grid_metric_utils.hpp"
+#include "util/log.hpp"
 #include <algorithm>
 #include <cmath>
 
@@ -56,10 +57,10 @@ void TKEScheme::initialize(const TurbulenceConfig& cfg)
     c_l_ = 0.15;
     l_max_ = 500.0;
 
-    std::cout << "Initialized TKE Turbulence (1.5-order closure):" << std::endl;
-    std::cout << "  Prognostic TKE: enabled" << std::endl;
-    std::cout << "  Ce1 = " << Ce1_ << ", Ce2 = " << Ce2_ << std::endl;
-    std::cout << "  Max mixing length = " << l_max_ << " m" << std::endl;
+    tmv::log_info("Initialized TKE Turbulence (1.5-order closure):");
+    tmv::log_info("  Prognostic TKE: enabled");
+    tmv::log_info("  Ce1 = ", Ce1_, ", Ce2 = ", Ce2_);
+    tmv::log_info("  Max mixing length = ", l_max_, " m");
 }
 
 /**
@@ -116,9 +117,11 @@ void TKEScheme::compute(
         diag_opt->K_q = K_q_;
         diag_opt->K_tke = K_tke_;
 
-        Field3D shear_prod, buoy_prod;
-        shear_prod.resize(state.NR, state.NTH, state.NZ, 0.0f);
-        buoy_prod.resize(state.NR, state.NTH, state.NZ, 0.0f);
+        auto& pool = FieldPool::instance();
+        auto sp_guard = pool.scoped_acquire(state.NR, state.NTH, state.NZ);
+        auto bp_guard = pool.scoped_acquire(state.NR, state.NTH, state.NZ);
+        Field3D& shear_prod = sp_guard.field;
+        Field3D& buoy_prod = bp_guard.field;
         diag_opt->dissipation.resize(state.NR, state.NTH, state.NZ, 0.0f);
 
         compute_tke_production(state, grid, nu_t_, shear_prod, buoy_prod);
@@ -180,11 +183,12 @@ void TKEScheme::compute_eddy_coefficients_from_tke(
     K_q_.resize(state.NR, state.NTH, state.NZ, 0.0f);
     K_tke_.resize(state.NR, state.NTH, state.NZ, 0.0f);
 
-    for (int i = 0; i < state.NR; ++i) 
+    #pragma omp parallel for collapse(3)
+    for (int i = 0; i < state.NR; ++i)
     {
-        for (int j = 0; j < state.NTH; ++j) 
+        for (int j = 0; j < state.NTH; ++j)
         {
-            for (int k = 0; k < state.NZ; ++k) 
+            for (int k = 0; k < state.NZ; ++k)
             {
                 double e = static_cast<double>(tke_[i][j][k]);
                 if (!std::isfinite(e))
@@ -240,9 +244,11 @@ void TKEScheme::update_tke_prognostic(
 {
     dtke_dt.resize(state.NR, state.NTH, state.NZ, 0.0f);
 
-    Field3D shear_prod, buoy_prod;
-    shear_prod.resize(state.NR, state.NTH, state.NZ, 0.0f);
-    buoy_prod.resize(state.NR, state.NTH, state.NZ, 0.0f);
+    auto& pool = FieldPool::instance();
+    auto sp_guard = pool.scoped_acquire(state.NR, state.NTH, state.NZ);
+    auto bp_guard = pool.scoped_acquire(state.NR, state.NTH, state.NZ);
+    Field3D& shear_prod = sp_guard.field;
+    Field3D& buoy_prod = bp_guard.field;
 
     compute_tke_production(state, grid, nu_t_, shear_prod, buoy_prod);
 

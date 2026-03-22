@@ -7,15 +7,16 @@
  * This file belongs to the primary src/core execution layer.
  */
 
-#include "simulation.hpp"
-#include "advection_base.hpp"
-#include "diffusion_base.hpp"
+#include "core/simulation.hpp"
+#include "numerics/advection_base.hpp"
+#include "numerics/diffusion_base.hpp"
 #include "numerics/advection/factory.hpp"
 #include "numerics/diffusion/factory.hpp"
 #include "numerics/time_stepping/factory.hpp"
-#include "terrain_base.hpp"
-#include "time_stepping_base.hpp"
-#include "turbulence_base.hpp"
+#include "physics/terrain_base.hpp"
+#include "numerics/time_stepping_base.hpp"
+#include "physics/turbulence_base.hpp"
+#include "util/log.hpp"
 #include <algorithm>
 #include <cmath>
 #include <cctype>
@@ -205,10 +206,10 @@ void initialize_numerics()
     time_stepping_scheme = create_time_stepping_scheme(global_time_stepping_config.scheme_id);
     time_stepping_scheme->initialize(global_time_stepping_config, nullptr);
 
-    std::cout << "Initialized numerics framework:" << std::endl;
-    std::cout << "  Advection: " << advection_scheme->name() << std::endl;
-    std::cout << "  Diffusion: " << diffusion_scheme->name() << std::endl;
-    std::cout << "  Time stepping: " << time_stepping_scheme->name() << std::endl;
+    tmv::log_info("Initialized numerics framework:");
+    tmv::log_info("  Advection: ", advection_scheme->name());
+    tmv::log_info("  Diffusion: ", diffusion_scheme->name());
+    tmv::log_info("  Time stepping: ", time_stepping_scheme->name());
 }
 
 /**
@@ -317,16 +318,12 @@ double choose_runtime_timestep()
         return dt_current;
     }
 
-    if (log_debug_enabled())
+    if (std::isfinite(dt_advection_cap) || std::isfinite(dt_diffusion_cap))
     {
-        if (std::isfinite(dt_advection_cap) || std::isfinite(dt_diffusion_cap))
-        {
-            std::cout << "[NUMERICS] timestep caps: current=" << dt_current
-                      << " limited=" << dt_limited
-                      << " advection_cap=" << dt_advection_cap
-                      << " diffusion_cap=" << dt_diffusion_cap
-                      << std::endl;
-        }
+        tmv::log_debug("[NUMERICS] timestep caps: current=", dt_current,
+                       " limited=", dt_limited,
+                       " advection_cap=", dt_advection_cap,
+                       " diffusion_cap=", dt_diffusion_cap);
     }
     return dt_limited;
 }

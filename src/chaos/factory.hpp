@@ -8,16 +8,18 @@
  */
 
 #pragma once
-#include "chaos_base.hpp"
+#include "physics/chaos_base.hpp"
+#include <memory>
 #include <vector>
 #include <string>
-#include <memory>
 
-
-#include "schemes/none/none.hpp"
-#include "schemes/initial_conditions/initial_conditions.hpp"
-#include "schemes/boundary_layer/boundary_layer.hpp"
-#include "schemes/full_stochastic/full_stochastic.hpp"
+namespace chaos
+{
+class NoneScheme;
+class InitialConditionsScheme;
+class BoundaryLayerScheme;
+class FullStochasticScheme;
+}
 
 /**
  * @brief Creates a chaos scheme by configured name.

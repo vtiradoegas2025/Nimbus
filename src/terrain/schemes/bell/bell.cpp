@@ -8,7 +8,7 @@
  */
 
 #include "bell.hpp"
-#include "simulation.hpp"
+#include "core/simulation.hpp"
 #include <iostream>
 #include <cmath>
 

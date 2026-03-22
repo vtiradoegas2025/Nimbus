@@ -8,39 +8,39 @@
  */
 
 #include "factory.hpp"
-#include <stdexcept>
-
 #include "schemes/reflectivity/reflectivity.hpp"
 #include "schemes/velocity/velocity.hpp"
 #include "schemes/zdr/zdr.hpp"
+#include "util/scheme_factory.hpp"
+
+namespace
+{
+const tmv::SchemeRegistry<RadarSchemeBase> registry({
+    {"reflectivity", [] { return std::make_unique<ReflectivityScheme>(); }},
+    {"velocity",     [] { return std::make_unique<VelocityScheme>(); }},
+    {"zdr",          [] { return std::make_unique<ZDRScheme>(); }},
+}, {
+    {"dbz",             "reflectivity"},
+    {"ref",             "reflectivity"},
+    {"z",               "reflectivity"},
+    {"vel",             "velocity"},
+    {"vr",              "velocity"},
+    {"radial_velocity", "velocity"},
+});
+}
+
 /**
  * @brief Creates the radar scheme.
  */
-
-std::unique_ptr<RadarSchemeBase> RadarFactory::create(const std::string& scheme_id) 
+std::unique_ptr<RadarSchemeBase> create_radar_scheme(const std::string& scheme_name)
 {
-    if (scheme_id == "reflectivity") 
-    {
-        return std::make_unique<ReflectivityScheme>();
-    } 
-    else if (scheme_id == "velocity") 
-    {
-        return std::make_unique<VelocityScheme>();
-    } 
-    else if (scheme_id == "zdr") 
-    {
-        return std::make_unique<ZDRScheme>();
-    } 
-    else 
-    {
-        throw std::runtime_error("Unknown radar scheme: " + scheme_id);
-    }
+    return registry.create("radar", scheme_name);
 }
 
 /**
  * @brief Gets the available radar schemes.
  */
-std::vector<std::string> RadarFactory::available_schemes() 
+std::vector<std::string> get_available_radar_schemes()
 {
-    return {"reflectivity", "velocity", "zdr"};
+    return registry.available_ids();
 }

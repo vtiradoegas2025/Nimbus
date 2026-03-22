@@ -97,7 +97,7 @@ Outputs written:
 ## API Usage Example
 
 ```cpp
-#include "radar.hpp"
+#include "diagnostics/radar.hpp"
 
 RadarStateView state;
 state.NR = NR;
@@ -121,7 +121,7 @@ config.has_qg = true;
 config.has_qh = true;
 config.has_qi = true;
 
-auto scheme = RadarFactory::create(config.scheme_id);
+auto scheme = create_radar_scheme(config.scheme_id);
 scheme->initialize(config, state.NR, state.NTH, state.NZ);
 
 RadarOut out;

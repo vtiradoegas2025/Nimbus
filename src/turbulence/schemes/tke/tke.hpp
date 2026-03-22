@@ -9,7 +9,7 @@
 
 #pragma once
 #include "turbulence/base/eddy_viscosity.hpp"
-#include "turbulence_base.hpp"
+#include "physics/turbulence_base.hpp"
 
 /**
  * @brief 1.5-order TKE turbulence closure with prognostic SGS energy.

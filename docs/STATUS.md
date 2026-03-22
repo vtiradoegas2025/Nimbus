@@ -1,14 +1,14 @@
-# TornadoModel / SupercellModel - Project Status
+# Nimbus - Project Status
 
-**Last Updated:** February 25, 2026
+**Last Updated:** March 22, 2026
 
-This document provides a comprehensive overview of the current state of the TornadoModel/SupercellModel project, including known faults, working components, and next steps.
+This document provides a comprehensive overview of the current state of the Nimbus project, including known faults, working components, and next steps.
 
 ---
 
 ## Project Overview
 
-TornadoModel (also referred to as SupercellModel) is a high-performance atmospheric simulation framework for supercell and tornadic storm research. It features:
+Nimbus is a high-performance atmospheric simulation framework for supercell and tornadic storm research. It features:
 
 - **Core Engine**: C++17 simulation engine implementing compressible, non-hydrostatic equations in cylindrical coordinates
 - **Modular Physics**: Factory-based architecture enabling systematic comparison of parameterizations
@@ -32,7 +32,7 @@ TornadoModel (also referred to as SupercellModel) is a high-performance atmosphe
   - **Microphysics**: 4 schemes (Kessler, Thompson, Lin, Milbrandt)
   - **Boundary Layer**: 3 schemes (YSU, MYNN, slab)
   - **Turbulence**: 2 schemes (Smagorinsky-Lilly, TKE prognostic)
-  - **Radiation**: 1 scheme (`simple_grey`; RRTMG remains planned)
+  - **Radiation**: `simple_grey` runtime implementation; `rrtmg` canonical id is now recognized for planned-fidelity compatibility
   - **Radar**: Forward operators for reflectivity, velocity, polarimetric variables
 
 - **Build System**: Makefile with OpenMP detection, optional GUI support
@@ -47,9 +47,9 @@ TornadoModel (also referred to as SupercellModel) is a high-performance atmosphe
 - **Terrain Module**: Integrated in runtime initialization and configuration workflow
   - Remaining gap: broader scientific validation/calibration for terrain impacts is still pending
 
-- **Testing Infrastructure**: Integration checks are active, but deeper module-level unit tests are still limited
+- **Testing Infrastructure**: Integration checks are active; unit and regression test suite under `tests/` covers core, physics, numerics, diagnostics, integration, and Vulkan paths
 
-### CM1-Lite Audit Snapshot (February 25, 2026)
+### CM1-Lite Audit Snapshot (March 22, 2026)
 
 Baseline used for this audit: CM1-style field contract coverage + runtime module wiring + strict guard/test outcomes.
 
@@ -59,31 +59,28 @@ Baseline used for this audit: CM1-style field contract coverage + runtime module
 - `make test-soundings`: pass
 - CM1-style contract coverage (`src/validation/field_contract.cpp`):
   - `99` total contract fields
-  - `50` `ExportedNow`
-  - `49` `NotImplemented`
+  - `87` `ExportedNow`
+  - `12` `NotImplemented`
   - `20/20` `RequiredNow` fields exported (`known_not_implemented_required_now=0`)
 
-**Where we stand vs "CM1-lite"**
+**Current Standing on "CM1-lite"**
 - Core storm-simulation runtime is operational and guard-hardened for exported 3D fields.
 - Baseline module set (dynamics, microphysics, PBL, turbulence, radar, terrain, chaos, soundings) is wired and testable.
 - Current state is suitable for controlled research runs and backend export validation.
 
 **Primary gaps**
-- **Diagnostic breadth gap (largest)**: 49 CM1-style backlog fields remain unimplemented, concentrated in:
-  - Surface products (`u10`, `v10`, `t2`, fluxes, accumulated rainfall)
-  - Column diagnostics (`composite_reflectivity`, CAPE/CIN, SRH/EHI/SCP/STP, cloud-top/base metrics)
-  - Synthetic radar sweep products (`ppi_sweep`, `rhi_sweep`, `vrot`, mesocyclone diagnostics)
-  - Trajectory and cross-section diagnostics
+- **Diagnostic breadth gap (largest)**: 12 CM1-style backlog fields remain unimplemented, concentrated in:
+  - 3D diagnostics (`streamlines`, `q_vectors`, `turbulent_diffusion_term`)
+  - Cross-section diagnostics
+  - Trajectory diagnostics
 - **Physics fidelity gap**:
-  - Radiation currently exposes only `simple_grey`; no in-tree RRTMG scheme implementation.
-  - Soundings ingestion has native NetCDF classic support, but native HDF5/NetCDF4 readers remain deferred (Python extractor fallback path is used).
+  - Radiation runtime remains `simple_grey`; no in-tree RRTMG physics implementation yet.
+  - Soundings ingestion now includes native NetCDF classic + NetCDF C API + HDF5 readers; broader science validation is still pending.
 - **Science validation gap**:
   - Terrain and chaos are runtime-integrated, but broader case-based calibration/validation remains pending.
-- **QA depth gap**:
-  - `make test` does not include `test-backend-physics` or `test-soundings` by default.
+- **QA depth gap (reduced)**:
+  - `make test` now includes `test-backend-physics` and `test-soundings` by default.
   - Unit/regression coverage remains narrow relative to module surface area.
-- **Documentation drift gap**:
-  - Legacy references to removed `visualization/` paths remain in some docs and should be normalized to current Vulkan/legacy layout.
 
 ---
 
@@ -377,7 +374,7 @@ See `vulkan/README.md` for detailed renderer status and usage.
 
 - **Validation contract breadth gap**: `src/validation/field_contract.cpp` still includes a broad CM1-style `NotImplemented` inventory; these are now surfaced as `known_not_implemented` backlog entries while `missing_not_implemented` is reserved for required unresolved gaps.
 - **Soundings backend readiness gap**: Runtime wiring exists in `src/core/tornado_sim.cpp` behind `environment.sounding.enabled`; broader production/science validation remains pending.
-- **SHARPY ingestion implementation gap (partially reduced)**: `src/soundings/schemes/sharpy/sharpy_sounding.cpp` now includes a native in-process NetCDF classic reader path plus Python extractor fallback; full native HDF5/NetCDF4 readers are still pending.
+- **SHARPY ingestion implementation gap (further reduced)**: `src/soundings/schemes/sharpy/sharpy_sounding.cpp` now includes native in-process NetCDF classic, NetCDF C API, and HDF5 readers with aggregated backend diagnostics.
 - **Radar sampling/velocity simplifications**: Beam-volume local averaging and bounded bulk fall-speed relations are now present, but full beam physics and advanced scatterer microphysics remain simplified.
 
 ### Needs Correction Before QA Pass
@@ -401,9 +398,9 @@ See `vulkan/README.md` for detailed renderer status and usage.
 - **Remaining relative include-path fragility (resolved in this pass)**: normalized remaining module-local `../../base/...` include paths in `src/` scheme files to include-path-based module headers.
 - **Radar reflectivity conversion precision loss (resolved in this pass)**: `src/core/equations.cpp` now consumes `RadarOut::Ze_linear` directly instead of round-tripping through dBZ and thresholding before export.
 - **Initialization pressure warning false positives (resolved in this pass)**: `src/core/equations.cpp` expected-range diagnostics now use physically reasonable pressure bounds to avoid noisy warnings during normal deep-domain runs.
-- **SHARPY placeholder reader gap (resolved in this pass)**: `src/soundings/schemes/sharpy/sharpy_sounding.cpp` now routes HDF5/NetCDF reads through `src/soundings/schemes/sharpy/sharpy_extract.py` and parses real extracted profiles instead of unconditional `NotImplemented` throws.
-- **Exported diagnostics contract gap (further reduced in this pass)**: `theta_prime`, `temperature`, `dewpoint`, `relative_humidity`, `saturation_mixing_ratio`, `total_condensate`, `reflectivity_dbz`, `theta_v`, `theta_e`, `vorticity_magnitude`, `divergence`, `buoyancy`, `storm_relative_winds` (magnitude proxy), `helicity_density`, and `okubo_weiss` are now exported as real NPY diagnostics; computed dynamics diagnostics (`vorticity_*`, stretching/tilting/baroclinic terms, pressure partitions, angular momentum and tendency) are exported in the main bundle; validator `known_not_implemented` inventory is now 49.
-- **SHARPY native ingestion gap (partially resolved in this pass)**: `src/soundings/schemes/sharpy/sharpy_sounding.cpp` now parses NetCDF classic (CDF1/CDF2) profiles in-process, including metadata/variable alias handling and record-variable layouts, and falls back to the Python extractor for unsupported formats/layouts.
+- **SHARPY placeholder reader gap (resolved in prior pass)**: placeholder/`NotImplemented` reader behavior was removed from SHARPY ingestion paths.
+- **Exported diagnostics contract gap (further reduced in this pass)**: `theta_prime`, `temperature`, `dewpoint`, `relative_humidity`, `saturation_mixing_ratio`, `total_condensate`, `reflectivity_dbz`, `theta_v`, `theta_e`, `vorticity_magnitude`, `divergence`, `buoyancy`, `storm_relative_winds` (magnitude proxy), `helicity_density`, and `okubo_weiss` are now exported as real NPY diagnostics; computed dynamics diagnostics (`vorticity_*`, stretching/tilting/baroclinic terms, pressure partitions, angular momentum and tendency) are exported in the main bundle; validator `known_not_implemented` inventory is now 12.
+- **SHARPY native ingestion gap (further resolved in this pass)**: `src/soundings/schemes/sharpy/sharpy_sounding.cpp` now parses NetCDF classic (CDF1/CDF2), NetCDF4-capable layouts (via native NetCDF C API), and SHARPY-style HDF5 datasets (via native HDF5 HL API) fully in-process without Python extractor fallback.
 - **SHARPY spline placeholder gap (resolved in this pass)**: interpolation method `1` in `src/soundings/schemes/sharpy/sharpy_sounding.cpp` now uses monotone cubic (PCHIP-style) interpolation instead of warning-and-linear fallback.
 - **Thermodynamic advection moisture-bounds gap (resolved in this pass)**: `src/advection/advection.cpp` now clamps/sanitizes `qv`, `qc`, `qr`, `qi`, `qs`, `qg`, and `qh` immediately after advection to prevent transport-time non-finite/negative carryover.
 - **Turbulence tendency non-finite propagation gap (resolved in this pass)**: `src/core/turbulence.cpp` now sanitizes non-finite SGS tendencies right after scheme compute so downstream chaos/dynamics paths consume finite values.

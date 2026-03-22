@@ -1,0 +1,202 @@
+#version 450
+
+/**
+ * Fused Kessler point-wise microphysics: warm rain + ice + melting.
+ *
+ * All three sub-processes are point-wise (no neighbor access) and operate
+ * on the same input fields, so they are fused into a single shader to
+ * avoid three separate GPU round-trips.
+ *
+ * One invocation per grid cell (i, j, k).
+ */
+
+layout(local_size_x = 64) in;
+
+// ── Input fields (readonly) ─────────────────────────────────────────
+layout(set = 0, binding = 0)  readonly buffer Temperature { float temperature[]; };
+layout(set = 0, binding = 1)  readonly buffer QV  { float qv[];  };
+layout(set = 0, binding = 2)  readonly buffer QC  { float qc[];  };
+layout(set = 0, binding = 3)  readonly buffer QR  { float qr[];  };
+layout(set = 0, binding = 4)  readonly buffer QG  { float qg[];  };
+layout(set = 0, binding = 5)  readonly buffer QH  { float qh[];  };
+
+// ── Output tendency fields (writeonly) ──────────────────────────────
+layout(set = 0, binding = 6)  writeonly buffer DTheta { float dtheta_dt[]; };
+layout(set = 0, binding = 7)  writeonly buffer DQV    { float dqv_dt[];    };
+layout(set = 0, binding = 8)  writeonly buffer DQC    { float dqc_dt[];    };
+layout(set = 0, binding = 9)  writeonly buffer DQR    { float dqr_dt[];    };
+layout(set = 0, binding = 10) writeonly buffer DQG    { float dqg_dt[];    };
+layout(set = 0, binding = 11) writeonly buffer DQH    { float dqh_dt[];    };
+
+// ── Push constants ──────────────────────────────────────────────────
+layout(push_constant) uniform PushConstants
+{
+    int   nr;
+    int   nth;
+    int   nz;
+    float qc0;
+    float c_auto;
+    float c_accr;
+    float c_evap;
+    float c_freeze;
+    float c_rime;
+    float c_melt;
+    float c_subl;
+    float Lv_cp;      // L_v / cp  (precomputed on CPU)
+    float Lf_cp;      // L_f / cp
+    float Ls_cp;      // L_s / cp
+    float T0;         // freezing temperature (273.15 K)
+    float padding;
+} pc;
+
+void main()
+{
+    uint gid = gl_GlobalInvocationID.x;
+    uint total = uint(pc.nr) * uint(pc.nth) * uint(pc.nz);
+    if (gid >= total)
+    {
+        return;
+    }
+
+    float T      = temperature[gid];
+    float qv_val = qv[gid];
+    float qc_val = qc[gid];
+    float qr_val = qr[gid];
+    float qg_val = qg[gid];
+    float qh_val = qh[gid];
+
+    // Accumulate tendencies locally
+    float d_theta = 0.0;
+    float d_qv    = 0.0;
+    float d_qc    = 0.0;
+    float d_qr    = 0.0;
+    float d_qg    = 0.0;
+    float d_qh    = 0.0;
+
+    // ── Warm rain processes ─────────────────────────────────────────
+
+    // Autoconversion: cloud water → rain
+    if (qc_val > pc.qc0)
+    {
+        float auto_rate = pc.c_auto * (qc_val - pc.qc0);
+        d_qc    -= auto_rate;
+        d_qr    += auto_rate;
+        d_theta += pc.Lv_cp * auto_rate / T;
+    }
+
+    // Accretion: cloud water collected by rain
+    if (qc_val > 0.0 && qr_val > 0.0)
+    {
+        float accr_rate = pc.c_accr * qc_val * qr_val;
+        d_qc    -= accr_rate;
+        d_qr    += accr_rate;
+        d_theta += pc.Lv_cp * accr_rate / T;
+    }
+
+    // Evaporation of rain in sub-saturated air
+    if (qr_val > 0.0)
+    {
+        float qvsat = 0.001;
+        float RH = (qv_val > 0.0) ? qv_val / qvsat : 0.0;
+        if (RH < 1.0)
+        {
+            float evap_rate = pc.c_evap * (1.0 - RH) * qr_val;
+            d_qv    += evap_rate;
+            d_qr    -= evap_rate;
+            d_theta -= pc.Lv_cp * evap_rate / T;
+        }
+    }
+
+    // ── Ice processes (T < T0) ──────────────────────────────────────
+
+    bool is_cold = (T < pc.T0);
+    if (is_cold)
+    {
+        // Freezing: cloud water → graupel
+        if (qc_val > 0.0)
+        {
+            float freeze_rate = pc.c_freeze * qc_val;
+            d_qc    -= freeze_rate;
+            d_qg    += freeze_rate;
+            d_theta += pc.Lf_cp * freeze_rate / T;
+        }
+
+        // Riming: cloud water → graupel (collection by graupel)
+        if (qc_val > 0.0 && qg_val > 0.0)
+        {
+            float rime_rate = pc.c_rime * qc_val * qg_val;
+            d_qc    -= rime_rate;
+            d_qg    += rime_rate;
+            d_theta += pc.Lf_cp * rime_rate / T;
+        }
+
+        // Riming: cloud water → hail (collection by hail)
+        if (qc_val > 0.0 && qh_val > 0.0)
+        {
+            float rime_rate = pc.c_rime * qc_val * qh_val;
+            d_qc    -= rime_rate;
+            d_qh    += rime_rate;
+            d_theta += pc.Lf_cp * rime_rate / T;
+        }
+
+        // Graupel → hail conversion (autoconversion analog for ice)
+        if (qg_val > pc.qc0)
+        {
+            float conv_rate = pc.c_auto * (qg_val - pc.qc0);
+            d_qg -= conv_rate;
+            d_qh += conv_rate;
+        }
+
+        // Sublimation of graupel and hail in sub-saturated ice air
+        float qvsat_ice = 0.001;
+        float RH_ice = (qv_val > 0.0) ? qv_val / qvsat_ice : 0.0;
+        if (RH_ice < 1.0)
+        {
+            if (qg_val > 0.0)
+            {
+                float subl_rate = pc.c_subl * (1.0 - RH_ice) * qg_val;
+                d_qv    += subl_rate;
+                d_qg    -= subl_rate;
+                d_theta -= pc.Ls_cp * subl_rate / T;
+            }
+            if (qh_val > 0.0)
+            {
+                float subl_rate = pc.c_subl * (1.0 - RH_ice) * qh_val;
+                d_qv    += subl_rate;
+                d_qh    -= subl_rate;
+                d_theta -= pc.Ls_cp * subl_rate / T;
+            }
+        }
+    }
+
+    // ── Melting processes (T > T0) ──────────────────────────────────
+
+    if (T > pc.T0)
+    {
+        // Hail melting → rain
+        if (qh_val > 0.0)
+        {
+            float melt_rate = pc.c_melt * qh_val;
+            d_qh    -= melt_rate;
+            d_qr    += melt_rate;
+            d_theta -= pc.Lf_cp * melt_rate / T;
+        }
+
+        // Graupel melting → rain
+        if (qg_val > 0.0)
+        {
+            float melt_rate = pc.c_melt * qg_val;
+            d_qg    -= melt_rate;
+            d_qr    += melt_rate;
+            d_theta -= pc.Lf_cp * melt_rate / T;
+        }
+    }
+
+    // ── Write outputs ───────────────────────────────────────────────
+    dtheta_dt[gid] = d_theta;
+    dqv_dt[gid]    = d_qv;
+    dqc_dt[gid]    = d_qc;
+    dqr_dt[gid]    = d_qr;
+    dqg_dt[gid]    = d_qg;
+    dqh_dt[gid]    = d_qh;
+}

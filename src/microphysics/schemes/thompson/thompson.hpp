@@ -9,8 +9,8 @@
 
 #pragma once
 #include "microphysics/base/thermodynamics.hpp"
-#include "microphysics_base.hpp"
-#include "field3d.hpp"
+#include "physics/microphysics_base.hpp"
+#include "core/field3d.hpp"
 
 /**
  * @brief Thompson bulk microphysics parameterization with prognostic ice number.

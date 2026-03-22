@@ -1,0 +1,62 @@
+# Teaching exercise: Supercell thunderstorm (30-minute spin-up)
+#
+# A supercell develops from a warm bubble in a strongly sheared environment
+# with moderate CAPE. The simulation shows the characteristic rotating updraft,
+# hook echo, and mesocyclone within 30 minutes of model time.
+#
+# Learning objectives:
+#   - Storm-scale dynamics and the role of wind shear
+#   - Supercell structure: updraft, downdraft, mesocyclone
+#   - Radar reflectivity interpretation
+#   - Vorticity generation in convective storms
+#
+# Usage:
+#   ./bin/tornado_sim --headless --config=configs/teaching/supercell_30min.yaml
+#
+# Expected output: ~200 MB in data/exports/
+# Expected runtime: ~30 minutes on a modern laptop
+
+case_name: supercell_30min
+grid:
+  nx: 128
+  ny: 128
+  nz: 48
+  dx: 1000.0
+  dy: 1000.0
+  dz: 400.0
+  dt: 1.5
+environment:
+  cape_target_jkg: 2500
+  shear_0_6km_ms: 30
+  sfc_theta_k: 300.0
+  sfc_qv_kgkg: 0.014
+  tropopause_z_m: 12000
+  midlevel_drying: true
+  hodograph:
+    type: wk_param
+    u_sfc_ms: 2
+    v_sfc_ms: 0
+    u_1km_ms: 10
+    v_1km_ms: 5
+    u_6km_ms: 25
+    v_6km_ms: 15
+trigger:
+  bubble:
+    center_x_km: 64
+    center_y_km: 64
+    center_z_km: 1.5
+    radius_km: 10
+    dtheta_k: 2.5
+microphysics:
+  scheme: kessler
+dynamics:
+  scheme: supercell
+radiation:
+  scheme: simple_grey
+  dt: 300
+output:
+  write_every_s: 30
+  fields: presentation
+  format: npy_3d
+  estimate_disk_budget: true
+duration_s: 1800

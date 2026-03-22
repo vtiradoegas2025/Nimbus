@@ -1,0 +1,207 @@
+// tvd_vertical_flux.comp
+//
+// GLSL compute shader implementing TVD vertical advection flux-divergence.
+//
+// This is the GPU equivalent of the CPU kernel in
+// src/core/compute_kernel_template.cpp (dispatch_tvd_vertical_flux_v1).
+//
+// Algorithm (per column):
+//   1. Load q and w for a single (i,j) column (k = 0..nz-1).
+//   2. MUSCL reconstruction with a selectable TVD limiter produces left/right
+//      interface states q_left and q_right at each cell.
+//   3. Upwind flux evaluation at each interface, followed by flux-divergence
+//      to obtain dqdt for each cell.
+//   4. Optional positivity limiting clamps the tendency so that
+//      q + dt * dqdt >= 0.
+//
+// Data layout is row-major [nr][nth][nz].
+// Index for element (i, j, k) = (i * nth + j) * nz + k.
+//
+// Each invocation processes one full (i,j) column.
+// gl_GlobalInvocationID.x = flat column index = i * nth + j.
+//
+// All arithmetic is 32-bit float (MoltenVK / Apple Silicon constraint).
+
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+// ---------------------------------------------------------------------------
+// SSBOs
+// ---------------------------------------------------------------------------
+
+layout(set = 0, binding = 0) readonly buffer QBuf {
+    float q[];
+};
+
+layout(set = 0, binding = 1) readonly buffer WBuf {
+    float w[];
+};
+
+layout(set = 0, binding = 2) readonly buffer DzBuf {
+    float dz[];
+};
+
+layout(set = 0, binding = 3) buffer DqdtBuf {
+    float dqdt[];
+};
+
+// ---------------------------------------------------------------------------
+// Push constants
+// ---------------------------------------------------------------------------
+
+layout(push_constant) uniform PushConstants {
+    int   nr;
+    int   nth;
+    int   nz;
+    int   limiter_id;      // 0=minmod, 1=vanleer, 2=superbee, 3=mc, 4=universal
+    int   positivity;      // 0=off, 1=on
+    float positivity_dt;
+    float cfl_target;      // unused in shader (CFL computed on CPU side)
+    float padding;         // alignment padding to 32 bytes
+};
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const int   MAX_NZ  = 256;
+const float EPSILON = 1e-30;
+
+// ---------------------------------------------------------------------------
+// TVD limiter
+// ---------------------------------------------------------------------------
+
+float tvd_limiter(float r) {
+    // limiter_id: 0=minmod, 1=vanleer, 2=superbee, 3=mc, 4=universal (same as mc)
+    if (limiter_id == 0) {
+        // minmod: max(0, min(r, 1))
+        return max(0.0, min(r, 1.0));
+    }
+    else if (limiter_id == 1) {
+        // van Leer: (r + |r|) / (1 + |r|)
+        return (r + abs(r)) / (1.0 + abs(r));
+    }
+    else if (limiter_id == 2) {
+        // superbee: max(0, max(min(2r, 1), min(r, 2)))
+        return max(0.0, max(min(2.0 * r, 1.0), min(r, 2.0)));
+    }
+    else {
+        // mc (limiter_id == 3) and universal (limiter_id == 4):
+        // max(0, min(min(2r, 2), (1+r)/2))
+        return max(0.0, min(min(2.0 * r, 2.0), (1.0 + r) / 2.0));
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------------
+
+void main() {
+    uint col = gl_GlobalInvocationID.x;
+    uint total_columns = uint(nr) * uint(nth);
+
+    // Out-of-bounds guard.
+    if (col >= total_columns) {
+        return;
+    }
+
+    uint base = col * uint(nz);
+    int  nz_local = nz;
+
+    // --- Per-column local arrays ---
+    float q_col  [MAX_NZ];
+    float w_col  [MAX_NZ];
+    float dz_col [MAX_NZ];
+    float q_left [MAX_NZ];
+    float q_right[MAX_NZ];
+    float dqdt_col[MAX_NZ];
+
+    // Step 1: Load column data.
+    for (int k = 0; k < nz_local; ++k) {
+        uint idx   = base + uint(k);
+        q_col[k]   = q[idx];
+        w_col[k]   = w[idx];
+        dz_col[k]  = dz[k];
+        dqdt_col[k] = 0.0;
+    }
+
+    // Trivial case: single-level column.
+    if (nz_local == 1) {
+        dqdt[base] = 0.0;
+        return;
+    }
+
+    // Step 2: MUSCL reconstruction with TVD limiter.
+    // Boundary cells: piecewise-constant (no reconstruction).
+    q_left[0]  = q_col[0];
+    q_right[0] = q_col[0];
+    q_left[nz_local - 1]  = q_col[nz_local - 1];
+    q_right[nz_local - 1] = q_col[nz_local - 1];
+
+    for (int k = 1; k < nz_local - 1; ++k) {
+        float denom  = q_col[k + 1] - q_col[k] + EPSILON;
+        float r      = (q_col[k] - q_col[k - 1]) / denom;
+        float phi    = tvd_limiter(r);
+        float delta  = phi * (q_col[k + 1] - q_col[k]);
+        q_left[k]   = q_col[k] - 0.5 * delta;
+        q_right[k]  = q_col[k] + 0.5 * delta;
+    }
+
+    // Step 3: Upwind flux divergence.
+    // Process cells k = 0..nz-2 (the last cell k = nz-1 has flux_right = 0,
+    // handled separately below).
+    for (int k = 0; k < nz_local - 1; ++k) {
+        // Right interface flux (interface between k and k+1).
+        float vel_right  = w_col[k];
+        float flux_right = (vel_right >= 0.0)
+            ? vel_right * q_right[k]
+            : vel_right * q_left[k + 1];
+
+        // Left interface flux (interface between k-1 and k).
+        float flux_left = 0.0;
+        if (k > 0) {
+            float vel_left = w_col[k - 1];
+            flux_left = (vel_left >= 0.0)
+                ? vel_left * q_right[k - 1]
+                : vel_left * q_left[k];
+        }
+
+        dqdt_col[k] -= (flux_right - flux_left) / dz_col[k];
+    }
+    // Last cell (k = nz-1): flux_right = 0, only left interface contributes.
+    // This mirrors the CPU loop which runs k = 0..nz-2, so the last cell's
+    // dqdt remains at the value accumulated from the left-interface
+    // contribution of the cell below (which was already written via the
+    // k = nz-2 iteration). However, the CPU code only loops k < nz-1 for the
+    // flux divergence, so for k = nz-1, dqdt stays 0 (no flux divergence is
+    // computed for it). That is the correct behavior: the last cell is
+    // untouched by the interior loop, and dqdt_col[nz-1] == 0.
+
+    // Step 4: Positivity limiting.
+    if (positivity != 0) {
+        float dt_safe = max(positivity_dt, 1e-12);
+        for (int k = 0; k < nz_local; ++k) {
+            float tendency = dqdt_col[k];
+            // Guard against NaN / Inf (GPU float edge cases).
+            if (!(tendency == tendency) || isinf(tendency)) {  // isnan via self-compare
+                tendency = 0.0;
+            }
+            float floor_tendency = (0.0 - q_col[k]) / dt_safe;
+            if (tendency < floor_tendency) {
+                tendency = floor_tendency;
+            }
+            dqdt_col[k] = tendency;
+        }
+    }
+
+    // Step 5: Write output.
+    for (int k = 0; k < nz_local; ++k) {
+        float tendency = dqdt_col[k];
+        // Final NaN / Inf guard.
+        if (!(tendency == tendency) || isinf(tendency)) {
+            tendency = 0.0;
+        }
+        dqdt[base + uint(k)] = tendency;
+    }
+}

@@ -8,13 +8,13 @@
  */
 
 #pragma once
-#include "dynamics_base.hpp"
+#include "physics/dynamics_base.hpp"
+#include <memory>
 #include <vector>
 #include <string>
 
-
-#include "schemes/supercell/supercell.hpp"
-#include "schemes/tornado/tornado.hpp"
+class SupercellScheme;
+class TornadoScheme;
 
 /**
  * @brief Creates a dynamics scheme by configured name.

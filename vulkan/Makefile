@@ -1,10 +1,10 @@
 CXX ?= clang++
 CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -Wpedantic
-CPPFLAGS += -Iinclude
+CPPFLAGS += -Iinclude -I../include
 UNAME_S := $(shell uname -s)
 GLSLANG := $(shell command -v glslangValidator 2>/dev/null)
 SHADER_DIR := shaders
-SHADER_SPVS := $(SHADER_DIR)/volume.vert.spv $(SHADER_DIR)/volume.frag.spv
+SHADER_SPVS := $(SHADER_DIR)/rendering/volume.vert.spv $(SHADER_DIR)/rendering/volume.frag.spv
 
 PKG_CONFIG := $(shell command -v pkg-config 2>/dev/null)
 ifeq ($(PKG_CONFIG),)
@@ -75,7 +75,7 @@ ifneq ($(BREW_PREFIX),)
   endif
 endif
 
-SRCS := src/main.cpp src/app.cpp src/context.cpp
+SRCS := src/core/main.cpp src/core/app.cpp src/core/context.cpp
 ifeq ($(UNAME_S),Darwin)
   SFML_LIBS := -lsfml-window -lsfml-system -framework OpenGL -framework Cocoa -framework IOKit -framework CoreVideo
 else
@@ -88,13 +88,14 @@ else
   CPPFLAGS += -DVKCPP_USE_GLFW=0
 endif
 
-SRCS += src/window_renderer.cpp
-SRCS += src/clear_backend.cpp
-SRCS += src/volume_backend.cpp
+SRCS += src/rendering/window_renderer.cpp
+SRCS += src/rendering/clear_backend.cpp
+SRCS += src/rendering/volume_backend.cpp
 SRCS += src/camera/camera_controller.cpp
 SRCS += src/camera/camera_input_tracker.cpp
-SRCS += src/export_dataset.cpp
-SRCS += src/npy_reader.cpp
+SRCS += src/data/export_dataset.cpp
+SRCS += src/data/npy_reader.cpp
+SRCS += src/data/shm_dataset.cpp
 BIN := ../bin/vulkan_viewer
 
 all: check-deps check-shader-tools $(SHADER_SPVS) $(BIN)
@@ -115,11 +116,14 @@ check-shader-tools:
 		exit 1; \
 	fi
 
-$(SHADER_DIR)/%.vert.spv: $(SHADER_DIR)/%.vert
+$(SHADER_DIR)/rendering/%.vert.spv: $(SHADER_DIR)/rendering/%.vert
 	$(GLSLANG) -V -S vert $< -o $@
 
-$(SHADER_DIR)/%.frag.spv: $(SHADER_DIR)/%.frag
+$(SHADER_DIR)/rendering/%.frag.spv: $(SHADER_DIR)/rendering/%.frag
 	$(GLSLANG) -V -S frag $< -o $@
+
+$(SHADER_DIR)/compute/%.comp.spv: $(SHADER_DIR)/compute/%.comp
+	$(GLSLANG) -V -S comp $< -o $@
 
 $(BIN): $(SRCS) | ../bin
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(SRCS) $(LDFLAGS) $(VULKAN_LIBS) $(GLFW_LIBS) $(SFML_LIBS) -o $(BIN)

@@ -7,7 +7,7 @@
  * This file belongs to the primary src/core execution layer.
  */
 
-#include "radar.hpp"
+#include "diagnostics/radar.hpp"
 #include "radar/factory.hpp"
 #include <algorithm>
 #include <cmath>
@@ -84,9 +84,9 @@ void RadarSystem::compute_all_observables(const RadarStateView& state, RadarOut&
                                          double radar_x, double radar_y, double radar_z) {
     ensure_output_initialized(state, output);
 
-    auto reflectivity = RadarFactory::create(RadarSchemes::REFLECTIVITY);
-    auto velocity = RadarFactory::create(RadarSchemes::VELOCITY);
-    auto zdr = RadarFactory::create(RadarSchemes::ZDR);
+    auto reflectivity = create_radar_scheme(RadarSchemes::REFLECTIVITY);
+    auto velocity = create_radar_scheme(RadarSchemes::VELOCITY);
+    auto zdr = create_radar_scheme(RadarSchemes::ZDR);
 
     RadarConfig refl_config;
     refl_config.scheme_id = RadarSchemes::REFLECTIVITY;
@@ -137,7 +137,7 @@ void RadarSystem::compute_reflectivity(const RadarStateView& state, RadarOut& ou
 {
     ensure_output_initialized(state, output);
 
-    auto reflectivity = RadarFactory::create(RadarSchemes::REFLECTIVITY);
+    auto reflectivity = create_radar_scheme(RadarSchemes::REFLECTIVITY);
 
     RadarConfig config;
     config.scheme_id = RadarSchemes::REFLECTIVITY;
@@ -161,7 +161,7 @@ void RadarSystem::compute_velocity(const RadarStateView& state, RadarOut& output
                                   {
     ensure_output_initialized(state, output);
 
-    auto velocity = RadarFactory::create(RadarSchemes::VELOCITY);
+    auto velocity = create_radar_scheme(RadarSchemes::VELOCITY);
 
     RadarConfig config;
     config.scheme_id = RadarSchemes::VELOCITY;
@@ -189,7 +189,7 @@ void RadarSystem::compute_zdr(const RadarStateView& state, RadarOut& output)
 {
     ensure_output_initialized(state, output);
 
-    auto zdr = RadarFactory::create(RadarSchemes::ZDR);
+    auto zdr = create_radar_scheme(RadarSchemes::ZDR);
 
     RadarConfig config;
     config.scheme_id = RadarSchemes::ZDR;

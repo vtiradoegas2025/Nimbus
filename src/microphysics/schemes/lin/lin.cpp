@@ -8,7 +8,7 @@
  */
 
 #include "lin.hpp"
-#include "simulation.hpp"
+#include "core/simulation.hpp"
 #include <algorithm>
 #include <cmath>
 #ifdef _OPENMP
@@ -61,14 +61,8 @@ void LinScheme::compute_tendencies(
     Field3D temperature(NR, NTH, NZ);
     thermodynamics::convert_theta_to_temperature_field(theta, p, temperature);
 
-    dtheta_dt.resize(NR, NTH, NZ, 0.0f);
-    dqv_dt.resize(NR, NTH, NZ, 0.0f);
-    dqc_dt.resize(NR, NTH, NZ, 0.0f);
-    dqr_dt.resize(NR, NTH, NZ, 0.0f);
-    dqi_dt.resize(NR, NTH, NZ, 0.0f);
-    dqs_dt.resize(NR, NTH, NZ, 0.0f);
-    dqg_dt.resize(NR, NTH, NZ, 0.0f);
-    dqh_dt.resize(NR, NTH, NZ, 0.0f);
+    init_tendency_fields(NR, NTH, NZ, dtheta_dt, dqv_dt, dqc_dt, dqr_dt,
+                         dqi_dt, dqs_dt, dqg_dt, dqh_dt);
 
     Field3D qv_temp = qv;
     Field3D qc_temp = qc;

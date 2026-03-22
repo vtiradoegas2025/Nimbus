@@ -11,8 +11,14 @@
 #include <cmath>
 #include <exception>
 #include <memory>
-#include "simulation.hpp"
-#include "advection.hpp"
+#include "core/simulation.hpp"
+#include "util/simd_utils.hpp"
+#include "util/log.hpp"
+#include "numerics/advection.hpp"
+#include "physics/dynamics_base.hpp"
+#include "numerics/advection_base.hpp"
+#include "numerics/diffusion_base.hpp"
+#include "numerics/time_stepping_base.hpp"
 #include "microphysics/factory.hpp"
 #include "radar/factory.hpp"
 #ifdef _OPENMP
@@ -77,6 +83,13 @@ std::unique_ptr<MicrophysicsScheme> microphysics_scheme;
 std::unique_ptr<RadarSchemeBase> radar_scheme;
 
 NestedGridConfig nested_config;
+
+SimulationConfig global_sim_config;
+SchemeRegistry global_scheme_registry;
+
+SchemeRegistry::~SchemeRegistry() = default;
+SchemeRegistry::SchemeRegistry(SchemeRegistry&&) noexcept = default;
+SchemeRegistry& SchemeRegistry::operator=(SchemeRegistry&&) noexcept = default;
 Field3D nest_rho;
 Field3D nest_p;
 Field3D nest_u;
@@ -144,8 +157,8 @@ void initialize()
         double p_local = p0 * pow(1 - (0.0065 * z / surface_theta), 5.255);
         rho0_base[k] = std::max(p_local / (R_d * T), 0.1);
     }
-    std::cout << "Base state density initialized: rho0_base[0]=" << rho0_base[0]
-              << ", rho0_base[" << NZ-1 << "]=" << rho0_base[NZ-1] << std::endl;
+    tmv::log_info("Base state density initialized: rho0_base[0]=", rho0_base[0],
+                  ", rho0_base[", NZ-1, "]=", rho0_base[NZ-1]);
 
     #pragma omp parallel for collapse(2)
     for (int i = 0; i < NR; ++i)
@@ -185,10 +198,10 @@ void initialize()
                 double theta_potential = T_actual * pow(p0 / p_local, kappa);
                 theta[i][j][k] = static_cast<float>(theta_potential);
                 
-                if (log_debug_enabled() && i == 0 && j == 0 && k < 5) {
-                    std::cout << "[INIT DEBUG] i=" << i << ", j=" << j << ", k=" << k 
-                              << ", z=" << z << "m: T_actual=" << T_actual 
-                              << "K, p_local=" << p_local << "Pa, theta=" << theta_potential << "K" << std::endl;
+                if (i == 0 && j == 0 && k < 5) {
+                    tmv::log_debug("[INIT DEBUG] i=", i, ", j=", j, ", k=", k,
+                                   ", z=", z, "m: T_actual=", T_actual,
+                                   "K, p_local=", p_local, "Pa, theta=", theta_potential, "K");
                 }
 
                 double base_moisture = std::clamp(surface_qv * (0.85 + 0.15 * cape_scaling), 0.004, 0.024);
@@ -288,21 +301,20 @@ void initialize()
         }
     }
     
-    std::cout << "\n[INIT SUMMARY] After initialization:" << std::endl;
-    std::cout << "  Theta: min=" << theta_min << "K, max=" << theta_max << "K, expected ~250-350K" << std::endl;
-    std::cout << "  Pressure: min=" << p_min << "Pa, max=" << p_max << "Pa, expected ~1000-110000Pa" << std::endl;
-    std::cout << "  Density: min=" << rho_min << "kg/m³, max=" << rho_max << "kg/m³, expected ~0.5-1.5kg/m³" << std::endl;
-    std::cout << "  NaN count: " << nan_count << ", Inf count: " << inf_count << std::endl;
+    tmv::log_info("\n[INIT SUMMARY] After initialization:");
+    tmv::log_info("  Theta: min=", theta_min, "K, max=", theta_max, "K, expected ~250-350K");
+    tmv::log_info("  Pressure: min=", p_min, "Pa, max=", p_max, "Pa, expected ~1000-110000Pa");
+    tmv::log_info("  Density: min=", rho_min, "kg/m³, max=", rho_max, "kg/m³, expected ~0.5-1.5kg/m³");
+    tmv::log_info("  NaN count: ", nan_count, ", Inf count: ", inf_count);
     
     if (theta_min < 0 || theta_max > 500) 
     {
-        std::cerr << "  ⚠️  WARNING: Theta values are outside expected range!" << std::endl;
+        tmv::log_warn("  WARNING: Theta values are outside expected range!");
     }
     if (p_min < 500 || p_max > 120000) 
     {
-        std::cerr << "  ⚠️  WARNING: Pressure values are outside expected range!" << std::endl;
+        tmv::log_warn("  WARNING: Pressure values are outside expected range!");
     }
-    std::cout << std::endl;
 }
 
 /**
@@ -313,13 +325,13 @@ void initialize_microphysics(const std::string& scheme_name)
     try 
     {
         microphysics_scheme = create_microphysics_scheme(scheme_name);
-        std::cout << "Initialized microphysics scheme: " << scheme_name << std::endl;
+        tmv::log_info("Initialized microphysics scheme: ", scheme_name);
     } 
     catch (const std::runtime_error& e)
     {
-        std::cerr << "Error initializing microphysics: " << e.what() << std::endl;
+        tmv::log_error("Error initializing microphysics: ", e.what());
         microphysics_scheme = create_microphysics_scheme("kessler");
-        std::cout << "Falling back to Kessler microphysics scheme" << std::endl;
+        tmv::log_info("Falling back to Kessler microphysics scheme");
     }
 }
 
@@ -331,7 +343,7 @@ void initialize_radar(const std::string& scheme_name)
 {
     try 
     {
-        radar_scheme = RadarFactory::create(scheme_name);
+        radar_scheme = create_radar_scheme(scheme_name);
 
         RadarConfig config;
         config.scheme_id = scheme_name;
@@ -348,12 +360,12 @@ void initialize_radar(const std::string& scheme_name)
         config.has_qi = true;
 
         radar_scheme->initialize(config, NR, NTH, NZ);
-        std::cout << "Initialized radar scheme: " << scheme_name << std::endl;
+        tmv::log_info("Initialized radar scheme: ", scheme_name);
     } 
     catch (const std::runtime_error& e) 
     {
-        std::cerr << "Error initializing radar: " << e.what() << std::endl;
-        std::cout << "Radar scheme initialization failed, radar calculations disabled" << std::endl;
+        tmv::log_error("Error initializing radar: ", e.what());
+        tmv::log_info("Radar scheme initialization failed, radar calculations disabled");
     }
 }
 
@@ -384,13 +396,13 @@ void step_microphysics(double dt_micro)
 {
     if (!std::isfinite(dt_micro) || dt_micro <= 0.0)
     {
-        std::cerr << "[MICROPHYSICS GUARD] invalid microphysics timestep: " << dt_micro << std::endl;
+        tmv::log_warn("[MICROPHYSICS GUARD] invalid microphysics timestep: ", dt_micro);
         return;
     }
 
     if (!microphysics_scheme) 
     {
-        std::cerr << "Warning: Microphysics scheme not initialized, using default Kessler" << std::endl;
+        tmv::log_warn("Microphysics scheme not initialized, using default Kessler");
         initialize_microphysics("kessler");
     }
 
@@ -426,8 +438,8 @@ void step_microphysics(double dt_micro)
     }
     catch (const std::exception& e)
     {
-        std::cerr << "[MICROPHYSICS GUARD] tendency computation failed: " << e.what()
-                  << ". Continuing with zero microphysics tendencies for this step." << std::endl;
+        tmv::log_warn("[MICROPHYSICS GUARD] tendency computation failed: ", e.what(),
+                      ". Continuing with zero microphysics tendencies for this step.");
         dtheta_dt.fill(0.0f);
         dqv_dt.fill(0.0f);
         dqc_dt.fill(0.0f);
@@ -440,24 +452,12 @@ void step_microphysics(double dt_micro)
 
     apply_chaos_to_microphysics_tendencies(dtheta_dt, dqv_dt, dqc_dt, dqr_dt, dqi_dt, dqs_dt, dqg_dt, dqh_dt);
 
-    auto sanitize_nonfinite_tendency = [](Field3D& field) -> int 
+    auto sanitize_nonfinite_tendency = [](Field3D& field) -> int
     {
-        if (field.empty()){return 0;}
-
-        int sanitized = 0;
+        if (field.empty()) { return 0; }
         float* const data = field.data();
-        const std::size_t count = field.size();
-        #pragma omp parallel for reduction(+:sanitized)
-
-        for (long long idx = 0; idx < static_cast<long long>(count); ++idx)
-        {
-            if (!std::isfinite(static_cast<double>(data[idx])))
-            {
-                data[idx] = 0.0f;
-                ++sanitized;
-            }
-        }
-        return sanitized;
+        const int count = static_cast<int>(field.size());
+        return simd_utils::sanitize_nonfinite(data, 0.0f, data, count);
     };
 
     const int non_finite_tendency_sanitized =
@@ -507,13 +507,13 @@ void step_microphysics(double dt_micro)
                 
                 if (std::abs(dtheta_total) > 100.0f && i == 0 && j == 0 && k < 5) 
                 {
-                    std::cerr << "[MICRO DEBUG] Large theta change at i=" << i << ",j=" << j << ",k=" << k 
-                              << ": " << theta_old << " -> " << theta[i][j][k]
-                              << " (raw_delta=" << dtheta_total
-                              << ", applied_delta=" << dtheta_limited << ")" << std::endl;
-                    std::cerr << "  dtheta_dt=" << dtheta_dt[i][j][k] 
-                              << ", dtheta_dt_rad=" << dtheta_dt_rad[i][j][k]
-                              << ", dtheta_dt_pbl=" << dtheta_dt_pbl[i][j][k] << std::endl;
+                    tmv::log_debug("[MICRO DEBUG] Large theta change at i=", i, ",j=", j, ",k=", k,
+                                   ": ", theta_old, " -> ", theta[i][j][k],
+                                   " (raw_delta=", dtheta_total,
+                                   ", applied_delta=", dtheta_limited, ")");
+                    tmv::log_debug("  dtheta_dt=", dtheta_dt[i][j][k],
+                                   ", dtheta_dt_rad=", dtheta_dt_rad[i][j][k],
+                                   ", dtheta_dt_pbl=", dtheta_dt_pbl[i][j][k]);
                 }
                 qv[i][j][k] += (dqv_dt[i][j][k] + dqv_dt_pbl[i][j][k]) * dt_micro;
                 qc[i][j][k] += dqc_dt[i][j][k] * dt_micro;
@@ -539,12 +539,11 @@ void step_microphysics(double dt_micro)
         theta_tendency_limited_count > 0 ||
         theta_bounds_clamp_count > 0)
     {
-        std::cerr << "[MICROPHYSICS GUARD] non_finite_dtheta="
-                  << non_finite_theta_tendency_count
-                  << ", non_finite_tendency_sanitized=" << non_finite_tendency_sanitized
-                  << ", limited_dtheta=" << theta_tendency_limited_count
-                  << ", theta_bounds_clamped=" << theta_bounds_clamp_count
-                  << std::endl;
+        tmv::log_warn("[MICROPHYSICS GUARD] non_finite_dtheta=",
+                      non_finite_theta_tendency_count,
+                      ", non_finite_tendency_sanitized=", non_finite_tendency_sanitized,
+                      ", limited_dtheta=", theta_tendency_limited_count,
+                      ", theta_bounds_clamped=", theta_bounds_clamp_count);
     }
 }
 
@@ -721,8 +720,7 @@ void calculate_radar_reflectivity()
         }
         if (sanitized > 0)
         {
-            std::cerr << "[RADAR GUARD] sanitized " << sanitized
-                      << " reflectivity samples from " << source_tag << std::endl;
+            tmv::log_warn("[RADAR GUARD] sanitized ", sanitized, " reflectivity samples from ", source_tag);
         }
     };
 
@@ -730,7 +728,7 @@ void calculate_radar_reflectivity()
     {
         if (!microphysics_scheme)
         {
-            std::cerr << "[RADAR GUARD] no microphysics scheme available for radar fallback." << std::endl;
+            tmv::log_warn("[RADAR GUARD] no microphysics scheme available for radar fallback.");
             return false;
         }
 
@@ -743,15 +741,15 @@ void calculate_radar_reflectivity()
         }
         catch (const std::exception& e)
         {
-            std::cerr << "[RADAR GUARD] microphysics fallback reflectivity failed: " << e.what()
-                      << ". Keeping previous reflectivity field for this step." << std::endl;
+            tmv::log_warn("[RADAR GUARD] microphysics fallback reflectivity failed: ", e.what(),
+                         ". Keeping previous reflectivity field for this step.");
             return false;
         }
 
         if (radar_dbz.size_r() != NR || radar_dbz.size_th() != NTH || radar_dbz.size_z() != NZ)
         {
-            std::cerr << "[RADAR GUARD] microphysics fallback returned unexpected dBZ field shape; "
-                         "leaving reflectivity unchanged for this step." << std::endl;
+            tmv::log_warn("[RADAR GUARD] microphysics fallback returned unexpected dBZ field shape; "
+                         "leaving reflectivity unchanged for this step.");
             return false;
         }
 
@@ -787,7 +785,7 @@ void calculate_radar_reflectivity()
 
     if (!radar_scheme)
     {
-        std::cerr << "Warning: Radar scheme not initialized, using microphysics fallback" << std::endl;
+        tmv::log_warn("Radar scheme not initialized, using microphysics fallback");
         apply_microphysics_fallback();
         return;
     }
@@ -825,8 +823,8 @@ void calculate_radar_reflectivity()
     }
     catch (const std::exception& e)
     {
-        std::cerr << "[RADAR GUARD] radar scheme compute failed: " << e.what()
-                  << ". Attempting microphysics fallback." << std::endl;
+        tmv::log_warn("[RADAR GUARD] radar scheme compute failed: ", e.what(),
+                      ". Attempting microphysics fallback.");
         apply_microphysics_fallback();
         return;
     }
@@ -861,7 +859,6 @@ void calculate_radar_reflectivity()
 
     if (sanitized_reflectivity > 0)
     {
-        std::cerr << "[RADAR GUARD] sanitized " << sanitized_reflectivity
-                  << " reflectivity samples from radar scheme output" << std::endl;
+        tmv::log_warn("[RADAR GUARD] sanitized ", sanitized_reflectivity, " reflectivity samples from radar scheme output");
     }
 }

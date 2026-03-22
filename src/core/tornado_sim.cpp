@@ -23,19 +23,20 @@
 #include <cctype>
 #include <limits>
 #include <cmath>
-#include "simulation.hpp"
-#include "boundary_layer_base.hpp"
-#include "chaos_base.hpp"
-#include "radiation_base.hpp"
-#include "terrain_base.hpp"
-#include "turbulence_base.hpp"
-#include "headless_runtime.hpp"
-#include "runtime_config.hpp"
-#include "advection.hpp"
-#include "field_contract.hpp"
-#include "field_validation.hpp"
-#include "soundings.hpp"
-#include "string_utils.hpp"
+#include "core/simulation.hpp"
+#include "physics/boundary_layer_base.hpp"
+#include "physics/chaos_base.hpp"
+#include "numerics/compute_backend.hpp"
+#include "physics/radiation_base.hpp"
+#include "physics/terrain_base.hpp"
+#include "physics/turbulence_base.hpp"
+#include "core/headless_runtime.hpp"
+#include "core/runtime_config.hpp"
+#include "numerics/advection.hpp"
+#include "diagnostics/field_contract.hpp"
+#include "diagnostics/field_validation.hpp"
+#include "data/soundings.hpp"
+#include "util/string_utils.hpp"
 
 
 
@@ -334,6 +335,12 @@ int main(int argc, char** argv)
     tmv::StrictGuardScope cli_guard_scope = global_validation_policy.strict_scope;
     bool guard_report_from_cli = false;
     std::string cli_guard_report_path;
+    bool compute_backend_from_cli = false;
+    std::string cli_compute_backend;
+    bool live_shm_from_cli = false;
+    bool cli_live_shm = false;
+    bool live_shm_fields_from_cli = false;
+    std::vector<std::string> cli_live_shm_fields;
     std::string outdir = "data/exports";
     std::string config_path = "";
 
@@ -564,6 +571,57 @@ int main(int argc, char** argv)
             cli_guard_report_path = argv[++i];
             guard_report_from_cli = true;
         }
+        else if (arg.rfind("--compute-backend=", 0) == 0)
+        {
+            const std::string value = arg.substr(18);
+            ComputeBackendKind parsed = ComputeBackendKind::Cpu;
+            if (!parse_compute_backend_kind(value, parsed))
+            {
+                std::cerr << "Invalid --compute-backend value '" << value
+                          << "'. Expected: cpu, vulkan." << std::endl;
+                return 1;
+            }
+            cli_compute_backend = compute_backend_kind_name(parsed);
+            compute_backend_from_cli = true;
+        }
+        else if (arg == "--compute-backend" && i + 1 < argc)
+        {
+            const std::string value = argv[++i];
+            ComputeBackendKind parsed = ComputeBackendKind::Cpu;
+            if (!parse_compute_backend_kind(value, parsed))
+            {
+                std::cerr << "Invalid --compute-backend value '" << value
+                          << "'. Expected: cpu, vulkan." << std::endl;
+                return 1;
+            }
+            cli_compute_backend = compute_backend_kind_name(parsed);
+            compute_backend_from_cli = true;
+        }
+        else if (arg == "--live-shm")
+        {
+            live_shm_from_cli = true;
+            cli_live_shm = true;
+        }
+        else if (arg.rfind("--live-shm-fields=", 0) == 0)
+        {
+            const std::string value = arg.substr(18);
+            cli_live_shm_fields.clear();
+            std::istringstream stream(value);
+            std::string token;
+            while (std::getline(stream, token, ','))
+            {
+                auto start = token.find_first_not_of(" \t");
+                auto end = token.find_last_not_of(" \t");
+                if (start != std::string::npos)
+                {
+                    cli_live_shm_fields.push_back(token.substr(start, end - start + 1));
+                }
+            }
+            if (!cli_live_shm_fields.empty())
+            {
+                live_shm_fields_from_cli = true;
+            }
+        }
     }
 
     if (log_profile_from_cli)
@@ -571,7 +629,19 @@ int main(int argc, char** argv)
         global_log_profile = cli_log_profile;
     }
 
-    load_config(config_path, duration_s, write_every_s, outdir);
+    bool live_shm = false;
+    std::vector<std::string> live_shm_fields = {"w", "reflectivity_dbz", "vorticity_z"};
+    OutputConfig output_config;
+    try
+    {
+        load_config(config_path, duration_s, write_every_s, outdir, &output_config,
+                    &live_shm, &live_shm_fields);
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "[CONFIG] " << e.what() << std::endl;
+        return 1;
+    }
     if (duration_from_cli)
     {
         duration_s = cli_duration_s;
@@ -608,6 +678,18 @@ int main(int argc, char** argv)
     {
         global_validation_report_path = cli_guard_report_path;
     }
+    if (compute_backend_from_cli)
+    {
+        global_compute_backend_config.backend = cli_compute_backend;
+    }
+    if (live_shm_from_cli)
+    {
+        live_shm = cli_live_shm;
+    }
+    if (live_shm_fields_from_cli)
+    {
+        live_shm_fields = cli_live_shm_fields;
+    }
 
     if (global_log_profile == LogProfile::quiet)
     {
@@ -639,6 +721,14 @@ int main(int argc, char** argv)
             std::cout << ", guard_report=" << global_validation_report_path;
         }
         std::cout << std::endl;
+    }
+
+    std::string compute_backend_error;
+    if (!initialize_compute_backend_runtime(compute_backend_error))
+    {
+        std::cerr << "[COMPUTE] Failed to initialize runtime compute backend: "
+                  << compute_backend_error << std::endl;
+        return 1;
     }
 
     initialize_microphysics(global_microphysics_scheme);
@@ -689,6 +779,8 @@ int main(int argc, char** argv)
         global_terrain_config.scheme_id = "none";
     }
     initialize_terrain(global_terrain_config.scheme_id, global_terrain_config);
+
+    int run_status = 0;
     if (headless)
     {
         HeadlessRunOptions headless_options;
@@ -696,7 +788,10 @@ int main(int argc, char** argv)
         headless_options.duration_s = duration_s;
         headless_options.write_every_s = write_every_s;
         headless_options.outdir = outdir;
-        return run_headless_simulation(headless_options);
+        headless_options.output_config = output_config;
+        headless_options.live_shm = live_shm;
+        headless_options.live_shm_fields = live_shm_fields;
+        run_status = run_headless_simulation(headless_options);
     }
     else
     {
@@ -707,5 +802,6 @@ int main(int argc, char** argv)
         #endif
     }
 
-    return 0;
+    shutdown_compute_backend_runtime();
+    return run_status;
 }

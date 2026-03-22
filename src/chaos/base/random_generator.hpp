@@ -12,19 +12,18 @@
 #include <cstdint>
 #include <vector>
 #include <string>
-#include "field3d.hpp"
+#include "core/field3d.hpp"
 
-namespace chaos 
+namespace chaos
 {
-
 
 /**
  * @brief Reproducible random number generator for chaos perturbations
  *
  * Provides deterministic random sequences based on seed, member_id, and stream keys.
- * Uses PCG64 for high-quality, fast random numbers with good statistical properties.
+ * Uses MT19937-64 for high-quality, fast random numbers with good statistical properties.
  */
-class ChaosRNG 
+class ChaosRNG
 {
 public:
     /**
@@ -65,40 +64,12 @@ public:
     double uniform(uint64_t stream_key = 0);
 
     /**
-     * @brief Fill a 3D field with independent normal random variables
-     * @param field Output field to fill [nr][nth][nz]
-     * @param stream_key Base stream key
-     * @param field_name Field identifier for stream separation
-     */
-    void fill_field_normal(
-        std::vector<std::vector<std::vector<double>>>& field,
-        uint64_t stream_key,
-        const std::string& field_name = ""
-    );
-
-    /**
      * @brief Fill a Field3D with independent normal random variables
      * @param field Output field to fill
      * @param stream_key Base stream key
      * @param field_name Field identifier for stream separation
      */
-    void fill_field_normal(
-        Field3D& field,
-        uint64_t stream_key,
-        const std::string& field_name = ""
-    );
-
-    /**
-     * @brief Fill a 2D field with independent normal random variables
-     * @param field Output field to fill [nr][nth]
-     * @param stream_key Base stream key
-     * @param field_name Field identifier for stream separation
-     */
-    void fill_field_normal(
-        std::vector<std::vector<double>>& field,
-        uint64_t stream_key,
-        const std::string& field_name = ""
-    );
+    void fill_field_normal(Field3D& field, uint64_t stream_key, const std::string& field_name = "");
 
     /**
      * @brief Reset RNG state (for reproducibility testing)
@@ -123,11 +94,10 @@ private:
     /**
      * @brief Create a new generator instance for a specific stream
      * @param stream_seed Seed for this stream
-     * @return New PCG generator instance
+     * @return New MT19937-64 generator instance
      */
     std::mt19937_64 create_stream_generator(uint64_t stream_seed) const;
 };
-
 
 /**
  * @brief Apply bounding to perturbation field
@@ -135,55 +105,23 @@ private:
  * @param xi_max Maximum absolute value (clipping threshold)
  * @param use_tanh If true, use smooth tanh saturation; if false, use hard clipping
  */
-void bound_perturbation_field(
-    std::vector<std::vector<std::vector<double>>>& xi,
-    double xi_max,
-    bool use_tanh = true
-);
-
-void bound_perturbation_field(
-    Field3D& xi,
-    double xi_max,
-    bool use_tanh = true
-);
+void bound_perturbation_field(Field3D& xi, double xi_max, bool use_tanh = true);
 
 /**
  * @brief Apply vertical tapering to 3D perturbation field
- * @param xi Input/output perturbation field [nr][nth][nz]
+ * @param xi Input/output perturbation field
  * @param z_levels Vertical coordinate levels [nz]
  * @param taper_id Tapering function: "none", "pbl_only", "cosine"
  * @param z1 Lower taper height
  * @param z2 Upper taper height
  */
-void apply_vertical_taper(
-    std::vector<std::vector<std::vector<double>>>& xi,
-    const std::vector<double>& z_levels,
-    const std::string& taper_id,
-    double z1,
-    double z2
-);
-
-void apply_vertical_taper(
-    Field3D& xi,
-    const std::vector<double>& z_levels,
-    const std::string& taper_id,
-    double z1,
-    double z2
-);
+void apply_vertical_taper(Field3D& xi, const std::vector<double>& z_levels, const std::string& taper_id, double z1, double z2);
 
 /**
- * @brief Apply horizontal mask to 2D perturbation field
- * @param xi Input/output perturbation field [nr][nth]
+ * @brief Apply horizontal mask to perturbation field
+ * @param xi Input/output perturbation field
  * @param mask Mask field (0.0 = no perturbation, 1.0 = full perturbation)
  */
-void apply_horizontal_mask(
-    std::vector<std::vector<std::vector<double>>>& xi,
-    const std::vector<std::vector<double>>& mask
-);
-
-void apply_horizontal_mask(
-    Field3D& xi,
-    const std::vector<std::vector<double>>& mask
-);
+void apply_horizontal_mask(Field3D& xi, const std::vector<std::vector<double>>& mask);
 
 }

@@ -7,9 +7,11 @@
  * This file belongs to the primary src/core execution layer.
  */
 
-#include "simulation.hpp"
+#include "core/simulation.hpp"
 #include "turbulence/factory.hpp"
 #include "turbulence/base/eddy_viscosity.hpp"
+#include "util/simd_utils.hpp"
+#include "util/log.hpp"
 #include <algorithm>
 #include <cctype>
 #include <iostream>
@@ -145,20 +147,9 @@ const GridMetrics& get_runtime_turbulence_grid()
 
 int sanitize_nonfinite_tendency(Field3D& field)
 {
-    int sanitized = 0;
     float* const data = field.data();
-    const std::size_t count = field.size();
-
-    #pragma omp parallel for reduction(+:sanitized)
-    for (long long idx = 0; idx < static_cast<long long>(count); ++idx)
-    {
-        if (!std::isfinite(static_cast<double>(data[idx])))
-        {
-            data[idx] = 0.0f;
-            ++sanitized;
-        }
-    }
-    return sanitized;
+    const int count = static_cast<int>(field.size());
+    return simd_utils::sanitize_nonfinite(data, 0.0f, data, count);
 }
 }
 
@@ -182,77 +173,66 @@ void initialize_turbulence(const std::string& scheme_name,
         if (!std::isfinite(global_turbulence_config.dt_sgs) ||
             global_turbulence_config.dt_sgs <= 0.0)
         {
-            std::cerr << "[TURBULENCE CONFIG] Invalid dt_sgs=" << global_turbulence_config.dt_sgs
-                      << "; using 1.0 s" << std::endl;
+            tmv::log_warn("[TURBULENCE CONFIG] Invalid dt_sgs=", global_turbulence_config.dt_sgs, "; using 1.0 s");
             global_turbulence_config.dt_sgs = 1.0;
         }
         if (!std::isfinite(global_turbulence_config.Cs) || global_turbulence_config.Cs < 0.0)
         {
-            std::cerr << "[TURBULENCE CONFIG] Invalid Cs=" << global_turbulence_config.Cs
-                      << "; using default " << turbulence_constants::C_s_default << std::endl;
+            tmv::log_warn("[TURBULENCE CONFIG] Invalid Cs=", global_turbulence_config.Cs, "; using default ", turbulence_constants::C_s_default);
             global_turbulence_config.Cs = turbulence_constants::C_s_default;
         }
         if (!std::isfinite(global_turbulence_config.Pr_t) || global_turbulence_config.Pr_t <= 0.0)
         {
-            std::cerr << "[TURBULENCE CONFIG] Invalid Pr_t=" << global_turbulence_config.Pr_t
-                      << "; using default " << turbulence_constants::Pr_t_default << std::endl;
+            tmv::log_warn("[TURBULENCE CONFIG] Invalid Pr_t=", global_turbulence_config.Pr_t, "; using default ", turbulence_constants::Pr_t_default);
             global_turbulence_config.Pr_t = turbulence_constants::Pr_t_default;
         }
         if (!std::isfinite(global_turbulence_config.Sc_t) || global_turbulence_config.Sc_t <= 0.0)
         {
-            std::cerr << "[TURBULENCE CONFIG] Invalid Sc_t=" << global_turbulence_config.Sc_t
-                      << "; using default " << turbulence_constants::Sc_t_default << std::endl;
+            tmv::log_warn("[TURBULENCE CONFIG] Invalid Sc_t=", global_turbulence_config.Sc_t, "; using default ", turbulence_constants::Sc_t_default);
             global_turbulence_config.Sc_t = turbulence_constants::Sc_t_default;
         }
         if (!std::isfinite(global_turbulence_config.nu_t_max) || global_turbulence_config.nu_t_max < 0.0)
         {
-            std::cerr << "[TURBULENCE CONFIG] Invalid nu_t_max=" << global_turbulence_config.nu_t_max
-                      << "; using 1000.0" << std::endl;
+            tmv::log_warn("[TURBULENCE CONFIG] Invalid nu_t_max=", global_turbulence_config.nu_t_max, "; using 1000.0");
             global_turbulence_config.nu_t_max = 1000.0;
         }
         if (!std::isfinite(global_turbulence_config.K_max) || global_turbulence_config.K_max < 0.0)
         {
-            std::cerr << "[TURBULENCE CONFIG] Invalid K_max=" << global_turbulence_config.K_max
-                      << "; using 1000.0" << std::endl;
+            tmv::log_warn("[TURBULENCE CONFIG] Invalid K_max=", global_turbulence_config.K_max, "; using 1000.0");
             global_turbulence_config.K_max = 1000.0;
         }
 
         global_turbulence_config.mode = lower_copy(global_turbulence_config.mode);
         if (!valid_turbulence_mode(global_turbulence_config.mode))
         {
-            std::cerr << "[TURBULENCE CONFIG] Invalid mode='" << global_turbulence_config.mode
-                      << "'; using '3d'" << std::endl;
+            tmv::log_warn("[TURBULENCE CONFIG] Invalid mode='", global_turbulence_config.mode, "'; using '3d'");
             global_turbulence_config.mode = "3d";
         }
         global_turbulence_config.filter_width = lower_copy(global_turbulence_config.filter_width);
         if (!valid_filter_width(global_turbulence_config.filter_width))
         {
-            std::cerr << "[TURBULENCE CONFIG] Invalid filter_width='"
-                      << global_turbulence_config.filter_width
-                      << "'; using 'cubic_root'" << std::endl;
+            tmv::log_warn("[TURBULENCE CONFIG] Invalid filter_width='", global_turbulence_config.filter_width, "'; using 'cubic_root'");
             global_turbulence_config.filter_width = "cubic_root";
         }
         global_turbulence_config.stability_correction =
             lower_copy(global_turbulence_config.stability_correction);
         if (!valid_stability_correction(global_turbulence_config.stability_correction))
         {
-            std::cerr << "[TURBULENCE CONFIG] Invalid stability_correction='"
-                      << global_turbulence_config.stability_correction
-                      << "'; using 'none'" << std::endl;
+            tmv::log_warn("[TURBULENCE CONFIG] Invalid stability_correction='", global_turbulence_config.stability_correction, "'; using 'none'");
             global_turbulence_config.stability_correction = "none";
         }
 
         turbulence_scheme = create_turbulence_scheme(global_turbulence_config.scheme_id);
         turbulence_scheme->initialize(global_turbulence_config);
 
-        std::cout << "Initialized turbulence scheme: " << global_turbulence_config.scheme_id << std::endl;
-        std::cout << "  SGS cadence: " << global_turbulence_config.dt_sgs << " s" << std::endl;
-        std::cout << "  Cs = " << global_turbulence_config.Cs << std::endl;
+        tmv::log_info("Initialized turbulence scheme: ", global_turbulence_config.scheme_id);
+        tmv::log_info("  SGS cadence: ", global_turbulence_config.dt_sgs, " s");
+        tmv::log_info("  Cs = ", global_turbulence_config.Cs);
         last_turbulence_time = -global_turbulence_config.dt_sgs;
         ensure_tendency_shape(turbulence_tendencies);
 
     } catch (const std::exception& e) {
-        std::cerr << "Error initializing turbulence: " << e.what() << std::endl;
+        tmv::log_error("Error initializing turbulence: ", e.what());
         throw;
     }
 }
@@ -306,7 +286,6 @@ void step_turbulence(double current_time, TurbulenceTendencies& tendencies)
 
     if (sanitized_nonfinite > 0)
     {
-        std::cerr << "[TURBULENCE GUARD] sanitized non-finite tendencies: "
-                  << sanitized_nonfinite << std::endl;
+        tmv::log_warn("[TURBULENCE GUARD] sanitized non-finite tendencies: ", sanitized_nonfinite);
     }
 }

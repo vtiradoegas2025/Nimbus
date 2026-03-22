@@ -7,7 +7,7 @@
  * This file is part of the src/soundings subsystem.
  */
 
-#include "soundings_base.hpp"
+#include "data/soundings_base.hpp"
 #include "factory.hpp"
 #include <iostream>
 #include <memory>

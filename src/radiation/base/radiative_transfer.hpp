@@ -9,7 +9,7 @@
 
 #pragma once
 #include <vector>
-#include "radiation_base.hpp"
+#include "physics/radiation_base.hpp"
 
 namespace radiative_transfer 
 {

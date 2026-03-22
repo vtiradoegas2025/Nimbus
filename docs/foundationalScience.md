@@ -1,10 +1,10 @@
-# Scientific Foundation — SupercellModel
+# Scientific Foundation — Nimbus
 
-This document outlines the peer-reviewed literature foundations underlying the SupercellModel atmospheric simulation framework. All implementations draw from established research in the American Meteorological Society (AMS) journals and related meteorological literature.
+This document outlines the peer-reviewed literature foundations underlying the Nimbus atmospheric simulation framework. All implementations draw from established research in the American Meteorological Society (AMS) journals and related meteorological literature.
 
 ## Project Status & Scope
 
-**SupercellModel** is a research-grade atmospheric simulation framework implementing multiple physics parameterizations for supercell thunderstorm research. The codebase demonstrates professional software engineering practices while maintaining scientific accuracy in core atmospheric physics.
+**Nimbus** is a research-grade atmospheric simulation framework implementing multiple physics parameterizations for supercell thunderstorm research. The codebase demonstrates professional software engineering practices while maintaining scientific accuracy in core atmospheric physics.
 
 ### Current Implementation Status
 
@@ -217,4 +217,4 @@ The codebase follows modern C++ practices with a modular factory pattern for phy
 
 ---
 
-*This document serves as comprehensive attribution for the scientific foundations of SupercellModel. For practical usage instructions, see the main [README.md](../README.md).*"
+*This document serves as comprehensive attribution for the scientific foundations of Nimbus. For practical usage instructions, see the main [README.md](../README.md).*"
