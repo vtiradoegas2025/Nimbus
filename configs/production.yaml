@@ -40,4 +40,15 @@ output:
   async_io: true
   zfp_tolerance: 1.0e-5
   zfp_mode: accuracy
+  zfp_keyframe_interval: 10
+  zfp_per_field_tolerances: true
+  zfp_tight_tolerance: 1.0e-4
+  zfp_moderate_tolerance: 1.0e-3
+  zfp_loose_tolerance: 1.0e-2
+  tiered_write_cadence: true
+  write_cadence_medium_s: 30
+  write_cadence_slow_s: 60
+  zfp_predictive_delta: true
+  zfp_sparse_threshold: 1.0e-10
+  zfp_float16_prefilter: true
 duration_s: 7200

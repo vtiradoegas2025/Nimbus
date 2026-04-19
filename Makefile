@@ -62,15 +62,23 @@ EXPORT_NPY ?= 1
 ifeq ($(EXPORT_NPY),1)
   CXXFLAGS += -DEXPORT_NPY
 endif
-# Optional: ZFP scientific compression (install: brew install zfp)
+# Optional: ZFP scientific compression
+# Searches: brew, ~/.local, /usr/local, or ZFP_PREFIX env var
 ZFP ?= 0
 ifeq ($(ZFP),1)
-  ZFP_PREFIX := $(shell brew --prefix zfp 2>/dev/null)
+  ZFP_PREFIX ?= $(shell brew --prefix zfp 2>/dev/null)
+  ifeq ($(ZFP_PREFIX),)
+    ifneq ($(wildcard $(HOME)/.local/include/zfp.h),)
+      ZFP_PREFIX := $(HOME)/.local
+    else ifneq ($(wildcard /usr/local/include/zfp.h),)
+      ZFP_PREFIX := /usr/local
+    endif
+  endif
   ifneq ($(ZFP_PREFIX),)
     CXXFLAGS += -DHAVE_ZFP -I$(ZFP_PREFIX)/include
-    LDLIBS += -L$(ZFP_PREFIX)/lib -lzfp
+    ZFP_LDLIBS := -L$(ZFP_PREFIX)/lib -Wl,-rpath,$(ZFP_PREFIX)/lib -lzfp
   else
-    $(warning ZFP=1 but zfp library not found via brew; building without ZFP)
+    $(warning ZFP=1 but zfp library not found; set ZFP_PREFIX or install to ~/.local)
   endif
 endif
 
@@ -78,8 +86,9 @@ endif
 # Source files
 # ---------------------------------------------------------------------------
 VALIDATION_SRCS := src/validation/field_contract.cpp src/validation/field_validation.cpp
-SRCS := src/core/equations.cpp src/core/dynamics.cpp src/core/tornado_sim.cpp src/core/headless_runtime.cpp src/core/runtime_config.cpp src/core/compute_backend.cpp src/core/compute_kernel_template.cpp src/core/hardware_info.cpp src/core/npy_writer.cpp src/core/output_config.cpp src/core/output_writer.cpp src/core/shm_writer.cpp src/core/radiation.cpp src/core/boundary_layer.cpp src/core/turbulence.cpp src/core/numerics.cpp src/core/simd_utils.cpp \
+SRCS := src/core/equations.cpp src/core/dynamics.cpp src/core/field_sanitization.cpp src/core/boundary_conditions_cartesian.cpp src/core/boundary_conditions_cylindrical.cpp src/core/boundary_conditions_acoustic.cpp src/core/diffusion_step.cpp src/core/microphysics_step.cpp src/core/radar_step.cpp src/core/nested_grid.cpp src/core/initial_conditions_cartesian.cpp src/core/tornado_sim.cpp src/core/headless_runtime.cpp src/core/runtime_config.cpp src/core/coordinate_system.cpp src/core/compute_backend.cpp src/core/compute_kernel_template.cpp src/core/hardware_info.cpp src/core/npy_writer.cpp src/core/output_config.cpp src/core/output_writer.cpp src/core/shm_writer.cpp src/core/radiation.cpp src/core/boundary_layer.cpp src/core/turbulence.cpp src/core/numerics.cpp src/core/simd_utils.cpp \
          src/advection/advection.cpp \
+         src/advection/advection_cartesian.cpp \
          src/core/radar.cpp \
          src/radar/base/radar_base.cpp \
          src/radar/factory.cpp \
@@ -97,6 +106,7 @@ SRCS := src/core/equations.cpp src/core/dynamics.cpp src/core/tornado_sim.cpp sr
          src/microphysics/schemes/thompson/thompson.cpp \
          src/microphysics/schemes/milbrandt/milbrandt.cpp \
          src/dynamics/factory.cpp \
+         src/dynamics/schemes/cartesian/cartesian.cpp \
          src/dynamics/schemes/supercell/supercell.cpp \
          src/dynamics/schemes/tornado/tornado.cpp \
          src/radiation/base/radiative_transfer.cpp \
@@ -120,6 +130,7 @@ SRCS := src/core/equations.cpp src/core/dynamics.cpp src/core/tornado_sim.cpp sr
          src/numerics/time_stepping/factory.cpp \
          src/numerics/time_stepping/schemes/rk3/rk3.cpp \
          src/numerics/time_stepping/schemes/rk4/rk4.cpp \
+         src/numerics/time_stepping/schemes/split_explicit/split_explicit.cpp \
          src/chaos/chaos.cpp \
          src/chaos/base/random_generator.cpp \
          src/chaos/base/perturbation_field.cpp \
@@ -136,12 +147,13 @@ SRCS := src/core/equations.cpp src/core/dynamics.cpp src/core/tornado_sim.cpp sr
          src/terrain/schemes/schar/schar.cpp \
          src/terrain/schemes/none.cpp \
          vulkan/src/compute/compute_backend_vulkan.cpp \
+         src/diagnostics/conservation_budget.cpp \
          $(VALIDATION_SRCS)
 FIELD_VALIDATOR_SRCS := src/tools/field_validator.cpp $(VALIDATION_SRCS) vulkan/src/data/npy_reader.cpp
 BACKEND_COMMON_SRCS := src/core/compute_kernel_template.cpp src/core/compute_backend.cpp src/core/hardware_info.cpp src/core/simd_utils.cpp vulkan/src/compute/compute_backend_vulkan.cpp
 
 CPPFLAGS :=
-LDLIBS := $(OPENMP_LDLIBS)
+LDLIBS := $(OPENMP_LDLIBS) $(ZFP_LDLIBS)
 ifeq ($(UNAME_S),Linux)
   LDLIBS += -ldl
 endif
@@ -223,6 +235,9 @@ bin/test_core_output_writer: $(TEST_INFRA) tests/core/test_output_writer.cpp src
 bin/test_core_shm: $(TEST_INFRA) tests/core/test_shm_transport.cpp src/core/shm_writer.cpp | bin
 	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
 
+bin/test_core_coordinate_system: $(TEST_INFRA) tests/core/test_coordinate_system.cpp src/core/coordinate_system.cpp | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
+
 # Diagnostics tests
 bin/test_diagnostics_contract: $(TEST_INFRA) tests/diagnostics/test_field_contract.cpp src/validation/field_contract.cpp | bin
 	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
@@ -230,14 +245,27 @@ bin/test_diagnostics_contract: $(TEST_INFRA) tests/diagnostics/test_field_contra
 bin/test_diagnostics_validation: $(TEST_INFRA) tests/diagnostics/test_field_validation.cpp src/validation/field_validation.cpp src/validation/field_contract.cpp | bin
 	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
 
+# Dynamics tests
+bin/test_dynamics_cartesian: $(TEST_INFRA) tests/dynamics/test_cartesian_dynamics.cpp src/dynamics/schemes/cartesian/cartesian.cpp | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
+
+bin/test_dynamics_cartesian_bcs: $(TEST_INFRA) tests/dynamics/test_cartesian_boundary_conditions.cpp src/dynamics/schemes/cartesian/cartesian.cpp src/core/boundary_conditions_cartesian.cpp | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
+
+bin/test_dynamics_cartesian_ic: $(TEST_INFRA) tests/dynamics/test_cartesian_initial_conditions.cpp src/core/initial_conditions_cartesian.cpp | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
+
 # Numerics tests
-bin/test_numerics_advection: $(TEST_INFRA) tests/numerics/test_advection_tvd.cpp src/numerics/advection/factory.cpp src/numerics/advection/schemes/tvd/tvd.cpp src/numerics/advection/schemes/weno5/weno5.cpp src/advection/advection.cpp $(BACKEND_COMMON_SRCS) | bin
+bin/test_numerics_advection: $(TEST_INFRA) tests/numerics/test_advection_tvd.cpp src/numerics/advection/factory.cpp src/numerics/advection/schemes/tvd/tvd.cpp src/numerics/advection/schemes/weno5/weno5.cpp src/advection/advection.cpp src/advection/advection_cartesian.cpp $(BACKEND_COMMON_SRCS) | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
+
+bin/test_numerics_advection_cartesian: $(TEST_INFRA) tests/numerics/test_advection_cartesian.cpp src/numerics/advection/factory.cpp src/numerics/advection/schemes/tvd/tvd.cpp src/numerics/advection/schemes/weno5/weno5.cpp src/advection/advection.cpp src/advection/advection_cartesian.cpp $(BACKEND_COMMON_SRCS) | bin
 	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
 
 bin/test_numerics_diffusion: $(TEST_INFRA) tests/numerics/test_diffusion.cpp src/numerics/diffusion/factory.cpp src/numerics/diffusion/schemes/explicit/explicit.cpp src/numerics/diffusion/schemes/implicit/implicit.cpp $(BACKEND_COMMON_SRCS) | bin
 	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
 
-bin/test_numerics_timestepping: $(TEST_INFRA) tests/numerics/test_time_stepping.cpp src/numerics/time_stepping/factory.cpp src/numerics/time_stepping/schemes/rk3/rk3.cpp src/numerics/time_stepping/schemes/rk4/rk4.cpp | bin
+bin/test_numerics_timestepping: $(TEST_INFRA) tests/numerics/test_time_stepping.cpp src/numerics/time_stepping/factory.cpp src/numerics/time_stepping/schemes/rk3/rk3.cpp src/numerics/time_stepping/schemes/rk4/rk4.cpp src/numerics/time_stepping/schemes/split_explicit/split_explicit.cpp | bin
 	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
 
 # Physics tests
@@ -269,9 +297,10 @@ bin/test_shm_e2e: $(TEST_INFRA) tests/integration/test_shm_e2e.cpp src/core/shm_
 	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
 
 CATCH2_BINS := bin/test_core_field bin/test_core_output bin/test_core_hardware bin/test_core_npy \
-               bin/test_core_output_writer bin/test_core_shm \
+               bin/test_core_output_writer bin/test_core_shm bin/test_core_coordinate_system \
                bin/test_diagnostics_contract bin/test_diagnostics_validation \
-               bin/test_numerics_advection bin/test_numerics_diffusion bin/test_numerics_timestepping \
+               bin/test_dynamics_cartesian bin/test_dynamics_cartesian_bcs bin/test_dynamics_cartesian_ic \
+               bin/test_numerics_advection bin/test_numerics_advection_cartesian bin/test_numerics_diffusion bin/test_numerics_timestepping \
                bin/test_physics_microphysics bin/test_physics_radiation bin/test_physics_terrain \
                bin/test_data_soundings bin/test_vulkan_backend bin/test_vulkan_gpu_parity \
                bin/test_integration bin/test_shm_e2e
@@ -280,17 +309,20 @@ CATCH2_BINS := bin/test_core_field bin/test_core_output bin/test_core_hardware b
 # Test targets
 # ---------------------------------------------------------------------------
 .PHONY: run clean clean-vulkan vulkan vulkan-compute-shaders run-vulkan validate-fields \
-        test test-all test-core test-diagnostics test-numerics test-physics test-data \
+        test test-all test-core test-diagnostics test-dynamics test-numerics test-physics test-data \
         test-vulkan test-integration test-shm-e2e smoke-test smoke-test-e2e benchmark-point2
 
-test-core: bin/test_core_field bin/test_core_output bin/test_core_hardware bin/test_core_npy bin/test_core_output_writer bin/test_core_shm
-	./bin/test_core_field && ./bin/test_core_output && ./bin/test_core_hardware && ./bin/test_core_npy && ./bin/test_core_output_writer && ./bin/test_core_shm
+test-core: bin/test_core_field bin/test_core_output bin/test_core_hardware bin/test_core_npy bin/test_core_output_writer bin/test_core_shm bin/test_core_coordinate_system
+	./bin/test_core_field && ./bin/test_core_output && ./bin/test_core_hardware && ./bin/test_core_npy && ./bin/test_core_output_writer && ./bin/test_core_shm && ./bin/test_core_coordinate_system
 
 test-diagnostics: bin/test_diagnostics_contract bin/test_diagnostics_validation
 	./bin/test_diagnostics_contract && ./bin/test_diagnostics_validation
 
-test-numerics: bin/test_numerics_advection bin/test_numerics_diffusion bin/test_numerics_timestepping
-	./bin/test_numerics_advection && ./bin/test_numerics_diffusion && ./bin/test_numerics_timestepping
+test-dynamics: bin/test_dynamics_cartesian bin/test_dynamics_cartesian_bcs bin/test_dynamics_cartesian_ic
+	./bin/test_dynamics_cartesian && ./bin/test_dynamics_cartesian_bcs && ./bin/test_dynamics_cartesian_ic
+
+test-numerics: bin/test_numerics_advection bin/test_numerics_advection_cartesian bin/test_numerics_diffusion bin/test_numerics_timestepping
+	./bin/test_numerics_advection && ./bin/test_numerics_advection_cartesian && ./bin/test_numerics_diffusion && ./bin/test_numerics_timestepping
 
 test-physics: bin/test_physics_microphysics bin/test_physics_radiation bin/test_physics_terrain
 	./bin/test_physics_microphysics && ./bin/test_physics_radiation && ./bin/test_physics_terrain
@@ -307,7 +339,7 @@ test-integration: bin/test_integration
 test-shm-e2e: bin/test_shm_e2e
 	./bin/test_shm_e2e
 
-test: test-core test-diagnostics test-numerics test-physics test-data test-vulkan test-integration test-shm-e2e
+test: test-core test-diagnostics test-dynamics test-numerics test-physics test-data test-vulkan test-integration test-shm-e2e
 	@echo "=== All tests passed ==="
 
 smoke-test: $(BIN)

@@ -80,6 +80,58 @@ public:
     {
     }
 
+    // -----------------------------------------------------------------
+    // Split-explicit acoustic time stepping (Klemp & Wilhelmson 1978)
+    // -----------------------------------------------------------------
+
+    /**
+     * @brief Returns true if this scheme supports split-explicit acoustic
+     *        substeps. Schemes that return false will use the unsplit path.
+     */
+    virtual bool supports_split_acoustic() const { return false; }
+
+    /**
+     * @brief Computes slow (advective + buoyancy) tendencies only.
+     *
+     * Called once per large time step. The slow tendencies include:
+     *   momentum: advection -(u·∇)u and buoyancy -g(ρ-ρ₀)/ρ
+     *   pressure: advection -u·∇p
+     *   density:  zero (all continuity is in the fast path)
+     */
+    virtual void compute_slow_tendencies(
+        const Field3D& u_r, const Field3D& u_theta, const Field3D& u_z,
+        const Field3D& rho, const Field3D& p, const Field3D& theta,
+        double dt,
+        Field3D& du_r_dt, Field3D& du_theta_dt, Field3D& du_z_dt,
+        Field3D& drho_dt, Field3D& dp_dt) {}
+
+    /**
+     * @brief Computes fast pressure/density tendencies (forward phase).
+     *
+     * Called N times per large step. Computes:
+     *   dp/dt  = -γ p ∇·u   (acoustic compression)
+     *   dρ/dt  = -ρ ∇·u     (continuity)
+     */
+    virtual void compute_fast_pressure_tendencies(
+        const Field3D& u_r, const Field3D& u_theta, const Field3D& u_z,
+        const Field3D& rho, const Field3D& p,
+        Field3D& drho_dt, Field3D& dp_dt) {}
+
+    /**
+     * @brief Computes fast momentum tendencies (backward phase).
+     *
+     * Called N times per large step, after p and ρ have been updated.
+     * Computes only the pressure gradient:
+     *   du/dt = -(1/ρ) ∇p
+     * Vertical uses reference-state subtraction: -(1/ρ)(∂p/∂z - ∂p₀/∂z)
+     */
+    virtual void compute_fast_momentum_tendencies(
+        const Field3D& u_r, const Field3D& u_theta, const Field3D& u_z,
+        const Field3D& rho, const Field3D& p,
+        Field3D& du_r_dt, Field3D& du_theta_dt, Field3D& du_z_dt) {}
+
+    // -----------------------------------------------------------------
+
     /**
      * @brief Returns the scheme identifier.
      * @return Scheme name.

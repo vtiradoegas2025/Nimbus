@@ -12,6 +12,8 @@
 #include <exception>
 #include <memory>
 #include "core/simulation.hpp"
+#include "core/runtime_config.hpp"
+#include "core/initial_conditions.hpp"
 #include "util/simd_utils.hpp"
 #include "util/log.hpp"
 #include "numerics/advection.hpp"
@@ -43,11 +45,22 @@ double simulation_time = 0.0;
 
 /**
  * @brief Updates the grid resolution parameters.
+ *
+ * Cylindrical: dtheta = 2π / NTH (angular spacing in radians).
+ * Cartesian:   dtheta = dr (square horizontal cells). The config parser
+ *              may override this afterwards from grid.dy for rectangular cells.
  */
-void update_grid_resolution() 
+void update_grid_resolution()
 {
-    const double pi = 3.14159265358979323846;
-    dtheta = 2.0 * pi / NTH;
+    if (global_coordinate_system == CoordinateSystem::Cartesian)
+    {
+        dtheta = dr;
+    }
+    else
+    {
+        const double pi = 3.14159265358979323846;
+        dtheta = 2.0 * pi / NTH;
+    }
 }
 
 Field3D rho;
@@ -78,6 +91,7 @@ Field3D dtke_dt_pbl;
 Field3D dtheta_dt_rad;
 
 std::vector<double> rho0_base;
+std::vector<double> p0_base;
 
 std::unique_ptr<MicrophysicsScheme> microphysics_scheme;
 std::unique_ptr<RadarSchemeBase> radar_scheme;
@@ -138,27 +152,105 @@ void resize_fields()
 
 /**
  * @brief Initializes the base state.
+ *
+ * The base state is built from a single consistent thermodynamic profile:
+ *   1. T_actual(z) — a multi-layer profile (mixed layer + unstable layer +
+ *      stable above unstable_top) — is the single source of truth for T.
+ *   2. Pressure is integrated upward from p0 using the analytical hydrostatic
+ *      solution over each layer with that T:
+ *          p[k] = p[k-1] * exp( -g * dz / (R_d * T_avg) )
+ *      so that ∂p/∂z = -ρg holds in the discrete sense the dynamics uses.
+ *   3. Density follows from the equation of state: ρ = p / (R_d * T).
+ *   4. Potential temperature follows from its definition: θ = T * (p₀/p)^κ.
+ *
+ * This guarantees ρ, p, T, θ are mutually consistent and the base state is
+ * in true hydrostatic balance, so the dynamics sees no spurious unbalanced
+ * pressure-gradient force on the first step. Previously, p and ρ were
+ * derived from the US Standard Atmosphere (T = T_sfc - 6.5 K/km), while θ
+ * was computed from T_actual ≠ T_std. The mismatch grew to ~40 K at the
+ * model top and produced a ~2 m/s² unbalanced force at z=15 km, which
+ * exploded vertical velocity within ~10 timesteps for any config.
  */
 void initialize()
 {
-    double cape_scaling = global_cape_target / 2500.0;
+    const double cape_scaling = global_cape_target / 2500.0;
     const double surface_theta = std::max(250.0, global_sfc_theta_k);
     const double surface_qv = std::max(1.0e-5, global_sfc_qv_kgkg);
     const double tropopause_z = std::max(8000.0, global_tropopause_z_m);
     const double unstable_top_z = std::max(2500.0, std::min(7000.0, 0.5 * tropopause_z));
     const double unstable_lapse_rate = 0.004 + 0.002 * cape_scaling;
+    const double kappa = R_d / cp;
 
+    // Multi-layer T_actual(z) profile — the single source of truth for
+    // base-state temperature. Used both for the 1D hydrostatic integration
+    // below and the 3D field initialization in the nested loop.
+    auto T_actual_at = [&](double z) -> double
+    {
+        if (z < 1000.0)
+        {
+            return surface_theta + 1.0;
+        }
+        if (z < unstable_top_z)
+        {
+            return surface_theta + 1.0 - unstable_lapse_rate * (z - 1000.0);
+        }
+        const double T_at_unstable_top =
+            surface_theta + 1.0 - unstable_lapse_rate * (unstable_top_z - 1000.0);
+        return T_at_unstable_top - 0.003 * (z - unstable_top_z);
+    };
+
+    // 1D hydrostatic profile: integrate p upward from p0 using T_actual.
+    // The exponential form is exact for an isothermal layer; using T_avg
+    // between adjacent levels gives second-order accuracy for arbitrary T(z).
+    std::vector<double> p_base(NZ);
+    std::vector<double> T_base(NZ);
     rho0_base.resize(NZ);
+    p0_base.resize(NZ);
 
+    T_base[0] = T_actual_at(0.0);
+    p_base[0] = p0;
+    rho0_base[0] = std::max(p_base[0] / (R_d * T_base[0]), 0.1);
+
+    for (int k = 1; k < NZ; ++k)
+    {
+        const double z_k = k * dz;
+        T_base[k] = T_actual_at(z_k);
+        const double T_avg = 0.5 * (T_base[k] + T_base[k - 1]);
+        p_base[k] = p_base[k - 1] * std::exp(-g * dz / (R_d * T_avg));
+        rho0_base[k] = std::max(p_base[k] / (R_d * T_base[k]), 0.1);
+    }
+
+    // Store base-state pressure globally for reference-state subtraction in
+    // the dynamics schemes. The centered ∂p₀/∂z stencil does not exactly
+    // equal -ρ₀g on a collocated grid, so subtracting the discrete reference
+    // from the full pressure gradient removes the O(Δz²) hydrostatic
+    // imbalance that otherwise seeds spurious vertical velocity.
     for (int k = 0; k < NZ; ++k)
     {
-        double z = k * dz;
-        double T = surface_theta - 0.0065 * z;
-        double p_local = p0 * pow(1 - (0.0065 * z / surface_theta), 5.255);
-        rho0_base[k] = std::max(p_local / (R_d * T), 0.1);
+        p0_base[k] = p_base[k];
     }
-    tmv::log_info("Base state density initialized: rho0_base[0]=", rho0_base[0],
-                  ", rho0_base[", NZ-1, "]=", rho0_base[NZ-1]);
+
+    tmv::log_info("Base state initialized (hydrostatic): rho0_base[0]=", rho0_base[0],
+                  ", rho0_base[", NZ-1, "]=", rho0_base[NZ-1],
+                  ", p_base[0]=", p_base[0], "Pa, p_base[", NZ-1, "]=", p_base[NZ-1], "Pa");
+
+    // Coordinate-system branch (Phase A.4 of the Coordinate Backend Plan).
+    //
+    // Cylindrical: project the Cartesian (u_x, u_y) wind profile onto the
+    // local (r, θ) basis with the standard rotation
+    //     u_r =  u_x cos θ + u_y sin θ
+    //     u_θ = −u_x sin θ + u_y cos θ
+    //
+    // Cartesian: store the wind components directly. The cylindrical-named
+    // globals carry Cartesian components (parallel-fields-then-unify):
+    //     u       <- u_x
+    //     v_theta <- u_y
+    // No θ-rotation. This is the entire reason Phase A exists — Bug 7 is
+    // exactly the false radial gradient produced by feeding a uniform
+    // Cartesian wind through the cylindrical antisymmetric BC after
+    // projecting it onto a θ-dependent (u_r, u_θ).
+    const bool use_cartesian_wind =
+        (global_coordinate_system == CoordinateSystem::Cartesian);
 
     #pragma omp parallel for collapse(2)
     for (int i = 0; i < NR; ++i)
@@ -169,35 +261,16 @@ void initialize()
 
             for (int k = 0; k < NZ; ++k)
             {
-                double z = k * dz;
-                double T = surface_theta - 0.0065 * z;
-                double p_local = p0 * pow(1 - (0.0065 * z / surface_theta), 5.255);
-                double rho_local = p_local / (R_d * T);
+                const double z = k * dz;
+                const double T_actual = T_base[k];
+                const double p_local = p_base[k];
+                const double rho_local = p_local / (R_d * T_actual);
+                const double theta_potential = T_actual * std::pow(p0 / p_local, kappa);
 
                 p[i][j][k] = static_cast<float>(p_local);
                 rho[i][j][k] = static_cast<float>(std::max(rho_local, 0.1));
-
-                double T_actual;
-                
-                if (z < 1000.0) 
-                {
-                    T_actual = surface_theta + 1.0;
-                } 
-
-                else if (z < unstable_top_z) 
-                {
-                    T_actual = surface_theta + 1.0 - unstable_lapse_rate * (z - 1000.0);
-                } 
-                else 
-                {
-                    const double T_at_unstable_top = surface_theta + 1.0 - unstable_lapse_rate * (unstable_top_z - 1000.0);
-                    T_actual = T_at_unstable_top - 0.003 * (z - unstable_top_z);
-                }
-
-                double kappa = R_d / cp;
-                double theta_potential = T_actual * pow(p0 / p_local, kappa);
                 theta[i][j][k] = static_cast<float>(theta_potential);
-                
+
                 if (i == 0 && j == 0 && k < 5) {
                     tmv::log_debug("[INIT DEBUG] i=", i, ", j=", j, ", k=", k,
                                    ", z=", z, "m: T_actual=", T_actual,
@@ -208,11 +281,11 @@ void initialize()
                 const double moisture_scale_height = std::max(1500.0, 0.30 * tropopause_z);
                 double qv_base;
 
-                if (z < 2000.0) 
+                if (z < 2000.0)
                 {
                     qv_base = base_moisture;
-                } 
-                else 
+                }
+                else
                 {
                     qv_base = base_moisture * exp(-(z - 2000.0) / moisture_scale_height);
                 }
@@ -226,42 +299,89 @@ void initialize()
                 qg[i][j][k] = 0.0f;
                 tke[i][j][k] = 0.1f;
 
-                double wind_u_cart, wind_v_cart;
-                compute_wind_profile(global_wind_profile, z, wind_u_cart, wind_v_cart);
+                if (use_cartesian_wind)
+                {
+                    // Placeholder: the real values are written by
+                    // apply_cartesian_wind_initialization() after this loop
+                    // exits. We extract that helper into a separate file so
+                    // the A.4 test can link against it without dragging in
+                    // all of equations.cpp's transitive dependencies.
+                    u[i][j][k]       = 0.0f;
+                    v_theta[i][j][k] = 0.0f;
+                }
+                else
+                {
+                    double wind_u_cart, wind_v_cart;
+                    compute_wind_profile(global_wind_profile, z, wind_u_cart, wind_v_cart);
 
-                double th = j * dtheta;
-                double u_r = wind_u_cart * cos(th) + wind_v_cart * sin(th);
-                double v_th = -wind_u_cart * sin(th) + wind_v_cart * cos(th);
+                    double th = j * dtheta;
+                    double u_r = wind_u_cart * cos(th) + wind_v_cart * sin(th);
+                    double v_th = -wind_u_cart * sin(th) + wind_v_cart * cos(th);
 
-                u[i][j][k] = static_cast<float>(u_r);
-                v_theta[i][j][k] = static_cast<float>(v_th);
+                    u[i][j][k] = static_cast<float>(u_r);
+                    v_theta[i][j][k] = static_cast<float>(v_th);
+                }
                 w[i][j][k] = 0.0f;
                 tracer[i][j][k] = 0.0f;
             }
         }
     }
 
-    const double bubble_center_r = std::max(0.0, global_bubble_center_x_m);
-    const double bubble_center_z = std::max(0.0, global_bubble_center_z_m);
-    const double bubble_radius = std::max(100.0, global_bubble_radius_m);
-    const double bubble_dtheta = global_bubble_dtheta_k;
-
-    #pragma omp parallel for collapse(2)
-    for (int i = 0; i < NR; ++i)
+    // Cartesian wind init must run after the triple loop (which has already
+    // zeroed u and v_theta in the Cartesian branch as placeholders). The
+    // helper lives in src/core/initial_conditions_cartesian.cpp so the
+    // A.4 unit test can link against it without dragging in advection,
+    // microphysics, radiation, etc. via equations.cpp.
+    if (use_cartesian_wind)
     {
-        double r_dist = i * dr;
+        apply_cartesian_wind_initialization();
+    }
 
-        for (int j = 0; j < NTH; ++j)
+    // Trigger-bubble placement (Phase A.4 of the Coordinate Backend Plan).
+    //
+    // Cylindrical: the historical interpretation. `global_bubble_center_x_m`
+    // is a *radial distance* from the singular axis i = 0 and the bubble
+    // becomes a 2D ring in the (r, z) plane that extends uniformly around
+    // every j (azimuth). The y-coordinate is unused. This matches every
+    // tornado-mode config that has shipped to date and must not change.
+    //
+    // Cartesian: literal (x, y, z) center using the full 3D distance
+    //     dist = √((x − x_c)² + (y − y_c)² + (z − z_c)²)
+    // The bubble is a sphere of radius `bubble_radius_m` whose center is
+    // wherever the config says (default y_c = 0 for back-compat with
+    // configs that pre-date `trigger.bubble.center_y_km`).
+    //
+    // The Cartesian path is delegated to a helper for the same testability
+    // reason as the wind init helper above. The cylindrical path stays
+    // inline and bit-identical to the historical implementation.
+    if (use_cartesian_wind)
+    {
+        apply_cartesian_bubble_initialization();
+    }
+    else
+    {
+        const double bubble_center_r = std::max(0.0, global_bubble_center_x_m);
+        const double bubble_center_z = std::max(0.0, global_bubble_center_z_m);
+        const double bubble_radius   = std::max(100.0, global_bubble_radius_m);
+        const double bubble_dtheta   = global_bubble_dtheta_k;
+
+        #pragma omp parallel for collapse(2)
+        for (int i = 0; i < NR; ++i)
         {
-            for (int k = 0; k < NZ; ++k)
-            {
-                double z_dist = k * dz;
-                double dist_from_center = sqrt(pow(r_dist - bubble_center_r, 2) + pow(z_dist - bubble_center_z, 2));
+            double r_dist = i * dr;
 
-                if (dist_from_center <= bubble_radius)
+            for (int j = 0; j < NTH; ++j)
+            {
+                for (int k = 0; k < NZ; ++k)
                 {
-                    double bubble_factor = exp(-pow(dist_from_center / (bubble_radius / 3.0), 2));
-                    theta[i][j][k] += bubble_dtheta * bubble_factor;
+                    double z_dist = k * dz;
+                    double dist_from_center = sqrt(pow(r_dist - bubble_center_r, 2) + pow(z_dist - bubble_center_z, 2));
+
+                    if (dist_from_center <= bubble_radius)
+                    {
+                        double bubble_factor = exp(-pow(dist_from_center / (bubble_radius / 3.0), 2));
+                        theta[i][j][k] += bubble_dtheta * bubble_factor;
+                    }
                 }
             }
         }
@@ -337,39 +457,6 @@ void initialize_microphysics(const std::string& scheme_name)
 
 
 /**
- * @brief Initializes the radar scheme.
- */    
-void initialize_radar(const std::string& scheme_name) 
-{
-    try 
-    {
-        radar_scheme = create_radar_scheme(scheme_name);
-
-        RadarConfig config;
-        config.scheme_id = scheme_name;
-        config.operator_tier = "fast_da";
-        if (scheme_name == "zdr")
-        {
-            config.operator_tier = "polarimetric_fo";
-        }
-
-        config.has_qr = true;
-        config.has_qs = true;
-        config.has_qg = true;
-        config.has_qh = true;
-        config.has_qi = true;
-
-        radar_scheme->initialize(config, NR, NTH, NZ);
-        tmv::log_info("Initialized radar scheme: ", scheme_name);
-    } 
-    catch (const std::runtime_error& e) 
-    {
-        tmv::log_error("Error initializing radar: ", e.what());
-        tmv::log_info("Radar scheme initialization failed, radar calculations disabled");
-    }
-}
-
-/**
  * @brief Backward-compatible scalar advection wrapper.
  *
  * Redirects legacy calls to the newer advection component.
@@ -389,476 +476,3 @@ void advect_tracer(double dt_advect) {advect_tracer_3d(dt_advect, 0.01);}
  */
 void advect_thermodynamics(double dt_advect) {advect_thermodynamics_3d(dt_advect, 0.01, 0.01);}
 
-/**
- * @brief Steps the microphysics forward in time.
- */
-void step_microphysics(double dt_micro)
-{
-    if (!std::isfinite(dt_micro) || dt_micro <= 0.0)
-    {
-        tmv::log_warn("[MICROPHYSICS GUARD] invalid microphysics timestep: ", dt_micro);
-        return;
-    }
-
-    if (!microphysics_scheme) 
-    {
-        tmv::log_warn("Microphysics scheme not initialized, using default Kessler");
-        initialize_microphysics("kessler");
-    }
-
-    static Field3D dtheta_dt;
-    static Field3D dqv_dt;
-    static Field3D dqc_dt;
-    static Field3D dqr_dt;
-    static Field3D dqi_dt;
-    static Field3D dqs_dt;
-    static Field3D dqg_dt;
-    static Field3D dqh_dt;
-
-    auto ensure_shape = [](Field3D& f) 
-    {
-        if (f.size_r() != NR || f.size_th() != NTH || f.size_z() != NZ)
-        {
-            f.resize(NR, NTH, NZ, 0.0f);
-        }
-    };
-    ensure_shape(dtheta_dt);
-    ensure_shape(dqv_dt);
-    ensure_shape(dqc_dt);
-    ensure_shape(dqr_dt);
-    ensure_shape(dqi_dt);
-    ensure_shape(dqs_dt);
-    ensure_shape(dqg_dt);
-    ensure_shape(dqh_dt);
-
-    try
-    {
-        microphysics_scheme->compute_tendencies(p, theta, qv, qc, qr, qi, qs, qg, qh,
-            dt_micro, dtheta_dt, dqv_dt, dqc_dt, dqr_dt, dqi_dt, dqs_dt, dqg_dt, dqh_dt);
-    }
-    catch (const std::exception& e)
-    {
-        tmv::log_warn("[MICROPHYSICS GUARD] tendency computation failed: ", e.what(),
-                      ". Continuing with zero microphysics tendencies for this step.");
-        dtheta_dt.fill(0.0f);
-        dqv_dt.fill(0.0f);
-        dqc_dt.fill(0.0f);
-        dqr_dt.fill(0.0f);
-        dqi_dt.fill(0.0f);
-        dqs_dt.fill(0.0f);
-        dqg_dt.fill(0.0f);
-        dqh_dt.fill(0.0f);
-    }
-
-    apply_chaos_to_microphysics_tendencies(dtheta_dt, dqv_dt, dqc_dt, dqr_dt, dqi_dt, dqs_dt, dqg_dt, dqh_dt);
-
-    auto sanitize_nonfinite_tendency = [](Field3D& field) -> int
-    {
-        if (field.empty()) { return 0; }
-        float* const data = field.data();
-        const int count = static_cast<int>(field.size());
-        return simd_utils::sanitize_nonfinite(data, 0.0f, data, count);
-    };
-
-    const int non_finite_tendency_sanitized =
-        sanitize_nonfinite_tendency(dtheta_dt) +
-        sanitize_nonfinite_tendency(dqv_dt) +
-        sanitize_nonfinite_tendency(dqc_dt) +
-        sanitize_nonfinite_tendency(dqr_dt) +
-        sanitize_nonfinite_tendency(dqi_dt) +
-        sanitize_nonfinite_tendency(dqs_dt) +
-        sanitize_nonfinite_tendency(dqg_dt) +
-        sanitize_nonfinite_tendency(dqh_dt);
-
-    constexpr float max_theta_step_change_k = 50.0f;
-    int non_finite_theta_tendency_count = 0;
-    int theta_tendency_limited_count = 0;
-    int theta_bounds_clamp_count = 0;
-
-    #pragma omp parallel for collapse(2) reduction(+:non_finite_theta_tendency_count, theta_tendency_limited_count, theta_bounds_clamp_count)
-    for (int i = 0; i < NR; ++i)
-    {
-        for (int j = 0; j < NTH; ++j)
-        {
-    
-            for (int k = 0; k < NZ; ++k)
-            {
-                float theta_old = theta[i][j][k];
-                float dtheta_total = (dtheta_dt[i][j][k] + dtheta_dt_rad[i][j][k] + dtheta_dt_pbl[i][j][k]) * dt_micro;
-                if (!std::isfinite(dtheta_total))
-                {
-                    dtheta_total = 0.0f;
-                    ++non_finite_theta_tendency_count;
-                }
-
-                float dtheta_limited = std::clamp(dtheta_total, -max_theta_step_change_k, max_theta_step_change_k);
-                if (dtheta_limited != dtheta_total)
-                {
-                    ++theta_tendency_limited_count;
-                }
-
-                float theta_new = theta_old + dtheta_limited;
-                float theta_bounded = clamp_theta_k(theta_new);
-                if (theta_bounded != theta_new)
-                {
-                    ++theta_bounds_clamp_count;
-                }
-                theta[i][j][k] = theta_bounded;
-                
-                if (std::abs(dtheta_total) > 100.0f && i == 0 && j == 0 && k < 5) 
-                {
-                    tmv::log_debug("[MICRO DEBUG] Large theta change at i=", i, ",j=", j, ",k=", k,
-                                   ": ", theta_old, " -> ", theta[i][j][k],
-                                   " (raw_delta=", dtheta_total,
-                                   ", applied_delta=", dtheta_limited, ")");
-                    tmv::log_debug("  dtheta_dt=", dtheta_dt[i][j][k],
-                                   ", dtheta_dt_rad=", dtheta_dt_rad[i][j][k],
-                                   ", dtheta_dt_pbl=", dtheta_dt_pbl[i][j][k]);
-                }
-                qv[i][j][k] += (dqv_dt[i][j][k] + dqv_dt_pbl[i][j][k]) * dt_micro;
-                qc[i][j][k] += dqc_dt[i][j][k] * dt_micro;
-                qr[i][j][k] += dqr_dt[i][j][k] * dt_micro;
-                qi[i][j][k] += dqi_dt[i][j][k] * dt_micro;
-                qs[i][j][k] += dqs_dt[i][j][k] * dt_micro;
-                qg[i][j][k] += dqg_dt[i][j][k] * dt_micro;
-                qh[i][j][k] += dqh_dt[i][j][k] * dt_micro;
-
-                qv[i][j][k] = clamp_qv_kgkg(qv[i][j][k]);
-                qc[i][j][k] = clamp_hydrometeor_kgkg(qc[i][j][k]);
-                qr[i][j][k] = clamp_hydrometeor_kgkg(qr[i][j][k]);
-                qi[i][j][k] = clamp_hydrometeor_kgkg(qi[i][j][k]);
-                qs[i][j][k] = clamp_hydrometeor_kgkg(qs[i][j][k]);
-                qg[i][j][k] = clamp_hydrometeor_kgkg(qg[i][j][k]);
-                qh[i][j][k] = clamp_hydrometeor_kgkg(qh[i][j][k]);
-            }
-        }
-    }
-
-    if (non_finite_theta_tendency_count > 0 ||
-        non_finite_tendency_sanitized > 0 ||
-        theta_tendency_limited_count > 0 ||
-        theta_bounds_clamp_count > 0)
-    {
-        tmv::log_warn("[MICROPHYSICS GUARD] non_finite_dtheta=",
-                      non_finite_theta_tendency_count,
-                      ", non_finite_tendency_sanitized=", non_finite_tendency_sanitized,
-                      ", limited_dtheta=", theta_tendency_limited_count,
-                      ", theta_bounds_clamped=", theta_bounds_clamp_count);
-    }
-}
-
-
-/**
- * @brief Initializes the nested grid.
- */
-void initialize_nested_grid()
-{
-    if (!nested_config.enabled) return;
-
-    int nr_nest = nested_config.nest_size_r;
-    int nth_nest = nested_config.nest_size_th;
-    int nz_nest = nested_config.nest_size_z;
-
-    nest_rho.resize(nr_nest, nth_nest, nz_nest, 0.0f);
-    nest_p.resize(nr_nest, nth_nest, nz_nest, 0.0f);
-    nest_u.resize(nr_nest, nth_nest, nz_nest, 0.0f);
-    nest_w.resize(nr_nest, nth_nest, nz_nest, 0.0f);
-    nest_v_theta.resize(nr_nest, nth_nest, nz_nest, 0.0f);
-    nest_theta.resize(nr_nest, nth_nest, nz_nest, 0.0f);
-    nest_qv.resize(nr_nest, nth_nest, nz_nest, 0.0f);
-    nest_qc.resize(nr_nest, nth_nest, nz_nest, 0.0f);
-    nest_qr.resize(nr_nest, nth_nest, nz_nest, 0.0f);
-    nest_qh.resize(nr_nest, nth_nest, nz_nest, 0.0f);
-    nest_qg.resize(nr_nest, nth_nest, nz_nest, 0.0f);
-    nest_tracer.resize(nr_nest, nth_nest, nz_nest, 0.0f);
-
-    double ref = nested_config.refinement;
-    int ci = nested_config.center_i;
-    int cj = nested_config.center_j;
-    int ck = nested_config.center_k;
-
-    #pragma omp parallel for collapse(2)
-    for (int i_nest = 0; i_nest < nr_nest; ++i_nest)
-    {
-        for (int j_nest = 0; j_nest < nth_nest; ++j_nest)
-        {
-            for (int k_nest = 0; k_nest < nz_nest; ++k_nest)
-            {
-                double i_parent = ci + (i_nest - nr_nest/2.0) / ref;
-                double j_parent = cj + (j_nest - nth_nest/2.0) / ref;
-                double k_parent = ck + (k_nest - nz_nest/2.0) / ref;
-
-                int i0 = std::max(0, std::min(NR-2, (int)std::floor(i_parent)));
-                int j0 = std::max(0, std::min(NTH-2, (int)std::floor(j_parent)));
-                int k0 = std::max(0, std::min(NZ-2, (int)std::floor(k_parent)));
-
-                double fi = i_parent - i0;
-                double fj = j_parent - j0;
-                double fk = k_parent - k0;
-
-                auto interpolate = [&](const Field3D& field, int i0, int j0, int k0, double fi, double fj, double fk) {
-                    double v000 = static_cast<float>(field[i0][j0][k0]);
-                    double v001 = static_cast<float>(field[i0][j0][k0+1]);
-                    double v010 = static_cast<float>(field[i0][j0+1][k0]);
-                    double v011 = static_cast<float>(field[i0][j0+1][k0+1]);
-                    double v100 = static_cast<float>(field[i0+1][j0][k0]);
-                    double v101 = static_cast<float>(field[i0+1][j0][k0+1]);
-                    double v110 = static_cast<float>(field[i0+1][j0+1][k0]);
-                    double v111 = static_cast<float>(field[i0+1][j0+1][k0+1]);
-
-                    return v000 * (1-fi)*(1-fj)*(1-fk) +
-                           v001 * (1-fi)*(1-fj)*fk +
-                           v010 * (1-fi)*fj*(1-fk) +
-                           v011 * (1-fi)*fj*fk +
-                           v100 * fi*(1-fj)*(1-fk) +
-                           v101 * fi*(1-fj)*fk +
-                           v110 * fi*fj*(1-fk) +
-                           v111 * fi*fj*fk;
-                };
-
-                nest_rho[i_nest][j_nest][k_nest] = interpolate(rho, i0, j0, k0, fi, fj, fk);
-                nest_p[i_nest][j_nest][k_nest] = interpolate(p, i0, j0, k0, fi, fj, fk);
-                nest_u[i_nest][j_nest][k_nest] = interpolate(u, i0, j0, k0, fi, fj, fk);
-                nest_w[i_nest][j_nest][k_nest] = interpolate(w, i0, j0, k0, fi, fj, fk);
-                nest_v_theta[i_nest][j_nest][k_nest] = interpolate(v_theta, i0, j0, k0, fi, fj, fk);
-                nest_theta[i_nest][j_nest][k_nest] = interpolate(theta, i0, j0, k0, fi, fj, fk);
-                nest_qv[i_nest][j_nest][k_nest] = interpolate(qv, i0, j0, k0, fi, fj, fk);
-                nest_qc[i_nest][j_nest][k_nest] = interpolate(qc, i0, j0, k0, fi, fj, fk);
-                nest_qr[i_nest][j_nest][k_nest] = interpolate(qr, i0, j0, k0, fi, fj, fk);
-                nest_qh[i_nest][j_nest][k_nest] = interpolate(qh, i0, j0, k0, fi, fj, fk);
-                nest_qg[i_nest][j_nest][k_nest] = interpolate(qg, i0, j0, k0, fi, fj, fk);
-                nest_tracer[i_nest][j_nest][k_nest] = interpolate(tracer, i0, j0, k0, fi, fj, fk);
-            }
-        }
-    }
-}
-
-/**
- * @brief Feedbacks the nested grid to the parent grid.
- */
-void feedback_to_parent()
-{
-    if (!nested_config.enabled) return;
-
-    double ref = nested_config.refinement;
-    int ci = nested_config.center_i;
-    int cj = nested_config.center_j;
-    int ck = nested_config.center_k;
-    int nr_nest = nested_config.nest_size_r;
-    int nth_nest = nested_config.nest_size_th;
-    int nz_nest = nested_config.nest_size_z;
-
-
-    #pragma omp parallel for collapse(2)
-    for (int i_nest = 0; i_nest < nr_nest; ++i_nest)
-    {
-        for (int j_nest = 0; j_nest < nth_nest; ++j_nest)   
-        {
-            for (int k_nest = 0; k_nest < nz_nest; ++k_nest)
-            {
-                int i_parent = ci + (int)std::round((i_nest - nr_nest/2.0) / ref);
-                int j_parent = cj + (int)std::round((j_nest - nth_nest/2.0) / ref);
-                int k_parent = ck + (int)std::round((k_nest - nz_nest/2.0) / ref);
-
-                if (i_parent >= 0 && i_parent < NR &&
-                    j_parent >= 0 && j_parent < NTH &&
-                    k_parent >= 0 && k_parent < NZ)
-                {
-                    rho[i_parent][j_parent][k_parent] = nest_rho[i_nest][j_nest][k_nest];
-                    p[i_parent][j_parent][k_parent] = nest_p[i_nest][j_nest][k_nest];
-                    u[i_parent][j_parent][k_parent] = nest_u[i_nest][j_nest][k_nest];
-                    w[i_parent][j_parent][k_parent] = nest_w[i_nest][j_nest][k_nest];
-                    v_theta[i_parent][j_parent][k_parent] = nest_v_theta[i_nest][j_nest][k_nest];
-                    theta[i_parent][j_parent][k_parent] = nest_theta[i_nest][j_nest][k_nest];
-                    qv[i_parent][j_parent][k_parent] = nest_qv[i_nest][j_nest][k_nest];
-                    qc[i_parent][j_parent][k_parent] = nest_qc[i_nest][j_nest][k_nest];
-                    qr[i_parent][j_parent][k_parent] = nest_qr[i_nest][j_nest][k_nest];
-                    qh[i_parent][j_parent][k_parent] = nest_qh[i_nest][j_nest][k_nest];
-                    qg[i_parent][j_parent][k_parent] = nest_qg[i_nest][j_nest][k_nest];
-                    tracer[i_parent][j_parent][k_parent] = nest_tracer[i_nest][j_nest][k_nest];
-                }
-            }
-        }
-    }
-}
-
-
-/**
- * @brief Calculates the radar reflectivity.
- */
-void calculate_radar_reflectivity()
-{
-    constexpr float radar_linear_min = 0.0f;
-    constexpr float radar_linear_max = 1.0e12f;
-
-    auto sanitize_linear_reflectivity_field = [&](Field3D& field, const char* source_tag) {
-        if (field.empty())
-        {
-            return;
-        }
-        int sanitized = 0;
-        float* const data = field.data();
-        const std::size_t count = field.size();
-        #pragma omp parallel for reduction(+:sanitized)
-        for (long long idx = 0; idx < static_cast<long long>(count); ++idx)
-        {
-            const float old_value = data[idx];
-            float new_value = old_value;
-            if (!std::isfinite(static_cast<double>(new_value)) || new_value < radar_linear_min)
-            {
-                new_value = radar_linear_min;
-            }
-            else if (new_value > radar_linear_max)
-            {
-                new_value = radar_linear_max;
-            }
-            if (new_value != old_value)
-            {
-                ++sanitized;
-            }
-            data[idx] = new_value;
-        }
-        if (sanitized > 0)
-        {
-            tmv::log_warn("[RADAR GUARD] sanitized ", sanitized, " reflectivity samples from ", source_tag);
-        }
-    };
-
-    auto apply_microphysics_fallback = [&]() -> bool
-    {
-        if (!microphysics_scheme)
-        {
-            tmv::log_warn("[RADAR GUARD] no microphysics scheme available for radar fallback.");
-            return false;
-        }
-
-        Field3D radar_dbz;
-        try
-        {
-            microphysics_scheme->compute_radar_reflectivity(
-                qc, qr, qi, qs, qg, qh, radar_dbz
-            );
-        }
-        catch (const std::exception& e)
-        {
-            tmv::log_warn("[RADAR GUARD] microphysics fallback reflectivity failed: ", e.what(),
-                         ". Keeping previous reflectivity field for this step.");
-            return false;
-        }
-
-        if (radar_dbz.size_r() != NR || radar_dbz.size_th() != NTH || radar_dbz.size_z() != NZ)
-        {
-            tmv::log_warn("[RADAR GUARD] microphysics fallback returned unexpected dBZ field shape; "
-                         "leaving reflectivity unchanged for this step.");
-            return false;
-        }
-
-        #pragma omp parallel for collapse(2)
-        for (int i = 0; i < NR; ++i)
-        {
-            for (int j = 0; j < NTH; ++j)
-            {
-                for (int k = 0; k < NZ; ++k)
-                {
-                    float z_dbz = static_cast<float>(radar_dbz[i][j][k]);
-                    if (!std::isfinite(static_cast<double>(z_dbz)))
-                    {
-                        radar_reflectivity[i][j][k] = radar_linear_min;
-                        continue;
-                    }
-
-                    z_dbz = std::clamp(z_dbz, -120.0f, 120.0f);
-                    float z_linear = std::pow(10.0f, z_dbz / 10.0f);
-                    if (!std::isfinite(static_cast<double>(z_linear)))
-                    {
-                        z_linear = radar_linear_max;
-                    }
-                    radar_reflectivity[i][j][k] =
-                        std::clamp(z_linear, radar_linear_min, radar_linear_max);
-                }
-            }
-        }
-
-        sanitize_linear_reflectivity_field(radar_reflectivity, "microphysics_fallback");
-        return true;
-    };
-
-    if (!radar_scheme)
-    {
-        tmv::log_warn("Radar scheme not initialized, using microphysics fallback");
-        apply_microphysics_fallback();
-        return;
-    }
-
-    RadarStateView state_view;
-    state_view.NR = NR;
-    state_view.NTH = NTH;
-    state_view.NZ = NZ;
-
-    state_view.u = &u;
-    state_view.v = &v_theta;
-    state_view.w = &w;
-
-    state_view.qr = &qr;
-    state_view.qs = &qs;
-    state_view.qg = &qg;
-    state_view.qh = &qh;
-    state_view.qi = &qi;
-
-    RadarConfig config;
-    config.scheme_id = "reflectivity";
-    config.operator_tier = "fast_da";
-    config.has_qr = true;
-    config.has_qs = true;
-    config.has_qg = true;
-    config.has_qh = true;
-    config.has_qi = true;
-
-    RadarOut radar_out;
-    radar_out.initialize(NR, NTH, NZ);
-
-    try
-    {
-        radar_scheme->compute(config, state_view, radar_out);
-    }
-    catch (const std::exception& e)
-    {
-        tmv::log_warn("[RADAR GUARD] radar scheme compute failed: ", e.what(),
-                      ". Attempting microphysics fallback.");
-        apply_microphysics_fallback();
-        return;
-    }
-
-    int sanitized_reflectivity = 0;
-
-    #pragma omp parallel for collapse(2) reduction(+:sanitized_reflectivity)
-    for (int i = 0; i < NR; ++i) 
-    {
-        for (int j = 0; j < NTH; ++j) 
-        {
-            for (int k = 0; k < NZ; ++k) 
-            {   
-                float z_linear = static_cast<float>(radar_out.Ze_linear[i][j][k]);
-                if (!std::isfinite(static_cast<double>(z_linear)) || z_linear < radar_linear_min)
-                {
-                    if (z_linear != radar_linear_min)
-                    {
-                        ++sanitized_reflectivity;
-                    }
-                    z_linear = radar_linear_min;
-                }
-                else if (z_linear > radar_linear_max)
-                {
-                    ++sanitized_reflectivity;
-                    z_linear = radar_linear_max;
-                }
-                radar_reflectivity[i][j][k] = z_linear;
-            }
-        }
-    }
-
-    if (sanitized_reflectivity > 0)
-    {
-        tmv::log_warn("[RADAR GUARD] sanitized ", sanitized_reflectivity, " reflectivity samples from radar scheme output");
-    }
-}

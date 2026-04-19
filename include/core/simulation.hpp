@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "core/coordinate_system.hpp"
 #include "core/field3d.hpp"
 #include "core/physical_constants.hpp"
 
@@ -53,7 +54,7 @@ extern double dtheta;
 inline constexpr double gamma = physical_constants::dry_air_gamma;
 inline constexpr double theta0 = physical_constants::theta_reference_k;
 inline constexpr float theta_min_k = 200.0f;
-inline constexpr float theta_max_k = 500.0f;
+inline constexpr float theta_max_k = 700.0f;  // Stratospheric theta easily exceeds 500K
 inline constexpr float pressure_min_pa = 1000.0f;
 inline constexpr float pressure_max_pa = 200000.0f;
 inline constexpr float density_min_kgm3 = 0.05f;
@@ -199,6 +200,7 @@ inline float clamp_hydrometeor_kgkg(float value)
 }
 
 extern std::vector<double> rho0_base;
+extern std::vector<double> p0_base;
 
 inline constexpr double qc0 = 1.0e-3;
 inline constexpr double c_auto = 1.0e-3;
@@ -261,6 +263,11 @@ extern double global_sfc_qv_kgkg;
 extern double global_tropopause_z_m;
 
 extern double global_bubble_center_x_m;
+// `global_bubble_center_y_m` is only consumed by the Cartesian initialize()
+// path (Phase A.4 of the Coordinate Backend Plan). The cylindrical path
+// historically reuses `global_bubble_center_x_m` as a radial distance from
+// the singular axis and ignores y entirely; that behavior is preserved.
+extern double global_bubble_center_y_m;
 extern double global_bubble_center_z_m;
 extern double global_bubble_radius_m;
 extern double global_bubble_dtheta_k;

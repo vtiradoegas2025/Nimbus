@@ -12,6 +12,7 @@ This module provides the dynamics-scheme layer used by the core runtime.
 src/dynamics/
 ├── factory.cpp/.hpp
 └── schemes/
+    ├── cartesian/
     ├── supercell/
     └── tornado/
 
@@ -21,12 +22,18 @@ include/dynamics_base.hpp    # scheme interface
 
 ## Supported Schemes
 
-- `tornado`
-- `supercell`
+- `tornado` — axisymmetric cylindrical; default when `dynamics.scheme` is unset.
+- `supercell` — non-axisymmetric cylindrical.
+- `cartesian` — Cartesian (x, y, z) backend. Required for non-axisymmetric
+  hodographs (e.g. WK2002 supercell). Phase A of the Coordinate Backend Plan
+  (docs/CoordinateBackend_Plan.md). CPU-only until Phase A.7 adds GPU shaders.
+  The field globals `u`, `v_theta`, `w` are reused to carry `u_x`, `u_y`, `u_z`
+  while this scheme is active — Phase B handles the global rename.
 
 Alias handling (factory canonicalization):
 - `axisymmetric` -> `tornado`
 - `mesocyclone` -> `supercell`
+- `cart` / `cartesian_cpu` -> `cartesian`
 
 If `dynamics.scheme` is not set, runtime defaults to `tornado`.
 

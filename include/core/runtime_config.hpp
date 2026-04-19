@@ -4,6 +4,7 @@
 #include <string>
 #include <unordered_map>
 
+#include "core/coordinate_system.hpp"
 #include "diagnostics/field_validation.hpp"
 #include "data/soundings.hpp"
 
@@ -25,6 +26,17 @@ extern std::string global_microphysics_scheme;
 extern std::string global_dynamics_scheme_name;
 extern tmv::ValidationPolicy global_validation_policy;
 extern std::string global_validation_report_path;
+
+/**
+ * @brief Active horizontal coordinate system for the run.
+ *
+ * Defaults to CoordinateSystem::Cylindrical so existing tornado configurations
+ * are unchanged. Set from the top-level `coordinate_system` YAML key in
+ * load_config(). Used by the dynamics, advection, boundary-condition, and
+ * initial-condition dispatchers introduced in Phase A of the Coordinate
+ * Backend Plan (see docs/CoordinateBackend_Plan.md).
+ */
+extern CoordinateSystem global_coordinate_system;
 
 /**
  * @brief Returns a lowercased copy of the input.

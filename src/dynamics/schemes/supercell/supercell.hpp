@@ -66,6 +66,22 @@ public:
         Field3D& p_prime, Field3D& dynamic_pressure, Field3D& buoyancy_pressure
     ) override;
 
+    // Split-explicit acoustic substep support.
+    bool supports_split_acoustic() const override { return true; }
+    void compute_slow_tendencies(
+        const Field3D& u_r, const Field3D& u_theta, const Field3D& u_z,
+        const Field3D& rho, const Field3D& p, const Field3D& theta, double dt,
+        Field3D& du_r_dt, Field3D& du_theta_dt, Field3D& du_z_dt,
+        Field3D& drho_dt, Field3D& dp_dt) override;
+    void compute_fast_pressure_tendencies(
+        const Field3D& u_r, const Field3D& u_theta, const Field3D& u_z,
+        const Field3D& rho, const Field3D& p,
+        Field3D& drho_dt, Field3D& dp_dt) override;
+    void compute_fast_momentum_tendencies(
+        const Field3D& u_r, const Field3D& u_theta, const Field3D& u_z,
+        const Field3D& rho, const Field3D& p,
+        Field3D& du_r_dt, Field3D& du_theta_dt, Field3D& du_z_dt) override;
+
     std::string get_scheme_name() const override { return "supercell"; }
     std::string get_coordinate_system() const override { return "cylindrical"; }
     int get_num_prognostic_vars() const override { return 5; }

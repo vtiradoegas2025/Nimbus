@@ -98,9 +98,10 @@ private:
     std::atomic<double> total_time_s_{0.0};
     std::atomic<std::size_t> snapshots_count_{0};
 
-    // Delta encoding state: stores the previous snapshot's field data
-    // keyed by field name. Used to compute delta = current - previous
-    // for non-keyframe ZFP exports.
+    // Delta encoding state: stores previous snapshots' field data keyed by
+    // field name. previous_fields_ is the most recent frame; previous_fields_2_
+    // is the frame before that (used for predictive delta).
     std::unordered_map<std::string, std::vector<float>> previous_fields_;
+    std::unordered_map<std::string, std::vector<float>> previous_fields_2_;
     int delta_frame_counter_ = 0;
 };

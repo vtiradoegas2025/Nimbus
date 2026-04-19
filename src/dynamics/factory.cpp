@@ -8,6 +8,7 @@
  */
 
 #include "factory.hpp"
+#include "schemes/cartesian/cartesian.hpp"
 #include "schemes/supercell/supercell.hpp"
 #include "schemes/tornado/tornado.hpp"
 #include "util/scheme_factory.hpp"
@@ -15,11 +16,14 @@
 namespace
 {
 const tmv::SchemeRegistry<DynamicsScheme> registry({
+    {"cartesian", [] { return std::make_unique<CartesianScheme>(); }},
     {"supercell", [] { return std::make_unique<SupercellScheme>(); }},
     {"tornado",   [] { return std::make_unique<TornadoScheme>(); }},
 }, {
     {"mesocyclone",  "supercell"},
     {"axisymmetric", "tornado"},
+    {"cart",         "cartesian"},
+    {"cartesian_cpu", "cartesian"},
 });
 }
 

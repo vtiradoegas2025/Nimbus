@@ -103,6 +103,42 @@ bool dispatch_supercell_tendencies_backend(
     float g, float gamma_val, float theta0);
 
 /**
+ * @brief Dispatches Cartesian momentum tendencies via GPU backend if available.
+ *
+ * Computes 5 tendency fields from 6 state fields + 2 reference-state profiles.
+ * Uses reference-state subtraction in the vertical momentum equation.
+ *
+ * @return True if GPU dispatch succeeded. False means caller should use CPU path.
+ */
+bool dispatch_cartesian_tendencies_backend(
+    const float* u_x_data, const float* u_y_data, const float* w_data,
+    const float* rho_data, const float* p_data, const float* theta_data,
+    const float* p0_base_data, const float* rho0_base_data,
+    float* du_x_dt_data, float* du_y_dt_data, float* dw_dt_data,
+    float* drho_dt_data, float* dp_dt_data,
+    int nr, int nth, int nz,
+    float dx, float dy, float dz,
+    float g, float gamma_val);
+
+/**
+ * @brief Dispatches Cartesian x-advection via GPU backend if available.
+ * @return True if GPU dispatch succeeded.
+ */
+bool dispatch_advection_x_backend(
+    const float* src, const float* u_data, float* dst,
+    int nr, int nth, int nz,
+    float dx, float dt);
+
+/**
+ * @brief Dispatches Cartesian y-advection via GPU backend if available.
+ * @return True if GPU dispatch succeeded.
+ */
+bool dispatch_advection_y_backend(
+    const float* src, const float* v_data, float* dst,
+    int nr, int nth, int nz,
+    float dy, float dt);
+
+/**
  * @brief Dispatches tornado momentum tendencies via GPU backend if available.
  *
  * Uses only radial and vertical derivatives (no azimuthal). Includes vortex

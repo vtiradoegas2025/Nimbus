@@ -1,0 +1,69 @@
+// advect_x.comp
+//
+// GLSL compute shader implementing first-order upwind x-direction advection
+// on a Cartesian grid.
+//
+// GPU equivalent of advect_scalar_1d_x_kernel_cartesian in
+// src/advection/advection_cartesian.cpp.
+//
+// Each invocation processes one interior grid point (i,j,k).
+// No periodic boundaries — all faces are physical (zero-gradient).
+// Boundary points in x (i=0, i=NR-1) and z (k=0, k=NZ-1) are skipped.
+// All j indices are processed (j=0..NTH-1) since the CPU seeds boundary
+// values via memcpy before dispatch.
+//
+// Data layout is row-major [nr][nth][nz].
+
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) readonly buffer SrcBuf { float src[];     };
+layout(set = 0, binding = 1) readonly buffer UBuf   { float u_field[]; };
+layout(set = 0, binding = 2) buffer DstBuf          { float dst[];     };
+
+layout(push_constant) uniform PushConstants {
+    int   nr;
+    int   nth;
+    int   nz;
+    float dx;
+    float dt;
+    float padding[3];
+};
+
+void main() {
+    uint gid = gl_GlobalInvocationID.x;
+
+    // Interior: i=1..nr-2, all j, k=1..nz-2
+    int interior_nr = nr - 2;
+    int interior_nz = nz - 2;
+    uint total_interior = uint(interior_nr) * uint(nth) * uint(interior_nz);
+
+    if (gid >= total_interior) {
+        return;
+    }
+
+    int k_interior = int(gid % uint(interior_nz));
+    uint ij = gid / uint(interior_nz);
+    int j = int(ij % uint(nth));
+    int i_interior = int(ij / uint(nth));
+
+    int i = i_interior + 1;
+    int k = k_interior + 1;
+
+    uint c  = uint((i * nth + j) * nz + k);
+    uint im = uint(((i - 1) * nth + j) * nz + k);
+    uint ip = uint(((i + 1) * nth + j) * nz + k);
+
+    float u_val = u_field[c];
+    float q_c = src[c];
+    float dq_dx = 0.0;
+
+    if (u_val > 0.0) {
+        dq_dx = (q_c - src[im]) / dx;
+    } else if (u_val < 0.0) {
+        dq_dx = (src[ip] - q_c) / dx;
+    }
+
+    dst[c] = q_c - dt * u_val * dq_dx;
+}

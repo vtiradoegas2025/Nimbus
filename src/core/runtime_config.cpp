@@ -650,6 +650,12 @@ double global_sfc_qv_kgkg = 0.014;
 double global_tropopause_z_m = 12000.0;
 
 double global_bubble_center_x_m = 50000.0;
+// Default y = 0 keeps the Cartesian path behaving like the cylindrical path
+// when the user has not yet added an explicit `trigger.bubble.center_y_km`
+// to their config: the bubble sits on the line y = 0 in Cartesian, which
+// is geometrically equivalent to "on the cylindrical radial axis" for
+// configs that pre-date the Y-axis option.
+double global_bubble_center_y_m = 0.0;
 double global_bubble_center_z_m = 1500.0;
 double global_bubble_radius_m = 10000.0;
 double global_bubble_dtheta_k = 2.0;
@@ -661,6 +667,8 @@ SoundingConfig global_runtime_sounding_config{};
 std::string global_microphysics_scheme = "kessler";
 
 std::string global_dynamics_scheme_name = "";
+
+CoordinateSystem global_coordinate_system = CoordinateSystem::Cylindrical;
 
 LogProfile global_log_profile = LogProfile::normal;
 bool global_perf_timing_enabled = false;
@@ -682,6 +690,23 @@ void load_config(const std::string& config_path, int& duration_s, int& write_eve
     const bool quiet_override = (global_log_profile == LogProfile::quiet);
 
     auto config = parse_yaml_simple(config_path);
+
+    if (config.count("coordinate_system"))
+    {
+        const std::string& raw = config["coordinate_system"];
+        CoordinateSystem parsed = global_coordinate_system;
+        if (parse_coordinate_system(raw, parsed))
+        {
+            global_coordinate_system = parsed;
+        }
+        else
+        {
+            std::cerr << "Warning: Invalid coordinate_system '" << raw
+                      << "'. Valid values: cylindrical, cartesian. Falling back to '"
+                      << coordinate_system_name(global_coordinate_system) << "'." << std::endl;
+        }
+    }
+
     if (config.count("logging.profile"))
     {
         bool valid = false;
@@ -1016,6 +1041,21 @@ void load_config(const std::string& config_path, int& duration_s, int& write_eve
                 "a finite number");
         }
     }
+    if (config.count("trigger.bubble.center_y_km"))
+    {
+        double parsed = 0.0;
+        if (try_parse_double_value(config["trigger.bubble.center_y_km"], parsed))
+        {
+            global_bubble_center_y_m = parsed * 1000.0;
+        }
+        else
+        {
+            warn_invalid_config_value(
+                "trigger.bubble.center_y_km",
+                config["trigger.bubble.center_y_km"],
+                "a finite number");
+        }
+    }
     if (config.count("trigger.bubble.center_z_km"))
     {
         double parsed = 0.0;
@@ -1185,10 +1225,6 @@ void load_config(const std::string& config_path, int& duration_s, int& write_eve
         }
     }
 
-    if (config.count("grid.dy"))
-    {
-    }
-
     if (config.count("grid.dz"))
     {
         double parsed = 0.0;
@@ -1218,6 +1254,24 @@ void load_config(const std::string& config_path, int& duration_s, int& write_eve
     {
         extern void resize_fields();
         resize_fields();
+    }
+
+    // grid.dy must be applied AFTER resize_fields(), which calls
+    // update_grid_resolution(). That function sets the default dtheta:
+    //   Cylindrical → 2π/NTH
+    //   Cartesian   → dr (square cells)
+    // If the config specifies a non-square dy, override here.
+    if (config.count("grid.dy"))
+    {
+        double parsed = 0.0;
+        if (try_parse_double_value(config["grid.dy"], parsed) && parsed > 0.0)
+        {
+            dtheta = parsed;
+        }
+        else
+        {
+            warn_invalid_config_value("grid.dy", config["grid.dy"], "a positive finite number");
+        }
     }
 
     if (config.count("environment.hodograph.u_sfc_ms"))
@@ -2451,10 +2505,25 @@ void load_config(const std::string& config_path, int& duration_s, int& write_eve
         std::cout << "  Wind profile: SFC(" << global_wind_profile.u_sfc << "," << global_wind_profile.v_sfc
                   << ") 1km(" << global_wind_profile.u_1km << "," << global_wind_profile.v_1km
                   << ") 6km(" << global_wind_profile.u_6km << "," << global_wind_profile.v_6km << ")" << std::endl;
-        std::cout << "  Trigger bubble: center_r=" << global_bubble_center_x_m / 1000.0
-                  << " km, center_z=" << global_bubble_center_z_m / 1000.0
-                  << " km, radius=" << global_bubble_radius_m / 1000.0
-                  << " km, dtheta=" << global_bubble_dtheta_k << " K" << std::endl;
+        // The "center_x" field has two interpretations: a radial distance
+        // from the singular axis (cylindrical) or a literal Cartesian
+        // x-coordinate (Cartesian). Print whichever the active coordinate
+        // system actually uses so the operator can sanity-check the IC.
+        if (global_coordinate_system == CoordinateSystem::Cartesian)
+        {
+            std::cout << "  Trigger bubble: center_x=" << global_bubble_center_x_m / 1000.0
+                      << " km, center_y=" << global_bubble_center_y_m / 1000.0
+                      << " km, center_z=" << global_bubble_center_z_m / 1000.0
+                      << " km, radius=" << global_bubble_radius_m / 1000.0
+                      << " km, dtheta=" << global_bubble_dtheta_k << " K" << std::endl;
+        }
+        else
+        {
+            std::cout << "  Trigger bubble: center_r=" << global_bubble_center_x_m / 1000.0
+                      << " km, center_z=" << global_bubble_center_z_m / 1000.0
+                      << " km, radius=" << global_bubble_radius_m / 1000.0
+                      << " km, dtheta=" << global_bubble_dtheta_k << " K" << std::endl;
+        }
         if (global_sounding_enabled)
         {
             std::cout << "  Sounding: enabled"

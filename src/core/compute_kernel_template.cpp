@@ -433,6 +433,58 @@ bool dispatch_supercell_tendencies_backend(
     return false;
 }
 
+bool dispatch_cartesian_tendencies_backend(
+    const float* u_x_data, const float* u_y_data, const float* w_data,
+    const float* rho_data, const float* p_data, const float* theta_data,
+    const float* p0_base_data, const float* rho0_base_data,
+    float* du_x_dt_data, float* du_y_dt_data, float* dw_dt_data,
+    float* drho_dt_data, float* dp_dt_data,
+    int nr, int nth, int nz,
+    float dx, float dy, float dz,
+    float g, float gamma_val)
+{
+    ComputeBackend* backend = mutable_compute_backend();
+    if (backend != nullptr && backend->supports_cartesian_tendencies_dispatch())
+    {
+        return backend->dispatch_cartesian_tendencies(
+            u_x_data, u_y_data, w_data,
+            rho_data, p_data, theta_data,
+            p0_base_data, rho0_base_data,
+            du_x_dt_data, du_y_dt_data, dw_dt_data,
+            drho_dt_data, dp_dt_data,
+            nr, nth, nz,
+            dx, dy, dz,
+            g, gamma_val);
+    }
+    return false;
+}
+
+bool dispatch_advection_x_backend(
+    const float* src, const float* u_data, float* dst,
+    int nr, int nth, int nz,
+    float dx, float dt)
+{
+    ComputeBackend* backend = mutable_compute_backend();
+    if (backend != nullptr && backend->supports_advection_x_dispatch())
+    {
+        return backend->dispatch_advection_x(src, u_data, dst, nr, nth, nz, dx, dt);
+    }
+    return false;
+}
+
+bool dispatch_advection_y_backend(
+    const float* src, const float* v_data, float* dst,
+    int nr, int nth, int nz,
+    float dy, float dt)
+{
+    ComputeBackend* backend = mutable_compute_backend();
+    if (backend != nullptr && backend->supports_advection_y_dispatch())
+    {
+        return backend->dispatch_advection_y(src, v_data, dst, nr, nth, nz, dy, dt);
+    }
+    return false;
+}
+
 bool dispatch_tornado_tendencies_backend(
     const float* u_r_data, const float* u_theta_data, const float* u_z_data,
     const float* rho_data, const float* p_data, const float* theta_data,

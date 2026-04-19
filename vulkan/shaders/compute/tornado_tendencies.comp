@@ -140,12 +140,14 @@ void main() {
     }
     du_theta_dt[c] = sanitize(advective_th + coriolis_th + fv);
 
-    // --- du_z/dt: advection + pressure gradient + buoyancy - gravity ---
+    // --- du_z/dt: fully compressible vertical momentum equation ---
+    //   dw/dt = -(1/rho) dp/dz - g + advection
+    // Buoyancy is implicit in (-dp/dz/rho - g). Do NOT add an explicit
+    // g*(theta-theta0)/theta0 term — see the matching comment in
+    // supercell_tendencies.comp and docs/Journey.md Phase 2 "Bug 3".
     float advective_z = -ur * duz_dr - uz * duz_dz;
     float pressure_grad_z = -dp_dz_val / rho_safe;
-    float theta_prime = theta[c] - theta0;
-    float buoyancy = g * (theta_prime / theta0);
-    du_z_dt[c] = sanitize(advective_z + pressure_grad_z - g + buoyancy);
+    du_z_dt[c] = sanitize(advective_z + pressure_grad_z - g);
 
     // --- drho/dt: mass continuity ---
     float divergence = dur_dr + duz_dz + ur / r;

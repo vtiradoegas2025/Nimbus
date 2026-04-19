@@ -13,6 +13,7 @@
 #include <vector>
 #include <string>
 
+class CartesianScheme;
 class SupercellScheme;
 class TornadoScheme;
 

@@ -193,6 +193,33 @@ public:
 #endif
     }
 
+    bool supports_cartesian_tendencies_dispatch() const override
+    {
+#if defined(TMV_HAS_VULKAN_COMPUTE_HEADERS) && defined(TMV_HAS_VULKAN_COMPUTE_DLOPEN)
+        return cartesian_pipeline_.is_ready();
+#else
+        return false;
+#endif
+    }
+
+    bool supports_advection_x_dispatch() const override
+    {
+#if defined(TMV_HAS_VULKAN_COMPUTE_HEADERS) && defined(TMV_HAS_VULKAN_COMPUTE_DLOPEN)
+        return advection_x_pipeline_.is_ready();
+#else
+        return false;
+#endif
+    }
+
+    bool supports_advection_y_dispatch() const override
+    {
+#if defined(TMV_HAS_VULKAN_COMPUTE_HEADERS) && defined(TMV_HAS_VULKAN_COMPUTE_DLOPEN)
+        return advection_y_pipeline_.is_ready();
+#else
+        return false;
+#endif
+    }
+
     bool supports_tornado_tendencies_dispatch() const override
     {
 #if defined(TMV_HAS_VULKAN_COMPUTE_HEADERS) && defined(TMV_HAS_VULKAN_COMPUTE_DLOPEN)
@@ -267,11 +294,20 @@ public:
         const int slot_u = slots[2];  // radial velocity
         const int slot_v = slots[3];  // azimuthal velocity
 
-        // Upload data to staging
-        std::memcpy(buffer_pool_.staging(slot_A).mapped, scalar_in, field_bytes);
-        std::memcpy(buffer_pool_.staging(slot_B).mapped, scalar_in, field_bytes); // boundaries
-        std::memcpy(buffer_pool_.staging(slot_u).mapped, u_data, field_bytes);
-        std::memcpy(buffer_pool_.staging(slot_v).mapped, v_theta_data, field_bytes);
+        // On unified memory, device buffers are host-visible — read/write directly.
+        // On discrete memory, use separate staging buffers for H2D/D2H transfers.
+        const bool unified = has_unified_memory_;
+        auto host_ptr = [&](int slot) -> void*
+        {
+            return unified ? buffer_pool_.device(slot).mapped
+                           : buffer_pool_.staging(slot).mapped;
+        };
+
+        // Upload data (to device buffer on unified, staging buffer on discrete)
+        std::memcpy(host_ptr(slot_A), scalar_in, field_bytes);
+        std::memcpy(host_ptr(slot_B), scalar_in, field_bytes); // boundaries
+        std::memcpy(host_ptr(slot_u), u_data, field_bytes);
+        std::memcpy(host_ptr(slot_v), v_theta_data, field_bytes);
 
         // Record command buffer
         vkResetCommandBuffer_(cmd_buf_, 0);
@@ -287,25 +323,37 @@ public:
         VkBufferCopy copy_region{};
         copy_region.size = field_bytes;
 
-        // Upload all staging → device
-        for (int i = 0; i < 4; ++i)
-        {
-            vkCmdCopyBuffer_(cmd_buf_,
-                             buffer_pool_.staging(slots[i]).buffer,
-                             buffer_pool_.device(slots[i]).buffer,
-                             1, &copy_region);
-        }
-
         VkMemoryBarrier barrier{};
         barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
 
-        // Barrier: transfer → compute
-        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-        vkCmdPipelineBarrier_(cmd_buf_,
-                              VK_PIPELINE_STAGE_TRANSFER_BIT,
-                              VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                              0, 1, &barrier, 0, nullptr, 0, nullptr);
+        if (unified)
+        {
+            // Unified path: host writes are coherent; barrier ensures GPU visibility
+            barrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT;
+            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+            vkCmdPipelineBarrier_(cmd_buf_,
+                                  VK_PIPELINE_STAGE_HOST_BIT,
+                                  VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                  0, 1, &barrier, 0, nullptr, 0, nullptr);
+        }
+        else
+        {
+            // Discrete path: copy staging → device, then transfer barrier
+            for (int i = 0; i < 4; ++i)
+            {
+                vkCmdCopyBuffer_(cmd_buf_,
+                                 buffer_pool_.staging(slots[i]).buffer,
+                                 buffer_pool_.device(slots[i]).buffer,
+                                 1, &copy_region);
+            }
+
+            barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+            vkCmdPipelineBarrier_(cmd_buf_,
+                                  VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                  VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                  0, 1, &barrier, 0, nullptr, 0, nullptr);
+        }
 
         // ─── Step 1: Radial advection (A → B) ───
         {
@@ -373,19 +421,31 @@ public:
             vkCmdDispatch_(cmd_buf_, (interior_points + 63u) / 64u, 1, 1);
         }
 
-        // Barrier: compute → transfer (for download)
-        barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-        barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-        vkCmdPipelineBarrier_(cmd_buf_,
-                              VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                              VK_PIPELINE_STAGE_TRANSFER_BIT,
-                              0, 1, &barrier, 0, nullptr, 0, nullptr);
+        if (unified)
+        {
+            // Unified path: barrier so CPU can read GPU writes after fence
+            barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+            barrier.dstAccessMask = VK_ACCESS_HOST_READ_BIT;
+            vkCmdPipelineBarrier_(cmd_buf_,
+                                  VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                  VK_PIPELINE_STAGE_HOST_BIT,
+                                  0, 1, &barrier, 0, nullptr, 0, nullptr);
+        }
+        else
+        {
+            // Discrete path: barrier compute → transfer, then copy device → staging
+            barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+            barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+            vkCmdPipelineBarrier_(cmd_buf_,
+                                  VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                  VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                  0, 1, &barrier, 0, nullptr, 0, nullptr);
 
-        // Download result (A) → staging
-        vkCmdCopyBuffer_(cmd_buf_,
-                         buffer_pool_.device(slot_A).buffer,
-                         buffer_pool_.staging(slot_A).buffer,
-                         1, &copy_region);
+            vkCmdCopyBuffer_(cmd_buf_,
+                             buffer_pool_.device(slot_A).buffer,
+                             buffer_pool_.staging(slot_A).buffer,
+                             1, &copy_region);
+        }
 
         if (vkEndCommandBuffer_(cmd_buf_) != VK_SUCCESS)
         {
@@ -412,8 +472,8 @@ public:
             return false;
         }
 
-        // Download result
-        std::memcpy(result_out, buffer_pool_.staging(slot_A).mapped, field_bytes);
+        // Download result (from device buffer on unified, staging on discrete)
+        std::memcpy(result_out, host_ptr(slot_A), field_bytes);
         release_pool_slots(slots, 4);
         return true;
 #else
@@ -460,11 +520,20 @@ public:
         const int slot_u = slots[2];
         const int slot_v = slots[3];
 
-        // Upload data
-        std::memcpy(buffer_pool_.staging(slot_A).mapped, scalar_in, field_bytes);
-        std::memcpy(buffer_pool_.staging(slot_B).mapped, scalar_in, field_bytes); // boundaries
-        std::memcpy(buffer_pool_.staging(slot_u).mapped, u_data, field_bytes);
-        std::memcpy(buffer_pool_.staging(slot_v).mapped, v_theta_data, field_bytes);
+        // On unified memory, device buffers are host-visible — read/write directly.
+        // On discrete memory, use separate staging buffers for H2D/D2H transfers.
+        const bool unified = has_unified_memory_;
+        auto host_ptr = [&](int slot) -> void*
+        {
+            return unified ? buffer_pool_.device(slot).mapped
+                           : buffer_pool_.staging(slot).mapped;
+        };
+
+        // Upload data (to device buffer on unified, staging buffer on discrete)
+        std::memcpy(host_ptr(slot_A), scalar_in, field_bytes);
+        std::memcpy(host_ptr(slot_B), scalar_in, field_bytes); // boundaries
+        std::memcpy(host_ptr(slot_u), u_data, field_bytes);
+        std::memcpy(host_ptr(slot_v), v_theta_data, field_bytes);
 
         // Record command buffer
         vkResetCommandBuffer_(cmd_buf_, 0);
@@ -480,25 +549,37 @@ public:
         VkBufferCopy copy_region{};
         copy_region.size = field_bytes;
 
-        // Upload all staging → device
-        for (int i = 0; i < 4; ++i)
-        {
-            vkCmdCopyBuffer_(cmd_buf_,
-                             buffer_pool_.staging(slots[i]).buffer,
-                             buffer_pool_.device(slots[i]).buffer,
-                             1, &copy_region);
-        }
-
         VkMemoryBarrier barrier{};
         barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
 
-        // Barrier: transfer → compute
-        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-        vkCmdPipelineBarrier_(cmd_buf_,
-                              VK_PIPELINE_STAGE_TRANSFER_BIT,
-                              VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                              0, 1, &barrier, 0, nullptr, 0, nullptr);
+        if (unified)
+        {
+            // Unified path: host writes are coherent; barrier ensures GPU visibility
+            barrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT;
+            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+            vkCmdPipelineBarrier_(cmd_buf_,
+                                  VK_PIPELINE_STAGE_HOST_BIT,
+                                  VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                  0, 1, &barrier, 0, nullptr, 0, nullptr);
+        }
+        else
+        {
+            // Discrete path: copy staging → device, then transfer barrier
+            for (int i = 0; i < 4; ++i)
+            {
+                vkCmdCopyBuffer_(cmd_buf_,
+                                 buffer_pool_.staging(slots[i]).buffer,
+                                 buffer_pool_.device(slots[i]).buffer,
+                                 1, &copy_region);
+            }
+
+            barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+            vkCmdPipelineBarrier_(cmd_buf_,
+                                  VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                  VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                  0, 1, &barrier, 0, nullptr, 0, nullptr);
+        }
 
         // ─── Step 1: Azimuthal advection (A → B) ───
         {
@@ -618,19 +699,31 @@ public:
         // The final result is in B (if diffusion ran) or A (if kappa<=0)
         const int result_slot = (kappa_val > 0.0f) ? slot_B : slot_A;
 
-        // Barrier: compute → transfer
-        barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-        barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-        vkCmdPipelineBarrier_(cmd_buf_,
-                              VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                              VK_PIPELINE_STAGE_TRANSFER_BIT,
-                              0, 1, &barrier, 0, nullptr, 0, nullptr);
+        if (unified)
+        {
+            // Unified path: barrier so CPU can read GPU writes after fence
+            barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+            barrier.dstAccessMask = VK_ACCESS_HOST_READ_BIT;
+            vkCmdPipelineBarrier_(cmd_buf_,
+                                  VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                  VK_PIPELINE_STAGE_HOST_BIT,
+                                  0, 1, &barrier, 0, nullptr, 0, nullptr);
+        }
+        else
+        {
+            // Discrete path: barrier compute → transfer, then copy device → staging
+            barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+            barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+            vkCmdPipelineBarrier_(cmd_buf_,
+                                  VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                  VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                  0, 1, &barrier, 0, nullptr, 0, nullptr);
 
-        // Download result → staging
-        vkCmdCopyBuffer_(cmd_buf_,
-                         buffer_pool_.device(result_slot).buffer,
-                         buffer_pool_.staging(result_slot).buffer,
-                         1, &copy_region);
+            vkCmdCopyBuffer_(cmd_buf_,
+                             buffer_pool_.device(result_slot).buffer,
+                             buffer_pool_.staging(result_slot).buffer,
+                             1, &copy_region);
+        }
 
         if (vkEndCommandBuffer_(cmd_buf_) != VK_SUCCESS)
         {
@@ -657,7 +750,8 @@ public:
             return false;
         }
 
-        std::memcpy(result_out, buffer_pool_.staging(result_slot).mapped, field_bytes);
+        // Download result (from device buffer on unified, staging on discrete)
+        std::memcpy(result_out, host_ptr(result_slot), field_bytes);
         release_pool_slots(slots, 4);
         return true;
 #else
@@ -1016,6 +1110,163 @@ public:
 #endif
     }
 
+    // ── Cartesian tendencies (8 inputs including 1D profiles, 5 outputs) ──
+
+    bool dispatch_cartesian_tendencies(
+        const float* u_x_data, const float* u_y_data, const float* w_data,
+        const float* rho_data, const float* p_data, const float* theta_data,
+        const float* p0_base_data, const float* rho0_base_data,
+        float* du_x_dt_data, float* du_y_dt_data, float* dw_dt_data,
+        float* drho_dt_data, float* dp_dt_data,
+        int nr, int nth, int nz,
+        float dx_val, float dy_val, float dz_val,
+        float g_val, float gamma_val) override
+    {
+#if defined(TMV_HAS_VULKAN_COMPUTE_HEADERS) && defined(TMV_HAS_VULKAN_COMPUTE_DLOPEN)
+        if (!cartesian_pipeline_.is_ready())
+        {
+            return false;
+        }
+
+        CartesianTendenciesPushConstants pc{};
+        pc.nr = nr;
+        pc.nth = nth;
+        pc.nz = nz;
+        pc.dx = dx_val;
+        pc.dy = dy_val;
+        pc.dz = dz_val;
+        pc.g = g_val;
+        pc.gamma_val = gamma_val;
+        pc.padding[0] = pc.padding[1] = 0.0f;
+
+        // Cartesian interior: skip all 6 boundary faces
+        const uint32_t interior_points =
+            static_cast<uint32_t>(nr - 2) * static_cast<uint32_t>(nth - 2) *
+            static_cast<uint32_t>(nz - 2);
+
+        // The 1D profiles (p0_base, rho0_base) are passed as full-size buffers
+        // to fit dispatch_multi_field_kernel's uniform-size requirement. The
+        // shader only reads indices [0..nz-1] so the padding is never accessed.
+        // We allocate padded copies on the stack for small grids; the overhead
+        // is negligible (2 * nr*nth*nz * 4 bytes ≈ 1 MB at 64^2 * 32).
+        const size_t total_cells = static_cast<size_t>(nr) * nth * nz;
+        std::vector<float> p0_padded(total_cells, 0.0f);
+        std::vector<float> rho0_padded(total_cells, 0.0f);
+        for (int k = 0; k < nz; ++k)
+        {
+            p0_padded[k] = p0_base_data[k];
+            rho0_padded[k] = rho0_base_data[k];
+        }
+
+        const float* inputs[8] = {
+            u_x_data, u_y_data, w_data,
+            rho_data, p_data, theta_data,
+            p0_padded.data(), rho0_padded.data()
+        };
+        float* outputs[5] = {
+            du_x_dt_data, du_y_dt_data, dw_dt_data,
+            drho_dt_data, dp_dt_data
+        };
+
+        return dispatch_multi_field_kernel(
+            cartesian_pipeline_, &pc,
+            inputs, 8,
+            outputs, 5,
+            nr, nth, nz,
+            interior_points);
+#else
+        (void)u_x_data; (void)u_y_data; (void)w_data;
+        (void)rho_data; (void)p_data; (void)theta_data;
+        (void)p0_base_data; (void)rho0_base_data;
+        (void)du_x_dt_data; (void)du_y_dt_data; (void)dw_dt_data;
+        (void)drho_dt_data; (void)dp_dt_data;
+        (void)nr; (void)nth; (void)nz;
+        (void)dx_val; (void)dy_val; (void)dz_val;
+        (void)g_val; (void)gamma_val;
+        return false;
+#endif
+    }
+
+    // ── Cartesian x-advection ──
+
+    bool dispatch_advection_x(
+        const float* src, const float* u_data, float* dst,
+        int nr, int nth, int nz,
+        float dx_val, float dt_val) override
+    {
+#if defined(TMV_HAS_VULKAN_COMPUTE_HEADERS) && defined(TMV_HAS_VULKAN_COMPUTE_DLOPEN)
+        if (!advection_x_pipeline_.is_ready())
+        {
+            return false;
+        }
+
+        AdvectionXPushConstants pc{};
+        pc.nr = nr;
+        pc.nth = nth;
+        pc.nz = nz;
+        pc.dx = dx_val;
+        pc.dt = dt_val;
+        pc.padding[0] = pc.padding[1] = pc.padding[2] = 0.0f;
+
+        // x-advection interior: i=1..nr-2, all j, k=1..nz-2
+        const uint32_t interior_points =
+            static_cast<uint32_t>(nr - 2) * static_cast<uint32_t>(nth) *
+            static_cast<uint32_t>(nz - 2);
+
+        return dispatch_field3_kernel(
+            advection_x_pipeline_, &pc,
+            src, u_data, dst,
+            nr, nth, nz,
+            2,
+            interior_points);
+#else
+        (void)src; (void)u_data; (void)dst;
+        (void)nr; (void)nth; (void)nz;
+        (void)dx_val; (void)dt_val;
+        return false;
+#endif
+    }
+
+    // ── Cartesian y-advection ──
+
+    bool dispatch_advection_y(
+        const float* src, const float* v_data, float* dst,
+        int nr, int nth, int nz,
+        float dy_val, float dt_val) override
+    {
+#if defined(TMV_HAS_VULKAN_COMPUTE_HEADERS) && defined(TMV_HAS_VULKAN_COMPUTE_DLOPEN)
+        if (!advection_y_pipeline_.is_ready())
+        {
+            return false;
+        }
+
+        AdvectionYPushConstants pc{};
+        pc.nr = nr;
+        pc.nth = nth;
+        pc.nz = nz;
+        pc.dy = dy_val;
+        pc.dt = dt_val;
+        pc.padding[0] = pc.padding[1] = pc.padding[2] = 0.0f;
+
+        // y-advection interior: all i, j=1..nth-2, k=1..nz-2
+        const uint32_t interior_points =
+            static_cast<uint32_t>(nr) * static_cast<uint32_t>(nth - 2) *
+            static_cast<uint32_t>(nz - 2);
+
+        return dispatch_field3_kernel(
+            advection_y_pipeline_, &pc,
+            src, v_data, dst,
+            nr, nth, nz,
+            2,
+            interior_points);
+#else
+        (void)src; (void)v_data; (void)dst;
+        (void)nr; (void)nth; (void)nz;
+        (void)dy_val; (void)dt_val;
+        return false;
+#endif
+    }
+
     bool dispatch_tornado_tendencies(
         const float* u_r_data, const float* u_theta_data, const float* u_z_data,
         const float* rho_data, const float* p_data, const float* theta_data,
@@ -1295,6 +1546,43 @@ private:
     };
     static_assert(sizeof(SupercellTendenciesPushConstants) == 40,
                   "supercell push constants must be 40 bytes");
+
+    struct CartesianTendenciesPushConstants
+    {
+        int32_t nr;
+        int32_t nth;
+        int32_t nz;
+        float   dx;
+        float   dy;
+        float   dz;
+        float   g;
+        float   gamma_val;
+        float   padding[2];
+    };
+    static_assert(sizeof(CartesianTendenciesPushConstants) == 40,
+                  "cartesian push constants must be 40 bytes");
+
+    struct AdvectionXPushConstants
+    {
+        int32_t nr;
+        int32_t nth;
+        int32_t nz;
+        float   dx;
+        float   dt;
+        float   padding[3];
+    };
+    static_assert(sizeof(AdvectionXPushConstants) == 32, "advection-x push constants must be 32 bytes");
+
+    struct AdvectionYPushConstants
+    {
+        int32_t nr;
+        int32_t nth;
+        int32_t nz;
+        float   dy;
+        float   dt;
+        float   padding[3];
+    };
+    static_assert(sizeof(AdvectionYPushConstants) == 32, "advection-y push constants must be 32 bytes");
 
     struct TornadoTendenciesPushConstants
     {
@@ -3309,6 +3597,51 @@ private:
             }
         }
 
+        // Cartesian tendencies (optional — 13 SSBOs: 8 input + 5 output)
+        {
+            std::string cartesian_error;
+            if (create_pipeline_state("cartesian_tendencies.comp.spv", 13,
+                                      sizeof(CartesianTendenciesPushConstants),
+                                      cartesian_pipeline_, cartesian_error))
+            {
+                log_vulkan_info("pipeline ready: cartesian tendencies");
+            }
+            else
+            {
+                log_vulkan_warning("cartesian tendencies pipeline unavailable: " + cartesian_error);
+            }
+        }
+
+        // Cartesian x-advection (optional — 3 SSBOs: 2 input + 1 output)
+        {
+            std::string advx_error;
+            if (create_pipeline_state("advect_x.comp.spv", 3,
+                                      sizeof(AdvectionXPushConstants),
+                                      advection_x_pipeline_, advx_error))
+            {
+                log_vulkan_info("pipeline ready: cartesian x-advection");
+            }
+            else
+            {
+                log_vulkan_warning("cartesian x-advection pipeline unavailable: " + advx_error);
+            }
+        }
+
+        // Cartesian y-advection (optional — 3 SSBOs: 2 input + 1 output)
+        {
+            std::string advy_error;
+            if (create_pipeline_state("advect_y.comp.spv", 3,
+                                      sizeof(AdvectionYPushConstants),
+                                      advection_y_pipeline_, advy_error))
+            {
+                log_vulkan_info("pipeline ready: cartesian y-advection");
+            }
+            else
+            {
+                log_vulkan_warning("cartesian y-advection pipeline unavailable: " + advy_error);
+            }
+        }
+
         // Tornado tendencies (optional — 11 SSBOs: 6 input + 5 output)
         {
             std::string tornado_error;
@@ -3484,6 +3817,9 @@ private:
     ComputePipelineState azimuthal_pipeline_{};
     ComputePipelineState diffusion_pipeline_{};
     ComputePipelineState supercell_pipeline_{};
+    ComputePipelineState cartesian_pipeline_{};
+    ComputePipelineState advection_x_pipeline_{};
+    ComputePipelineState advection_y_pipeline_{};
     ComputePipelineState tornado_pipeline_{};
     ComputePipelineState kessler_pointwise_pipeline_{};
     ComputePipelineState kessler_sedimentation_pipeline_{};

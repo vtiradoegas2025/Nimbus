@@ -156,6 +156,65 @@ const std::vector<std::string> k_all_fields = {
 const std::unordered_set<std::string> k_all_fields_set(
     k_all_fields.begin(), k_all_fields.end());
 
+// -- Per-field ZFP compression tiers (Tier 2) --------------------------------
+// Tight: core prognostic state + vorticity budget — highest fidelity needed
+// for numerical stability and scientific reproducibility.
+const std::unordered_set<std::string> k_zfp_tight_fields = {
+    "u", "v", "w", "rho", "p", "theta",
+    "p_prime", "dynamic_pressure", "buoyancy_pressure",
+    "vorticity_r", "vorticity_theta", "vorticity_z",
+    "stretching_term", "tilting_term", "baroclinic_term"
+};
+
+// Moderate: thermodynamics, moisture species, and derived thermo fields —
+// important for physical fidelity but tolerant of slightly relaxed precision.
+const std::unordered_set<std::string> k_zfp_moderate_fields = {
+    "qv", "qc", "qr", "qi", "qs", "qh", "qg",
+    "temperature", "theta_prime", "theta_v", "theta_e", "theta_w",
+    "dewpoint", "relative_humidity", "saturation_mixing_ratio",
+    "total_condensate", "buoyancy",
+    "angular_momentum", "angular_momentum_tendency", "tracer"
+};
+
+// Loose: everything else — diagnostics, visualization, radar, surface/column.
+// These are derived or post-processed fields where 1e-2 is visually and
+// scientifically indistinguishable from full precision.
+// (No explicit list needed — any field not in tight or moderate is loose.)
+
+// -- Sparse-eligible fields (Tier 3a) -----------------------------------------
+// Hydrometeor and radar fields that are zero over >90% of the domain.
+// Thresholding removes floating-point noise so ZFP can compress
+// zero blocks efficiently.
+const std::unordered_set<std::string> k_sparse_eligible_fields = {
+    "qi", "qs", "qh", "qg", "qc", "qr",
+    "radar", "total_condensate",
+    "reflectivity_dbz", "zdr", "kdp"
+};
+
+// -- Float16-eligible fields (Tier 3c) ----------------------------------------
+// Bounded diagnostic and surface/column fields where 10-bit mantissa precision
+// is sufficient for export. These fields have well-defined physical ranges
+// and don't participate in numerical integration.
+const std::unordered_set<std::string> k_float16_eligible_fields = {
+    // Bounded diagnostics (0-100% or similar small ranges)
+    "relative_humidity", "rhohv", "tracer",
+    // Radar-derived (bounded, visualization-oriented)
+    "reflectivity_dbz", "zdr", "kdp",
+    // Surface fields (near-surface values with limited range)
+    "u10", "v10", "t2", "td2", "skin_temperature",
+    "surface_sensible_heat_flux", "surface_latent_heat_flux",
+    "surface_moisture_flux", "surface_pressure_perturbation",
+    "cold_pool_boundary", "precip_rate", "accumulated_rainfall",
+    // Column diagnostics (integrated/derived indices)
+    "composite_reflectivity", "column_max_w", "column_max_vorticity",
+    "vil", "cloud_top_height", "cloud_base_height",
+    "lcl", "lfc", "el", "cape", "cin",
+    "lifted_index", "k_index", "showalter_index", "total_totals",
+    "srh_0_1km", "srh_0_3km", "ehi", "scp", "stp",
+    // Radar synthetic
+    "ppi_sweep", "rhi_sweep", "bwer", "mesocyclone_diagnostic", "vrot"
+};
+
 } // anonymous namespace
 
 const std::vector<std::string>& get_preset_fields(FieldPreset preset)
@@ -206,6 +265,72 @@ void resolve_output_fields(OutputConfig& config)
         const auto& preset_fields = get_preset_fields(config.preset);
         config.resolved_fields.insert(preset_fields.begin(), preset_fields.end());
     }
+}
+
+bool is_sparse_eligible(const std::string& field_name)
+{
+    return k_sparse_eligible_fields.count(field_name) > 0;
+}
+
+bool is_float16_eligible(const std::string& field_name)
+{
+    return k_float16_eligible_fields.count(field_name) > 0;
+}
+
+WriteCadenceTier get_field_write_cadence_tier(const std::string& field_name)
+{
+    if (k_zfp_tight_fields.count(field_name))
+    {
+        return WriteCadenceTier::fast;
+    }
+    if (k_zfp_moderate_fields.count(field_name))
+    {
+        return WriteCadenceTier::medium;
+    }
+    return WriteCadenceTier::slow;
+}
+
+void apply_default_compression_tiers(OutputConfig& config)
+{
+    if (!config.zfp_per_field_tolerances)
+    {
+        return;
+    }
+
+    // Assign each resolved field to its tier tolerance.
+    // Existing entries (from YAML overrides) are preserved.
+    std::size_t tight_count = 0;
+    std::size_t moderate_count = 0;
+    std::size_t loose_count = 0;
+
+    for (const auto& name : config.resolved_fields)
+    {
+        if (config.zfp_field_tolerances.count(name))
+        {
+            continue; // Explicit YAML override takes precedence
+        }
+
+        if (k_zfp_tight_fields.count(name))
+        {
+            config.zfp_field_tolerances[name] = config.zfp_tight_tolerance;
+            ++tight_count;
+        }
+        else if (k_zfp_moderate_fields.count(name))
+        {
+            config.zfp_field_tolerances[name] = config.zfp_moderate_tolerance;
+            ++moderate_count;
+        }
+        else
+        {
+            config.zfp_field_tolerances[name] = config.zfp_loose_tolerance;
+            ++loose_count;
+        }
+    }
+
+    tmv::log_info("[OUTPUT] ZFP per-field tiers: ",
+                  tight_count, " tight (", config.zfp_tight_tolerance, "), ",
+                  moderate_count, " moderate (", config.zfp_moderate_tolerance, "), ",
+                  loose_count, " loose (", config.zfp_loose_tolerance, ")");
 }
 
 void estimate_disk_budget(OutputConfig& config,
@@ -383,6 +508,123 @@ OutputConfig parse_output_config(
             && parsed >= 0)
         {
             out.zfp_keyframe_interval = parsed;
+        }
+    }
+
+    // output.zfp_sparse_threshold
+    if (config.count("output.zfp_sparse_threshold"))
+    {
+        double parsed = 0.0;
+        if (local_try_parse_double(config.at("output.zfp_sparse_threshold"), parsed)
+            && parsed >= 0.0)
+        {
+            out.zfp_sparse_threshold = static_cast<float>(parsed);
+        }
+    }
+
+    // output.zfp_float16_prefilter
+    if (config.count("output.zfp_float16_prefilter"))
+    {
+        out.zfp_float16_prefilter =
+            local_parse_bool(config.at("output.zfp_float16_prefilter"));
+    }
+
+    // output.zfp_predictive_delta
+    if (config.count("output.zfp_predictive_delta"))
+    {
+        out.zfp_predictive_delta =
+            local_parse_bool(config.at("output.zfp_predictive_delta"));
+    }
+
+    // output.zfp_per_field_tolerances
+    if (config.count("output.zfp_per_field_tolerances"))
+    {
+        out.zfp_per_field_tolerances =
+            local_parse_bool(config.at("output.zfp_per_field_tolerances"));
+    }
+
+    // output.zfp_tight_tolerance
+    if (config.count("output.zfp_tight_tolerance"))
+    {
+        double parsed = 0.0;
+        if (local_try_parse_double(config.at("output.zfp_tight_tolerance"), parsed)
+            && parsed > 0.0)
+        {
+            out.zfp_tight_tolerance = parsed;
+        }
+    }
+
+    // output.zfp_moderate_tolerance
+    if (config.count("output.zfp_moderate_tolerance"))
+    {
+        double parsed = 0.0;
+        if (local_try_parse_double(config.at("output.zfp_moderate_tolerance"), parsed)
+            && parsed > 0.0)
+        {
+            out.zfp_moderate_tolerance = parsed;
+        }
+    }
+
+    // output.zfp_loose_tolerance
+    if (config.count("output.zfp_loose_tolerance"))
+    {
+        double parsed = 0.0;
+        if (local_try_parse_double(config.at("output.zfp_loose_tolerance"), parsed)
+            && parsed > 0.0)
+        {
+            out.zfp_loose_tolerance = parsed;
+        }
+    }
+
+    // output.zfp_field_tolerance.<field_name> — per-field overrides
+    {
+        const std::string prefix = "output.zfp_field_tolerance.";
+        for (const auto& [key, val] : config)
+        {
+            if (key.size() > prefix.size() &&
+                key.compare(0, prefix.size(), prefix) == 0)
+            {
+                const std::string field_name = key.substr(prefix.size());
+                double parsed = 0.0;
+                if (local_try_parse_double(val, parsed) && parsed > 0.0)
+                {
+                    out.zfp_field_tolerances[field_name] = parsed;
+                }
+                else
+                {
+                    tmv::log_warn("[OUTPUT] invalid zfp_field_tolerance for '",
+                                  field_name, "': ", val);
+                }
+            }
+        }
+    }
+
+    // output.tiered_write_cadence
+    if (config.count("output.tiered_write_cadence"))
+    {
+        out.tiered_write_cadence =
+            local_parse_bool(config.at("output.tiered_write_cadence"));
+    }
+
+    // output.write_cadence_medium_s
+    if (config.count("output.write_cadence_medium_s"))
+    {
+        int parsed = 0;
+        if (local_try_parse_int(config.at("output.write_cadence_medium_s"), parsed)
+            && parsed > 0)
+        {
+            out.write_cadence_medium_s = parsed;
+        }
+    }
+
+    // output.write_cadence_slow_s
+    if (config.count("output.write_cadence_slow_s"))
+    {
+        int parsed = 0;
+        if (local_try_parse_int(config.at("output.write_cadence_slow_s"), parsed)
+            && parsed > 0)
+        {
+            out.write_cadence_slow_s = parsed;
         }
     }
 

@@ -261,6 +261,27 @@ private:
 
                 float& operator=(float value) { return (*parent_)(i_, j_, k_) = value; }
 
+                // CRITICAL: Without an explicit copy-assignment operator that
+                // copies the *underlying float value*, the compiler synthesizes
+                // a default copy assignment that copies the proxy's parent_/i_/
+                // j_/k_ members and silently ignores the value. That makes
+                // expressions like `field[a][b][c] = field[d][e][f]` no-ops
+                // throughout the codebase. This was the root cause of the
+                // "boundary conditions never apply" bug — see Journey.md
+                // Phase 2 "Bug 5: Field3D proxy silent no-op assignment".
+                Slice0D& operator=(const Slice0D& other)
+                {
+                    (*parent_)(i_, j_, k_) = static_cast<float>(other);
+                    return *this;
+                }
+
+                template <typename ConstSlice>
+                Slice0D& operator=(const ConstSlice& other)
+                {
+                    (*parent_)(i_, j_, k_) = static_cast<float>(other);
+                    return *this;
+                }
+
                 float& operator+=(float value) { return (*parent_)(i_, j_, k_) += value; }
 
                 float& operator+=(double value) { return (*parent_)(i_, j_, k_) += static_cast<float>(value); }

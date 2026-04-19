@@ -1,0 +1,114 @@
+/**
+ * @file boundary_conditions_cylindrical.cpp
+ * @brief Cylindrical boundary-condition implementation.
+ *
+ * Axis-reflection at i=0 (antisymmetric u_r, symmetric w/rho/p/scalars),
+ * zero-gradient at i=NR-1, vertical rigid lid + rigid surface with
+ * hydrostatic pressure extrapolation.
+ *
+ * The Cartesian implementation lives in `boundary_conditions_cartesian.cpp`.
+ * The dispatcher in `dynamics.cpp::apply_boundary_conditions()` selects
+ * between the two based on `global_coordinate_system`.
+ *
+ * Extracted from the inline body in `src/core/dynamics.cpp`.
+ */
+
+#include "core/boundary_conditions.hpp"
+#include "core/simulation.hpp"
+#include "physics/dynamics_base.hpp"
+
+#include <algorithm>
+#include <cmath>
+
+void apply_cylindrical_boundary_conditions()
+{
+    // ----- Radial faces (i = 0 and i = NR-1) ----------------------------
+    //
+    // i = 0 is the singular axis. u_r uses the antisymmetric ghost-cell
+    // convention u[0] = -u[1] so the centered d(u_r)/dr stencil at i=1
+    // has a defined value. All other fields use symmetric (zero-gradient).
+    //
+    // i = NR-1 is the outer radial boundary. u_r uses antisymmetric
+    // (u[NR-1] = -u[NR-2]) to prevent momentum accumulation at the edge.
+    // All other fields use zero-gradient.
+    for (int j = 0; j < NTH; ++j)
+    {
+        for (int k = 0; k < NZ; ++k)
+        {
+            u[0][j][k] = -u[1][j][k];
+            u[NR-1][j][k] = -u[NR-2][j][k];
+            w[0][j][k] = w[1][j][k];
+            w[NR-1][j][k] = w[NR-2][j][k];
+            rho[0][j][k] = rho[1][j][k];
+            rho[NR-1][j][k] = rho[NR-2][j][k];
+            p[0][j][k] = p[1][j][k];
+            p[NR-1][j][k] = p[NR-2][j][k];
+        }
+    }
+
+    // ----- Vertical faces (k = 0 and k = NZ-1) --------------------------
+    //
+    // Pressure uses *hydrostatic extrapolation* — not zero-gradient — so the
+    // ghost cells satisfy dp/dz = -rho*g with the same discretization the
+    // dynamics' centered_dz_span uses. With Neumann (p[NZ-1] = p[NZ-2]) the
+    // pressure gradient at k=NZ-2 collapses to half its true value, the
+    // -dp/dz/rho - g residual becomes -g/2 ~ -4.9 m/s^2, and the model
+    // accelerates downward at the top edge until it slams into the velocity
+    // clamps. The same logic applies in reverse at the surface (k=0).
+    //
+    // Density uses zero-gradient — flat-terrain rho varies smoothly with
+    // height and the next-to-boundary value is a good proxy.
+    // theta, qv, qc, qr, qi, qs, qg, qh use zero-gradient — these scalars
+    // do not appear in the discrete hydrostatic relation directly.
+    // u uses zero-gradient at the top (free-slip) and Dirichlet w=0 at top
+    // and bottom (rigid lid + rigid surface).
+    const double g_local = static_cast<double>(g);
+    for (int i = 0; i < NR; ++i)
+    {
+        for (int j = 0; j < NTH; ++j)
+        {
+            w[i][j][0] = 0.0f;
+            w[i][j][NZ-1] = 0.0f;
+
+            u[i][j][0] = u[i][j][1];
+            u[i][j][NZ-1] = u[i][j][NZ-2];
+
+            rho[i][j][0] = rho[i][j][1];
+            rho[i][j][NZ-1] = rho[i][j][NZ-2];
+
+            // Hydrostatic extrapolation for pressure ghost cells.
+            const double rho_top = std::max(static_cast<double>(rho[i][j][NZ-2]), 1.0e-3);
+            const double rho_bot = std::max(static_cast<double>(rho[i][j][1]), 1.0e-3);
+            const double dz_local = (std::isfinite(dz) && dz > 0.0) ? dz : 1.0;
+            p[i][j][NZ-1] = static_cast<float>(static_cast<double>(p[i][j][NZ-2]) - rho_top * g_local * dz_local);
+            p[i][j][0]    = static_cast<float>(static_cast<double>(p[i][j][1])    + rho_bot * g_local * dz_local);
+
+            theta[i][j][0] = theta[i][j][1];
+            theta[i][j][NZ-1] = theta[i][j][NZ-2];
+
+            qv[i][j][0] = qv[i][j][1]; qv[i][j][NZ-1] = qv[i][j][NZ-2];
+            qc[i][j][0] = qc[i][j][1]; qc[i][j][NZ-1] = qc[i][j][NZ-2];
+            qr[i][j][0] = qr[i][j][1]; qr[i][j][NZ-1] = qr[i][j][NZ-2];
+            qi[i][j][0] = qi[i][j][1]; qi[i][j][NZ-1] = qi[i][j][NZ-2];
+            qs[i][j][0] = qs[i][j][1]; qs[i][j][NZ-1] = qs[i][j][NZ-2];
+            qg[i][j][0] = qg[i][j][1]; qg[i][j][NZ-1] = qg[i][j][NZ-2];
+            qh[i][j][0] = qh[i][j][1]; qh[i][j][NZ-1] = qh[i][j][NZ-2];
+        }
+    }
+
+    // ----- Radial scalar BCs (theta + moisture at i = 0, NR-1) ----------
+    for (int j = 0; j < NTH; ++j)
+    {
+        for (int k = 0; k < NZ; ++k)
+        {
+            theta[0][j][k] = theta[1][j][k]; theta[NR-1][j][k] = theta[NR-2][j][k];
+            qv[0][j][k] = qv[1][j][k]; qv[NR-1][j][k] = qv[NR-2][j][k];
+            qc[0][j][k] = qc[1][j][k]; qc[NR-1][j][k] = qc[NR-2][j][k];
+            qr[0][j][k] = qr[1][j][k]; qr[NR-1][j][k] = qr[NR-2][j][k];
+            qi[0][j][k] = qi[1][j][k]; qi[NR-1][j][k] = qi[NR-2][j][k];
+            qs[0][j][k] = qs[1][j][k]; qs[NR-1][j][k] = qs[NR-2][j][k];
+            qg[0][j][k] = qg[1][j][k]; qg[NR-1][j][k] = qg[NR-2][j][k];
+            qh[0][j][k] = qh[1][j][k]; qh[NR-1][j][k] = qh[NR-2][j][k];
+        }
+    }
+}

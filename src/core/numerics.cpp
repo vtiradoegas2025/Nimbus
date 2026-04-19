@@ -289,6 +289,19 @@ double choose_runtime_timestep()
         }
     }
 
+    // Acoustic CFL diagnostic.
+    // Estimate sound speed from base-state surface values and warn if dt
+    // exceeds the acoustic stability limit without split-explicit enabled.
+    double dt_acoustic_cap = std::numeric_limits<double>::infinity();
+    if (!p0_base.empty() && !rho0_base.empty() && rho0_base[0] > 0.0)
+    {
+        const double c_s = std::sqrt(gamma * p0_base[0] / rho0_base[0]);
+        if (c_s > 0.0)
+        {
+            dt_acoustic_cap = cfl_safety * min_dz_safe / c_s;
+        }
+    }
+
     const double dt_physical_cap = std::min(dt_advection_cap, dt_diffusion_cap);
     if (std::isfinite(dt_physical_cap) && dt_physical_cap > 0.0)
     {
@@ -323,7 +336,17 @@ double choose_runtime_timestep()
         tmv::log_debug("[NUMERICS] timestep caps: current=", dt_current,
                        " limited=", dt_limited,
                        " advection_cap=", dt_advection_cap,
-                       " diffusion_cap=", dt_diffusion_cap);
+                       " diffusion_cap=", dt_diffusion_cap,
+                       " acoustic_cap=", dt_acoustic_cap);
     }
+
+    if (!global_time_stepping_config.split_acoustic
+        && std::isfinite(dt_acoustic_cap) && dt_limited > dt_acoustic_cap)
+    {
+        tmv::log_warn("[NUMERICS] dt=", dt_limited,
+                      " exceeds acoustic CFL limit=", dt_acoustic_cap,
+                      " (c_s*dt/dz > 1). Enable split_acoustic=true or reduce dt.");
+    }
+
     return dt_limited;
 }

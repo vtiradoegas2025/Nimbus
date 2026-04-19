@@ -9,8 +9,10 @@
 
 #include "numerics/advection.hpp"
 #include "numerics/advection_base.hpp"
+#include "numerics/advection_cartesian.hpp"
 #include "numerics/compute_backend.hpp"
 #include "numerics/compute_kernel_template.hpp"
+#include "core/runtime_config.hpp"
 #include "core/simulation.hpp"
 #include <algorithm>
 #include <chrono>
@@ -269,6 +271,13 @@ bool use_numerics_vertical_advection()
 
 /**
  * @brief Logs the selected runtime advection path once per execution.
+ *
+ * The split-axis label depends on `global_coordinate_system`. The
+ * cylindrical path runs the historical (r, θ) directional split. The
+ * Cartesian path (Phase A.5) runs the parallel (x, y) directional split
+ * implemented in `src/advection/advection_cartesian.cpp`. The vertical
+ * tendency is identical between the two paths because the TVD vertical
+ * scheme is coordinate-agnostic.
  */
 void log_runtime_advection_path_once()
 {
@@ -276,16 +285,20 @@ void log_runtime_advection_path_once()
     if (logged || !log_normal_enabled()){return;}
     logged = true;
 
+    const char* split_axes_label =
+        (global_coordinate_system == CoordinateSystem::Cartesian) ? "(x/y)" : "(r/theta)";
+
     if (use_numerics_vertical_advection())
     {
-        std::cout << "[ADVECTION] Runtime path: src/advection directional split (r/theta) + "
-                  << "src/numerics/advection/" << global_advection_config.scheme_id
+        std::cout << "[ADVECTION] Runtime path: src/advection directional split " << split_axes_label
+                  << " + src/numerics/advection/" << global_advection_config.scheme_id
                   << " (vertical tendency)" << std::endl;
     }
     else
     {
-        std::cout << "[ADVECTION] Runtime path: src/advection directional split kernels "
-                  << "(numerics.advection schemes are initialized but not selected for vertical transport)." << std::endl;
+        std::cout << "[ADVECTION] Runtime path: src/advection directional split " << split_axes_label
+                  << " kernels (numerics.advection schemes are initialized but not selected for vertical transport)."
+                  << std::endl;
     }
 }
 
@@ -664,6 +677,101 @@ void advect_scalar_3d(Field3D& scalar, double dt, double kappa)
     ensure_field_shape(scratch_b);
 
     const double dt_half = dt * 0.5;
+
+    // ── Cartesian early-return path (Phase A.5) ──
+    //
+    // The cylindrical batched dispatch below uses periodic-θ shaders that
+    // would corrupt Cartesian state, so the Cartesian branch skips it
+    // entirely and runs the parallel (x, y) directional split implemented
+    // in `src/advection/advection_cartesian.cpp`. The vertical step is
+    // identical to the cylindrical path because the TVD vertical scheme
+    // is coordinate-agnostic.
+    //
+    // Strang-like ordering: x/2 → y/2 → z → y/2 → x/2 → diffusion. This
+    // mirrors the cylindrical r/2 → θ/2 → z → θ/2 → r/2 → diffusion
+    // sequence so the splitting error has the same structure on both
+    // backends. Perf buckets are reused (`r_s` for x time, `theta_s` for
+    // y time, etc.); the labels are slightly off when Cartesian is active
+    // and will be cleaned up in Phase B alongside the broader perf audit.
+    if (global_coordinate_system == CoordinateSystem::Cartesian)
+    {
+        const auto x1_t0 = perf_on ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
+        ensure_field_shape(scratch_a);
+        if (!dispatch_advection_x_backend(
+                scalar.data(), u.data(), scratch_a.data(),
+                NR, NTH, NZ, static_cast<float>(dr), static_cast<float>(dt_half)))
+        {
+            advect_scalar_1d_x_kernel_cartesian(scalar, scratch_a, dt_half);
+        }
+        if (perf_on)
+        {
+            g_advection_perf_totals.r_s += std::chrono::duration<double>(std::chrono::steady_clock::now() - x1_t0).count();
+        }
+
+        const auto y1_t0 = perf_on ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
+        ensure_field_shape(scratch_b);
+        if (!dispatch_advection_y_backend(
+                scratch_a.data(), v_theta.data(), scratch_b.data(),
+                NR, NTH, NZ, static_cast<float>(dr), static_cast<float>(dt_half)))
+        {
+            advect_scalar_1d_y_kernel_cartesian(scratch_a, scratch_b, dt_half);
+        }
+        if (perf_on)
+        {
+            g_advection_perf_totals.theta_s += std::chrono::duration<double>(std::chrono::steady_clock::now() - y1_t0).count();
+        }
+
+        const auto z_t0 = perf_on ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
+        if (use_numerics_vertical_advection())
+        {
+            advect_scalar_1d_z_numerics_kernel(scratch_b, scratch_a, dt, kappa);
+        }
+        else
+        {
+            advect_scalar_1d_z_kernel(scratch_b, scratch_a, dt, kappa);
+        }
+        if (perf_on)
+        {
+            g_advection_perf_totals.z_s += std::chrono::duration<double>(std::chrono::steady_clock::now() - z_t0).count();
+        }
+
+        const auto y2_t0 = perf_on ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
+        ensure_field_shape(scratch_b);
+        if (!dispatch_advection_y_backend(
+                scratch_a.data(), v_theta.data(), scratch_b.data(),
+                NR, NTH, NZ, static_cast<float>(dr), static_cast<float>(dt_half)))
+        {
+            advect_scalar_1d_y_kernel_cartesian(scratch_a, scratch_b, dt_half);
+        }
+        if (perf_on)
+        {
+            g_advection_perf_totals.theta_s += std::chrono::duration<double>(std::chrono::steady_clock::now() - y2_t0).count();
+        }
+
+        const auto x2_t0 = perf_on ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
+        ensure_field_shape(scratch_a);
+        if (!dispatch_advection_x_backend(
+                scratch_b.data(), u.data(), scratch_a.data(),
+                NR, NTH, NZ, static_cast<float>(dr), static_cast<float>(dt_half)))
+        {
+            advect_scalar_1d_x_kernel_cartesian(scratch_b, scratch_a, dt_half);
+        }
+        if (perf_on)
+        {
+            g_advection_perf_totals.r_s += std::chrono::duration<double>(std::chrono::steady_clock::now() - x2_t0).count();
+        }
+
+        const auto diff_t0 = perf_on ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
+        apply_diffusion_kernel_cartesian(scratch_a, scalar, dt, kappa);
+        if (perf_on)
+        {
+            g_advection_perf_totals.diffusion_s += std::chrono::duration<double>(std::chrono::steady_clock::now() - diff_t0).count();
+            g_advection_perf_totals.scalar_total_s +=
+                std::chrono::duration<double>(std::chrono::steady_clock::now() - scalar_t0).count();
+            ++g_advection_perf_totals.scalar_calls;
+        }
+        return;
+    }
 
     // ── Try batched GPU dispatch (eliminates intermediate round-trips) ──
     const bool batched_available = supports_batched_advection_dispatch();

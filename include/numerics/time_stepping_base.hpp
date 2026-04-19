@@ -15,6 +15,27 @@
  * The runtime uses this layer to select and drive a scheme uniformly.
  */
 
+/**
+ * @brief Callbacks for split-explicit acoustic time stepping.
+ *
+ * The time stepping scheme owns the algorithm (dt splitting, forward-backward
+ * ordering, N substeps). The caller provides field-specific callbacks that
+ * know how to compute tendencies and update prognostic fields.
+ */
+struct SplitExplicitCallbacks
+{
+    /// Compute slow tendencies (advection + buoyancy) into caller-managed buffers.
+    std::function<void()> compute_slow_tendencies;
+    /// Apply slow tendencies to prognostic fields with the given dt.
+    std::function<void(double dt)> apply_slow_tendencies;
+    /// Compute and apply fast pressure/density tendencies (forward phase).
+    std::function<void(double dt_small)> apply_fast_pressure;
+    /// Compute and apply fast momentum tendencies (backward phase, uses updated p/rho).
+    std::function<void(double dt_small)> apply_fast_momentum;
+    /// Lightweight boundary conditions for u, v, w, rho, p only.
+    std::function<void()> acoustic_bcs;
+};
+
 struct TimeSteppingConfig
 {
     std::string scheme_id = "rk3";
@@ -70,6 +91,25 @@ public:
      * @return Suggested time step in seconds.
      */
     virtual double suggest_dt(const TimeSteppingConfig& cfg, const TimeSteppingState& state) = 0;
+
+    /**
+     * @brief Performs one split-explicit acoustic time step.
+     *
+     * The scheme handles dt splitting, forward-backward ordering, and N
+     * acoustic substeps. The caller provides callbacks for the field-specific
+     * tendency computation and updates.
+     *
+     * Default: unsupported (does nothing). Override in split-explicit schemes.
+     */
+    virtual void step_split_acoustic(
+        const TimeSteppingConfig& cfg,
+        double dt_large,
+        const SplitExplicitCallbacks& callbacks) {}
+
+    /**
+     * @brief Returns true if this scheme supports split-explicit acoustic stepping.
+     */
+    virtual bool supports_split_acoustic() const { return false; }
 };
 
 using TimeSteppingSchemeFactory = std::unique_ptr<TimeSteppingSchemeBase> (*)(const TimeSteppingConfig&);

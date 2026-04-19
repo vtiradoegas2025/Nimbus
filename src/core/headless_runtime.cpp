@@ -55,16 +55,27 @@ int run_headless_simulation(const HeadlessRunOptions& options)
     std::vector<float> accumulated_rainfall_surface_mm;
     double accumulated_rainfall_last_update_s = 0.0;
 
-    // Resolve field selection and estimate disk budget
+    // Resolve field selection, compression tiers, and estimate disk budget
     resolve_output_fields(output_config);
+    apply_default_compression_tiers(output_config);
     if (log_normal_enabled())
     {
+        std::cout << "[CONFIG] coordinate_system="
+                  << coordinate_system_name(global_coordinate_system) << std::endl;
         std::cout << "[OUTPUT] Format: " << output_format_name(output_config.format)
                   << ", fields: " << field_preset_name(output_config.preset)
                   << " (" << output_config.resolved_fields.size() << " fields)"
                   << ", async_io: " << (output_config.async_io ? "on" : "off")
                   << std::endl;
     }
+    if (output_config.tiered_write_cadence && log_normal_enabled())
+    {
+        std::cout << "[OUTPUT] Tiered write cadence: fast=" << write_every_s
+                  << "s, medium=" << output_config.write_cadence_medium_s
+                  << "s, slow=" << output_config.write_cadence_slow_s
+                  << "s" << std::endl;
+    }
+
     // Runtime ZFP fallback: if ZFP format requested but not compiled in, use npy_3d
     if (output_config.format == OutputFormat::zfp)
     {
@@ -315,6 +326,11 @@ int run_headless_simulation(const HeadlessRunOptions& options)
     {
         npy::write_field_slice(field, theta, filename);
     };
+
+    // Active fields for this export tick. When tiered_write_cadence is enabled,
+    // this is a subset of resolved_fields based on which cadence tiers are due.
+    // When disabled, this mirrors resolved_fields (all fields every tick).
+    std::unordered_set<std::string> active_export_fields;
 
     auto write_all_fields = [&](int export_index) -> bool
     {
@@ -1727,9 +1743,10 @@ int run_headless_simulation(const HeadlessRunOptions& options)
             return out.good();
         };
 
-        const auto& rf = output_config.resolved_fields;
+        const auto& rf = active_export_fields;
         const bool use_3d = (output_config.format == OutputFormat::npy_3d ||
-                             output_config.format == OutputFormat::csv);
+                             output_config.format == OutputFormat::csv ||
+                             output_config.format == OutputFormat::zfp);
         const std::string step_str = stepdir.str();
 
         // Async handoff is only used for 3D format with async_io enabled.
@@ -2617,6 +2634,10 @@ int run_headless_simulation(const HeadlessRunOptions& options)
     int export_index = 0;
     ::simulation_time = 0.0;
     double next_field_export_time_s = (write_every_s > 0) ? static_cast<double>(write_every_s) : -1.0;
+    double next_medium_export_time_s = (output_config.tiered_write_cadence && write_every_s > 0)
+        ? static_cast<double>(output_config.write_cadence_medium_s) : -1.0;
+    double next_slow_export_time_s = (output_config.tiered_write_cadence && write_every_s > 0)
+        ? static_cast<double>(output_config.write_cadence_slow_s) : -1.0;
 
     using PerfClock = std::chrono::steady_clock;
     /**
@@ -2720,6 +2741,9 @@ int run_headless_simulation(const HeadlessRunOptions& options)
 #ifdef EXPORT_NPY
     if (write_every_s > 0)
     {
+        // Initial export writes all fields regardless of cadence tier
+        active_export_fields = output_config.resolved_fields;
+
         bool initial_export_ok = true;
         timed_call(perf_totals.initial_export_s, [&] {
             initial_export_ok = write_all_fields(export_index++);
@@ -2780,7 +2804,7 @@ int run_headless_simulation(const HeadlessRunOptions& options)
         // The viewer polls the sequence number to detect new frames.
         shm_update();
 
-        if (verbose_export_debug && steps % 100 == 0 && steps < 1000) 
+        if (verbose_export_debug && steps % 10 == 0) 
         {
             float theta_min = 1e10, theta_max = -1e10;
             float u_min = 1e10, u_max = -1e10;
@@ -2805,7 +2829,20 @@ int run_headless_simulation(const HeadlessRunOptions& options)
             std::cout << "  Wind (u) sample: min=" << u_min << "m/s, max=" << u_max << "m/s" << std::endl;
             std::cout << "  NaN/Inf count (sample): " << nan_count << "/" << inf_count << std::endl;
 
-            if (theta_min < 0 || theta_max > 500 || std::abs(u_min) > 150 || std::abs(u_max) > 150) 
+            // Full-field w_max scan (cheap: one pass, no allocation)
+            float w_global_min = 1e10f, w_global_max = -1e10f;
+            for (int i = 0; i < NR; ++i)
+                for (int j = 0; j < NTH; ++j)
+                    for (int k = 0; k < NZ; ++k)
+                    {
+                        const float wv = static_cast<float>(w[i][j][k]);
+                        if (wv < w_global_min) w_global_min = wv;
+                        if (wv > w_global_max) w_global_max = wv;
+                    }
+            std::cout << "  Vertical velocity (w): min=" << w_global_min
+                      << "m/s, max=" << w_global_max << "m/s" << std::endl;
+
+            if (theta_min < 0 || theta_max > 500 || std::abs(u_min) > 150 || std::abs(u_max) > 150)
             {
                 std::cerr << "  ⚠️  WARNING: Values going wrong at step " << steps << "!" << std::endl;
             }
@@ -2828,6 +2865,32 @@ int run_headless_simulation(const HeadlessRunOptions& options)
         {
             while (simulation_time + 1.0e-9 >= next_field_export_time_s)
             {
+                // Populate active_export_fields for this tick.
+                // When tiered cadence is disabled, all resolved fields are active.
+                active_export_fields.clear();
+                const bool medium_due = !output_config.tiered_write_cadence ||
+                    (simulation_time + 1.0e-9 >= next_medium_export_time_s);
+                const bool slow_due = !output_config.tiered_write_cadence ||
+                    (simulation_time + 1.0e-9 >= next_slow_export_time_s);
+
+                for (const auto& name : output_config.resolved_fields)
+                {
+                    if (!output_config.tiered_write_cadence)
+                    {
+                        active_export_fields.insert(name);
+                    }
+                    else
+                    {
+                        const WriteCadenceTier tier = get_field_write_cadence_tier(name);
+                        if (tier == WriteCadenceTier::fast ||
+                            (tier == WriteCadenceTier::medium && medium_due) ||
+                            (tier == WriteCadenceTier::slow && slow_due))
+                        {
+                            active_export_fields.insert(name);
+                        }
+                    }
+                }
+
                 bool export_ok = true;
                 timed_call(perf_totals.export_s, [&] {
                     export_ok = write_all_fields(export_index++);
@@ -2839,6 +2902,16 @@ int run_headless_simulation(const HeadlessRunOptions& options)
                 }
                 shm_update();
                 next_field_export_time_s += static_cast<double>(write_every_s);
+                if (medium_due && output_config.tiered_write_cadence)
+                {
+                    next_medium_export_time_s +=
+                        static_cast<double>(output_config.write_cadence_medium_s);
+                }
+                if (slow_due && output_config.tiered_write_cadence)
+                {
+                    next_slow_export_time_s +=
+                        static_cast<double>(output_config.write_cadence_slow_s);
+                }
             }
         }
 #endif

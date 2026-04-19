@@ -251,6 +251,15 @@ bool apply_soundings_to_initial_state()
             }
         }
 
+        // Coordinate-system branch (Phase A.4 of the Coordinate Backend Plan).
+        // The cylindrical path projects the Cartesian sounding hodograph onto
+        // (u_r, u_θ); the Cartesian path stores u_x / u_y directly. Same
+        // logic as `equations.cpp::initialize` — see that function for the
+        // full rationale and the Bug 7 reference. Both branches still apply
+        // the horizontal-wind clamp for sounding-injected NaN protection.
+        const bool use_cartesian_wind =
+            (global_coordinate_system == CoordinateSystem::Cartesian);
+
         #pragma omp parallel for collapse(2)
         for (int i = 0; i < NR; ++i)
         {
@@ -270,10 +279,18 @@ bool apply_soundings_to_initial_state()
                     const float qv_anomaly = static_cast<float>(qv[i][j][k]) - qv_baseline[kz];
                     qv[i][j][k] = clamp_qv_kgkg(qv_profile[kz] + qv_anomaly);
 
-                    const double u_r = u_cart_profile[kz] * cos_th + v_cart_profile[kz] * sin_th;
-                    const double v_th = -u_cart_profile[kz] * sin_th + v_cart_profile[kz] * cos_th;
-                    u[i][j][k] = clamp_wind_horizontal_ms(static_cast<float>(u_r));
-                    v_theta[i][j][k] = clamp_wind_horizontal_ms(static_cast<float>(v_th));
+                    if (use_cartesian_wind)
+                    {
+                        u[i][j][k]       = clamp_wind_horizontal_ms(static_cast<float>(u_cart_profile[kz]));
+                        v_theta[i][j][k] = clamp_wind_horizontal_ms(static_cast<float>(v_cart_profile[kz]));
+                    }
+                    else
+                    {
+                        const double u_r  =  u_cart_profile[kz] * cos_th + v_cart_profile[kz] * sin_th;
+                        const double v_th = -u_cart_profile[kz] * sin_th + v_cart_profile[kz] * cos_th;
+                        u[i][j][k]       = clamp_wind_horizontal_ms(static_cast<float>(u_r));
+                        v_theta[i][j][k] = clamp_wind_horizontal_ms(static_cast<float>(v_th));
+                    }
                 }
             }
         }
@@ -750,10 +767,44 @@ int main(int argc, char** argv)
     apply_chaos_initial_conditions();
 
     std::string dynamics_scheme_name = "tornado";
-    if (!global_dynamics_scheme_name.empty()) 
+    if (!global_dynamics_scheme_name.empty())
     {
         dynamics_scheme_name = global_dynamics_scheme_name;
     }
+
+    // Validate that coordinate_system and dynamics scheme are consistent.
+    // Cartesian coordinates require the cartesian dynamics scheme (no 1/r terms),
+    // and the cartesian scheme assumes Cartesian indexing that is wrong on a
+    // cylindrical grid. A mismatch is always a config error.
+    {
+        const bool coord_is_cartesian =
+            (global_coordinate_system == CoordinateSystem::Cartesian);
+        const bool scheme_is_cartesian =
+            (dynamics_scheme_name == "cartesian" ||
+             dynamics_scheme_name == "cart" ||
+             dynamics_scheme_name == "cartesian_cpu");
+
+        if (coord_is_cartesian && !scheme_is_cartesian)
+        {
+            std::cerr << "[CONFIG ERROR] coordinate_system=cartesian requires "
+                      << "dynamics.scheme=cartesian, but got '"
+                      << dynamics_scheme_name << "'. The cylindrical dynamics "
+                      << "scheme uses 1/r terms that are invalid on a Cartesian "
+                      << "grid. Aborting." << std::endl;
+            return 1;
+        }
+        if (!coord_is_cartesian && scheme_is_cartesian)
+        {
+            std::cerr << "[CONFIG ERROR] dynamics.scheme=cartesian requires "
+                      << "coordinate_system=cartesian, but got '"
+                      << coordinate_system_name(global_coordinate_system)
+                      << "'. The Cartesian dynamics scheme assumes straight "
+                      << "indexing that is wrong on a cylindrical grid. "
+                      << "Aborting." << std::endl;
+            return 1;
+        }
+    }
+
     initialize_dynamics(dynamics_scheme_name);
 
     if (global_radiation_config.scheme_id.empty()) 

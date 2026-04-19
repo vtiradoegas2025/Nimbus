@@ -57,6 +57,7 @@ int global_perf_report_every_steps = 0;
 // Base-state profile (simulation.hpp)
 // ---------------------------------------------------------------------------
 std::vector<double> rho0_base;
+std::vector<double> p0_base;
 
 // ---------------------------------------------------------------------------
 // Prognostic fields (simulation.hpp / equations.cpp)
@@ -127,6 +128,7 @@ double global_sfc_qv_kgkg = 0.014;
 double global_tropopause_z_m = 12000.0;
 
 double global_bubble_center_x_m = 50000.0;
+double global_bubble_center_y_m = 0.0;
 double global_bubble_center_z_m = 1500.0;
 double global_bubble_radius_m = 10000.0;
 double global_bubble_dtheta_k = 2.0;
@@ -137,6 +139,8 @@ SoundingConfig global_runtime_sounding_config{};
 
 std::string global_microphysics_scheme = "kessler";
 std::string global_dynamics_scheme_name = "tornado";
+
+CoordinateSystem global_coordinate_system = CoordinateSystem::Cylindrical;
 
 // ---------------------------------------------------------------------------
 // Validation (runtime_config.hpp / field_validation.hpp)
@@ -192,3 +196,38 @@ std::unique_ptr<TimeSteppingSchemeBase> time_stepping_scheme;
 // Chaos (chaos_base.hpp)
 // ---------------------------------------------------------------------------
 chaos::ChaosConfig global_chaos_config;
+
+// ---------------------------------------------------------------------------
+// GPU dispatch stubs (compute_kernel_template.hpp)
+//
+// Unit tests run on CPU only. These weak stubs satisfy the linker for test
+// binaries that link against cartesian.cpp without pulling in the full
+// compute backend. Test binaries that DO link compute_kernel_template.cpp
+// (e.g., the advection test) will use the real symbols instead.
+// ---------------------------------------------------------------------------
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((weak))
+#endif
+bool dispatch_cartesian_tendencies_backend(
+    const float*, const float*, const float*,
+    const float*, const float*, const float*,
+    const float*, const float*,
+    float*, float*, float*, float*, float*,
+    int, int, int, float, float, float, float, float)
+{ return false; }
+
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((weak))
+#endif
+bool dispatch_advection_x_backend(
+    const float*, const float*, float*,
+    int, int, int, float, float)
+{ return false; }
+
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((weak))
+#endif
+bool dispatch_advection_y_backend(
+    const float*, const float*, float*,
+    int, int, int, float, float)
+{ return false; }

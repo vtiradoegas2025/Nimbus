@@ -152,10 +152,13 @@ void TornadoScheme::compute_momentum_tendencies(const Field3D& u_r,
             double advective_z = -ur * duz_dr - uz * duz_dz;
             double pressure_grad_z = -dp_dz / rho_val;
 
-            double theta_prime = theta[i][j][k] - theta0;
-            double buoyancy = dynamics_constants::g * (theta_prime / theta0);
-
-            double du_z = advective_z + pressure_grad_z - dynamics_constants::g + buoyancy;
+            // Fully compressible vertical momentum equation:
+            //   dw/dt = -(1/ρ) ∂p/∂z - g + advection
+            // Buoyancy is implicit in (-∂p/∂z/ρ - g). See the matching comment
+            // in src/dynamics/schemes/supercell/supercell.cpp for the full
+            // explanation and docs/Journey.md Phase 2 "Bug 3: Double-counted
+            // buoyancy". Do NOT reintroduce an explicit g·(θ-θ₀)/θ₀ term here.
+            double du_z = advective_z + pressure_grad_z - dynamics_constants::g;
             if (!std::isfinite(du_z))
             {
                 du_z = 0.0;

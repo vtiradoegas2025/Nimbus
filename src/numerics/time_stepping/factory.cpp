@@ -10,6 +10,7 @@
 #include "factory.hpp"
 #include "schemes/rk3/rk3.hpp"
 #include "schemes/rk4/rk4.hpp"
+#include "schemes/split_explicit/split_explicit.hpp"
 #include "util/scheme_factory.hpp"
 
 namespace
@@ -17,8 +18,11 @@ namespace
 const tmv::SchemeRegistry<TimeSteppingSchemeBase> registry({
     {"rk3", [] { return std::make_unique<RK3Scheme>(); }},
     {"rk4", [] { return std::make_unique<RK4Scheme>(); }},
+    {"split_explicit", [] { return std::make_unique<SplitExplicitScheme>(); }},
 }, {
     {"ssprk3", "rk3"},
+    {"split_explicit_rk3", "split_explicit"},
+    {"klemp_wilhelmson", "split_explicit"},
 });
 }
 

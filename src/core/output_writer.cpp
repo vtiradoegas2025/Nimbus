@@ -13,9 +13,65 @@
 #include <fstream>
 #include <iostream>
 
+#include <cmath>
+#include <cstdint>
+
 #ifdef HAVE_ZFP
 #include <zfp.h>
 #endif
+
+namespace {
+
+/// Quantize a float32 value to float16 precision (IEEE 754 binary16).
+/// The result is returned as float32 but with only 10 mantissa bits of
+/// precision, reducing entropy for downstream compression.
+inline float quantize_half(float val)
+{
+    // Handle special cases
+    if (!std::isfinite(val))
+    {
+        return val;
+    }
+
+    // IEEE 754 bit manipulation: float32 has 23 mantissa bits,
+    // float16 has 10. We zero the bottom 13 bits with rounding.
+    uint32_t bits;
+    std::memcpy(&bits, &val, sizeof(bits));
+
+    // Round-to-nearest-even on bit 13
+    constexpr uint32_t round_bit = 1u << 12;
+    constexpr uint32_t mask = 0xFFFFE000u; // keep top 19 bits (1 sign + 8 exp + 10 mantissa)
+    bits = (bits + round_bit) & mask;
+
+    float result;
+    std::memcpy(&result, &bits, sizeof(result));
+    return result;
+}
+
+/// Quantize a float32 buffer to float16 precision in-place.
+inline void quantize_buffer_to_half(std::vector<float>& buf)
+{
+    for (auto& v : buf)
+    {
+        v = quantize_half(v);
+    }
+}
+
+/// Zero out values below a threshold in a buffer (for sparse fields).
+/// Also zeros negative values for fields like mixing ratios where
+/// negative values are physically meaningless noise.
+inline void threshold_sparse_buffer(std::vector<float>& buf, float threshold)
+{
+    for (auto& v : buf)
+    {
+        if (std::abs(v) < threshold)
+        {
+            v = 0.0f;
+        }
+    }
+}
+
+} // anonymous namespace
 
 AsyncOutputWriter::AsyncOutputWriter(const OutputConfig& config)
     : config_(config)
@@ -162,13 +218,15 @@ void AsyncOutputWriter::writer_loop()
  *
  * For v1 files (no delta encoding), the payload starts at byte 36.
  *
- * @param is_delta If true, the data represents (current - previous) rather
- *                 than an absolute field. The reader must add the previous
- *                 keyframe to reconstruct the original.
+ * @param delta_flags Encoding flags for the frame type:
+ *                    0x00 = keyframe (absolute values)
+ *                    0x01 = simple delta (current - previous)
+ *                    0x03 = predictive delta (current - 2*prev + prev_prev)
+ *                    The reader uses these to reconstruct the original field.
  */
 static bool write_zfp_3d(const float* data, int dim0, int dim1, int dim2,
                           const std::string& mode_str, double tolerance,
-                          int rate_bps, bool is_delta,
+                          int rate_bps, uint8_t delta_flags,
                           const std::string& path,
                           std::size_t& bytes_out, std::string& error)
 {
@@ -271,7 +329,7 @@ static bool write_zfp_3d(const float* data, int dim0, int dim1, int dim2,
     const uint16_t version = 2;
     const int32_t d0 = dim0, d1 = dim1, d2 = dim2;
     const uint64_t csize = compressed_size;
-    const uint8_t flags = is_delta ? 0x01 : 0x00;
+    const uint8_t flags = delta_flags;
     const uint8_t reserved[3] = {0, 0, 0};
 
     out.write(magic, 4);
@@ -357,19 +415,74 @@ bool AsyncOutputWriter::write_snapshot(const ExportSnapshot& snapshot,
                 (snapshot.step_dir / (entry.name + ".zfp3d")).string();
             std::size_t field_bytes = 0;
 
+                // Per-field tolerance: look up from tier map, fall back to global.
+            double field_tolerance = config_.zfp_tolerance;
+            {
+                auto tol_it = config_.zfp_field_tolerances.find(entry.name);
+                if (tol_it != config_.zfp_field_tolerances.end())
+                {
+                    field_tolerance = tol_it->second;
+                }
+            }
+
+            // Sparse zero-thresholding: zero out sub-threshold values in
+            // hydrometeor fields so ZFP can compress zero blocks efficiently.
+            const bool apply_sparse = config_.zfp_sparse_threshold > 0.0f &&
+                                      is_sparse_eligible(entry.name);
+
+            // Float16 pre-quantization: reduce mantissa precision for
+            // eligible fields before compression, lowering entropy.
+            const bool apply_f16 = config_.zfp_float16_prefilter &&
+                                   is_float16_eligible(entry.name);
+
             if (is_keyframe || previous_fields_.find(entry.name) == previous_fields_.end())
             {
-                // Keyframe: write the full field
-                ok = write_zfp_3d(entry.data.data(),
+                // Keyframe: write the full field, with optional prefilters.
+                if (apply_sparse || apply_f16)
+                {
+                    std::vector<float> filtered(entry.data);
+                    if (apply_sparse) { threshold_sparse_buffer(filtered, config_.zfp_sparse_threshold); }
+                    if (apply_f16)    { quantize_buffer_to_half(filtered); }
+                    ok = write_zfp_3d(filtered.data(),
+                                      entry.dim0, entry.dim1, entry.dim2,
+                                      config_.zfp_mode, field_tolerance,
+                                      config_.zfp_rate_bps, 0x00,
+                                      path, field_bytes, error);
+                }
+                else
+                {
+                    ok = write_zfp_3d(entry.data.data(),
+                                      entry.dim0, entry.dim1, entry.dim2,
+                                      config_.zfp_mode, field_tolerance,
+                                      config_.zfp_rate_bps, 0x00,
+                                      path, field_bytes, error);
+                }
+            }
+            else if (config_.zfp_predictive_delta &&
+                     previous_fields_2_.find(entry.name) != previous_fields_2_.end())
+            {
+                // Predictive delta: residual = current - 2*prev + prev_prev.
+                // Linear extrapolation predicts current ≈ 2*prev - prev_prev,
+                // so the residual is smaller than simple delta for smooth fields.
+                const auto& prev = previous_fields_[entry.name];
+                const auto& prev2 = previous_fields_2_[entry.name];
+                const std::size_t n = entry.data.size();
+                std::vector<float> residual(n);
+                for (std::size_t idx = 0; idx < n; ++idx)
+                {
+                    residual[idx] = entry.data[idx] - 2.0f * prev[idx] + prev2[idx];
+                }
+                if (apply_sparse) { threshold_sparse_buffer(residual, config_.zfp_sparse_threshold); }
+                if (apply_f16)    { quantize_buffer_to_half(residual); }
+                ok = write_zfp_3d(residual.data(),
                                   entry.dim0, entry.dim1, entry.dim2,
-                                  config_.zfp_mode, config_.zfp_tolerance,
-                                  config_.zfp_rate_bps, false,
+                                  config_.zfp_mode, field_tolerance,
+                                  config_.zfp_rate_bps, 0x03,
                                   path, field_bytes, error);
             }
             else
             {
-                // Delta frame: compute delta = current - previous, compress that.
-                // Deltas between consecutive timesteps are small → high compression.
+                // Simple delta: delta = current - previous.
                 const auto& prev = previous_fields_[entry.name];
                 const std::size_t n = entry.data.size();
                 std::vector<float> delta(n);
@@ -377,16 +490,22 @@ bool AsyncOutputWriter::write_snapshot(const ExportSnapshot& snapshot,
                 {
                     delta[idx] = entry.data[idx] - prev[idx];
                 }
+                if (apply_sparse) { threshold_sparse_buffer(delta, config_.zfp_sparse_threshold); }
+                if (apply_f16)    { quantize_buffer_to_half(delta); }
                 ok = write_zfp_3d(delta.data(),
                                   entry.dim0, entry.dim1, entry.dim2,
-                                  config_.zfp_mode, config_.zfp_tolerance,
-                                  config_.zfp_rate_bps, true,
+                                  config_.zfp_mode, field_tolerance,
+                                  config_.zfp_rate_bps, 0x01,
                                   path, field_bytes, error);
             }
 
-            // Store current data as previous for next frame's delta computation
+            // Rotate frame history: prev → prev2, current → prev
             if (ok && delta_enabled)
             {
+                if (config_.zfp_predictive_delta)
+                {
+                    previous_fields_2_[entry.name] = std::move(previous_fields_[entry.name]);
+                }
                 previous_fields_[entry.name] = entry.data;
             }
 

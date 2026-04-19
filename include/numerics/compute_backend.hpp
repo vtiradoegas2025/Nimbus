@@ -253,6 +253,73 @@ public:
         return false;
     }
 
+    // ── Cartesian tendencies dispatch ──────────────────────────────
+
+    virtual bool supports_cartesian_tendencies_dispatch() const { return false; }
+
+    /**
+     * @brief Execute Cartesian momentum tendencies on device.
+     *
+     * Computes 5 tendency fields from 6 input state fields plus 2 reference-
+     * state profiles (p0_base, rho0_base) using centered finite differences
+     * in Cartesian coordinates. The vertical momentum equation uses reference-
+     * state subtraction to eliminate the discrete hydrostatic imbalance.
+     *
+     * @param p0_base_data   Reference pressure profile, 1D [nz], float.
+     * @param rho0_base_data Reference density profile, 1D [nz], float.
+     * @return True if dispatch succeeded.
+     */
+    virtual bool dispatch_cartesian_tendencies(
+        const float* u_x_data, const float* u_y_data, const float* w_data,
+        const float* rho_data, const float* p_data, const float* theta_data,
+        const float* p0_base_data, const float* rho0_base_data,
+        float* du_x_dt_data, float* du_y_dt_data, float* dw_dt_data,
+        float* drho_dt_data, float* dp_dt_data,
+        int nr, int nth, int nz,
+        float dx, float dy, float dz,
+        float g, float gamma_val)
+    {
+        (void)u_x_data; (void)u_y_data; (void)w_data;
+        (void)rho_data; (void)p_data; (void)theta_data;
+        (void)p0_base_data; (void)rho0_base_data;
+        (void)du_x_dt_data; (void)du_y_dt_data; (void)dw_dt_data;
+        (void)drho_dt_data; (void)dp_dt_data;
+        (void)nr; (void)nth; (void)nz;
+        (void)dx; (void)dy; (void)dz;
+        (void)g; (void)gamma_val;
+        return false;
+    }
+
+    // ── Cartesian x-advection dispatch ──────────────────────────────
+
+    virtual bool supports_advection_x_dispatch() const { return false; }
+
+    virtual bool dispatch_advection_x(
+        const float* src, const float* u_data, float* dst,
+        int nr, int nth, int nz,
+        float dx, float dt)
+    {
+        (void)src; (void)u_data; (void)dst;
+        (void)nr; (void)nth; (void)nz;
+        (void)dx; (void)dt;
+        return false;
+    }
+
+    // ── Cartesian y-advection dispatch ──────────────────────────────
+
+    virtual bool supports_advection_y_dispatch() const { return false; }
+
+    virtual bool dispatch_advection_y(
+        const float* src, const float* v_data, float* dst,
+        int nr, int nth, int nz,
+        float dy, float dt)
+    {
+        (void)src; (void)v_data; (void)dst;
+        (void)nr; (void)nth; (void)nz;
+        (void)dy; (void)dt;
+        return false;
+    }
+
     // ── Tornado tendencies dispatch ─────────────────────────────────
 
     virtual bool supports_tornado_tendencies_dispatch() const { return false; }

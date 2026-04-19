@@ -32,8 +32,15 @@ trigger:
     center_z_km: 1.5
     radius_km: 10
     dtheta_k: 2.0
+dynamics:
+  scheme: supercell
 microphysics:
-  scheme: kessler
+  scheme: lin
+numerics:
+  time_stepping:
+    scheme: split_explicit
+    split_acoustic: true
+    n_acoustic_substeps: 6
 output:
   write_every_s: 60
   fields: minimal

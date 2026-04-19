@@ -148,12 +148,16 @@ void main() {
     float pressure_grad_th = -dp_dth_val / (rho_safe * r);
     du_theta_dt[c] = sanitize(advective_th + coriolis_th + pressure_grad_th);
 
-    // --- du_z/dt: advection + pressure gradient + buoyancy - gravity ---
+    // --- du_z/dt: fully compressible vertical momentum equation ---
+    //   dw/dt = -(1/rho) dp/dz - g + advection
+    // Buoyancy is implicit in (-dp/dz/rho - g): zero in hydrostatic balance,
+    // positive when a warm parcel breaks local balance. Do NOT add an explicit
+    // g*(theta-theta0)/theta0 term — it would double-count buoyancy and inject
+    // spurious upward acceleration everywhere theta > theta0 (which is the
+    // entire stratified atmosphere). See docs/Journey.md Phase 2 "Bug 3".
     float advective_z = -ur * duz_dr - (uth / r) * duz_dth - uz * duz_dz;
     float pressure_grad_z = -dp_dz_val / rho_safe;
-    float theta_prime = theta_val - theta0;
-    float buoyancy = g * (theta_prime / theta0);
-    du_z_dt[c] = sanitize(advective_z + pressure_grad_z - g + buoyancy);
+    du_z_dt[c] = sanitize(advective_z + pressure_grad_z - g);
 
     // --- drho/dt: mass continuity ---
     float divergence = dur_dr + duz_dz + ur / r + duth_dth / r;

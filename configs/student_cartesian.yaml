@@ -1,0 +1,49 @@
+# Student Cartesian preset: small grid, Cartesian coordinate backend.
+# Full supercell integration config — WK2002 hodograph, Lin microphysics,
+# off-center trigger bubble, all physics modules.
+case_name: student_cartesian
+coordinate_system: cartesian
+grid:
+  nx: 64
+  ny: 64
+  nz: 32
+  dx: 2000.0
+  dy: 2000.0
+  dz: 500.0
+  dt: 2.0
+environment:
+  cape_target_jkg: 3000
+  shear_0_6km_ms: 35
+  sfc_theta_k: 301.0
+  sfc_qv_kgkg: 0.012
+  tropopause_z_m: 12000
+  midlevel_drying: true
+  hodograph:
+    type: wk_param
+    u_sfc_ms: 4
+    v_sfc_ms: 1
+    u_1km_ms: 14
+    v_1km_ms: 6
+    u_6km_ms: 28
+    v_6km_ms: 22
+trigger:
+  bubble:
+    center_x_km: 50
+    center_y_km: 50
+    center_z_km: 1.5
+    radius_km: 10
+    dtheta_k: 2.0
+dynamics:
+  scheme: cartesian
+microphysics:
+  scheme: lin
+numerics:
+  time_stepping:
+    scheme: split_explicit
+    split_acoustic: true
+    n_acoustic_substeps: 6
+output:
+  write_every_s: 60
+  fields: minimal
+  format: npy_3d
+duration_s: 7200
