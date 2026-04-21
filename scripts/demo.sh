@@ -130,6 +130,7 @@ fi
 # ── Build viewer command ─────────────────────────────────────────────
 VIEWER_CMD=(
     ./bin/vulkan_viewer
+    --window-test
     --render-backend volume
     --volume-mode "$VOLUME_MODE"
     --style "$STYLE"
