@@ -249,6 +249,100 @@ public:
 #endif
     }
 
+    bool supports_acoustic_pressure_dispatch() const override
+    {
+#if defined(TMV_HAS_VULKAN_COMPUTE_HEADERS) && defined(TMV_HAS_VULKAN_COMPUTE_DLOPEN)
+        return acoustic_pressure_pipeline_.is_ready();
+#else
+        return false;
+#endif
+    }
+
+    bool supports_acoustic_momentum_dispatch() const override
+    {
+#if defined(TMV_HAS_VULKAN_COMPUTE_HEADERS) && defined(TMV_HAS_VULKAN_COMPUTE_DLOPEN)
+        return acoustic_momentum_pipeline_.is_ready();
+#else
+        return false;
+#endif
+    }
+
+    bool dispatch_acoustic_pressure(
+        const float* u_data, const float* v_data, const float* w_data,
+        const float* rho_in, const float* p_in,
+        float* rho_out, float* p_out,
+        int nr, int nth, int nz,
+        float dr_val, float dtheta_val, float dz_val,
+        float gamma_val, float dt_small,
+        float rho_floor, float p_floor) override
+    {
+#if defined(TMV_HAS_VULKAN_COMPUTE_HEADERS) && defined(TMV_HAS_VULKAN_COMPUTE_DLOPEN)
+        if (!acoustic_pressure_pipeline_.is_ready()) return false;
+
+        AcousticPressurePushConstants pc{};
+        pc.nr = nr; pc.nth = nth; pc.nz = nz;
+        pc.dr = dr_val; pc.dtheta = dtheta_val; pc.dz_val = dz_val;
+        pc.gamma_val = gamma_val; pc.dt_small = dt_small;
+        pc.rho_floor = rho_floor; pc.p_floor = p_floor;
+
+        const uint32_t total_points = static_cast<uint32_t>(nr) * uint32_t(nth) * uint32_t(nz);
+        const float* inputs[5] = { u_data, v_data, w_data, rho_in, p_in };
+        float* outputs[2] = { rho_out, p_out };
+
+        return dispatch_multi_field_kernel(
+            acoustic_pressure_pipeline_, &pc,
+            inputs, 5, outputs, 2,
+            nr, nth, nz, total_points);
+#else
+        (void)u_data; (void)v_data; (void)w_data;
+        (void)rho_in; (void)p_in; (void)rho_out; (void)p_out;
+        (void)nr; (void)nth; (void)nz;
+        (void)dr_val; (void)dtheta_val; (void)dz_val;
+        (void)gamma_val; (void)dt_small;
+        (void)rho_floor; (void)p_floor;
+        return false;
+#endif
+    }
+
+    bool dispatch_acoustic_momentum(
+        const float* rho_data, const float* p_data,
+        const float* u_in, const float* v_in, const float* w_in,
+        float* u_out, float* v_out, float* w_out,
+        int nr, int nth, int nz,
+        float dr_val, float dtheta_val, float dz_val,
+        float dt_small,
+        float wind_clamp_h, float wind_clamp_v) override
+    {
+#if defined(TMV_HAS_VULKAN_COMPUTE_HEADERS) && defined(TMV_HAS_VULKAN_COMPUTE_DLOPEN)
+        if (!acoustic_momentum_pipeline_.is_ready()) return false;
+
+        AcousticMomentumPushConstants pc{};
+        pc.nr = nr; pc.nth = nth; pc.nz = nz;
+        pc.dr = dr_val; pc.dtheta = dtheta_val; pc.dz_val = dz_val;
+        pc.dt_small = dt_small;
+        pc.wind_clamp_h = wind_clamp_h; pc.wind_clamp_v = wind_clamp_v;
+        pc.padding = 0.0f;
+
+        const uint32_t total_points = static_cast<uint32_t>(nr) * uint32_t(nth) * uint32_t(nz);
+        const float* inputs[5] = { rho_data, p_data, u_in, v_in, w_in };
+        float* outputs[3] = { u_out, v_out, w_out };
+
+        return dispatch_multi_field_kernel(
+            acoustic_momentum_pipeline_, &pc,
+            inputs, 5, outputs, 3,
+            nr, nth, nz, total_points);
+#else
+        (void)rho_data; (void)p_data;
+        (void)u_in; (void)v_in; (void)w_in;
+        (void)u_out; (void)v_out; (void)w_out;
+        (void)nr; (void)nth; (void)nz;
+        (void)dr_val; (void)dtheta_val; (void)dz_val;
+        (void)dt_small;
+        (void)wind_clamp_h; (void)wind_clamp_v;
+        return false;
+#endif
+    }
+
     bool supports_batched_advection_dispatch() const override
     {
 #if defined(TMV_HAS_VULKAN_COMPUTE_HEADERS) && defined(TMV_HAS_VULKAN_COMPUTE_DLOPEN)
@@ -1663,6 +1757,38 @@ private:
     };
     static_assert(sizeof(KesslerSedimentationPushConstants) == 64,
                   "kessler sedimentation push constants must be 64 bytes");
+
+    struct AcousticPressurePushConstants
+    {
+        int32_t nr;
+        int32_t nth;
+        int32_t nz;
+        float   dr;
+        float   dtheta;
+        float   dz_val;
+        float   gamma_val;
+        float   dt_small;
+        float   rho_floor;
+        float   p_floor;
+    };
+    static_assert(sizeof(AcousticPressurePushConstants) == 40,
+                  "acoustic pressure push constants must be 40 bytes");
+
+    struct AcousticMomentumPushConstants
+    {
+        int32_t nr;
+        int32_t nth;
+        int32_t nz;
+        float   dr;
+        float   dtheta;
+        float   dz_val;
+        float   dt_small;
+        float   wind_clamp_h;
+        float   wind_clamp_v;
+        float   padding;
+    };
+    static_assert(sizeof(AcousticMomentumPushConstants) == 40,
+                  "acoustic momentum push constants must be 40 bytes");
 
     // ── GPU buffer wrapper (aliased from pool header) ──────────────────
     using GpuBuffer = tmv_vulkan::GpuBuffer;
@@ -3717,6 +3843,36 @@ private:
             }
         }
 
+        // Acoustic pressure substep (optional — 7 SSBOs: 5 input + 2 output)
+        {
+            std::string acoustic_p_error;
+            if (create_pipeline_state("acoustic_pressure.comp.spv", 7,
+                                      sizeof(AcousticPressurePushConstants),
+                                      acoustic_pressure_pipeline_, acoustic_p_error))
+            {
+                log_vulkan_info("pipeline ready: acoustic pressure substep");
+            }
+            else
+            {
+                log_vulkan_warning("acoustic pressure pipeline unavailable: " + acoustic_p_error);
+            }
+        }
+
+        // Acoustic momentum substep (optional — 8 SSBOs: 5 input + 3 output)
+        {
+            std::string acoustic_m_error;
+            if (create_pipeline_state("acoustic_momentum.comp.spv", 8,
+                                      sizeof(AcousticMomentumPushConstants),
+                                      acoustic_momentum_pipeline_, acoustic_m_error))
+            {
+                log_vulkan_info("pipeline ready: acoustic momentum substep");
+            }
+            else
+            {
+                log_vulkan_warning("acoustic momentum pipeline unavailable: " + acoustic_m_error);
+            }
+        }
+
         return true;
     }
 
@@ -3853,6 +4009,8 @@ private:
     ComputePipelineState tornado_pipeline_{};
     ComputePipelineState kessler_pointwise_pipeline_{};
     ComputePipelineState kessler_sedimentation_pipeline_{};
+    ComputePipelineState acoustic_pressure_pipeline_{};
+    ComputePipelineState acoustic_momentum_pipeline_{};
 
     // Shared command infrastructure
     VkCommandPool cmd_pool_ = VK_NULL_HANDLE;

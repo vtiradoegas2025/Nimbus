@@ -227,3 +227,37 @@ bool dispatch_advection_batch_post_vertical_backend(
     float dr, float dtheta, float dz,
     float dt_half, float dt_full, float kappa);
 
+/**
+ * @brief Dispatches fused acoustic pressure substep on GPU.
+ *
+ * Computes cylindrical divergence from u,v,w, integrates rho and p
+ * forward by dt_small, applies boundary conditions.
+ *
+ * @return True if GPU dispatch succeeded.
+ */
+bool dispatch_acoustic_pressure_backend(
+    const float* u_data, const float* v_data, const float* w_data,
+    const float* rho_in, const float* p_in,
+    float* rho_out, float* p_out,
+    int nr, int nth, int nz,
+    float dr, float dtheta, float dz,
+    float gamma_val, float dt_small,
+    float rho_floor, float p_floor);
+
+/**
+ * @brief Dispatches fused acoustic momentum substep on GPU.
+ *
+ * Computes pressure gradient from updated p, integrates u,v,w
+ * forward by dt_small, applies boundary conditions.
+ *
+ * @return True if GPU dispatch succeeded.
+ */
+bool dispatch_acoustic_momentum_backend(
+    const float* rho_data, const float* p_data,
+    const float* u_in, const float* v_in, const float* w_in,
+    float* u_out, float* v_out, float* w_out,
+    int nr, int nth, int nz,
+    float dr, float dtheta, float dz,
+    float dt_small,
+    float wind_clamp_h, float wind_clamp_v);
+

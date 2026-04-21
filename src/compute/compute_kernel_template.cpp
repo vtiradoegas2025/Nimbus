@@ -1067,3 +1067,45 @@ bool dispatch_advection_batch_post_vertical_backend(
     return false;
 }
 
+bool dispatch_acoustic_pressure_backend(
+    const float* u_data, const float* v_data, const float* w_data,
+    const float* rho_in, const float* p_in,
+    float* rho_out, float* p_out,
+    int nr, int nth, int nz,
+    float dr, float dtheta, float dz,
+    float gamma_val, float dt_small,
+    float rho_floor, float p_floor)
+{
+    ComputeBackend* backend = mutable_compute_backend();
+    if (backend != nullptr && backend->supports_acoustic_pressure_dispatch())
+    {
+        return backend->dispatch_acoustic_pressure(
+            u_data, v_data, w_data, rho_in, p_in,
+            rho_out, p_out, nr, nth, nz,
+            dr, dtheta, dz, gamma_val, dt_small,
+            rho_floor, p_floor);
+    }
+    return false;
+}
+
+bool dispatch_acoustic_momentum_backend(
+    const float* rho_data, const float* p_data,
+    const float* u_in, const float* v_in, const float* w_in,
+    float* u_out, float* v_out, float* w_out,
+    int nr, int nth, int nz,
+    float dr, float dtheta, float dz,
+    float dt_small,
+    float wind_clamp_h, float wind_clamp_v)
+{
+    ComputeBackend* backend = mutable_compute_backend();
+    if (backend != nullptr && backend->supports_acoustic_momentum_dispatch())
+    {
+        return backend->dispatch_acoustic_momentum(
+            rho_data, p_data, u_in, v_in, w_in,
+            u_out, v_out, w_out, nr, nth, nz,
+            dr, dtheta, dz, dt_small,
+            wind_clamp_h, wind_clamp_v);
+    }
+    return false;
+}
+

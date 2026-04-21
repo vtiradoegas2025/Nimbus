@@ -1,0 +1,131 @@
+// acoustic_pressure.comp
+//
+// Fused acoustic pressure substep: divergence -> rho/p integration.
+//
+// GPU equivalent of SupercellScheme::compute_fast_pressure_tendencies
+// followed by the integration loop in apply_fast_pressure (dynamics.cpp).
+//
+// Each invocation processes one grid point. Interior points compute the
+// cylindrical divergence via centered finite differences; boundary points
+// apply zero-gradient (Neumann) extrapolation from the adjacent interior.
+//
+// Ping-pong design: reads state from input buffers (set A), writes
+// updated rho/p to output buffers (set B). The u/v/w fields are read-only
+// (not modified by the pressure step).
+//
+// Data layout is row-major [nr][nth][nz]. Theta is periodic.
+// Boundary: i=0,NR-1 and k=0,NZ-1 are ghost/boundary cells.
+
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+// Input state (read-only for this substep)
+layout(set = 0, binding = 0) readonly buffer UInBuf   { float u_in[];   };
+layout(set = 0, binding = 1) readonly buffer VInBuf   { float v_in[];   };
+layout(set = 0, binding = 2) readonly buffer WInBuf   { float w_in[];   };
+layout(set = 0, binding = 3) readonly buffer RhoInBuf { float rho_in[]; };
+layout(set = 0, binding = 4) readonly buffer PInBuf   { float p_in[];   };
+
+// Output state (updated rho, p after integration)
+layout(set = 0, binding = 5) writeonly buffer RhoOutBuf { float rho_out[]; };
+layout(set = 0, binding = 6) writeonly buffer POutBuf   { float p_out[];   };
+
+// Push constants (36 bytes, padded to 40)
+layout(push_constant) uniform PushConstants {
+    int   nr;
+    int   nth;
+    int   nz;
+    float dr;
+    float dtheta;
+    float dz_val;
+    float gamma_val;
+    float dt_small;
+    float rho_floor;   // minimum density (kg/m3)
+    float p_floor;     // minimum pressure (Pa)
+};
+
+const float EPS = 1.0e-8;
+const float RHO_MIN = 1.0e-6;
+
+float sanitize(float val) {
+    return (isnan(val) || isinf(val)) ? 0.0 : val;
+}
+
+void main() {
+    uint gid = gl_GlobalInvocationID.x;
+    uint total = uint(nr) * uint(nth) * uint(nz);
+    if (gid >= total) return;
+
+    // Map flat gid to (i, j, k) in row-major [nr][nth][nz]
+    int k = int(gid % uint(nz));
+    uint ij = gid / uint(nz);
+    int j = int(ij % uint(nth));
+    int i = int(ij / uint(nth));
+
+    uint c = gid;
+
+    // Boundary handling: extrapolate from adjacent interior
+    bool is_boundary = (i == 0 || i == nr - 1 || k == 0 || k == nz - 1);
+
+    if (is_boundary) {
+        // Zero-gradient BC for rho and p
+        int i_src = clamp(i, 1, nr - 2);
+        int k_src = clamp(k, 1, nz - 2);
+        uint src_idx = uint((i_src * nth + j) * nz + k_src);
+        rho_out[c] = rho_in[src_idx];
+        p_out[c]   = p_in[src_idx];
+        return;
+    }
+
+    // Interior point: compute cylindrical divergence
+    float r = float(i) * dr + EPS;
+
+    // Periodic theta neighbors
+    int j_prev = (j - 1 + nth) % nth;
+    int j_next = (j + 1) % nth;
+
+    // Stencil indices
+    uint ip = uint(((i + 1) * nth + j) * nz + k);
+    uint im = uint(((i - 1) * nth + j) * nz + k);
+    uint jp = uint((i * nth + j_next) * nz + k);
+    uint jm = uint((i * nth + j_prev) * nz + k);
+    uint kp = uint((i * nth + j) * nz + (k + 1));
+    uint km = uint((i * nth + j) * nz + (k - 1));
+
+    // Centered finite differences
+    float inv_2dr     = 1.0 / (2.0 * dr);
+    float inv_2dtheta = 1.0 / (2.0 * dtheta);
+    float inv_2dz     = 1.0 / (2.0 * dz_val);
+
+    float dur_dr  = (u_in[ip] - u_in[im]) * inv_2dr;
+    float duth_dth = (v_in[jp] - v_in[jm]) * inv_2dtheta;
+    float duz_dz  = (w_in[kp] - w_in[km]) * inv_2dz;
+    float ur = u_in[c];
+
+    // Cylindrical divergence: du_r/dr + u_r/r + (1/r)*du_th/dth + du_z/dz
+    float divergence = dur_dr + ur / r + duth_dth / r + duz_dz;
+
+    // Read current state
+    float rho_val = rho_in[c];
+    float p_val   = p_in[c];
+    float rho_safe = (rho_val > RHO_MIN && !isinf(rho_val)) ? rho_val : 1.0;
+
+    // Tendencies
+    float drho = sanitize(-rho_safe * divergence);
+    float dp   = sanitize(-gamma_val * p_val * divergence);
+
+    // Integrate: rho_new = rho + drho * dt, with clamping
+    float rho_new = rho_val + drho * dt_small;
+    if (isnan(rho_new) || isinf(rho_new) || rho_new <= 0.0)
+        rho_new = rho_floor;
+    rho_new = max(rho_new, rho_floor);
+
+    float p_new = p_val + dp * dt_small;
+    if (isnan(p_new) || isinf(p_new) || p_new <= 0.0)
+        p_new = p_floor;
+    p_new = max(p_new, p_floor);
+
+    rho_out[c] = rho_new;
+    p_out[c]   = p_new;
+}

@@ -566,6 +566,65 @@ public:
         (void)a_hail; (void)b_hail; (void)Vt_max_hail;
         return false;
     }
+
+    // ── Acoustic substep dispatch ─────────────────────────────────────
+
+    virtual bool supports_acoustic_pressure_dispatch() const { return false; }
+    virtual bool supports_acoustic_momentum_dispatch() const { return false; }
+
+    /**
+     * @brief Fused acoustic pressure substep: divergence -> rho/p integration.
+     *
+     * Reads u,v,w,rho,p; computes cylindrical divergence; writes updated rho,p.
+     * Boundary points get zero-gradient extrapolation.
+     *
+     * @return True if dispatch succeeded.
+     */
+    virtual bool dispatch_acoustic_pressure(
+        const float* u_data, const float* v_data, const float* w_data,
+        const float* rho_in, const float* p_in,
+        float* rho_out, float* p_out,
+        int nr, int nth, int nz,
+        float dr_val, float dtheta_val, float dz_val,
+        float gamma_val, float dt_small,
+        float rho_floor, float p_floor)
+    {
+        (void)u_data; (void)v_data; (void)w_data;
+        (void)rho_in; (void)p_in; (void)rho_out; (void)p_out;
+        (void)nr; (void)nth; (void)nz;
+        (void)dr_val; (void)dtheta_val; (void)dz_val;
+        (void)gamma_val; (void)dt_small;
+        (void)rho_floor; (void)p_floor;
+        return false;
+    }
+
+    /**
+     * @brief Fused acoustic momentum substep: pressure gradient -> u/v/w integration.
+     *
+     * Reads updated rho/p (from pressure substep), current u/v/w;
+     * computes pressure gradient; writes updated u/v/w.
+     * Boundary points get antisymmetric u (r-faces) or zero-gradient BCs.
+     *
+     * @return True if dispatch succeeded.
+     */
+    virtual bool dispatch_acoustic_momentum(
+        const float* rho_data, const float* p_data,
+        const float* u_in, const float* v_in, const float* w_in,
+        float* u_out, float* v_out, float* w_out,
+        int nr, int nth, int nz,
+        float dr_val, float dtheta_val, float dz_val,
+        float dt_small,
+        float wind_clamp_h, float wind_clamp_v)
+    {
+        (void)rho_data; (void)p_data;
+        (void)u_in; (void)v_in; (void)w_in;
+        (void)u_out; (void)v_out; (void)w_out;
+        (void)nr; (void)nth; (void)nz;
+        (void)dr_val; (void)dtheta_val; (void)dz_val;
+        (void)dt_small;
+        (void)wind_clamp_h; (void)wind_clamp_v;
+        return false;
+    }
 };
 
 extern ComputeBackendConfig global_compute_backend_config;

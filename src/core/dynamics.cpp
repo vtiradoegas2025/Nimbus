@@ -17,6 +17,8 @@
 #include "numerics/time_stepping/time_stepping_base.hpp"
 #include "turbulence/turbulence_base.hpp"
 #include "dynamics/factory.hpp"
+#include "compute/compute_kernel_template.hpp"
+#include "terrain/terrain_base.hpp"
 #include "diagnostics/field_contract.hpp"
 #include "util/log.hpp"
 #include <algorithm>
@@ -163,12 +165,29 @@ void step_dynamics_split_explicit(
 
     // Fast-tendency buffers: allocated once inside the scheme.
     // We re-use the same drho_dt / dp_dt buffers since slow step is done.
-    callbacks.apply_fast_pressure = [&](double dt_small)
+    const bool flat_terrain = (global_terrain_config.scheme_id == "none");
+    const float dr_f = static_cast<float>(dr);
+    const float dtheta_f = static_cast<float>(dtheta);
+    const float dz_f = static_cast<float>(dz);
+
+    callbacks.apply_fast_pressure = [&, flat_terrain, dr_f, dtheta_f, dz_f](double dt_small)
     {
+        const float dt_s = static_cast<float>(dt_small);
+
+        if (flat_terrain && dispatch_acoustic_pressure_backend(
+                u.data(), v.data(), w.data(),
+                rho.data(), p.data(),
+                rho.data(), p.data(),
+                NR, NTH, NZ, dr_f, dtheta_f, dz_f,
+                static_cast<float>(dynamics_constants::gamma), dt_s,
+                density_min_kgm3, pressure_min_pa))
+        {
+            return;
+        }
+
         split_scheme.compute_fast_pressure_tendencies(
             u, v, w, rho, p, drho_dt, dp_dt);
 
-        const float dt_s = static_cast<float>(dt_small);
         #pragma omp parallel for collapse(2)
         for (int i = 0; i < NR; ++i)
             for (int j = 0; j < NTH; ++j)
@@ -191,13 +210,24 @@ void step_dynamics_split_explicit(
                 }
     };
 
-    callbacks.apply_fast_momentum = [&](double dt_small)
+    callbacks.apply_fast_momentum = [&, flat_terrain, dr_f, dtheta_f, dz_f](double dt_small)
     {
+        const float dt_s = static_cast<float>(dt_small);
+
+        if (flat_terrain && dispatch_acoustic_momentum_backend(
+                rho.data(), p.data(),
+                u.data(), v.data(), w.data(),
+                u.data(), v.data(), w.data(),
+                NR, NTH, NZ, dr_f, dtheta_f, dz_f,
+                dt_s, wind_horizontal_abs_max_ms, wind_vertical_abs_max_ms))
+        {
+            return;
+        }
+
         split_scheme.compute_fast_momentum_tendencies(
             u, v, w, rho, p,
             du_dt, dv_dt, dw_dt);
 
-        const float dt_s = static_cast<float>(dt_small);
         #pragma omp parallel for collapse(2)
         for (int i = 0; i < NR; ++i)
             for (int j = 0; j < NTH; ++j)
