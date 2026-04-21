@@ -131,11 +131,11 @@ fi
 VIEWER_CMD=(
     ./bin/vulkan_viewer
     --render-backend volume
-    "--volume-mode=$VOLUME_MODE"
-    "--style=$STYLE"
-    "--camera-mode=$CAMERA_MODE"
-    "--ray-steps=$RAY_STEPS"
-    "--fields=$SHM_FIELDS"
+    --volume-mode "$VOLUME_MODE"
+    --style "$STYLE"
+    --camera-mode "$CAMERA_MODE"
+    --ray-steps "$RAY_STEPS"
+    --fields "$SHM_FIELDS"
 )
 
 # ── Launch ───────────────────────────────────────────────────────────
