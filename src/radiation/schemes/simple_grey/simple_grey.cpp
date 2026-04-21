@@ -110,7 +110,7 @@ void SimpleGreyScheme::compute_lw_heating(
     /**
  * @brief Computes the optical depth profile.
  */
-    tau_lw_profile_ = radiative_transfer::compute_optical_depth_profile(
+    auto tau_lw_profile = radiative_transfer::compute_optical_depth_profile(
         *col.p, tau_lw_ref_, n_lw_
     );
 
@@ -118,7 +118,7 @@ void SimpleGreyScheme::compute_lw_heating(
  * @brief Computes the layer optical depths.
  */
     auto tau_layers = radiative_transfer::compute_layer_optical_depths(
-        tau_lw_profile_, *col.dz
+        tau_lw_profile, *col.dz
     );
 
     /**
@@ -172,7 +172,7 @@ void SimpleGreyScheme::compute_sw_heating(
     /**
  * @brief Computes the optical depth profile.
  */
-    tau_sw_profile_ = radiative_transfer::compute_optical_depth_profile(
+    auto tau_sw_profile = radiative_transfer::compute_optical_depth_profile(
         *col.p, tau_sw_ref_, n_sw_
     );
 
@@ -180,7 +180,7 @@ void SimpleGreyScheme::compute_sw_heating(
  * @brief Computes the layer optical depths.
  */
     auto tau_layers = radiative_transfer::compute_layer_optical_depths(
-        tau_sw_profile_, *col.dz
+        tau_sw_profile, *col.dz
     );
 
     /**

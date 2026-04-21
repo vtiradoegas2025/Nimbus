@@ -20,13 +20,10 @@
  *      ring, or the multi-layer hydrostatic builder. They stay small,
  *      self-contained, and easy to audit.
  *
- * Field aliasing note (Phase A): while the Cartesian dynamics scheme is
- * active, the cylindrical-named globals carry Cartesian wind components:
- *   u       -> u_x   (zonal)
- *   v_theta -> u_y   (meridional)
- *   w       -> u_z   (vertical, unchanged)
- * The 267-site `v_theta -> v` rename is deferred to Phase B (see Bug 7 in
- * `docs/Journey.md` for the field-aliasing rationale).
+ * Wind field naming: both coordinate backends use the same globals:
+ *   u  — horizontal-1 (radial in cylindrical, zonal in Cartesian)
+ *   v  — horizontal-2 (azimuthal in cylindrical, meridional in Cartesian)
+ *   w  — vertical (unchanged)
  */
 
 #pragma once
@@ -37,7 +34,7 @@
  *
  * For every cell (i, j, k):
  *   u[i][j][k]       = u_x(z[k])
- *   v_theta[i][j][k] = u_y(z[k])
+ *   v[i][j][k] = u_y(z[k])
  *   w[i][j][k]       = 0
  *
  * where `(u_x(z), u_y(z))` come from `compute_wind_profile(global_wind_profile, z)`.
@@ -47,7 +44,7 @@
  * antisymmetric BC violates and the Bug 7 ledger documents in detail.
  *
  * Preconditions:
- *   - `u`, `v_theta`, `w` have all been resized to (NR, NTH, NZ).
+ *   - `u`, `v`, `w` have all been resized to (NR, NTH, NZ).
  *   - `dz > 0` and NZ >= 1.
  *   - `global_wind_profile` is set.
  */

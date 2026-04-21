@@ -8,9 +8,9 @@
  */
 
 #include "kessler.hpp"
-#include "core/field_pool.hpp"
+#include "core/field/field_pool.hpp"
 #include "core/simulation.hpp"
-#include "numerics/compute_kernel_template.hpp"
+#include "compute/compute_kernel_template.hpp"
 #include <algorithm>
 #include <cmath>
 #ifdef _OPENMP
@@ -70,13 +70,39 @@ void KesslerScheme::compute_tendencies(
     init_tendency_fields(NR, NTH, NZ, dtheta_dt, dqv_dt, dqc_dt, dqr_dt,
                          dqi_dt, dqs_dt, dqg_dt, dqh_dt);
 
+    // Saturation adjustment: convert supersaturated vapor to cloud water
+    // before processing warm-rain physics. Without this, Kessler only acts
+    // on existing hydrometeors and never initiates condensation. We operate
+    // on copies so the original qv/qc are preserved and the adjustment
+    // appears as tendencies (consistent with Lin/Thompson).
+    Field3D qv_adj = qv;
+    Field3D qc_adj = qc;
+    #pragma omp parallel for collapse(2)
+    for (int i = 0; i < NR; ++i)
+    {
+        for (int j = 0; j < NTH; ++j)
+        {
+            for (int k = 0; k < NZ; ++k)
+            {
+                double T_val = static_cast<double>(temperature[i][j][k]);
+                double p_val = static_cast<double>(p[i][j][k]);
+                double qv_val = static_cast<double>(qv[i][j][k]);
+                double qc_val = static_cast<double>(qc[i][j][k]);
+                thermodynamics::saturation_adjustment(T_val, p_val, qv_val, qc_val);
+                qv_adj[i][j][k] = static_cast<float>(qv_val);
+                qc_adj[i][j][k] = static_cast<float>(qc_val);
+            }
+        }
+    }
+
     // Try GPU dispatch for fused point-wise processes (warm rain + ice + melting)
     const float Lv_cp = static_cast<float>(microphysics_constants::L_v / microphysics_constants::cp);
     const float Lf_cp = static_cast<float>(microphysics_constants::L_f / microphysics_constants::cp);
     const float Ls_cp = static_cast<float>(microphysics_constants::L_s / microphysics_constants::cp);
 
     bool gpu_pointwise_ok = dispatch_kessler_pointwise_backend(
-        temperature.data(), qv.data(), qc.data(), qr.data(), qg.data(), qh.data(),
+        temperature.data(), p.data(),
+        qv_adj.data(), qc_adj.data(), qr.data(), qg.data(), qh.data(),
         dtheta_dt.data(), dqv_dt.data(), dqc_dt.data(), dqr_dt.data(),
         dqg_dt.data(), dqh_dt.data(),
         NR, NTH, NZ,
@@ -110,9 +136,9 @@ void KesslerScheme::compute_tendencies(
     }
     else
     {
-        // CPU fallback for all processes
-        compute_warm_rain_processes(temperature, qv, qc, qr, dqc_dt, dqr_dt, dqv_dt, dtheta_dt);
-        compute_ice_processes(temperature, qv, qc, qr, qg, qh, dqc_dt, dqg_dt, dqh_dt, dqv_dt, dtheta_dt);
+        // CPU fallback for all processes (use saturation-adjusted fields)
+        compute_warm_rain_processes(temperature, p, qv_adj, qc_adj, qr, dqc_dt, dqr_dt, dqv_dt, dtheta_dt);
+        compute_ice_processes(temperature, p, qv_adj, qc_adj, qr, qg, qh, dqc_dt, dqg_dt, dqh_dt, dqv_dt, dtheta_dt);
         compute_melting_processes(temperature, qg, qh, dqg_dt, dqh_dt, dqr_dt, dtheta_dt);
         compute_sedimentation(qr, qg, qh, dqr_dt, dqg_dt, dqh_dt);
     }
@@ -139,6 +165,7 @@ void KesslerScheme::compute_tendencies(
  */
 void KesslerScheme::compute_warm_rain_processes(
     const Field3D& temperature,
+    const Field3D& p,
     const Field3D& qv,
     const Field3D& qc,
     const Field3D& qr,
@@ -180,10 +207,10 @@ void KesslerScheme::compute_warm_rain_processes(
                     dtheta_dt[i][j][k] += microphysics_constants::L_v / microphysics_constants::cp * accr_rate / T;
                 }
 
-                if (qr_val > 0.0f) 
+                if (qr_val > 0.0f)
                 {
-                    float qvsat = 0.001f;
-                    float RH = (qv_val > 0.0f) ? qv_val / qvsat : 0.0f;
+                    float qvsat = static_cast<float>(thermodynamics::saturation_mixing_ratio_water(T, p[i][j][k]));
+                    float RH = (qv_val > 0.0f && qvsat > 0.0f) ? qv_val / qvsat : 0.0f;
 
                     if (RH < 1.0f) 
                     {
@@ -203,6 +230,7 @@ void KesslerScheme::compute_warm_rain_processes(
  */
 void KesslerScheme::compute_ice_processes(
     const Field3D& temperature,
+    const Field3D& p,
     const Field3D& qv,
     const Field3D& qc,
     const Field3D& qr,
@@ -268,8 +296,8 @@ void KesslerScheme::compute_ice_processes(
                         dqh_dt[i][j][k] += conv_rate;
                     }
 
-                    float qvsat_ice = 0.001f;
-                    float RH_ice = (qv_val > 0.0f) ? qv_val / qvsat_ice : 0.0f;
+                    float qvsat_ice = static_cast<float>(thermodynamics::saturation_mixing_ratio_ice(T, p[i][j][k]));
+                    float RH_ice = (qv_val > 0.0f && qvsat_ice > 0.0f) ? qv_val / qvsat_ice : 0.0f;
 
                     if (RH_ice < 1.0f) 
                     {

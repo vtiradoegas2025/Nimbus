@@ -3,8 +3,8 @@
 #include <algorithm>
 #include <cmath>
 
-#include "physics/terrain_base.hpp"
-#include "physics/turbulence_base.hpp"
+#include "terrain/terrain_base.hpp"
+#include "turbulence/turbulence_base.hpp"
 
 /**
  * @file grid_metric_utils.hpp

@@ -1,7 +1,9 @@
 # Build artifacts
 bin/
+build/
 *.o
 *.d
+compile_commands.json
 
 # Python bytecode
 __pycache__/
@@ -38,3 +40,4 @@ tools/
 screenshots/
 templates/
 docs/SpatialBenchmarks.md
+.cache/

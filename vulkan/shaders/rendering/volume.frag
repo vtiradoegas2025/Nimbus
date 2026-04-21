@@ -140,12 +140,12 @@ float henyey_greenstein(float cos_theta, float g) {
 /** @brief Build procedural sky color used behind and through the volume. */
 vec3 sky_color(vec3 ray_dir, vec3 light_dir, bool cinematic_bw) {
     float h = clamp(ray_dir.y * 0.5 + 0.5, 0.0, 1.0);
-    vec3 horizon = cinematic_bw ? vec3(0.20) : vec3(0.64, 0.73, 0.84);
-    vec3 zenith = cinematic_bw ? vec3(0.05) : vec3(0.20, 0.33, 0.57);
+    vec3 horizon = cinematic_bw ? vec3(0.0) : vec3(0.64, 0.73, 0.84);
+    vec3 zenith = cinematic_bw ? vec3(0.0) : vec3(0.20, 0.33, 0.57);
     vec3 sky = mix(horizon, zenith, pow(h, 0.7));
 
     float sun = pow(max(dot(ray_dir, light_dir), 0.0), 256.0);
-    vec3 sun_tint = cinematic_bw ? vec3(1.0) : vec3(1.0, 0.92, 0.78);
+    vec3 sun_tint = cinematic_bw ? vec3(0.0) : vec3(1.0, 0.92, 0.78);
     sky += sun * sun_tint * 0.35;
     return sky;
 }
@@ -231,9 +231,18 @@ void main() {
     bool cinematic_bw = (mode_flags & 2) != 0;
     bool natural_texture = (mode_flags & 4) != 0;
 
+    // Scale the volume AABB to match domain proportions.
+    // volume_dims = (NX, NY, NZ) = texture dimensions.
+    // After Y<->Z orientation swap: world Y = altitude (NZ), world Z = horizontal (NY).
+    // The AABB height = NZ/max(NX,NY), preserving cell-count aspect ratio
+    // (implicit vertical exaggeration since real dz << dx).
+    float max_horiz = max(pc.volume_dims.x, pc.volume_dims.y);
+    float vert_scale = pc.volume_dims.z / max(max_horiz, 1.0);
+    vec3 aabb_half = vec3(0.5, 0.5 * vert_scale, 0.5);
+
     float t_near = 0.0;
     float t_far = 0.0;
-    if (!intersect_aabb(ray_origin, ray_dir, vec3(-0.5), vec3(0.5), t_near, t_far)) {
+    if (!intersect_aabb(ray_origin, ray_dir, -aabb_half, aabb_half, t_near, t_far)) {
         out_color = vec4(sky_color(ray_dir, light_dir, cinematic_bw), 1.0);
         return;
     }
@@ -260,7 +269,15 @@ void main() {
         }
 
         vec3 p = ray_origin + ray_dir * t;
-        vec3 uvw = p + vec3(0.5);
+        // Map world space to texture UVW with Y<->Z orientation swap:
+        //   world X -> texture X (NR = horizontal)
+        //   world Y -> texture Z (NZ = vertical / altitude)
+        //   world Z -> texture Y (NTH = horizontal)
+        // Also rescale Y to account for the non-unit AABB height.
+        vec3 uvw = vec3(
+            p.x + 0.5,
+            p.z + 0.5,
+            p.y / vert_scale + 0.5);
 
         float density = 0.0;
         float peak_sample = 0.0;
@@ -278,7 +295,10 @@ void main() {
             cloud_color);
 
         if (density > 1e-4) {
-            vec3 grad = gradient_from_volume(uvw, texel, render_mode, selected_component);
+            vec3 grad_tex = gradient_from_volume(uvw, texel, render_mode, selected_component);
+            // Convert gradient from texture space (x=NR, y=NTH, z=NZ) to
+            // world space (x=NR, y=NZ/up, z=NTH) via Y<->Z swap.
+            vec3 grad = vec3(grad_tex.x, grad_tex.z, grad_tex.y);
             // Epsilon avoids undefined normalize(0) when gradients flatten in quiescent regions.
             vec3 normal = normalize(grad + vec3(1e-5, 1e-5, 1e-5));
 
@@ -286,6 +306,7 @@ void main() {
             float mu = dot(-ray_dir, light_dir);
             float phase = henyey_greenstein(mu, clamp(pc.render1.z, -0.85, 0.85));
 
+            // Altitude is uvw.z after the Y<->Z swap (maps to NZ = vertical).
             float height = clamp(uvw.z, 0.0, 1.0);
 
             float ambient = pc.render1.y * mix(0.35, 1.0, height);

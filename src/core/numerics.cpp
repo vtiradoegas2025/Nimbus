@@ -8,14 +8,14 @@
  */
 
 #include "core/simulation.hpp"
-#include "numerics/advection_base.hpp"
-#include "numerics/diffusion_base.hpp"
+#include "numerics/advection/advection_base.hpp"
+#include "numerics/diffusion/diffusion_base.hpp"
 #include "numerics/advection/factory.hpp"
 #include "numerics/diffusion/factory.hpp"
 #include "numerics/time_stepping/factory.hpp"
-#include "physics/terrain_base.hpp"
-#include "numerics/time_stepping_base.hpp"
-#include "physics/turbulence_base.hpp"
+#include "terrain/terrain_base.hpp"
+#include "numerics/time_stepping/time_stepping_base.hpp"
+#include "turbulence/turbulence_base.hpp"
 #include "util/log.hpp"
 #include <algorithm>
 #include <cmath>
@@ -48,7 +48,7 @@ double sanitize_positive(double value, double fallback)
 double compute_max_flow_speed()
 {
     if (u.size_r() != NR || u.size_th() != NTH || u.size_z() != NZ ||
-        v_theta.size_r() != NR || v_theta.size_th() != NTH || v_theta.size_z() != NZ ||
+        v.size_r() != NR || v.size_th() != NTH || v.size_z() != NZ ||
         w.size_r() != NR || w.size_th() != NTH || w.size_z() != NZ)
     {
         return 0.0;
@@ -64,7 +64,7 @@ double compute_max_flow_speed()
             {
                 const double speed =
                     std::max({std::abs(static_cast<double>(u[i][j][k])),
-                              std::abs(static_cast<double>(v_theta[i][j][k])),
+                              std::abs(static_cast<double>(v[i][j][k])),
                               std::abs(static_cast<double>(w[i][j][k]))});
                 max_speed = std::max(max_speed, speed);
             }
@@ -119,11 +119,18 @@ void refresh_grid_metrics_from_terrain()
     global_grid_metrics.dz.assign(NZ, dz_safe);
     global_grid_metrics.z_int.assign(NZ + 1, 0.0);
 
-    if (!terrain_metrics_ready_for_grid())
+    const bool flat_terrain = (global_terrain_config.scheme_id == "none");
+
+    if (!terrain_metrics_ready_for_grid() || flat_terrain)
     {
         for (int k = 1; k <= NZ; ++k)
         {
             global_grid_metrics.z_int[k] = global_grid_metrics.z_int[k - 1] + dz_safe;
+        }
+        if (flat_terrain)
+        {
+            global_grid_metrics.terrain_metrics = &global_terrain_metrics;
+            global_grid_metrics.terrain_topography = &global_topography;
         }
         return;
     }

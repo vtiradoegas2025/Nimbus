@@ -10,7 +10,7 @@
 #pragma once
 #include <memory>
 #include <string>
-#include "physics/radiation_base.hpp"
+#include "radiation/radiation_base.hpp"
 
 class SimpleGreyScheme;
 

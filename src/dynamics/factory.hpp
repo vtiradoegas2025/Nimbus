@@ -8,7 +8,7 @@
  */
 
 #pragma once
-#include "physics/dynamics_base.hpp"
+#include "dynamics/dynamics_base.hpp"
 #include <memory>
 #include <vector>
 #include <string>

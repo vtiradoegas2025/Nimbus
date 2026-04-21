@@ -9,7 +9,7 @@
 
 #pragma once
 #include <vector>
-#include "physics/turbulence_base.hpp"
+#include "turbulence/turbulence_base.hpp"
 #include "core/field3d.hpp"
 
 namespace eddy_viscosity 

@@ -8,7 +8,7 @@
  */
 
 #include "tke.hpp"
-#include "core/field_pool.hpp"
+#include "core/field/field_pool.hpp"
 #include "util/grid_metric_utils.hpp"
 #include "util/log.hpp"
 #include <algorithm>

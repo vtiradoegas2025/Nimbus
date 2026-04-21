@@ -12,9 +12,9 @@
  */
 #include "catch2/catch.hpp"
 #include "core/field3d.hpp"
-#include "core/field_pool.hpp"
-#include "core/output_config.hpp"
-#include "core/npy_writer.hpp"
+#include "core/field/field_pool.hpp"
+#include "core/output/output_config.hpp"
+#include "core/output/npy_writer.hpp"
 #include "core/hardware_info.hpp"
 #include "core/simulation.hpp"
 

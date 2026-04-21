@@ -9,7 +9,8 @@
  *   total water:    sum(dq_x/dt) should balance (mass conservation)
  */
 #include "catch2/catch.hpp"
-#include "physics/microphysics_base.hpp"
+#include "microphysics/microphysics_base.hpp"
+#include "microphysics/base/thermodynamics.hpp"
 #include "core/simulation.hpp"
 
 #include <cmath>
@@ -23,6 +24,10 @@ constexpr double kQc0 = 1.0e-3;
 constexpr double kCauto = 1.0e-3;
 constexpr double kCaccr = 2.2;
 constexpr double kCevap = 3.0e-3;
+
+// Test conditions: theta=300K, p=100kPa -> T=300K
+constexpr double kTestT = 300.0;
+constexpr double kTestP = 100000.0;
 
 void setup_grid()
 {
@@ -106,7 +111,9 @@ TEST_CASE("Kessler autoconversion: verify dqr/dt = c_auto*(qc - qc0)", "[physics
     // Isolate autoconversion: set qc above threshold, no rain (no accretion),
     // saturated air (no evaporation)
     const float qc_val = 0.003f;
-    qv.resize(NR, NTH, NZ, 0.001f);  // saturated (qvsat ~ 0.001 in Kessler)
+    const float qvsat = static_cast<float>(
+        thermodynamics::saturation_mixing_ratio_water(kTestT, kTestP));
+    qv.resize(NR, NTH, NZ, qvsat);  // saturated at test conditions
     qc.resize(NR, NTH, NZ, qc_val);
     qr.resize(NR, NTH, NZ, 0.0f);
 
@@ -133,9 +140,11 @@ TEST_CASE("Kessler accretion: verify dqr/dt includes c_accr*qc*qr term", "[physi
     setup_warm_state();
 
     // Both cloud and rain present; saturated so no evaporation
-    const float qc_val = 0.0005f;  // below qc0 — no autoconversion
+    const float qc_val = 0.0005f;  // below qc0 -- no autoconversion
     const float qr_val = 0.001f;
-    qv.resize(NR, NTH, NZ, 0.001f);  // saturated
+    const float qvsat = static_cast<float>(
+        thermodynamics::saturation_mixing_ratio_water(kTestT, kTestP));
+    qv.resize(NR, NTH, NZ, qvsat);  // saturated at test conditions
     qc.resize(NR, NTH, NZ, qc_val);
     qr.resize(NR, NTH, NZ, qr_val);
 
@@ -224,8 +233,10 @@ TEST_CASE("Kessler sub-threshold cloud water produces no autoconversion", "[phys
     setup_grid();
     setup_warm_state();
 
-    // qc below threshold, no rain, saturated — nothing should happen
-    qv.resize(NR, NTH, NZ, 0.001f);
+    // qc below threshold, no rain, saturated -- nothing should happen
+    const float qvsat = static_cast<float>(
+        thermodynamics::saturation_mixing_ratio_water(kTestT, kTestP));
+    qv.resize(NR, NTH, NZ, qvsat);
     qc.resize(NR, NTH, NZ, 0.0005f);  // < qc0 = 1e-3
     qr.resize(NR, NTH, NZ, 0.0f);
 

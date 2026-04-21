@@ -22,19 +22,22 @@
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
 // Input fields (6 SSBOs, readonly)
-layout(set = 0, binding = 0) readonly buffer URadialBuf    { float u_r[];     };
-layout(set = 0, binding = 1) readonly buffer UThetaBuf     { float u_theta[]; };
-layout(set = 0, binding = 2) readonly buffer UVerticalBuf  { float u_z[];     };
+layout(set = 0, binding = 0) readonly buffer URadialBuf    { float u[];     };
+layout(set = 0, binding = 1) readonly buffer UThetaBuf     { float v[]; };
+layout(set = 0, binding = 2) readonly buffer UVerticalBuf  { float w[];     };
 layout(set = 0, binding = 3) readonly buffer RhoBuf        { float rho[];     };
 layout(set = 0, binding = 4) readonly buffer PressureBuf   { float pressure[];};
 layout(set = 0, binding = 5) readonly buffer ThetaBuf      { float theta[];   };
 
 // Output tendency fields (5 SSBOs)
-layout(set = 0, binding = 6)  buffer DuRadialDtBuf  { float du_r_dt[];     };
-layout(set = 0, binding = 7)  buffer DuThetaDtBuf   { float du_theta_dt[]; };
-layout(set = 0, binding = 8)  buffer DuVertDtBuf    { float du_z_dt[];     };
+layout(set = 0, binding = 6)  buffer DuRadialDtBuf  { float du_dt[];     };
+layout(set = 0, binding = 7)  buffer DuThetaDtBuf   { float dv_dt[]; };
+layout(set = 0, binding = 8)  buffer DuVertDtBuf    { float dw_dt[];     };
 layout(set = 0, binding = 9)  buffer DrhoDtBuf      { float drho_dt[];     };
 layout(set = 0, binding = 10) buffer DpDtBuf        { float dp_dt[];       };
+
+// Precipitation loading (total hydrometeor mixing ratio, precomputed on CPU)
+layout(set = 0, binding = 11) readonly buffer LoadingBuf { float loading[]; };
 
 // Push constants (40 bytes, padded to 4-byte alignment)
 layout(push_constant) uniform PushConstants {
@@ -89,9 +92,9 @@ void main() {
     uint km = uint((i * nth + j) * nz + (k - 1));
 
     // Read center-point values
-    float ur  = u_r[c];
-    float uth = u_theta[c];
-    float uz  = u_z[c];
+    float ur  = u[c];
+    float uth = v[c];
+    float uz  = w[c];
     float rho_val = rho[c];
     float p_val   = pressure[c];
 
@@ -104,17 +107,17 @@ void main() {
 
     // --- Centered finite differences (radial and vertical only) ---
 
-    // u_r derivatives
-    float dur_dr = (u_r[ip] - u_r[im]) * inv_2dr;
-    float dur_dz = (u_r[kp] - u_r[km]) * inv_2dz;
+    // u derivatives
+    float dur_dr = (u[ip] - u[im]) * inv_2dr;
+    float dur_dz = (u[kp] - u[km]) * inv_2dz;
 
-    // u_theta derivatives
-    float duth_dr = (u_theta[ip] - u_theta[im]) * inv_2dr;
-    float duth_dz = (u_theta[kp] - u_theta[km]) * inv_2dz;
+    // v derivatives
+    float duth_dr = (v[ip] - v[im]) * inv_2dr;
+    float duth_dz = (v[kp] - v[km]) * inv_2dz;
 
-    // u_z derivatives
-    float duz_dr = (u_z[ip] - u_z[im]) * inv_2dr;
-    float duz_dz = (u_z[kp] - u_z[km]) * inv_2dz;
+    // w derivatives
+    float duz_dr = (w[ip] - w[im]) * inv_2dr;
+    float duz_dz = (w[kp] - w[km]) * inv_2dz;
 
     // pressure derivatives
     float dp_dr_val = (pressure[ip] - pressure[im]) * inv_2dr;
@@ -124,7 +127,7 @@ void main() {
     float advective_r = -ur * dur_dr - uz * dur_dz;
     float centrifugal = uth * uth / r;
     float pressure_grad_r = -dp_dr_val / rho_safe;
-    du_r_dt[c] = sanitize(advective_r + centrifugal + pressure_grad_r);
+    du_dt[c] = sanitize(advective_r + centrifugal + pressure_grad_r);
 
     // --- du_theta/dt: advection + Coriolis + vortex damping ---
     float advective_th = -ur * duth_dr - uz * duth_dz;
@@ -132,13 +135,13 @@ void main() {
 
     // Vortex damping friction: if v_here > v_inner AND v_here > v_outer
     // Read neighbor azimuthal velocities for friction check
-    float v_inner = u_theta[im];
-    float v_outer = u_theta[ip];
+    float v_inner = v[im];
+    float v_outer = v[ip];
     float fv = 0.0;
     if (uth > v_inner && uth > v_outer) {
         fv = -friction_coeff * uth;
     }
-    du_theta_dt[c] = sanitize(advective_th + coriolis_th + fv);
+    dv_dt[c] = sanitize(advective_th + coriolis_th + fv);
 
     // --- du_z/dt: fully compressible vertical momentum equation ---
     //   dw/dt = -(1/rho) dp/dz - g + advection
@@ -147,7 +150,8 @@ void main() {
     // supercell_tendencies.comp and docs/Journey.md Phase 2 "Bug 3".
     float advective_z = -ur * duz_dr - uz * duz_dz;
     float pressure_grad_z = -dp_dz_val / rho_safe;
-    du_z_dt[c] = sanitize(advective_z + pressure_grad_z - g);
+    float precip_loading = g * loading[c];
+    dw_dt[c] = sanitize(advective_z + pressure_grad_z - g - precip_loading);
 
     // --- drho/dt: mass continuity ---
     float divergence = dur_dr + duz_dz + ur / r;

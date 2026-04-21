@@ -11,7 +11,7 @@
 #include "chaos/base/perturbation_field.hpp"
 #include "chaos/base/correlation_filter.hpp"
 #include "core/simulation.hpp"
-#include "physics/turbulence_base.hpp"
+#include "turbulence/turbulence_base.hpp"
 #include <iostream>
 #include <chrono>
 #include <cmath>
@@ -24,7 +24,7 @@ namespace {
 Field3D* resolve_state_field(SimulationState& state, const std::string& var)
 {
     if (var == "u") return state.u;
-    if (var == "v" || var == "v_theta") return state.v_theta;
+    if (var == "v" || var == "v") return state.v;
     if (var == "w") return state.w;
     if (var == "theta") return state.theta;
     if (var == "qv") return state.qv;

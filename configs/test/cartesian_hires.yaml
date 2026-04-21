@@ -1,0 +1,64 @@
+# High-resolution Cartesian physics test
+# 128x128x64 at dx=1km, dz=250m -- 8x more cells than student grid
+# 1km resolution eliminates collocated-grid checkerboard artifact
+case_name: cartesian_hires
+coordinate_system: cartesian
+grid:
+  nx: 128
+  ny: 128
+  nz: 64
+  dx: 1000.0
+  dy: 1000.0
+  dz: 250.0
+  dt: 1.0
+environment:
+  cape_target_jkg: 3000
+  shear_0_6km_ms: 35
+  sfc_theta_k: 301.0
+  sfc_qv_kgkg: 0.012
+  tropopause_z_m: 12000
+  midlevel_drying: true
+  hodograph:
+    type: wk_param
+    u_sfc_ms: 4
+    v_sfc_ms: 1
+    u_1km_ms: 14
+    v_1km_ms: 6
+    u_6km_ms: 28
+    v_6km_ms: 22
+trigger:
+  bubble:
+    center_x_km: 50
+    center_y_km: 50
+    center_z_km: 1.5
+    radius_km: 10
+    dtheta_k: 2.0
+dynamics:
+  scheme: cartesian
+microphysics:
+  scheme: kessler
+radiation:
+  scheme: simple_grey
+  lw: true
+  sw: true
+  dt: 60
+boundary_layer:
+  scheme: slab
+  surface_fluxes: true
+  dt: 30
+numerics:
+  time_stepping:
+    scheme: split_explicit
+    split_acoustic: true
+    n_acoustic_substeps: 10
+  diffusion:
+    scheme: explicit
+    K_h: 250
+    K_v: 25
+  compute:
+    backend: cpu
+output:
+  write_every_s: 5
+  fields: presentation
+  format: npy_3d
+duration_s: 300

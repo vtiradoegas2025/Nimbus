@@ -8,14 +8,14 @@
  */
 
 #include "core/simulation.hpp"
-#include "core/boundary_conditions.hpp"
+#include "boundary_conditions/boundary_conditions.hpp"
 #include "core/diffusion_step.hpp"
 #include "core/field_sanitization.hpp"
 #include "core/runtime_config.hpp"
 #include "diagnostics/conservation_budget.hpp"
-#include "numerics/diffusion_base.hpp"
-#include "numerics/time_stepping_base.hpp"
-#include "physics/turbulence_base.hpp"
+#include "numerics/diffusion/diffusion_base.hpp"
+#include "numerics/time_stepping/time_stepping_base.hpp"
+#include "turbulence/turbulence_base.hpp"
 #include "dynamics/factory.hpp"
 #include "diagnostics/field_contract.hpp"
 #include "util/log.hpp"
@@ -34,6 +34,7 @@
 
 
 std::unique_ptr<DynamicsScheme> dynamics_scheme = nullptr;
+std::unique_ptr<BoundaryConditionScheme> bc_scheme = nullptr;
 
 Field3D vorticity_r;
 Field3D vorticity_theta;
@@ -86,6 +87,13 @@ void initialize_dynamics(const std::string& scheme_name)
         const std::string active_scheme_name = dynamics_scheme ? dynamics_scheme->get_scheme_name() : scheme_name;
         tmv::log_info("Initialized dynamics scheme: ", active_scheme_name);
 
+        // Initialize coordinate-matched boundary condition scheme.
+        if (global_coordinate_system == CoordinateSystem::Cartesian)
+            bc_scheme = create_cartesian_bc_scheme();
+        else
+            bc_scheme = create_cylindrical_bc_scheme();
+        tmv::log_info("Initialized BC scheme: ", bc_scheme->get_scheme_name());
+
         vorticity_r.resize(NR, NTH, NZ, 0.0f);
         vorticity_theta.resize(NR, NTH, NZ, 0.0f);
         vorticity_z.resize(NR, NTH, NZ, 0.0f);
@@ -111,24 +119,22 @@ void initialize_dynamics(const std::string& scheme_name)
  * @brief Split-explicit dynamics step — constructs callbacks and delegates
  *        to the time stepping scheme in src/numerics/time_stepping/.
  *
- * The callbacks know about the global fields (u, v_theta, w, rho, p) and
+ * The callbacks know about the global fields (u, v, w, rho, p) and
  * the dynamics scheme. The time stepping scheme owns the algorithm.
  */
 void step_dynamics_split_explicit(
     double dt_dynamics,
-    Field3D& du_r_dt, Field3D& du_theta_dt, Field3D& du_z_dt,
+    SplitExplicitDynamics& split_scheme,
+    Field3D& du_dt, Field3D& dv_dt, Field3D& dw_dt,
     Field3D& drho_dt, Field3D& dp_dt)
 {
-    // Build fast-tendency buffers inside the scheme (lazy alloc, not here).
-    // Build slow-tendency buffers: reuse the caller-provided buffers.
-
     SplitExplicitCallbacks callbacks;
 
     callbacks.compute_slow_tendencies = [&]()
     {
-        dynamics_scheme->compute_slow_tendencies(
-            u, v_theta, w, rho, p, theta, dt_dynamics,
-            du_r_dt, du_theta_dt, du_z_dt, drho_dt, dp_dt);
+        split_scheme.compute_slow_tendencies(
+            u, v, w, rho, p, theta, dt_dynamics,
+            du_dt, dv_dt, dw_dt, drho_dt, dp_dt);
     };
 
     callbacks.apply_slow_tendencies = [&](double dt_large)
@@ -139,9 +145,9 @@ void step_dynamics_split_explicit(
             for (int j = 0; j < NTH; ++j)
                 for (int k = 0; k < NZ; ++k)
                 {
-                    float du_slow = du_r_dt[i][j][k] + du_dt_pbl[i][j][k];
-                    float dv_slow = du_theta_dt[i][j][k] + dv_dt_pbl[i][j][k];
-                    float dw_slow = du_z_dt[i][j][k];
+                    float du_slow = du_dt[i][j][k] + du_dt_pbl[i][j][k];
+                    float dv_slow = dv_dt[i][j][k] + dv_dt_pbl[i][j][k];
+                    float dw_slow = dw_dt[i][j][k];
                     float dp_slow = dp_dt[i][j][k];
                     if (!std::isfinite(du_slow)) du_slow = 0.0f;
                     if (!std::isfinite(dv_slow)) dv_slow = 0.0f;
@@ -149,7 +155,7 @@ void step_dynamics_split_explicit(
                     if (!std::isfinite(dp_slow)) dp_slow = 0.0f;
 
                     u[i][j][k]       += du_slow * dt_f;
-                    v_theta[i][j][k] += dv_slow * dt_f;
+                    v[i][j][k] += dv_slow * dt_f;
                     w[i][j][k]       += dw_slow * dt_f;
                     p[i][j][k]       += dp_slow * dt_f;
                 }
@@ -159,8 +165,8 @@ void step_dynamics_split_explicit(
     // We re-use the same drho_dt / dp_dt buffers since slow step is done.
     callbacks.apply_fast_pressure = [&](double dt_small)
     {
-        dynamics_scheme->compute_fast_pressure_tendencies(
-            u, v_theta, w, rho, p, drho_dt, dp_dt);
+        split_scheme.compute_fast_pressure_tendencies(
+            u, v, w, rho, p, drho_dt, dp_dt);
 
         const float dt_s = static_cast<float>(dt_small);
         #pragma omp parallel for collapse(2)
@@ -187,9 +193,9 @@ void step_dynamics_split_explicit(
 
     callbacks.apply_fast_momentum = [&](double dt_small)
     {
-        dynamics_scheme->compute_fast_momentum_tendencies(
-            u, v_theta, w, rho, p,
-            du_r_dt, du_theta_dt, du_z_dt);
+        split_scheme.compute_fast_momentum_tendencies(
+            u, v, w, rho, p,
+            du_dt, dv_dt, dw_dt);
 
         const float dt_s = static_cast<float>(dt_small);
         #pragma omp parallel for collapse(2)
@@ -197,20 +203,20 @@ void step_dynamics_split_explicit(
             for (int j = 0; j < NTH; ++j)
                 for (int k = 0; k < NZ; ++k)
                 {
-                    float du_f = du_r_dt[i][j][k];
-                    float dv_f = du_theta_dt[i][j][k];
-                    float dw_f = du_z_dt[i][j][k];
+                    float du_f = du_dt[i][j][k];
+                    float dv_f = dv_dt[i][j][k];
+                    float dw_f = dw_dt[i][j][k];
                     if (!std::isfinite(du_f)) du_f = 0.0f;
                     if (!std::isfinite(dv_f)) dv_f = 0.0f;
                     if (!std::isfinite(dw_f)) dw_f = 0.0f;
 
                     u[i][j][k]       = clamp_wind_horizontal_ms(u[i][j][k] + du_f * dt_s);
-                    v_theta[i][j][k] = clamp_wind_horizontal_ms(v_theta[i][j][k] + dv_f * dt_s);
+                    v[i][j][k] = clamp_wind_horizontal_ms(v[i][j][k] + dv_f * dt_s);
                     w[i][j][k]       = clamp_wind_vertical_ms(w[i][j][k] + dw_f * dt_s);
                 }
     };
 
-    callbacks.acoustic_bcs = apply_acoustic_boundary_conditions;
+    callbacks.acoustic_bcs = [&]() { bc_scheme->apply_acoustic(); };
 
     // Delegate to the time stepping scheme.
     time_stepping_scheme->step_split_acoustic(
@@ -230,77 +236,80 @@ void step_dynamics_new(double dt_dynamics, double current_time)
     }
     
     ensure_dynamics_tendency_buffers();
-    Field3D& du_r_dt = du_r_dt_buf;
-    Field3D& du_theta_dt = du_theta_dt_buf;
-    Field3D& du_z_dt = du_z_dt_buf;
+    Field3D& du_dt = du_r_dt_buf;
+    Field3D& dv_dt = du_theta_dt_buf;
+    Field3D& dw_dt = du_z_dt_buf;
     Field3D& drho_dt = drho_dt_buf;
     Field3D& dp_dt = dp_dt_buf;
     const ConservationBudget budget_start = compute_conservation_budget();
 
+    auto* split_dynamics = dynamic_cast<SplitExplicitDynamics*>(dynamics_scheme.get());
     const bool use_split = global_time_stepping_config.split_acoustic
-                           && dynamics_scheme->supports_split_acoustic();
+                           && split_dynamics != nullptr;
 
     if (!use_split)
     {
-        // === UNSPLIT PATH (original Forward Euler) ===
-        dynamics_scheme->compute_momentum_tendencies(
-            u, v_theta, w, rho, p, theta, dt_dynamics,
-            du_r_dt, du_theta_dt, du_z_dt, drho_dt, dp_dt
-        );
+        // === UNSPLIT PATH ===
+        // Delegate to the time stepping scheme's step_unsplit() method.
+        // Default implementation is Forward Euler (compute once, apply once).
+        auto compute = [&]() {
+            dynamics_scheme->compute_momentum_tendencies(
+                u, v, w, rho, p, theta, dt_dynamics,
+                du_dt, dv_dt, dw_dt, drho_dt, dp_dt);
+        };
 
-        #pragma omp parallel for collapse(2)
-        for (int i = 0; i < NR; ++i)
-        {
-            for (int j = 0; j < NTH; ++j)
+        auto apply = [&](double dt_step) {
+            const float dt_s = static_cast<float>(dt_step);
+            #pragma omp parallel for collapse(2)
+            for (int i = 0; i < NR; ++i)
             {
-                for (int k = 0; k < NZ; ++k)
+                for (int j = 0; j < NTH; ++j)
                 {
-                    float du_total = du_r_dt[i][j][k] + du_dt_pbl[i][j][k];
-                    float dv_total = du_theta_dt[i][j][k] + dv_dt_pbl[i][j][k];
-                    float dw_total = du_z_dt[i][j][k];
-                    float drho_total = drho_dt[i][j][k];
-                    float dp_total = dp_dt[i][j][k];
-
-                    if (!std::isfinite(du_total)) du_total = 0.0f;
-                    if (!std::isfinite(dv_total)) dv_total = 0.0f;
-                    if (!std::isfinite(dw_total)) dw_total = 0.0f;
-                    if (!std::isfinite(drho_total)) drho_total = 0.0f;
-                    if (!std::isfinite(dp_total)) dp_total = 0.0f;
-
-                    float u_new = u[i][j][k] + du_total * dt_dynamics;
-                    float v_new = v_theta[i][j][k] + dv_total * dt_dynamics;
-                    float w_new = w[i][j][k] + dw_total * dt_dynamics;
-                    float rho_new = rho[i][j][k] + drho_total * dt_dynamics;
-                    float p_new = p[i][j][k] + dp_total * dt_dynamics;
-
-                    if (!std::isfinite(u_new)) u_new = 0.0f;
-                    if (!std::isfinite(v_new)) v_new = 0.0f;
-                    if (!std::isfinite(w_new)) w_new = 0.0f;
-                    if (!std::isfinite(rho_new) || rho_new <= 0.0f)
+                    for (int k = 0; k < NZ; ++k)
                     {
-                        rho_new = static_cast<float>(std::max(0.1, rho0_base[k]));
-                    }
-                    if (!std::isfinite(p_new) || p_new <= 0.0f)
-                    {
-                        p_new = static_cast<float>(p0);
-                    }
+                        float du_f = du_dt[i][j][k] + du_dt_pbl[i][j][k];
+                        float dv_f = dv_dt[i][j][k] + dv_dt_pbl[i][j][k];
+                        float dw_f = dw_dt[i][j][k];
+                        float drho_f = drho_dt[i][j][k];
+                        float dp_f = dp_dt[i][j][k];
 
-                    u[i][j][k] = clamp_wind_horizontal_ms(u_new);
-                    v_theta[i][j][k] = clamp_wind_horizontal_ms(v_new);
-                    w[i][j][k] = clamp_wind_vertical_ms(w_new);
-                    rho[i][j][k] = clamp_density_kgm3(rho_new);
-                    p[i][j][k] = clamp_pressure_pa(p_new);
+                        if (!std::isfinite(du_f)) du_f = 0.0f;
+                        if (!std::isfinite(dv_f)) dv_f = 0.0f;
+                        if (!std::isfinite(dw_f)) dw_f = 0.0f;
+                        if (!std::isfinite(drho_f)) drho_f = 0.0f;
+                        if (!std::isfinite(dp_f)) dp_f = 0.0f;
+
+                        float u_new = u[i][j][k] + du_f * dt_s;
+                        float v_new = v[i][j][k] + dv_f * dt_s;
+                        float w_new = w[i][j][k] + dw_f * dt_s;
+                        float rho_new = rho[i][j][k] + drho_f * dt_s;
+                        float p_new = p[i][j][k] + dp_f * dt_s;
+
+                        if (!std::isfinite(u_new)) u_new = 0.0f;
+                        if (!std::isfinite(v_new)) v_new = 0.0f;
+                        if (!std::isfinite(w_new)) w_new = 0.0f;
+                        if (!std::isfinite(rho_new) || rho_new <= 0.0f)
+                            rho_new = static_cast<float>(std::max(0.1, rho0_base[k]));
+                        if (!std::isfinite(p_new) || p_new <= 0.0f)
+                            p_new = static_cast<float>(p0);
+
+                        u[i][j][k] = clamp_wind_horizontal_ms(u_new);
+                        v[i][j][k] = clamp_wind_horizontal_ms(v_new);
+                        w[i][j][k] = clamp_wind_vertical_ms(w_new);
+                        rho[i][j][k] = clamp_density_kgm3(rho_new);
+                        p[i][j][k] = clamp_pressure_pa(p_new);
+                    }
                 }
             }
-        }
+        };
+
+        time_stepping_scheme->step_unsplit(dt_dynamics, compute, apply);
     }
     else
     {
         // === SPLIT-EXPLICIT PATH ===
         // Delegate to the time stepping scheme in src/numerics/time_stepping/.
-        // dynamics.cpp provides field-specific callbacks; the scheme owns
-        // the algorithm (dt splitting, forward-backward ordering, N substeps).
-        step_dynamics_split_explicit(dt_dynamics, du_r_dt, du_theta_dt, du_z_dt, drho_dt, dp_dt);
+        step_dynamics_split_explicit(dt_dynamics, *split_dynamics, du_dt, dv_dt, dw_dt, drho_dt, dp_dt);
     }
     enforce_primary_state_bounds("dynamics");
     const ConservationBudget budget_after_dynamics = compute_conservation_budget();
@@ -340,13 +349,13 @@ void step_dynamics_new(double dt_dynamics, double current_time)
                 if (!std::isfinite(dthetadt_sgs)) dthetadt_sgs = 0.0f;
 
                 float u_new = u[i][j][k] + dudt_sgs * dt_dynamics;
-                float v_new = v_theta[i][j][k] + dvdt_sgs * dt_dynamics;
+                float v_new = v[i][j][k] + dvdt_sgs * dt_dynamics;
                 float w_new = w[i][j][k] + dwdt_sgs * dt_dynamics;
                 if (!std::isfinite(u_new)) u_new = 0.0f;
                 if (!std::isfinite(v_new)) v_new = 0.0f;
                 if (!std::isfinite(w_new)) w_new = 0.0f;
                 u[i][j][k] = clamp_wind_horizontal_ms(u_new);
-                v_theta[i][j][k] = clamp_wind_horizontal_ms(v_new);
+                v[i][j][k] = clamp_wind_horizontal_ms(v_new);
                 w[i][j][k] = clamp_wind_vertical_ms(w_new);
 
                 float theta_new = theta[i][j][k] + dthetadt_sgs * dt_dynamics;
@@ -417,12 +426,12 @@ void compute_dynamics_diagnostics()
     dynamic_pressure.fill(0.0f);
     buoyancy_pressure.fill(0.0f);
 
-    dynamics_scheme->compute_vorticity_diagnostics(u, v_theta, w, rho, p, vorticity_r, vorticity_theta, vorticity_z,
+    dynamics_scheme->compute_vorticity_diagnostics(u, v, w, rho, p, vorticity_r, vorticity_theta, vorticity_z,
         stretching_term, tilting_term, baroclinic_term);
 
-    dynamics_scheme->compute_angular_momentum(u, v_theta, angular_momentum, angular_momentum_tendency);
+    dynamics_scheme->compute_angular_momentum(u, v, angular_momentum, angular_momentum_tendency);
 
-    dynamics_scheme->compute_pressure_diagnostics(u, v_theta, w, rho, theta,p_prime, dynamic_pressure, buoyancy_pressure);
+    dynamics_scheme->compute_pressure_diagnostics(u, v, w, rho, theta,p_prime, dynamic_pressure, buoyancy_pressure);
 
     int sanitized = 0;
     sanitized += sanitize_field_nonfinite_and_contract_bounds(vorticity_r, "vorticity_r");
@@ -449,7 +458,7 @@ void compute_dynamics_diagnostics()
  * Dispatches by the active coordinate system: the cylindrical body below
  * (axis-reflection at i=0, periodic theta wraparound implicit in the
  * dynamics, vertical rigid lid + surface) is the historical default. The
- * Cartesian path delegates to `apply_cartesian_boundary_conditions()`
+ * Delegates to the active BoundaryConditionScheme (Phase B.3).
  * (declared in `core/boundary_conditions.hpp`), which uses open lateral
  * BCs on all four x/y faces. See Phase A.3 of the Coordinate Backend Plan
  * (`docs/CoordinateBackend_Plan.md`) and Bug 7 in `docs/Journey.md` for the
@@ -461,15 +470,7 @@ void compute_dynamics_diagnostics()
  */
 void apply_boundary_conditions()
 {
-    if (global_coordinate_system == CoordinateSystem::Cartesian)
-    {
-        apply_cartesian_boundary_conditions();
-    }
-    else
-    {
-        apply_cylindrical_boundary_conditions();
-    }
-
+    bc_scheme->apply_full();
     enforce_primary_state_bounds("boundary_conditions");
 }
 
@@ -521,7 +522,7 @@ void step_dynamics_old(double current_time)
         {
             for (int k = 1; k < NZ - 1; ++k) 
             {
-                double sp = std::max({std::abs((double)u[i][j][k]), std::abs((double)w[i][j][k]), std::abs((double)v_theta[i][j][k])});
+                double sp = std::max({std::abs((double)u[i][j][k]), std::abs((double)w[i][j][k]), std::abs((double)v[i][j][k])});
                 if (sp > max_speed) max_speed = sp; 
             }
         }
@@ -582,16 +583,16 @@ void step_dynamics_old(double current_time)
                     w[i][j][k] = 0.0f;
                 }
 
-                if (std::isnan(v_theta[i][j][k]) || std::isinf(v_theta[i][j][k])) 
+                if (std::isnan(v[i][j][k]) || std::isinf(v[i][j][k])) 
                 {
-                    v_theta[i][j][k] = 0.0f;
+                    v[i][j][k] = 0.0f;
                 }
 
                 p[i][j][k] = clamp_pressure_pa(p[i][j][k]);
                 theta[i][j][k] = clamp_theta_k(theta[i][j][k]);
                 u[i][j][k] = clamp_wind_horizontal_ms(u[i][j][k]);
                 w[i][j][k] = clamp_wind_vertical_ms(w[i][j][k]);
-                v_theta[i][j][k] = clamp_wind_horizontal_ms(v_theta[i][j][k]);
+                v[i][j][k] = clamp_wind_horizontal_ms(v[i][j][k]);
             }
         }
     }

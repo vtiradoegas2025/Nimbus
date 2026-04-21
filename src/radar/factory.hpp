@@ -12,7 +12,7 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include "diagnostics/radar_base.hpp"
+#include "radar/radar_base.hpp"
 
 class ReflectivityScheme;
 class VelocityScheme;

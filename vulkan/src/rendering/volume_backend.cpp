@@ -369,6 +369,25 @@ bool VolumeBackend::initialize(VulkanContext& context,
 
     if (!scan_datasets(error)) {return false;}
 
+    // Pre-compute cross-frame normalization for each field.
+    // This scans all frames to find the global absolute maximum so that
+    // early weak signals don't self-normalize to fill the volume.
+    for (auto& dataset : datasets_)
+    {
+        const float mag = dataset.compute_global_magnitude();
+        if (mag > 0.0f)
+        {
+            dataset.set_global_magnitude(mag);
+            std::cerr << "[vulkan][volume] " << dataset.field_name()
+                      << ": cross-frame bipolar normalization, magnitude=" << mag << std::endl;
+        }
+        else
+        {
+            std::cerr << "[vulkan][volume] " << dataset.field_name()
+                      << ": unipolar (magnitude=" << mag << ")" << std::endl;
+        }
+    }
+
     if (!load_initial_frame(error)) {return false;}
 
     if (!create_volume_resources(context, error)) {return false;}

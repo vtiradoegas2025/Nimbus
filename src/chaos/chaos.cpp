@@ -8,9 +8,9 @@
  */
 
 #include "core/simulation.hpp"
-#include "physics/boundary_layer_base.hpp"
+#include "boundary_layer/boundary_layer_base.hpp"
 #include "factory.hpp"
-#include "physics/turbulence_base.hpp"
+#include "turbulence/turbulence_base.hpp"
 #include "util/string_utils.hpp"
 #include "util/simd_utils.hpp"
 #include "util/log.hpp"
@@ -215,7 +215,7 @@ chaos::ChaosStateView make_state_view(const GridMetrics& active_grid)
     chaos::ChaosStateView state_view;
     state_view.grid = &active_grid;
     state_view.u = &u;
-    state_view.v_theta = &v_theta;
+    state_view.v = &v;
     state_view.w = &w;
     state_view.theta = &theta;
     state_view.qv = &qv;
@@ -274,13 +274,13 @@ int sanitize_chaos_tendencies(chaos::ChaosTendencies& tendencies)
     sanitized += sanitize_nonfinite_field(tendencies.dqh_micro_dt);
 
     sanitized += sanitize_nonfinite_field(tendencies.du_pbl_dt);
-    sanitized += sanitize_nonfinite_field(tendencies.dv_theta_pbl_dt);
+    sanitized += sanitize_nonfinite_field(tendencies.dv_pbl_dt);
     sanitized += sanitize_nonfinite_field(tendencies.dw_pbl_dt);
     sanitized += sanitize_nonfinite_field(tendencies.dtheta_pbl_dt);
     sanitized += sanitize_nonfinite_field(tendencies.dqv_pbl_dt);
 
     sanitized += sanitize_nonfinite_field(tendencies.du_diff_dt);
-    sanitized += sanitize_nonfinite_field(tendencies.dv_theta_diff_dt);
+    sanitized += sanitize_nonfinite_field(tendencies.dv_diff_dt);
     sanitized += sanitize_nonfinite_field(tendencies.dw_diff_dt);
     sanitized += sanitize_nonfinite_field(tendencies.dtheta_diff_dt);
     sanitized += sanitize_nonfinite_field(tendencies.dqv_diff_dt);
@@ -291,7 +291,7 @@ int sanitize_chaos_initial_state(SimulationState& state)
 {
     int sanitized = 0;
     sanitized += sanitize_field_with_clamp(state.u, clamp_wind_horizontal_ms);
-    sanitized += sanitize_field_with_clamp(state.v_theta, clamp_wind_horizontal_ms);
+    sanitized += sanitize_field_with_clamp(state.v, clamp_wind_horizontal_ms);
     sanitized += sanitize_field_with_clamp(state.w, clamp_wind_vertical_ms);
     sanitized += sanitize_field_with_clamp(state.theta, clamp_theta_k);
     sanitized += sanitize_field_with_clamp(state.qv, clamp_qv_kgkg);
@@ -434,7 +434,7 @@ void apply_chaos_initial_conditions()
     try {
         SimulationState sim_state;
         sim_state.u = &u;
-        sim_state.v_theta = &v_theta;
+        sim_state.v = &v;
         sim_state.w = &w;
         sim_state.theta = &theta;
         sim_state.qv = &qv;
@@ -544,7 +544,7 @@ void apply_chaos_tendencies()
 
         chaos::ChaosTendencies tendencies;
         tendencies.du_pbl_dt = &du_dt_pbl;
-        tendencies.dv_theta_pbl_dt = &dv_dt_pbl;
+        tendencies.dv_pbl_dt = &dv_dt_pbl;
         tendencies.dtheta_pbl_dt = &dtheta_dt_pbl;
         tendencies.dqv_pbl_dt = &dqv_dt_pbl;
 
@@ -652,7 +652,7 @@ void apply_chaos_to_turbulence_tendencies(TurbulenceTendencies& tendencies_in)
 
         chaos::ChaosTendencies tendencies;
         tendencies.du_diff_dt = &tendencies_in.dudt_sgs;
-        tendencies.dv_theta_diff_dt = &tendencies_in.dvdt_sgs;
+        tendencies.dv_diff_dt = &tendencies_in.dvdt_sgs;
         tendencies.dw_diff_dt = &tendencies_in.dwdt_sgs;
         tendencies.dtheta_diff_dt = &tendencies_in.dthetadt_sgs;
         tendencies.dqv_diff_dt = &tendencies_in.dqvdt_sgs;

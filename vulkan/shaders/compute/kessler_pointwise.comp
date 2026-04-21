@@ -14,19 +14,20 @@ layout(local_size_x = 64) in;
 
 // ── Input fields (readonly) ─────────────────────────────────────────
 layout(set = 0, binding = 0)  readonly buffer Temperature { float temperature[]; };
-layout(set = 0, binding = 1)  readonly buffer QV  { float qv[];  };
-layout(set = 0, binding = 2)  readonly buffer QC  { float qc[];  };
-layout(set = 0, binding = 3)  readonly buffer QR  { float qr[];  };
-layout(set = 0, binding = 4)  readonly buffer QG  { float qg[];  };
-layout(set = 0, binding = 5)  readonly buffer QH  { float qh[];  };
+layout(set = 0, binding = 1)  readonly buffer Pressure    { float pressure[];    };
+layout(set = 0, binding = 2)  readonly buffer QV  { float qv[];  };
+layout(set = 0, binding = 3)  readonly buffer QC  { float qc[];  };
+layout(set = 0, binding = 4)  readonly buffer QR  { float qr[];  };
+layout(set = 0, binding = 5)  readonly buffer QG  { float qg[];  };
+layout(set = 0, binding = 6)  readonly buffer QH  { float qh[];  };
 
 // ── Output tendency fields (writeonly) ──────────────────────────────
-layout(set = 0, binding = 6)  writeonly buffer DTheta { float dtheta_dt[]; };
-layout(set = 0, binding = 7)  writeonly buffer DQV    { float dqv_dt[];    };
-layout(set = 0, binding = 8)  writeonly buffer DQC    { float dqc_dt[];    };
-layout(set = 0, binding = 9)  writeonly buffer DQR    { float dqr_dt[];    };
-layout(set = 0, binding = 10) writeonly buffer DQG    { float dqg_dt[];    };
-layout(set = 0, binding = 11) writeonly buffer DQH    { float dqh_dt[];    };
+layout(set = 0, binding = 7)  writeonly buffer DTheta { float dtheta_dt[]; };
+layout(set = 0, binding = 8)  writeonly buffer DQV    { float dqv_dt[];    };
+layout(set = 0, binding = 9)  writeonly buffer DQC    { float dqc_dt[];    };
+layout(set = 0, binding = 10) writeonly buffer DQR    { float dqr_dt[];    };
+layout(set = 0, binding = 11) writeonly buffer DQG    { float dqg_dt[];    };
+layout(set = 0, binding = 12) writeonly buffer DQH    { float dqh_dt[];    };
 
 // ── Push constants ──────────────────────────────────────────────────
 layout(push_constant) uniform PushConstants
@@ -49,6 +50,41 @@ layout(push_constant) uniform PushConstants
     float padding;
 } pc;
 
+// ── Saturation mixing ratio functions ───────────────────────────────
+
+float saturation_vapor_pressure_water(float T)
+{
+    float T_c = T - pc.T0;
+    if (T >= pc.T0)
+    {
+        return 611.21 * exp((18.678 - T_c / 234.5) * T_c / (257.14 + T_c));
+    }
+    else
+    {
+        return 611.15 * exp((23.036 - T_c / 333.7) * T_c / (279.82 + T_c));
+    }
+}
+
+float saturation_vapor_pressure_ice(float T)
+{
+    float T_c = T - pc.T0;
+    return 611.15 * exp((23.036 - T_c / 333.7) * T_c / (279.82 + T_c));
+}
+
+float saturation_mixing_ratio_water(float T, float p_val)
+{
+    float e_sat = saturation_vapor_pressure_water(T);
+    float denom = max(p_val - e_sat, 1.0);
+    return clamp(0.62198 * e_sat / denom, 0.0, 0.2);
+}
+
+float saturation_mixing_ratio_ice(float T, float p_val)
+{
+    float e_sat = saturation_vapor_pressure_ice(T);
+    float denom = max(p_val - e_sat, 1.0);
+    return clamp(0.62198 * e_sat / denom, 0.0, 0.2);
+}
+
 void main()
 {
     uint gid = gl_GlobalInvocationID.x;
@@ -59,6 +95,7 @@ void main()
     }
 
     float T      = temperature[gid];
+    float p_val  = pressure[gid];
     float qv_val = qv[gid];
     float qc_val = qc[gid];
     float qr_val = qr[gid];
@@ -75,7 +112,7 @@ void main()
 
     // ── Warm rain processes ─────────────────────────────────────────
 
-    // Autoconversion: cloud water → rain
+    // Autoconversion: cloud water -> rain
     if (qc_val > pc.qc0)
     {
         float auto_rate = pc.c_auto * (qc_val - pc.qc0);
@@ -96,8 +133,8 @@ void main()
     // Evaporation of rain in sub-saturated air
     if (qr_val > 0.0)
     {
-        float qvsat = 0.001;
-        float RH = (qv_val > 0.0) ? qv_val / qvsat : 0.0;
+        float qvsat = saturation_mixing_ratio_water(T, p_val);
+        float RH = (qv_val > 0.0 && qvsat > 0.0) ? qv_val / qvsat : 0.0;
         if (RH < 1.0)
         {
             float evap_rate = pc.c_evap * (1.0 - RH) * qr_val;
@@ -112,7 +149,7 @@ void main()
     bool is_cold = (T < pc.T0);
     if (is_cold)
     {
-        // Freezing: cloud water → graupel
+        // Freezing: cloud water -> graupel
         if (qc_val > 0.0)
         {
             float freeze_rate = pc.c_freeze * qc_val;
@@ -121,7 +158,7 @@ void main()
             d_theta += pc.Lf_cp * freeze_rate / T;
         }
 
-        // Riming: cloud water → graupel (collection by graupel)
+        // Riming: cloud water -> graupel (collection by graupel)
         if (qc_val > 0.0 && qg_val > 0.0)
         {
             float rime_rate = pc.c_rime * qc_val * qg_val;
@@ -130,7 +167,7 @@ void main()
             d_theta += pc.Lf_cp * rime_rate / T;
         }
 
-        // Riming: cloud water → hail (collection by hail)
+        // Riming: cloud water -> hail (collection by hail)
         if (qc_val > 0.0 && qh_val > 0.0)
         {
             float rime_rate = pc.c_rime * qc_val * qh_val;
@@ -139,7 +176,7 @@ void main()
             d_theta += pc.Lf_cp * rime_rate / T;
         }
 
-        // Graupel → hail conversion (autoconversion analog for ice)
+        // Graupel -> hail conversion (autoconversion analog for ice)
         if (qg_val > pc.qc0)
         {
             float conv_rate = pc.c_auto * (qg_val - pc.qc0);
@@ -148,8 +185,8 @@ void main()
         }
 
         // Sublimation of graupel and hail in sub-saturated ice air
-        float qvsat_ice = 0.001;
-        float RH_ice = (qv_val > 0.0) ? qv_val / qvsat_ice : 0.0;
+        float qvsat_ice = saturation_mixing_ratio_ice(T, p_val);
+        float RH_ice = (qv_val > 0.0 && qvsat_ice > 0.0) ? qv_val / qvsat_ice : 0.0;
         if (RH_ice < 1.0)
         {
             if (qg_val > 0.0)
@@ -173,7 +210,7 @@ void main()
 
     if (T > pc.T0)
     {
-        // Hail melting → rain
+        // Hail melting -> rain
         if (qh_val > 0.0)
         {
             float melt_rate = pc.c_melt * qh_val;
@@ -182,7 +219,7 @@ void main()
             d_theta -= pc.Lf_cp * melt_rate / T;
         }
 
-        // Graupel melting → rain
+        // Graupel melting -> rain
         if (qg_val > 0.0)
         {
             float melt_rate = pc.c_melt * qg_val;

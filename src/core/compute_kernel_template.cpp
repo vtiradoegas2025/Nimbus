@@ -1,5 +1,5 @@
-#include "numerics/compute_kernel_template.hpp"
-#include "numerics/compute_backend.hpp"
+#include "compute/compute_kernel_template.hpp"
+#include "compute/compute_backend.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -138,14 +138,16 @@ bool dispatch_tvd_vertical_flux_v1(
 
     double max_cfl = 0.0;
 
+    static constexpr int MAX_VERT_LEVELS = 512;
+
     #pragma omp parallel reduction(max:max_cfl)
     {
-        std::vector<double> q_col(static_cast<std::size_t>(nz), 0.0);
-        std::vector<double> w_col(static_cast<std::size_t>(nz), 0.0);
-        std::vector<double> dz_col(static_cast<std::size_t>(nz), 1.0);
-        std::vector<double> q_left(static_cast<std::size_t>(nz), 0.0);
-        std::vector<double> q_right(static_cast<std::size_t>(nz), 0.0);
-        std::vector<double> dqdt_col(static_cast<std::size_t>(nz), 0.0);
+        double q_col[MAX_VERT_LEVELS];
+        double w_col[MAX_VERT_LEVELS];
+        double dz_col[MAX_VERT_LEVELS];
+        double q_left[MAX_VERT_LEVELS];
+        double q_right[MAX_VERT_LEVELS];
+        double dqdt_col[MAX_VERT_LEVELS];
 
         #pragma omp for collapse(2) schedule(static)
         for (int i = 0; i < nr; ++i)
@@ -182,7 +184,7 @@ bool dispatch_tvd_vertical_flux_v1(
                     }
                 }
 
-                std::fill(dqdt_col.begin(), dqdt_col.end(), 0.0);
+                std::fill(dqdt_col, dqdt_col + nz, 0.0);
                 if (nz == 1)
                 {
                     dqdt_data[base] = 0.0f;
@@ -412,6 +414,7 @@ bool dispatch_diffusion_backend(
 bool dispatch_supercell_tendencies_backend(
     const float* u_r_data, const float* u_theta_data, const float* u_z_data,
     const float* rho_data, const float* p_data, const float* theta_data,
+    const float* loading_data,
     float* du_r_dt_data, float* du_theta_dt_data, float* du_z_dt_data,
     float* drho_dt_data, float* dp_dt_data,
     int nr, int nth, int nz,
@@ -424,6 +427,7 @@ bool dispatch_supercell_tendencies_backend(
         return backend->dispatch_supercell_tendencies(
             u_r_data, u_theta_data, u_z_data,
             rho_data, p_data, theta_data,
+            loading_data,
             du_r_dt_data, du_theta_dt_data, du_z_dt_data,
             drho_dt_data, dp_dt_data,
             nr, nth, nz,
@@ -437,11 +441,13 @@ bool dispatch_cartesian_tendencies_backend(
     const float* u_x_data, const float* u_y_data, const float* w_data,
     const float* rho_data, const float* p_data, const float* theta_data,
     const float* p0_base_data, const float* rho0_base_data,
+    const float* loading_data,
+    const float* u0_base_data, const float* v0_base_data,
     float* du_x_dt_data, float* du_y_dt_data, float* dw_dt_data,
     float* drho_dt_data, float* dp_dt_data,
     int nr, int nth, int nz,
     float dx, float dy, float dz,
-    float g, float gamma_val)
+    float g, float gamma_val, float coriolis_f_val)
 {
     ComputeBackend* backend = mutable_compute_backend();
     if (backend != nullptr && backend->supports_cartesian_tendencies_dispatch())
@@ -450,11 +456,13 @@ bool dispatch_cartesian_tendencies_backend(
             u_x_data, u_y_data, w_data,
             rho_data, p_data, theta_data,
             p0_base_data, rho0_base_data,
+            loading_data,
+            u0_base_data, v0_base_data,
             du_x_dt_data, du_y_dt_data, dw_dt_data,
             drho_dt_data, dp_dt_data,
             nr, nth, nz,
             dx, dy, dz,
-            g, gamma_val);
+            g, gamma_val, coriolis_f_val);
     }
     return false;
 }
@@ -488,6 +496,7 @@ bool dispatch_advection_y_backend(
 bool dispatch_tornado_tendencies_backend(
     const float* u_r_data, const float* u_theta_data, const float* u_z_data,
     const float* rho_data, const float* p_data, const float* theta_data,
+    const float* loading_data,
     float* du_r_dt_data, float* du_theta_dt_data, float* du_z_dt_data,
     float* drho_dt_data, float* dp_dt_data,
     int nr, int nth, int nz,
@@ -500,6 +509,7 @@ bool dispatch_tornado_tendencies_backend(
         return backend->dispatch_tornado_tendencies(
             u_r_data, u_theta_data, u_z_data,
             rho_data, p_data, theta_data,
+            loading_data,
             du_r_dt_data, du_theta_dt_data, du_z_dt_data,
             drho_dt_data, dp_dt_data,
             nr, nth, nz,
@@ -568,7 +578,7 @@ bool supports_batched_advection_dispatch()
 
 bool dispatch_advection_batch_pre_vertical_backend(
     const float* scalar_in, float* result_out,
-    const float* u_data, const float* v_theta_data,
+    const float* u_data, const float* v_data,
     int nr, int nth, int nz,
     float dr, float dtheta, float dt_half)
 {
@@ -577,7 +587,7 @@ bool dispatch_advection_batch_pre_vertical_backend(
     {
         return backend->dispatch_advection_batch_pre_vertical(
             scalar_in, result_out,
-            u_data, v_theta_data,
+            u_data, v_data,
             nr, nth, nz,
             dr, dtheta, dt_half);
     }
@@ -586,7 +596,7 @@ bool dispatch_advection_batch_pre_vertical_backend(
 
 bool dispatch_advection_batch_post_vertical_backend(
     const float* scalar_in, float* result_out,
-    const float* u_data, const float* v_theta_data,
+    const float* u_data, const float* v_data,
     int nr, int nth, int nz,
     float dr, float dtheta, float dz,
     float dt_half, float dt_full, float kappa)
@@ -596,7 +606,7 @@ bool dispatch_advection_batch_post_vertical_backend(
     {
         return backend->dispatch_advection_batch_post_vertical(
             scalar_in, result_out,
-            u_data, v_theta_data,
+            u_data, v_data,
             nr, nth, nz,
             dr, dtheta, dz,
             dt_half, dt_full, kappa);

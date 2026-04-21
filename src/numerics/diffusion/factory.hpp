@@ -10,7 +10,7 @@
 #pragma once
 #include <memory>
 #include <string>
-#include "numerics/diffusion_base.hpp"
+#include "numerics/diffusion/diffusion_base.hpp"
 
 class ExplicitDiffusionScheme;
 class ImplicitDiffusionScheme;

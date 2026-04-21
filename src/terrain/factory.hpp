@@ -10,7 +10,7 @@
 #pragma once
 #include <memory>
 #include <string>
-#include "physics/terrain_base.hpp"
+#include "terrain/terrain_base.hpp"
 
 class BellScheme;
 class ScharScheme;

@@ -13,7 +13,7 @@
 #include "catch2/catch.hpp"
 #include "core/field3d.hpp"
 #include "core/simulation.hpp"
-#include "numerics/time_stepping_base.hpp"
+#include "numerics/time_stepping/time_stepping_base.hpp"
 #include "numerics/numerics_base.hpp"
 
 #include <cmath>

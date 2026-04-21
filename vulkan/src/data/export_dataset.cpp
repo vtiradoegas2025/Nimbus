@@ -16,6 +16,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <limits>
 #include <regex>
@@ -267,7 +268,8 @@ void ExportDataset::normalize_volume(const std::vector<float>& src,
                                      float& norm_high,
                                      std::size_t& nan_count,
                                      std::size_t& inf_count,
-                                     std::size_t& sanitized_nonfinite_count) 
+                                     std::size_t& sanitized_nonfinite_count,
+                                     float global_magnitude)
 {
     raw_min = std::numeric_limits<float>::infinity();
     raw_max = -std::numeric_limits<float>::infinity();
@@ -303,70 +305,142 @@ void ExportDataset::normalize_volume(const std::vector<float>& src,
         return;
     }
 
+    // Detect bipolar fields: both positive and negative values with
+    // significant range on both sides. Atmospheric fields like w, vorticity,
+    // and buoyancy are bipolar — strong updrafts AND downdrafts matter, but
+    // zero should be invisible. Unipolar fields like qr (always >= 0) use
+    // standard min-max normalization.
+    const bool is_bipolar = (raw_min < 0.0f && raw_max > 0.0f) &&
+                            (std::abs(raw_min) > 0.05f * raw_max ||
+                             raw_max > 0.05f * std::abs(raw_min));
+
     constexpr int bins = 2048;
-    std::vector<std::size_t> hist(bins, 0);
     const float span = raw_max - raw_min;
 
-    for (float v : src) 
+    if (is_bipolar)
     {
-        if (!is_finite(v)) 
+        // Bipolar normalization: map |value| / max_magnitude → [0, 1].
+        // Both -50 m/s and +50 m/s map near 1.0.  Zero maps to 0.0.
+        // This ensures the ray-march threshold correctly filters the
+        // weak background (near-zero subsidence, ambient buoyancy) while
+        // showing both updrafts and downdrafts as intense features.
+
+        float safe_mag;
+        if (global_magnitude > 0.0f)
         {
-            continue;
+            // Cross-frame normalization: use the pre-computed global
+            // magnitude so that weak early frames don't self-normalize
+            // to fill the volume. A 0.06 buoyancy at t=10s correctly
+            // appears dim when the storm peak reaches 5.0 at t=300s.
+            safe_mag = global_magnitude;
         }
-        const float t = (v - raw_min) / span;
-        int idx = static_cast<int>(t * static_cast<float>(bins - 1));
-        idx = std::max(0, std::min(bins - 1, idx));
-        ++hist[static_cast<std::size_t>(idx)];
-    }
-
-    const std::size_t low_target = static_cast<std::size_t>(0.02 * static_cast<double>(finite_count));
-    const std::size_t high_target = static_cast<std::size_t>(0.98 * static_cast<double>(finite_count));
-
-    std::size_t cumulative = 0;
-    int low_bin = 0;
-    int high_bin = bins - 1;
-
-    for (int i = 0; i < bins; ++i) 
-    {
-        cumulative += hist[static_cast<std::size_t>(i)];
-        if (cumulative >= low_target) 
+        else
         {
-            low_bin = i;
-            break;
-        }
-    }
+            // Per-frame fallback: use percentile clipping on this frame.
+            std::vector<std::size_t> hist(bins, 0);
+            float abs_max = std::max(std::abs(raw_min), std::abs(raw_max));
+            for (float v : src)
+            {
+                if (!is_finite(v)) continue;
+                float t = std::abs(v) / abs_max;
+                int idx = static_cast<int>(t * static_cast<float>(bins - 1));
+                idx = std::max(0, std::min(bins - 1, idx));
+                ++hist[static_cast<std::size_t>(idx)];
+            }
 
-    cumulative = 0;
-    for (int i = 0; i < bins; ++i) 
-    {
-        cumulative += hist[static_cast<std::size_t>(i)];
-        if (cumulative >= high_target) 
+            const std::size_t high_target = static_cast<std::size_t>(0.98 * static_cast<double>(finite_count));
+            std::size_t cumulative = 0;
+            int high_bin = bins - 1;
+            for (int i = 0; i < bins; ++i)
+            {
+                cumulative += hist[static_cast<std::size_t>(i)];
+                if (cumulative >= high_target)
+                {
+                    high_bin = i;
+                    break;
+                }
+            }
+            safe_mag = std::max(abs_max * (static_cast<float>(high_bin) / static_cast<float>(bins - 1)), 1e-12f);
+        }
+
+        norm_low = -safe_mag;
+        norm_high = safe_mag;
+
+        for (std::size_t i = 0; i < src.size(); ++i)
         {
-            high_bin = i;
-            break;
+            const float v = src[i];
+            if (!is_finite(v))
+            {
+                dst[i] = 0.0f;
+                ++sanitized_nonfinite_count;
+                continue;
+            }
+            dst[i] = clamp01(std::abs(v) / safe_mag);
         }
     }
-
-    norm_low = raw_min + (static_cast<float>(low_bin) / static_cast<float>(bins - 1)) * span;
-    norm_high = raw_min + (static_cast<float>(high_bin) / static_cast<float>(bins - 1)) * span;
-
-    if (!(norm_high > norm_low)) 
+    else
     {
-        norm_low = raw_min;
-        norm_high = raw_max;
-    }
+        // Unipolar normalization: standard percentile-clipped min-max mapping.
+        std::vector<std::size_t> hist(bins, 0);
 
-    const float norm_span = std::max(norm_high - norm_low, 1e-12f);
-    for (std::size_t i = 0; i < src.size(); ++i) 
-    {
-        const float v = src[i];
-        if (!is_finite(v)) 
+        for (float v : src)
         {
-            dst[i] = 0.0f;
-            ++sanitized_nonfinite_count;
-            continue;
+            if (!is_finite(v)) continue;
+            const float t = (v - raw_min) / span;
+            int idx = static_cast<int>(t * static_cast<float>(bins - 1));
+            idx = std::max(0, std::min(bins - 1, idx));
+            ++hist[static_cast<std::size_t>(idx)];
         }
-        dst[i] = clamp01((v - norm_low) / norm_span);
+
+        const std::size_t low_target = static_cast<std::size_t>(0.02 * static_cast<double>(finite_count));
+        const std::size_t high_target = static_cast<std::size_t>(0.98 * static_cast<double>(finite_count));
+
+        std::size_t cumulative = 0;
+        int low_bin = 0;
+        int high_bin = bins - 1;
+
+        for (int i = 0; i < bins; ++i)
+        {
+            cumulative += hist[static_cast<std::size_t>(i)];
+            if (cumulative >= low_target)
+            {
+                low_bin = i;
+                break;
+            }
+        }
+
+        cumulative = 0;
+        for (int i = 0; i < bins; ++i)
+        {
+            cumulative += hist[static_cast<std::size_t>(i)];
+            if (cumulative >= high_target)
+            {
+                high_bin = i;
+                break;
+            }
+        }
+
+        norm_low = raw_min + (static_cast<float>(low_bin) / static_cast<float>(bins - 1)) * span;
+        norm_high = raw_min + (static_cast<float>(high_bin) / static_cast<float>(bins - 1)) * span;
+
+        if (!(norm_high > norm_low))
+        {
+            norm_low = raw_min;
+            norm_high = raw_max;
+        }
+
+        const float norm_span = std::max(norm_high - norm_low, 1e-12f);
+        for (std::size_t i = 0; i < src.size(); ++i)
+        {
+            const float v = src[i];
+            if (!is_finite(v))
+            {
+                dst[i] = 0.0f;
+                ++sanitized_nonfinite_count;
+                continue;
+            }
+            dst[i] = clamp01((v - norm_low) / norm_span);
+        }
     }
 }
 
@@ -655,8 +729,75 @@ bool ExportDataset::load_frame(std::size_t frame_idx, VolumeFrame& out, std::str
                      out.norm_high,
                      out.nan_count,
                      out.inf_count,
-                     out.sanitized_nonfinite_count);
+                     out.sanitized_nonfinite_count,
+                     global_magnitude_);
     return true;
+}
+
+float ExportDataset::compute_global_magnitude() const
+{
+    // Lightweight scan: load only the first and last few frames to
+    // estimate the global magnitude without reading the entire dataset.
+    // The first frame has the weakest signal, the last frames have the
+    // strongest. Sampling ~10 frames is sufficient to find the true
+    // maximum since atmospheric fields grow monotonically during spinup.
+    float global_abs_max = 0.0f;
+    bool has_negative = false;
+    bool has_positive = false;
+
+    const std::size_t n_frames = step_dirs_.size();
+    if (n_frames == 0) return 0.0f;
+
+    // Sample frames: first, last, and a few in between.
+    std::vector<std::size_t> sample_indices;
+    sample_indices.push_back(0);
+    if (n_frames > 1) sample_indices.push_back(n_frames - 1);
+    if (n_frames > 4) sample_indices.push_back(n_frames / 4);
+    if (n_frames > 2) sample_indices.push_back(n_frames / 2);
+    if (n_frames > 4) sample_indices.push_back(3 * n_frames / 4);
+    // Also sample near the end where extremes typically occur.
+    if (n_frames > 10) sample_indices.push_back(n_frames - 2);
+    if (n_frames > 10) sample_indices.push_back(n_frames - 3);
+
+    for (std::size_t fi : sample_indices)
+    {
+        const auto npy_path = step_dirs_[fi] / (field_name_ + ".npy");
+
+        if (is_3d_volume_)
+        {
+            NpyArray3D vol;
+            std::string load_error;
+            if (!load_npy_float32_3d(npy_path, vol, load_error)) continue;
+
+            for (float v : vol.data)
+            {
+                if (!std::isfinite(v)) continue;
+                if (v < 0.0f) has_negative = true;
+                if (v > 0.0f) has_positive = true;
+                const float a = std::abs(v);
+                if (a > global_abs_max) global_abs_max = a;
+            }
+        }
+        else
+        {
+            NpyArray2D slice;
+            std::string load_error;
+            if (!load_npy_float32_2d(npy_path, slice, load_error)) continue;
+
+            for (float v : slice.data)
+            {
+                if (!std::isfinite(v)) continue;
+                if (v < 0.0f) has_negative = true;
+                if (v > 0.0f) has_positive = true;
+                const float a = std::abs(v);
+                if (a > global_abs_max) global_abs_max = a;
+            }
+        }
+    }
+
+    if (has_negative && has_positive)
+        return global_abs_max;
+    return 0.0f;
 }
 
 } // namespace oglcpp

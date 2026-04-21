@@ -38,12 +38,12 @@
  */
 
 #include "catch2/catch.hpp"
-#include "core/boundary_conditions.hpp"
+#include "boundary_conditions/boundary_conditions.hpp"
 #include "core/field3d.hpp"
 #include "core/runtime_config.hpp"
 #include "core/simulation.hpp"
 #include "dynamics/schemes/cartesian/cartesian.hpp"
-#include "physics/dynamics_base.hpp"
+#include "dynamics/dynamics_base.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -72,6 +72,8 @@ void setup_cartesian_grid()
     {
         p0_base[k] = kP0 - kRho0 * dynamics_constants::g * static_cast<double>(k) * dz;
     }
+    u0_base.assign(NZ, 0.0);
+    v0_base.assign(NZ, 0.0);
     global_coordinate_system = CoordinateSystem::Cartesian;
 }
 
@@ -79,9 +81,9 @@ void setup_cartesian_grid()
  * @brief Resizes every prognostic field referenced by the BC function and
  *        the dynamics scheme to (NR, NTH, NZ), filled with sane defaults.
  *
- * The Cartesian BC function reads/writes u, v_theta, w, rho, p, theta and
+ * The Cartesian BC function reads/writes u, v, w, rho, p, theta and
  * the seven moisture variables (qv .. qh). The CartesianScheme momentum
- * routine touches u, v_theta, w, rho, p, theta. We must allocate every one
+ * routine touches u, v, w, rho, p, theta. We must allocate every one
  * of those before the first call or operator[] indexes into a 0×0×0 buffer.
  */
 void resize_all_fields_to_grid()
@@ -89,7 +91,7 @@ void resize_all_fields_to_grid()
     rho.resize(NR, NTH, NZ, static_cast<float>(kRho0));
     p.resize(NR, NTH, NZ);
     u.resize(NR, NTH, NZ, 0.0f);
-    v_theta.resize(NR, NTH, NZ, 0.0f);
+    v.resize(NR, NTH, NZ, 0.0f);
     w.resize(NR, NTH, NZ, 0.0f);
     theta.resize(NR, NTH, NZ, static_cast<float>(dynamics_constants::theta0));
     qv.resize(NR, NTH, NZ, 0.0f);
@@ -133,7 +135,7 @@ void zero_velocity_field()
             for (int k = 0; k < NZ; ++k)
             {
                 u[i][j][k]       = 0.0f;
-                v_theta[i][j][k] = 0.0f;
+                v[i][j][k] = 0.0f;
                 w[i][j][k]       = 0.0f;
             }
         }
@@ -149,7 +151,7 @@ void uniform_horizontal_wind(double ux, double uy)
             for (int k = 0; k < NZ; ++k)
             {
                 u[i][j][k]       = static_cast<float>(ux);
-                v_theta[i][j][k] = static_cast<float>(uy);
+                v[i][j][k] = static_cast<float>(uy);
                 w[i][j][k]       = 0.0f;
             }
         }
@@ -254,7 +256,7 @@ void take_one_cartesian_dynamics_step(CartesianScheme& scheme,
                                       double step_dt)
 {
     scheme.compute_momentum_tendencies(
-        u, v_theta, w,
+        u, v, w,
         rho, p, theta,
         step_dt,
         tb.du_x_dt, tb.du_y_dt, tb.dw_dt,
@@ -267,7 +269,7 @@ void take_one_cartesian_dynamics_step(CartesianScheme& scheme,
             for (int k = 1; k < NZ - 1; ++k)
             {
                 u[i][j][k]       += static_cast<float>(tb.du_x_dt[i][j][k]    * step_dt);
-                v_theta[i][j][k] += static_cast<float>(tb.du_y_dt[i][j][k]    * step_dt);
+                v[i][j][k] += static_cast<float>(tb.du_y_dt[i][j][k]    * step_dt);
                 w[i][j][k]       += static_cast<float>(tb.dw_dt[i][j][k]      * step_dt);
                 rho[i][j][k]     += static_cast<float>(tb.drho_dt_out[i][j][k] * step_dt);
                 p[i][j][k]       += static_cast<float>(tb.dp_dt_out[i][j][k]   * step_dt);

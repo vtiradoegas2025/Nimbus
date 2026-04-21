@@ -9,7 +9,7 @@
 
 #pragma once
 #include "microphysics/base/thermodynamics.hpp"
-#include "physics/microphysics_base.hpp"
+#include "microphysics/microphysics_base.hpp"
 
 /**
  * @brief Implements the Kessler scheme for microphysics.
@@ -105,6 +105,7 @@ private:
  */
     void compute_warm_rain_processes(
         const Field3D& temperature,
+        const Field3D& p,
         const Field3D& qv,
         const Field3D& qc,
         const Field3D& qr,
@@ -119,6 +120,7 @@ private:
  */
     void compute_ice_processes(
         const Field3D& temperature,
+        const Field3D& p,
         const Field3D& qv,
         const Field3D& qc,
         const Field3D& qr,

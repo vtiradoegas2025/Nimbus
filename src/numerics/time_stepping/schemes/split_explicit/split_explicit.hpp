@@ -15,7 +15,7 @@
  */
 
 #pragma once
-#include "numerics/time_stepping_base.hpp"
+#include "numerics/time_stepping/time_stepping_base.hpp"
 #include "core/field3d.hpp"
 
 class SplitExplicitScheme : public TimeSteppingSchemeBase

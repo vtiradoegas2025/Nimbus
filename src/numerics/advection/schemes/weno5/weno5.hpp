@@ -8,7 +8,7 @@
  */
 
 #pragma once
-#include "numerics/advection_base.hpp"
+#include "numerics/advection/advection_base.hpp"
 
 /**
  * @brief Implements the WENO5 advection scheme.

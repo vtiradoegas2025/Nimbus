@@ -14,8 +14,8 @@
  *   - Multiple fields are independently addressable
  */
 #include "catch2/catch.hpp"
-#include "core/shm_writer.hpp"
-#include "core/shm_transport.hpp"
+#include "core/output/shm_writer.hpp"
+#include "core/output/shm_transport.hpp"
 #include "core/field3d.hpp"
 #include "data/shm_dataset.hpp"
 

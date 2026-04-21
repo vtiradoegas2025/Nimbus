@@ -13,8 +13,8 @@
  *   - Supercell/tornado tendencies: max_abs < 1e-3 (larger stencil, more FP accumulation)
  */
 #include "catch2/catch.hpp"
-#include "numerics/compute_backend.hpp"
-#include "physics/microphysics_base.hpp"
+#include "compute/compute_backend.hpp"
+#include "microphysics/microphysics_base.hpp"
 #include "core/hardware_info.hpp"
 #include "core/field3d.hpp"
 #include "core/simulation.hpp"
@@ -115,6 +115,7 @@ TEST_CASE("GPU Kessler pointwise parity (tol 1e-4)", "[vulkan][gpu_parity]")
 
     // State
     Field3D temp(NR, NTH, NZ, 280.0f);
+    Field3D p_f(NR, NTH, NZ, 100000.0f);
     Field3D qv_f(NR, NTH, NZ, 0.012f);
     Field3D qc_f(NR, NTH, NZ, 0.002f);
     Field3D qr_f(NR, NTH, NZ, 0.001f);
@@ -131,7 +132,8 @@ TEST_CASE("GPU Kessler pointwise parity (tol 1e-4)", "[vulkan][gpu_parity]")
     const float Ls_cp = (2.5e6f + 3.34e5f) / 1004.0f;
 
     REQUIRE(backend->dispatch_kessler_pointwise(
-        temp.data(), qv_f.data(), qc_f.data(), qr_f.data(), qg_f.data(), qh_f.data(),
+        temp.data(), p_f.data(),
+        qv_f.data(), qc_f.data(), qr_f.data(), qg_f.data(), qh_f.data(),
         gpu_dt.data(), gpu_dqv.data(), gpu_dqc.data(), gpu_dqr.data(),
         gpu_dqg.data(), gpu_dqh.data(),
         NR, NTH, NZ,
@@ -277,9 +279,9 @@ TEST_CASE("GPU supercell tendencies parity (tol 1e-3)", "[vulkan][gpu_parity]")
     }
 
     // Create smooth state fields
-    Field3D u_r(NR, NTH, NZ, 10.0f);
+    Field3D u(NR, NTH, NZ, 10.0f);
     Field3D u_th(NR, NTH, NZ, 5.0f);
-    Field3D u_z(NR, NTH, NZ, 1.0f);
+    Field3D w(NR, NTH, NZ, 1.0f);
     Field3D rho_f(NR, NTH, NZ, 1.2f);
     Field3D p_f(NR, NTH, NZ, 100000.0f);
     Field3D theta_f(NR, NTH, NZ, 300.0f);
@@ -290,7 +292,7 @@ TEST_CASE("GPU supercell tendencies parity (tol 1e-3)", "[vulkan][gpu_parity]")
             for (int k = 0; k < NZ; ++k)
             {
                 float r_frac = static_cast<float>(i) / NR;
-                u_r(i, j, k) = 10.0f * (1.0f - r_frac);
+                u(i, j, k) = 10.0f * (1.0f - r_frac);
                 u_th(i, j, k) = 20.0f * r_frac;
                 p_f(i, j, k) = 100000.0f - 1000.0f * static_cast<float>(k);
             }
@@ -299,9 +301,11 @@ TEST_CASE("GPU supercell tendencies parity (tol 1e-3)", "[vulkan][gpu_parity]")
     Field3D gpu_duz(NR, NTH, NZ, 0.0f), gpu_drho(NR, NTH, NZ, 0.0f);
     Field3D gpu_dp(NR, NTH, NZ, 0.0f);
 
+    Field3D loading_f(NR, NTH, NZ, 0.0f);
     bool dispatched = backend->dispatch_supercell_tendencies(
-        u_r.data(), u_th.data(), u_z.data(),
+        u.data(), u_th.data(), w.data(),
         rho_f.data(), p_f.data(), theta_f.data(),
+        loading_f.data(),
         gpu_dur.data(), gpu_duth.data(), gpu_duz.data(),
         gpu_drho.data(), gpu_dp.data(),
         NR, NTH, NZ,
@@ -337,9 +341,9 @@ TEST_CASE("GPU tornado tendencies parity (tol 1e-3)", "[vulkan][gpu_parity]")
         return;
     }
 
-    Field3D u_r(NR, NTH, NZ, 5.0f);
+    Field3D u(NR, NTH, NZ, 5.0f);
     Field3D u_th(NR, NTH, NZ, 30.0f);
-    Field3D u_z(NR, NTH, NZ, 2.0f);
+    Field3D w(NR, NTH, NZ, 2.0f);
     Field3D rho_f(NR, NTH, NZ, 1.2f);
     Field3D p_f(NR, NTH, NZ, 100000.0f);
     Field3D theta_f(NR, NTH, NZ, 300.0f);
@@ -360,9 +364,11 @@ TEST_CASE("GPU tornado tendencies parity (tol 1e-3)", "[vulkan][gpu_parity]")
     Field3D gpu_duz(NR, NTH, NZ, 0.0f), gpu_drho(NR, NTH, NZ, 0.0f);
     Field3D gpu_dp(NR, NTH, NZ, 0.0f);
 
+    Field3D loading_ft(NR, NTH, NZ, 0.0f);
     bool dispatched = backend->dispatch_tornado_tendencies(
-        u_r.data(), u_th.data(), u_z.data(),
+        u.data(), u_th.data(), w.data(),
         rho_f.data(), p_f.data(), theta_f.data(),
+        loading_ft.data(),
         gpu_dur.data(), gpu_duth.data(), gpu_duz.data(),
         gpu_drho.data(), gpu_dp.data(),
         NR, NTH, NZ,

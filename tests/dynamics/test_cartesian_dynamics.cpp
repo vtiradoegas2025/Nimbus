@@ -30,7 +30,7 @@
 #include "core/field3d.hpp"
 #include "core/simulation.hpp"
 #include "dynamics/schemes/cartesian/cartesian.hpp"
-#include "physics/dynamics_base.hpp"
+#include "dynamics/dynamics_base.hpp"
 
 #include <cmath>
 #include <vector>
@@ -71,6 +71,11 @@ void setup_cartesian_grid()
     {
         p0_base[k] = kP0 - kRho0 * dynamics_constants::g * static_cast<double>(k) * dz;
     }
+
+    // Base-state wind profiles for perturbation Coriolis. Zero wind base
+    // state for the synthetic test atmosphere.
+    u0_base.assign(NZ, 0.0);
+    v0_base.assign(NZ, 0.0);
 }
 
 /**
@@ -210,7 +215,7 @@ TEST_CASE("CartesianScheme: uniform Cartesian wind preserves equilibrium (Bug 7 
 
     // Asymmetric Cartesian wind — both components nonzero, different
     // magnitudes, so that any fake azimuthal projection (which the
-    // cylindrical grid would produce via u_r = u_x cos theta + u_y sin theta)
+    // cylindrical grid would produce via u = u_x cos theta + u_y sin theta)
     // would be visible as a spurious body force. On the Cartesian grid
     // there is no such projection and the tendencies must stay at noise.
     uniform_horizontal_wind(u_f, v_f, w_f, /*ux=*/10.0, /*uy=*/5.0);

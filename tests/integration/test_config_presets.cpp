@@ -3,7 +3,7 @@
  * @brief Integration tests verifying preset YAML configs parse correctly.
  */
 #include "catch2/catch.hpp"
-#include "core/output_config.hpp"
+#include "core/output/output_config.hpp"
 
 #include <fstream>
 #include <filesystem>

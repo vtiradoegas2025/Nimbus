@@ -11,7 +11,7 @@
 #include "chaos/base/perturbation_field.hpp"
 #include "chaos/base/correlation_filter.hpp"
 #include "core/simulation.hpp"
-#include "physics/turbulence_base.hpp"
+#include "turbulence/turbulence_base.hpp"
 #include <iostream>
 #include <chrono>
 #include <algorithm>
@@ -293,10 +293,10 @@ void FullStochasticScheme::apply_tendencies(
         tendencies.dqi_micro_dt != nullptr || tendencies.dqs_micro_dt != nullptr ||
         tendencies.dqg_micro_dt != nullptr || tendencies.dqh_micro_dt != nullptr;
     const bool has_pbl_tendencies =
-        tendencies.du_pbl_dt != nullptr || tendencies.dv_theta_pbl_dt != nullptr ||
+        tendencies.du_pbl_dt != nullptr || tendencies.dv_pbl_dt != nullptr ||
         tendencies.dtheta_pbl_dt != nullptr || tendencies.dqv_pbl_dt != nullptr;
     const bool has_diffusion_tendencies =
-        tendencies.du_diff_dt != nullptr || tendencies.dv_theta_diff_dt != nullptr ||
+        tendencies.du_diff_dt != nullptr || tendencies.dv_diff_dt != nullptr ||
         tendencies.dw_diff_dt != nullptr || tendencies.dtheta_diff_dt != nullptr ||
         tendencies.dqv_diff_dt != nullptr;
 
@@ -350,12 +350,12 @@ void FullStochasticScheme::apply_tendencies(
     apply_block_multiplier(tendencies.dqh_micro_dt, xi_micro_effective, alpha_micro, min_multiplier, max_multiplier, sum_multiplier, sum_sq_multiplier, sample_count);
 
     apply_block_multiplier(tendencies.du_pbl_dt, xi_pbl_effective, alpha_pbl, min_multiplier, max_multiplier, sum_multiplier, sum_sq_multiplier, sample_count);
-    apply_block_multiplier(tendencies.dv_theta_pbl_dt, xi_pbl_effective, alpha_pbl, min_multiplier, max_multiplier, sum_multiplier, sum_sq_multiplier, sample_count);
+    apply_block_multiplier(tendencies.dv_pbl_dt, xi_pbl_effective, alpha_pbl, min_multiplier, max_multiplier, sum_multiplier, sum_sq_multiplier, sample_count);
     apply_block_multiplier(tendencies.dtheta_pbl_dt, xi_pbl_effective, alpha_pbl, min_multiplier, max_multiplier, sum_multiplier, sum_sq_multiplier, sample_count);
     apply_block_multiplier(tendencies.dqv_pbl_dt, xi_pbl_effective, alpha_pbl, min_multiplier, max_multiplier, sum_multiplier, sum_sq_multiplier, sample_count);
 
     apply_block_multiplier(tendencies.du_diff_dt, xi_diff_effective, alpha_diff, min_multiplier, max_multiplier, sum_multiplier, sum_sq_multiplier, sample_count);
-    apply_block_multiplier(tendencies.dv_theta_diff_dt, xi_diff_effective, alpha_diff, min_multiplier, max_multiplier, sum_multiplier, sum_sq_multiplier, sample_count);
+    apply_block_multiplier(tendencies.dv_diff_dt, xi_diff_effective, alpha_diff, min_multiplier, max_multiplier, sum_multiplier, sum_sq_multiplier, sample_count);
     apply_block_multiplier(tendencies.dw_diff_dt, xi_diff_effective, alpha_diff, min_multiplier, max_multiplier, sum_multiplier, sum_sq_multiplier, sample_count);
     apply_block_multiplier(tendencies.dtheta_diff_dt, xi_diff_effective, alpha_diff, min_multiplier, max_multiplier, sum_multiplier, sum_sq_multiplier, sample_count);
     apply_block_multiplier(tendencies.dqv_diff_dt, xi_diff_effective, alpha_diff, min_multiplier, max_multiplier, sum_multiplier, sum_sq_multiplier, sample_count);

@@ -11,7 +11,7 @@
 #include <vector>
 #include <algorithm>
 #include <cmath>
-#include "physics/microphysics_base.hpp"
+#include "microphysics/microphysics_base.hpp"
 #include "core/field3d.hpp"
 
 /**
@@ -206,6 +206,46 @@ inline double temperature_tendency_to_theta(double dT_dt, double theta, double p
     const double dtheta_dt = dT_dt * std::pow(microphysics_constants::p0 / p_safe, kappa);
     return std::isfinite(dtheta_dt) ? dtheta_dt : 0.0;
 }
+
+/**
+ * @brief Computes density from the equation of state given pressure and
+ *        potential temperature.
+ *
+ * Uses the ideal-gas EOS:
+ *   T   = theta * (p / p0)^kappa
+ *   rho = p / (R_d * T)
+ *
+ * This is the thermodynamic closure that ties rho to p and theta.
+ * Without it, density-based buoyancy (-g (rho - rho0) / rho) cannot
+ * respond to theta perturbations (e.g. warm bubble, latent heating).
+ */
+inline double density_from_eos(double p_val, double theta_val)
+{
+    if (!std::isfinite(p_val) || !std::isfinite(theta_val))
+    {
+        return 1.0;
+    }
+    const double p_safe = std::clamp(p_val, 100.0, 200000.0);
+    const double theta_safe = std::clamp(theta_val, 150.0, 500.0);
+    const double kappa = microphysics_constants::R_d / microphysics_constants::cp;
+    const double T = theta_safe * std::pow(p_safe / microphysics_constants::p0, kappa);
+    if (T < 1.0)
+    {
+        return 1.0;
+    }
+    const double rho_val = p_safe / (microphysics_constants::R_d * T);
+    return std::isfinite(rho_val) ? std::clamp(rho_val, 0.01, 5.0) : 1.0;
+}
+
+/**
+ * @brief Updates the density field from the equation of state.
+ *
+ * Applies density_from_eos pointwise to ensure rho is thermodynamically
+ * consistent with p and theta. Call this after any process that modifies
+ * theta (bubble initialization, microphysics, radiation, turbulence).
+ */
+void update_density_from_eos(
+    const Field3D& p, const Field3D& theta, Field3D& rho);
 
 /**
  * @brief Computes the saturation adjustment.

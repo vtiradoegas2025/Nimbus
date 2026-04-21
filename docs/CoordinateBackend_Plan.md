@@ -1,7 +1,7 @@
 # Coordinate Backend Plan
 
-**Status:** Active — Phase A (Cartesian backend) starting 2026-04-06.
-**Target completion:** Phase A + B by mid-June 2026; Phase C deferred until tornado-mode work resumes.
+**Status:** Phase A complete (2026-04-07). Phase B complete (2026-04-20). Phase C deferred.
+**Target completion:** Phase A + B done ahead of mid-June target. Phase C deferred until tornado-mode work resumes.
 **AMS deadline:** January 2027 (~36 calendar weeks of runway).
 
 ---
@@ -41,11 +41,13 @@ This plan uses **duplicate-then-refactor**. Phase A copies-and-edits existing cy
 
 ---
 
-## Phase A — Cartesian backend
+## Phase A — Cartesian backend [COMPLETE] (2026-04-07)
 
 **Goal:** A `coordinate: cartesian` runtime config that runs `student.yaml`-like setups end-to-end on CPU and GPU, with an off-center trigger bubble, sheared hodograph, kessler microphysics, and the same physics modules as the cylindrical path.
 
 **Estimate:** 5–8 weeks of focused work. CPU-only (A.1 → A.6) is the first milestone, ~3 weeks. GPU + full integration (A.7 → A.8) is the second milestone, ~2–3 weeks.
+
+**Result:** All 8 sub-tasks completed. All tests pass. Cartesian CPU + GPU paths operational.
 
 ### A.1 — `CoordinateSystem` config plumbing
 
@@ -188,11 +190,20 @@ This is the **end of Phase A.** From this point forward, "the model runs" stops 
 
 ---
 
-## Phase B — Refactor for shared code
+## Phase B — Refactor for shared code [COMPLETE] (2026-04-20)
 
 **Goal:** Consolidate the duplicated code paths created by Phase A's duplicate-then-refactor strategy. Both backends work; the right abstractions are now visible. Every concern should live in exactly one place with coordinate-specific behavior dispatched through clean interfaces.
 
 **Estimate:** 2–3 weeks.
+
+**Result:** All 7 sub-tasks completed. All tests pass (1058 assertions). Key outcomes:
+- `v_theta` eliminated from codebase
+- `DerivativeOperators` base class with Cartesian/Cylindrical implementations
+- `BoundaryConditionScheme` factory replacing inline dispatch
+- Unified Strang split in advection (no early-return Cartesian block)
+- Shared thermodynamic init with coordinate-dispatched wind/bubble
+- Time stepping delegates through scheme layer (no inline Forward Euler)
+- `SplitExplicitDynamics` mixin separated from `DynamicsScheme` base
 
 ### B.1 — Field naming unification
 
@@ -265,23 +276,23 @@ The `DynamicsScheme` base class now carries 8+ virtual methods (original tendenc
 
 ## Verification gates (summary)
 
-| Gate | Phase | Pass criterion |
-|---|---|---|
-| Existing tests still pass | A.1 | `make test` green |
-| Cartesian dynamics tendencies are zero in equilibrium | A.2 | `|du/dt|, |dw/dt| ≤ 1e−3` at every cell with hydrostatic IC + uniform Cartesian wind |
-| Cartesian BCs preserve hydrostatic balance | A.3 | 60 s sim with 2 K bubble: `|w|_max < 2 m/s`, mass conserved to 1e−4 |
-| Cartesian IC uses literal Cartesian coordinates | A.4 | bubble at config-specified `(x_c, y_c)` |
-| Cartesian advection conserves and translates | A.5 | 1D + 2D Gaussian-bump tests |
-| Smoke test: Cartesian student.yaml is in equilibrium | A.6 | 60 s no-trigger run, `|w|_max ~ 1e−2`, no clamps |
-| GPU parity for Cartesian | A.7 | new `test_vulkan_gpu_parity_cartesian` passes to 1e−4 |
-| First real storm | A.8 | 60–120 s sim, recognizable updraft, 0 clamps, conservation drift < 0.05 %/step |
-| Field rename: `v_theta` gone | B.1 | `v_theta` appears nowhere except comments |
-| Derivative operators shared | B.2 | dynamics schemes share loop structure |
-| BCs in factory | B.3 | no inline BCs in `dynamics.cpp` |
-| Advection unified | B.4 | single dispatch in `src/advection/` |
-| Init unified | B.5 | single init path in `equations.cpp` |
-| Time stepping wired | B.6 | no inline Forward Euler in `dynamics.cpp` |
-| DynamicsScheme slim | B.7 | split-explicit methods on separate interface |
+| Gate | Phase | Pass criterion | Status |
+|---|---|---|---|
+| Existing tests still pass | A.1 | `make test` green | PASS |
+| Cartesian dynamics tendencies are zero in equilibrium | A.2 | `\|du/dt\|, \|dw/dt\| ≤ 1e−3` at every cell with hydrostatic IC + uniform Cartesian wind | PASS |
+| Cartesian BCs preserve hydrostatic balance | A.3 | 60 s sim with 2 K bubble: `\|w\|_max < 2 m/s`, mass conserved to 1e−4 | PASS |
+| Cartesian IC uses literal Cartesian coordinates | A.4 | bubble at config-specified `(x_c, y_c)` | PASS |
+| Cartesian advection conserves and translates | A.5 | 1D + 2D Gaussian-bump tests | PASS |
+| Smoke test: Cartesian student.yaml is in equilibrium | A.6 | 60 s no-trigger run, `\|w\|_max ~ 1e−2`, no clamps | PASS |
+| GPU parity for Cartesian | A.7 | new `test_vulkan_gpu_parity_cartesian` passes to 1e−4 | PASS |
+| First real storm | A.8 | 60–120 s sim, recognizable updraft, 0 clamps, conservation drift < 0.05 %/step | PASS |
+| Field rename: `v_theta` gone | B.1 | `v_theta` appears nowhere except comments | PASS |
+| Derivative operators shared | B.2 | dynamics schemes share `DerivativeOperators` interface | PASS |
+| BCs in factory | B.3 | no inline BCs in `dynamics.cpp` | PASS |
+| Advection unified | B.4 | single dispatch in `src/advection/` | PASS |
+| Init unified | B.5 | single init path in `equations.cpp` | PASS |
+| Time stepping wired | B.6 | no inline Forward Euler in `dynamics.cpp` | PASS |
+| DynamicsScheme slim | B.7 | split-explicit methods on separate interface | PASS |
 
 ---
 

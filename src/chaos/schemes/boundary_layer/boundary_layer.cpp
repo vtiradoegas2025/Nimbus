@@ -11,7 +11,7 @@
 #include "chaos/base/perturbation_field.hpp"
 #include "chaos/base/correlation_filter.hpp"
 #include "core/simulation.hpp"
-#include "physics/turbulence_base.hpp"
+#include "turbulence/turbulence_base.hpp"
 #include <iostream>
 #include <chrono>
 #include <algorithm>
@@ -111,7 +111,7 @@ Field3D* first_available_pbl_tendency(chaos::ChaosTendencies& tendencies)
 {
     if (tendencies.dtheta_pbl_dt != nullptr) return tendencies.dtheta_pbl_dt;
     if (tendencies.du_pbl_dt != nullptr) return tendencies.du_pbl_dt;
-    if (tendencies.dv_theta_pbl_dt != nullptr) return tendencies.dv_theta_pbl_dt;
+    if (tendencies.dv_pbl_dt != nullptr) return tendencies.dv_pbl_dt;
     if (tendencies.dqv_pbl_dt != nullptr) return tendencies.dqv_pbl_dt;
     return nullptr;
 }
@@ -301,7 +301,7 @@ void BoundaryLayerScheme::apply_tendencies(
         sample_count
     );
     apply_block_multiplier(
-        tendencies.dv_theta_pbl_dt,
+        tendencies.dv_pbl_dt,
         xi_effective,
         alpha,
         min_multiplier,

@@ -47,17 +47,24 @@ layout(set = 0, binding = 10) buffer DwDtBuf   { float dw_dt[];   };
 layout(set = 0, binding = 11) buffer DrhoDtBuf { float drho_dt[]; };
 layout(set = 0, binding = 12) buffer DpDtBuf   { float dp_dt[];   };
 
-// Push constants (40 bytes — same layout as supercell for tooling parity)
+// Precipitation loading (total hydrometeor mixing ratio, precomputed on CPU)
+layout(set = 0, binding = 13) readonly buffer LoadingBuf { float loading[]; };
+
+// Base-state wind profiles for perturbation Coriolis (1D: nz elements, padded)
+layout(set = 0, binding = 14) readonly buffer U0BaseBuf { float u0_base[]; };
+layout(set = 0, binding = 15) readonly buffer V0BaseBuf { float v0_base[]; };
+
+// Push constants (40 bytes)
 layout(push_constant) uniform PushConstants {
     int   nr;
     int   nth;
     int   nz;
-    float dx;        // horizontal spacing (= dr in the cylindrical sense)
-    float dy;        // horizontal spacing (= dr for square cells)
+    float dx;
+    float dy;
     float dz_val;
     float g;
     float gamma_val;
-    float theta0;    // unused by Cartesian but kept for struct parity
+    float coriolis_f;   // Coriolis parameter f = 2*Omega*sin(lat)
     float padding;
 };
 
@@ -136,15 +143,19 @@ void main() {
     float dp_dy_val = (pressure[jp] - pressure[jm]) * inv_2dy;
     float dp_dz_val = (pressure[kp] - pressure[km]) * inv_2dz;
 
-    // --- du_x/dt: advection + pressure gradient (no centrifugal/coriolis) ---
+    // --- du_x/dt: advection + pressure gradient + Coriolis ---
+    // Perturbation Coriolis (Rotunno & Klemp 1982): f*(v - v0)
     float advective_x = -ux * dux_dx - uy * dux_dy - wz * dux_dz;
     float pgf_x = -dp_dx_val / rho_safe;
-    du_x_dt[c] = sanitize(advective_x + pgf_x);
+    float cor_x = coriolis_f * (uy - v0_base[k]);
+    du_x_dt[c] = sanitize(advective_x + pgf_x + cor_x);
 
-    // --- du_y/dt: advection + pressure gradient ---
+    // --- du_y/dt: advection + pressure gradient + Coriolis ---
+    // Perturbation Coriolis: -f*(u - u0)
     float advective_y = -ux * duy_dx - uy * duy_dy - wz * duy_dz;
     float pgf_y = -dp_dy_val / rho_safe;
-    du_y_dt[c] = sanitize(advective_y + pgf_y);
+    float cor_y = -coriolis_f * (ux - u0_base[k]);
+    du_y_dt[c] = sanitize(advective_y + pgf_y + cor_y);
 
     // --- dw/dt: reference-state subtracted vertical momentum ---
     //   dw/dt = advection - (1/rho)(dp/dz - dp0/dz) - g*(rho - rho0)/rho
@@ -155,7 +166,8 @@ void main() {
     float dp_prime_dz = dp_dz_val - dp0_dz;
     float rho0_k = rho0_base[k];
     float buoyancy = -g * (rho_val - rho0_k) / rho_safe;
-    dw_dt[c] = sanitize(advective_z - dp_prime_dz / rho_safe + buoyancy);
+    float precip_loading = -g * loading[c];
+    dw_dt[c] = sanitize(advective_z - dp_prime_dz / rho_safe + buoyancy + precip_loading);
 
     // --- drho/dt: straight Cartesian divergence (no 1/r terms) ---
     float divergence = dux_dx + duy_dy + dw_dz;

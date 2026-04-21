@@ -202,6 +202,16 @@ inline float clamp_hydrometeor_kgkg(float value)
 extern std::vector<double> rho0_base;
 extern std::vector<double> p0_base;
 
+// Base-state wind profiles for perturbation Coriolis (Rotunno & Klemp 1982).
+// Stored at initialization so Coriolis is applied to (u-u0, v-v0) rather than
+// the full wind, avoiding the "invented forces" problem (Davies-Jones 2021).
+extern std::vector<double> u0_base;
+extern std::vector<double> v0_base;
+
+// Coriolis parameter f = 2*Omega*sin(lat). Set from the runtime config
+// latitude; defaults to 35N (f ~ 8.39e-5 /s), a mid-latitude supercell value.
+extern double coriolis_f;
+
 inline constexpr double qc0 = 1.0e-3;
 inline constexpr double c_auto = 1.0e-3;
 inline constexpr double c_accr = 2.2;
@@ -234,7 +244,7 @@ extern Field3D rho;
 extern Field3D p;
 extern Field3D u;
 extern Field3D w;
-extern Field3D v_theta;
+extern Field3D v;
 extern Field3D tracer;
 
 extern Field3D theta;
@@ -290,7 +300,7 @@ extern Field3D nest_rho;
 extern Field3D nest_p;
 extern Field3D nest_u;
 extern Field3D nest_w;
-extern Field3D nest_v_theta;
+extern Field3D nest_v;
 extern Field3D nest_theta;
 extern Field3D nest_qv;
 extern Field3D nest_qc;

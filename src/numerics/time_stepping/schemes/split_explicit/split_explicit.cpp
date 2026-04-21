@@ -10,7 +10,7 @@
  */
 
 #include "split_explicit.hpp"
-#include "physics/dynamics_base.hpp"
+#include "dynamics/dynamics_base.hpp"
 #include "util/log.hpp"
 #include <cmath>
 #include <algorithm>

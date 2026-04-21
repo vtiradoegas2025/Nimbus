@@ -76,6 +76,29 @@ public:
     [[nodiscard]] const std::string& field_name() const { return field_name_; }
     [[nodiscard]] const std::filesystem::path& root_dir() const { return root_dir_; }
 
+    /**
+     * @brief Pre-scan all frames to compute the global absolute maximum.
+     *
+     * Cross-frame normalization ensures that a 0.06 m/s^2 buoyancy at
+     * t=10s does not render as brightly as 5.0 m/s^2 at t=300s. Without
+     * this, per-frame normalization makes weak early signals fill the
+     * volume because they are large relative to that frame's own maximum.
+     *
+     * Call after scan(), before any load_frame() calls. The returned
+     * magnitude is used as the normalization denominator for all frames.
+     * Returns 0 if the field is unipolar (always >= 0).
+     */
+    float compute_global_magnitude() const;
+
+    /**
+     * @brief Set the cross-frame normalization magnitude for bipolar fields.
+     *
+     * When set to a positive value, all subsequent load_frame() calls
+     * normalize bipolar data against this fixed magnitude instead of
+     * the per-frame maximum. Set to 0 to revert to per-frame behavior.
+     */
+    void set_global_magnitude(float mag) { global_magnitude_ = mag; }
+
 private:
     std::filesystem::path root_dir_;
     std::string field_name_;
@@ -85,6 +108,7 @@ private:
     int ny_ = 0;
     int nz_ = 0;
     bool is_3d_volume_ = false; ///< True when steps contain 3D volumes instead of 2D slices
+    float global_magnitude_ = 0.0f; ///< Cross-frame magnitude for bipolar normalization
 
     /** @brief Clamp scalar into the closed unit interval `[0, 1]`. */
     static float clamp01(float v);
@@ -109,7 +133,8 @@ private:
                                  float& norm_high,
                                  std::size_t& nan_count,
                                  std::size_t& inf_count,
-                                 std::size_t& sanitized_nonfinite_count);
+                                 std::size_t& sanitized_nonfinite_count,
+                                 float global_magnitude = 0.0f);
 };
 
 } // namespace oglcpp

@@ -14,7 +14,7 @@
  *
  *   1. After apply_cartesian_wind_initialization():
  *        u[i][j][k]       == hodograph_u(z[k])  for every (i, j, k)
- *        v_theta[i][j][k] == hodograph_v(z[k])  for every (i, j, k)
+ *        v[i][j][k] == hodograph_v(z[k])  for every (i, j, k)
  *        w[i][j][k]       == 0                  for every (i, j, k)
  *      "constant in (x, y) at every level" is enforced as max-minus-min over
  *      every (i, j) for fixed k being exactly zero.
@@ -96,7 +96,7 @@ void setup_cartesian_grid()
 }
 
 /**
- * @brief Resizes (u, v_theta, w) to (NR, NTH, NZ) with sentinel values
+ * @brief Resizes (u, v, w) to (NR, NTH, NZ) with sentinel values
  *        so any cell the helper fails to write is visible as a NaN/garbage
  *        rather than a coincidental zero.
  *
@@ -108,7 +108,7 @@ void resize_velocity_with_sentinel()
 {
     constexpr float kSentinel = -9999.0f;
     u.resize(NR, NTH, NZ, kSentinel);
-    v_theta.resize(NR, NTH, NZ, kSentinel);
+    v.resize(NR, NTH, NZ, kSentinel);
     w.resize(NR, NTH, NZ, kSentinel);
 }
 
@@ -228,7 +228,7 @@ TEST_CASE("Cartesian IC: wind init stores u_x, u_y per level with no projection"
             {
                 INFO("cell (" << i << "," << j << "," << k << ")");
                 REQUIRE(u[i][j][k]       != Approx(-9999.0f));
-                REQUIRE(v_theta[i][j][k] != Approx(-9999.0f));
+                REQUIRE(v[i][j][k] != Approx(-9999.0f));
                 REQUIRE(w[i][j][k]       == 0.0f);
             }
         }
@@ -241,7 +241,7 @@ TEST_CASE("Cartesian IC: wind init stores u_x, u_y per level with no projection"
     {
         INFO("level k=" << k);
         REQUIRE(horizontal_spread_at_level(u,       k) == 0.0);
-        REQUIRE(horizontal_spread_at_level(v_theta, k) == 0.0);
+        REQUIRE(horizontal_spread_at_level(v, k) == 0.0);
         REQUIRE(horizontal_spread_at_level(w,       k) == 0.0);
     }
 
@@ -256,7 +256,7 @@ TEST_CASE("Cartesian IC: wind init stores u_x, u_y per level with no projection"
         INFO("level k=" << k << " (z=" << z << " m)");
         REQUIRE(static_cast<double>(u[0][0][k])
                 == Approx(expected_ux).epsilon(1e-6));
-        REQUIRE(static_cast<double>(v_theta[0][0][k])
+        REQUIRE(static_cast<double>(v[0][0][k])
                 == Approx(expected_uy).epsilon(1e-6));
     }
 
@@ -337,7 +337,7 @@ TEST_CASE("Cartesian IC: bubble init places localized dtheta at config center",
 // This is the IC-side analog of the cylindrical Bug 7 trap. If the helper
 // were to read `dtheta` and project the hodograph onto (cos θ, sin θ) — as
 // the cylindrical inline branch in equations.cpp does — then setting a
-// non-zero `dtheta` would inject a per-j variation into u and v_theta even
+// non-zero `dtheta` would inject a per-j variation into u and v even
 // though the underlying wind is uniform. The Cartesian helper must NOT
 // consume `dtheta` at all, so the per-level spread must remain exactly
 // zero regardless of what `dtheta` is set to.
@@ -365,7 +365,7 @@ TEST_CASE("Cartesian IC: wind init is invariant under non-zero dtheta",
     {
         INFO("level k=" << k << " (dtheta=" << dtheta << ")");
         REQUIRE(horizontal_spread_at_level(u,       k) == 0.0);
-        REQUIRE(horizontal_spread_at_level(v_theta, k) == 0.0);
+        REQUIRE(horizontal_spread_at_level(v, k) == 0.0);
     }
 
     // And the per-level value must still match the analytic hodograph
@@ -375,7 +375,7 @@ TEST_CASE("Cartesian IC: wind init is invariant under non-zero dtheta",
         const double z = static_cast<double>(k) * dz;
         REQUIRE(static_cast<double>(u[NR / 2][NTH / 2][k])
                 == Approx(expected_ux_at_height(z)).epsilon(1e-6));
-        REQUIRE(static_cast<double>(v_theta[NR / 2][NTH / 2][k])
+        REQUIRE(static_cast<double>(v[NR / 2][NTH / 2][k])
                 == Approx(expected_uy_at_height(z)).epsilon(1e-6));
     }
 

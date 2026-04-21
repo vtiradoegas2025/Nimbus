@@ -9,21 +9,18 @@
  * gradient that breaks hydrostatic balance for non-axisymmetric hodographs
  * like the WK2002 supercell case.
  *
- * Phase A (CPU only, per docs/CoordinateBackend_Plan.md). The GPU shader
- * port (cartesian_tendencies.comp) is scheduled for A.7.
  *
- * Field reuse note: the base `DynamicsScheme` interface still uses the
- * cylindrical-flavored argument names (`u_r`, `u_theta`, `u_z`). In Cartesian
- * mode we alias them locally as `u_x`, `u_y`, `w_field`. The global rename
- * (`u -> u_x`, `v_theta -> u_y`) is deferred to Phase B, after both backends
- * work end to end.
+ * Field naming: the interface uses generic `u`, `v`, `w`. Cartesian
+ * functions alias these as `u_x`, `u_y`, `w_field` for clarity in the
+ * physics equations. Phase B.1 renamed the interface parameters;
+ * local aliases remain for readability.
  *
  * This file is part of the src/dynamics subsystem.
  */
 
 #include "cartesian.hpp"
 #include "core/simulation.hpp"
-#include "numerics/compute_kernel_template.hpp"
+#include "compute/compute_kernel_template.hpp"
 #include <cmath>
 #include <algorithm>
 #include <vector>
@@ -38,7 +35,8 @@
  */
 CartesianScheme::CartesianScheme()
     : NR_(NR), NTH_(NTH), NZ_(NZ),
-      dr_(dr), dz_(dz)
+      dr_(dr), dz_(dz),
+      deriv_(std::make_unique<CartesianDerivatives>(dr, dr, dz))
 {
 }
 
@@ -47,7 +45,7 @@ CartesianScheme::CartesianScheme()
  *
  * Differences from the cylindrical scheme:
  *   - No centrifugal term (no u_θ²/r).
- *   - No azimuthal coriolis-like coupling (no -u_r u_θ/r).
+ *   - No azimuthal coriolis-like coupling (no -u u_θ/r).
  *   - Divergence is straightforward: ∂u/∂x + ∂v/∂y + ∂w/∂z (no 1/r terms).
  *   - Derivatives use literal centered differences with dx = dy = dr_
  *     and dz = dz_. There is no axis singularity, so the eps guards are
@@ -57,28 +55,23 @@ CartesianScheme::CartesianScheme()
  *     schemes (post-Bug-3): dw/dt = -(1/ρ) ∂p/∂z - g + advection.
  */
 void CartesianScheme::compute_momentum_tendencies(
-    const Field3D& u_r,
-    const Field3D& u_theta,
-    const Field3D& u_z,
+    const Field3D& u,
+    const Field3D& v,
+    const Field3D& w,
     const Field3D& rho,
     const Field3D& p,
     const Field3D& theta,
     double dt,
-    Field3D& du_r_dt,
-    Field3D& du_theta_dt,
-    Field3D& du_z_dt,
+    Field3D& du_dt,
+    Field3D& dv_dt,
+    Field3D& dw_dt,
     Field3D& drho_dt,
     Field3D& dp_dt)
 {
-    // Field-name aliasing. In Cartesian mode, the cylindrical-flavored slots
-    // carry their Cartesian counterparts. The rename of the actual field
-    // globals happens in Phase B (docs/CoordinateBackend_Plan.md §Phase B).
-    const Field3D& u_x = u_r;        // x-velocity
-    const Field3D& u_y = u_theta;    // y-velocity
-    const Field3D& w_field = u_z;    // z-velocity (already the right name)
-    Field3D& du_x_dt = du_r_dt;
-    Field3D& du_y_dt = du_theta_dt;
-    Field3D& dw_dt = du_z_dt;
+    // Aliases removed in Phase B field rename — body now uses u, v, w directly.
+    const Field3D& u_x = u;
+    const Field3D& u_y = v;
+    const Field3D& w_field = w;
 
     (void)dt;     // Forward-Euler update is done by the runtime coupler,
                   // not the scheme.
@@ -101,17 +94,42 @@ void CartesianScheme::compute_momentum_tendencies(
             rho0f[k] = static_cast<float>(rho0_base[k]);
         }
 
+        // Precompute total hydrometeor loading for GPU dispatch.
+        const size_t n_total = static_cast<size_t>(NR_) * NTH_ * NZ_;
+        std::vector<float> loading_buf(n_total, 0.0f);
+        if (!qc.empty())
+        {
+            for (size_t idx = 0; idx < n_total; ++idx)
+            {
+                loading_buf[idx] = qc.data()[idx] + qr.data()[idx] +
+                                   qi.data()[idx] + qs.data()[idx] +
+                                   qg.data()[idx] + qh.data()[idx];
+            }
+        }
+
+        // Base-state wind profiles for perturbation Coriolis.
+        std::vector<float> u0f(static_cast<size_t>(NZ_));
+        std::vector<float> v0f(static_cast<size_t>(NZ_));
+        for (int k = 0; k < NZ_; ++k)
+        {
+            u0f[k] = static_cast<float>(u0_base[k]);
+            v0f[k] = static_cast<float>(v0_base[k]);
+        }
+
         if (dispatch_cartesian_tendencies_backend(
-                u_r.data(), u_theta.data(), u_z.data(),
+                u.data(), v.data(), w.data(),
                 rho.data(), p.data(), theta.data(),
                 p0f.data(), rho0f.data(),
-                du_r_dt.data(), du_theta_dt.data(), du_z_dt.data(),
+                loading_buf.data(),
+                u0f.data(), v0f.data(),
+                du_dt.data(), dv_dt.data(), dw_dt.data(),
                 drho_dt.data(), dp_dt.data(),
                 NR_, NTH_, NZ_,
                 static_cast<float>(dr_), static_cast<float>(dr_),
                 static_cast<float>(dz_),
                 static_cast<float>(dynamics_constants::g),
-                static_cast<float>(dynamics_constants::gamma)))
+                static_cast<float>(dynamics_constants::gamma),
+                static_cast<float>(coriolis_f)))
         {
             return;  // GPU computed successfully
         }
@@ -128,8 +146,8 @@ void CartesianScheme::compute_momentum_tendencies(
         {
             for (int k = 0; k < NZ_; ++k)
             {
-                du_x_dt[i][j][k] = 0.0f;
-                du_y_dt[i][j][k] = 0.0f;
+                du_dt[i][j][k] = 0.0f;
+                dv_dt[i][j][k] = 0.0f;
                 dw_dt[i][j][k] = 0.0f;
                 drho_dt[i][j][k] = 0.0f;
                 dp_dt[i][j][k] = 0.0f;
@@ -155,35 +173,39 @@ void CartesianScheme::compute_momentum_tendencies(
                                             ? rho_val : 1.0;
 
                 // Centered first derivatives.
-                const double dux_dx = compute_dx(u_x, i, j, k);
-                const double dux_dy = compute_dy(u_x, i, j, k);
-                const double dux_dz = compute_dz(u_x, i, j, k);
+                const double dux_dx = deriv_->di(u_x, i, j, k);
+                const double dux_dy = deriv_->dj(u_x, i, j, k);
+                const double dux_dz = deriv_->dk(u_x, i, j, k);
 
-                const double duy_dx = compute_dx(u_y, i, j, k);
-                const double duy_dy = compute_dy(u_y, i, j, k);
-                const double duy_dz = compute_dz(u_y, i, j, k);
+                const double duy_dx = deriv_->di(u_y, i, j, k);
+                const double duy_dy = deriv_->dj(u_y, i, j, k);
+                const double duy_dz = deriv_->dk(u_y, i, j, k);
 
-                const double dw_dx = compute_dx(w_field, i, j, k);
-                const double dw_dy = compute_dy(w_field, i, j, k);
-                const double dw_dz_local = compute_dz(w_field, i, j, k);
+                const double dw_dx = deriv_->di(w_field, i, j, k);
+                const double dw_dy = deriv_->dj(w_field, i, j, k);
+                const double dw_dz_local = deriv_->dk(w_field, i, j, k);
 
-                const double dp_dx = compute_dx(p, i, j, k);
-                const double dp_dy = compute_dy(p, i, j, k);
-                const double dp_dz_local = compute_dz(p, i, j, k);
+                const double dp_dx = deriv_->di(p, i, j, k);
+                const double dp_dy = deriv_->dj(p, i, j, k);
+                const double dp_dz_local = deriv_->dk(p, i, j, k);
 
-                // --- x-momentum: ∂u_x/∂t = -(u·∇) u_x - (1/ρ) ∂p/∂x ---
+                // --- x-momentum: ∂u_x/∂t = -(u·∇)u_x - (1/ρ)∂p/∂x + f(v-v0) ---
                 const double advective_x = -ux * dux_dx - uy * dux_dy - wz * dux_dz;
                 const double pressure_grad_x = -dp_dx / rho_safe;
-                double du_x_val = advective_x + pressure_grad_x;
+                // Perturbation Coriolis (Rotunno & Klemp 1982):
+                // Applied to (v - v0) to avoid invented forces on f-plane.
+                const double coriolis_x = coriolis_f * (uy - v0_base[k]);
+                double du_x_val = advective_x + pressure_grad_x + coriolis_x;
                 if (!std::isfinite(du_x_val)) du_x_val = 0.0;
-                du_x_dt[i][j][k] = static_cast<float>(du_x_val);
+                du_dt[i][j][k] = static_cast<float>(du_x_val);
 
-                // --- y-momentum: ∂u_y/∂t = -(u·∇) u_y - (1/ρ) ∂p/∂y ---
+                // --- y-momentum: ∂u_y/∂t = -(u·∇)u_y - (1/ρ)∂p/∂y - f(u-u0) ---
                 const double advective_y = -ux * duy_dx - uy * duy_dy - wz * duy_dz;
                 const double pressure_grad_y = -dp_dy / rho_safe;
-                double du_y_val = advective_y + pressure_grad_y;
+                const double coriolis_y = -coriolis_f * (ux - u0_base[k]);
+                double du_y_val = advective_y + pressure_grad_y + coriolis_y;
                 if (!std::isfinite(du_y_val)) du_y_val = 0.0;
-                du_y_dt[i][j][k] = static_cast<float>(du_y_val);
+                dv_dt[i][j][k] = static_cast<float>(du_y_val);
 
                 // --- z-momentum with reference-state subtraction ---
                 //
@@ -212,7 +234,20 @@ void CartesianScheme::compute_momentum_tendencies(
                 const double dp_prime_dz = dp_dz_local - dp0_dz;
                 const double rho0_k = rho0_base[k];
                 const double buoyancy = -dynamics_constants::g * (rho_val - rho0_k) / rho_safe;
-                double dw_val = advective_z - dp_prime_dz / rho_safe + buoyancy;
+
+                // Precipitation loading (Klemp & Wilhelmson 1978, Bryan &
+                // Fritsch 2002): hydrometeor mass acts as ballast opposing
+                // the updraft and driving downdrafts.
+                double loading = 0.0;
+                if (!qc.empty())
+                {
+                    loading = -dynamics_constants::g *
+                        (static_cast<double>(qc[i][j][k]) + static_cast<double>(qr[i][j][k]) +
+                         static_cast<double>(qi[i][j][k]) + static_cast<double>(qs[i][j][k]) +
+                         static_cast<double>(qg[i][j][k]) + static_cast<double>(qh[i][j][k]));
+                }
+
+                double dw_val = advective_z - dp_prime_dz / rho_safe + buoyancy + loading;
                 if (!std::isfinite(dw_val)) dw_val = 0.0;
                 dw_dt[i][j][k] = static_cast<float>(dw_val);
 
@@ -239,18 +274,15 @@ void CartesianScheme::compute_momentum_tendencies(
 // =========================================================================
 
 void CartesianScheme::compute_slow_tendencies(
-    const Field3D& u_r, const Field3D& u_theta, const Field3D& u_z,
+    const Field3D& u, const Field3D& v, const Field3D& w,
     const Field3D& rho, const Field3D& p, const Field3D& theta,
     double /*dt*/,
-    Field3D& du_r_dt, Field3D& du_theta_dt, Field3D& du_z_dt,
+    Field3D& du_dt, Field3D& dv_dt, Field3D& dw_dt,
     Field3D& drho_dt, Field3D& dp_dt)
 {
-    const Field3D& u_x = u_r;
-    const Field3D& u_y = u_theta;
-    const Field3D& w_field = u_z;
-    Field3D& du_x_dt = du_r_dt;
-    Field3D& du_y_dt = du_theta_dt;
-    Field3D& dw_dt = du_z_dt;
+    const Field3D& u_x = u;
+    const Field3D& u_y = v;
+    const Field3D& w_field = w;
 
     (void)theta;
 
@@ -260,8 +292,8 @@ void CartesianScheme::compute_slow_tendencies(
         for (int j = 0; j < NTH_; ++j)
             for (int k = 0; k < NZ_; ++k)
             {
-                du_x_dt[i][j][k] = 0.0f;
-                du_y_dt[i][j][k] = 0.0f;
+                du_dt[i][j][k] = 0.0f;
+                dv_dt[i][j][k] = 0.0f;
                 dw_dt[i][j][k] = 0.0f;
                 drho_dt[i][j][k] = 0.0f;
                 dp_dt[i][j][k] = 0.0f;
@@ -282,36 +314,46 @@ void CartesianScheme::compute_slow_tendencies(
                                             ? rho_val : 1.0;
 
                 // Velocity derivatives for advection.
-                const double dux_dx = compute_dx(u_x, i, j, k);
-                const double dux_dy = compute_dy(u_x, i, j, k);
-                const double dux_dz = compute_dz(u_x, i, j, k);
-                const double duy_dx = compute_dx(u_y, i, j, k);
-                const double duy_dy = compute_dy(u_y, i, j, k);
-                const double duy_dz = compute_dz(u_y, i, j, k);
-                const double dw_dx = compute_dx(w_field, i, j, k);
-                const double dw_dy = compute_dy(w_field, i, j, k);
-                const double dw_dz_local = compute_dz(w_field, i, j, k);
+                const double dux_dx = deriv_->di(u_x, i, j, k);
+                const double dux_dy = deriv_->dj(u_x, i, j, k);
+                const double dux_dz = deriv_->dk(u_x, i, j, k);
+                const double duy_dx = deriv_->di(u_y, i, j, k);
+                const double duy_dy = deriv_->dj(u_y, i, j, k);
+                const double duy_dz = deriv_->dk(u_y, i, j, k);
+                const double dw_dx = deriv_->di(w_field, i, j, k);
+                const double dw_dy = deriv_->dj(w_field, i, j, k);
+                const double dw_dz_local = deriv_->dk(w_field, i, j, k);
 
                 // Pressure derivatives for advection of pressure.
-                const double dp_dx = compute_dx(p, i, j, k);
-                const double dp_dy = compute_dy(p, i, j, k);
-                const double dp_dz_local = compute_dz(p, i, j, k);
+                const double dp_dx = deriv_->di(p, i, j, k);
+                const double dp_dy = deriv_->dj(p, i, j, k);
+                const double dp_dz_local = deriv_->dk(p, i, j, k);
 
-                // x-momentum: advection only
-                double du_x_val = -ux * dux_dx - uy * dux_dy - wz * dux_dz;
+                // x-momentum: advection + Coriolis (slow terms, no pressure gradient)
+                double du_x_val = -ux * dux_dx - uy * dux_dy - wz * dux_dz
+                                  + coriolis_f * (uy - v0_base[k]);
                 if (!std::isfinite(du_x_val)) du_x_val = 0.0;
-                du_x_dt[i][j][k] = static_cast<float>(du_x_val);
+                du_dt[i][j][k] = static_cast<float>(du_x_val);
 
-                // y-momentum: advection only
-                double du_y_val = -ux * duy_dx - uy * duy_dy - wz * duy_dz;
+                // y-momentum: advection + Coriolis (slow terms, no pressure gradient)
+                double du_y_val = -ux * duy_dx - uy * duy_dy - wz * duy_dz
+                                  - coriolis_f * (ux - u0_base[k]);
                 if (!std::isfinite(du_y_val)) du_y_val = 0.0;
-                du_y_dt[i][j][k] = static_cast<float>(du_y_val);
+                dv_dt[i][j][k] = static_cast<float>(du_y_val);
 
-                // z-momentum: advection + buoyancy (no pressure gradient)
+                // z-momentum: advection + buoyancy + loading (no pressure gradient)
                 const double advective_z = -ux * dw_dx - uy * dw_dy - wz * dw_dz_local;
                 const double rho0_k = rho0_base[k];
                 const double buoyancy = -dynamics_constants::g * (rho_val - rho0_k) / rho_safe;
-                double dw_val = advective_z + buoyancy;
+                double loading = 0.0;
+                if (!qc.empty())
+                {
+                    loading = -dynamics_constants::g *
+                        (static_cast<double>(qc[i][j][k]) + static_cast<double>(qr[i][j][k]) +
+                         static_cast<double>(qi[i][j][k]) + static_cast<double>(qs[i][j][k]) +
+                         static_cast<double>(qg[i][j][k]) + static_cast<double>(qh[i][j][k]));
+                }
+                double dw_val = advective_z + buoyancy + loading;
                 if (!std::isfinite(dw_val)) dw_val = 0.0;
                 dw_dt[i][j][k] = static_cast<float>(dw_val);
 
@@ -328,13 +370,14 @@ void CartesianScheme::compute_slow_tendencies(
 }
 
 void CartesianScheme::compute_fast_pressure_tendencies(
-    const Field3D& u_r, const Field3D& u_theta, const Field3D& u_z,
+    const Field3D& u, const Field3D& v, const Field3D& w,
     const Field3D& rho, const Field3D& p,
     Field3D& drho_dt, Field3D& dp_dt)
 {
-    const Field3D& u_x = u_r;
-    const Field3D& u_y = u_theta;
-    const Field3D& w_field = u_z;
+    // Aliases removed in Phase B field rename — body now uses u, v, w directly.
+    const Field3D& u_x = u;
+    const Field3D& u_y = v;
+    const Field3D& w_field = w;
 
     // Zero outputs.
     #pragma omp parallel for collapse(2)
@@ -358,9 +401,9 @@ void CartesianScheme::compute_fast_pressure_tendencies(
                 const double rho_safe = (std::isfinite(rho_val) && rho_val > 1.0e-6)
                                             ? rho_val : 1.0;
 
-                const double dux_dx = compute_dx(u_x, i, j, k);
-                const double duy_dy = compute_dy(u_y, i, j, k);
-                const double dw_dz_local = compute_dz(w_field, i, j, k);
+                const double dux_dx = deriv_->di(u_x, i, j, k);
+                const double duy_dy = deriv_->dj(u_y, i, j, k);
+                const double dw_dz_local = deriv_->dk(w_field, i, j, k);
                 const double divergence = dux_dx + duy_dy + dw_dz_local;
 
                 // Continuity: dρ/dt = -ρ ∇·u
@@ -378,22 +421,18 @@ void CartesianScheme::compute_fast_pressure_tendencies(
 }
 
 void CartesianScheme::compute_fast_momentum_tendencies(
-    const Field3D& /*u_r*/, const Field3D& /*u_theta*/, const Field3D& /*u_z*/,
+    const Field3D& /*u*/, const Field3D& /*v*/, const Field3D& /*w*/,
     const Field3D& rho, const Field3D& p,
-    Field3D& du_r_dt, Field3D& du_theta_dt, Field3D& du_z_dt)
+    Field3D& du_dt, Field3D& dv_dt, Field3D& dw_dt)
 {
-    Field3D& du_x_dt = du_r_dt;
-    Field3D& du_y_dt = du_theta_dt;
-    Field3D& dw_dt = du_z_dt;
-
     // Zero outputs.
     #pragma omp parallel for collapse(2)
     for (int i = 0; i < NR_; ++i)
         for (int j = 0; j < NTH_; ++j)
             for (int k = 0; k < NZ_; ++k)
             {
-                du_x_dt[i][j][k] = 0.0f;
-                du_y_dt[i][j][k] = 0.0f;
+                du_dt[i][j][k] = 0.0f;
+                dv_dt[i][j][k] = 0.0f;
                 dw_dt[i][j][k] = 0.0f;
             }
 
@@ -408,19 +447,19 @@ void CartesianScheme::compute_fast_momentum_tendencies(
                 const double rho_safe = (std::isfinite(rho_val) && rho_val > 1.0e-6)
                                             ? rho_val : 1.0;
 
-                const double dp_dx = compute_dx(p, i, j, k);
-                const double dp_dy = compute_dy(p, i, j, k);
-                const double dp_dz_local = compute_dz(p, i, j, k);
+                const double dp_dx = deriv_->di(p, i, j, k);
+                const double dp_dy = deriv_->dj(p, i, j, k);
+                const double dp_dz_local = deriv_->dk(p, i, j, k);
 
                 // x-momentum: pressure gradient only
                 double du_x_val = -dp_dx / rho_safe;
                 if (!std::isfinite(du_x_val)) du_x_val = 0.0;
-                du_x_dt[i][j][k] = static_cast<float>(du_x_val);
+                du_dt[i][j][k] = static_cast<float>(du_x_val);
 
                 // y-momentum: pressure gradient only
                 double du_y_val = -dp_dy / rho_safe;
                 if (!std::isfinite(du_y_val)) du_y_val = 0.0;
-                du_y_dt[i][j][k] = static_cast<float>(du_y_val);
+                dv_dt[i][j][k] = static_cast<float>(du_y_val);
 
                 // z-momentum: perturbation pressure gradient only (no buoyancy)
                 const double dp0_dz = (p0_base[k + 1] - p0_base[k - 1]) / (2.0 * dz_);
@@ -454,9 +493,9 @@ void CartesianScheme::compute_fast_momentum_tendencies(
  *   vorticity_z     -> ω_z
  */
 void CartesianScheme::compute_vorticity_diagnostics(
-    const Field3D& u_r,
-    const Field3D& u_theta,
-    const Field3D& u_z,
+    const Field3D& u,
+    const Field3D& v,
+    const Field3D& w,
     const Field3D& rho,
     const Field3D& p,
     Field3D& vorticity_r,
@@ -466,9 +505,10 @@ void CartesianScheme::compute_vorticity_diagnostics(
     Field3D& tilting_term,
     Field3D& baroclinic_term)
 {
-    const Field3D& u_x = u_r;
-    const Field3D& u_y = u_theta;
-    const Field3D& w_field = u_z;
+    // Aliases removed in Phase B field rename — body now uses u, v, w directly.
+    const Field3D& u_x = u;
+    const Field3D& u_y = v;
+    const Field3D& w_field = w;
 
     #pragma omp parallel for collapse(2)
     for (int i = 1; i < NR_ - 1; ++i)
@@ -477,13 +517,13 @@ void CartesianScheme::compute_vorticity_diagnostics(
         {
             for (int k = 1; k < NZ_ - 1; ++k)
             {
-                const double duy_dx = compute_dx(u_y, i, j, k);
-                const double dux_dy = compute_dy(u_x, i, j, k);
-                const double dux_dz = compute_dz(u_x, i, j, k);
-                const double duy_dz = compute_dz(u_y, i, j, k);
-                const double dw_dx = compute_dx(w_field, i, j, k);
-                const double dw_dy = compute_dy(w_field, i, j, k);
-                const double dw_dz_local = compute_dz(w_field, i, j, k);
+                const double duy_dx = deriv_->di(u_y, i, j, k);
+                const double dux_dy = deriv_->dj(u_x, i, j, k);
+                const double dux_dz = deriv_->dk(u_x, i, j, k);
+                const double duy_dz = deriv_->dk(u_y, i, j, k);
+                const double dw_dx = deriv_->di(w_field, i, j, k);
+                const double dw_dy = deriv_->dj(w_field, i, j, k);
+                const double dw_dz_local = deriv_->dk(w_field, i, j, k);
 
                 double omega_x = dw_dy - duy_dz;
                 double omega_y = dux_dz - dw_dx;
@@ -504,10 +544,10 @@ void CartesianScheme::compute_vorticity_diagnostics(
                 if (!std::isfinite(tilt)) tilt = 0.0;
                 tilting_term[i][j][k] = static_cast<float>(tilt);
 
-                const double drho_dx = compute_dx(rho, i, j, k);
-                const double drho_dy = compute_dy(rho, i, j, k);
-                const double dp_dx = compute_dx(p, i, j, k);
-                const double dp_dy = compute_dy(p, i, j, k);
+                const double drho_dx = deriv_->di(rho, i, j, k);
+                const double drho_dy = deriv_->dj(rho, i, j, k);
+                const double dp_dx = deriv_->di(p, i, j, k);
+                const double dp_dy = deriv_->dj(p, i, j, k);
 
                 const double rho_val = rho[i][j][k];
                 const double rho_sq = rho_val * rho_val;
@@ -532,9 +572,9 @@ void CartesianScheme::compute_vorticity_diagnostics(
  * schemes. The combined p' is the sum of the two.
  */
 void CartesianScheme::compute_pressure_diagnostics(
-    const Field3D& u_r,
-    const Field3D& u_theta,
-    const Field3D& u_z,
+    const Field3D& u,
+    const Field3D& v,
+    const Field3D& w,
     const Field3D& rho,
     const Field3D& theta,
     Field3D& p_prime,
@@ -544,9 +584,10 @@ void CartesianScheme::compute_pressure_diagnostics(
     (void)rho;  // rho is not needed here; we use the 1D rho0_base profile
                 // for consistency with the cylindrical schemes.
 
-    const Field3D& u_x = u_r;
-    const Field3D& u_y = u_theta;
-    const Field3D& w_field = u_z;
+    // Aliases removed in Phase B field rename — body now uses u, v, w directly.
+    const Field3D& u_x = u;
+    const Field3D& u_y = v;
+    const Field3D& w_field = w;
 
     #pragma omp parallel for collapse(2)
     for (int i = 1; i < NR_ - 1; ++i)
@@ -555,15 +596,15 @@ void CartesianScheme::compute_pressure_diagnostics(
         {
             for (int k = 1; k < NZ_ - 1; ++k)
             {
-                const double dux_dx = compute_dx(u_x, i, j, k);
-                const double dux_dy = compute_dy(u_x, i, j, k);
-                const double dux_dz = compute_dz(u_x, i, j, k);
-                const double duy_dx = compute_dx(u_y, i, j, k);
-                const double duy_dy = compute_dy(u_y, i, j, k);
-                const double duy_dz = compute_dz(u_y, i, j, k);
-                const double dw_dx = compute_dx(w_field, i, j, k);
-                const double dw_dy = compute_dy(w_field, i, j, k);
-                const double dw_dz_local = compute_dz(w_field, i, j, k);
+                const double dux_dx = deriv_->di(u_x, i, j, k);
+                const double dux_dy = deriv_->dj(u_x, i, j, k);
+                const double dux_dz = deriv_->dk(u_x, i, j, k);
+                const double duy_dx = deriv_->di(u_y, i, j, k);
+                const double duy_dy = deriv_->dj(u_y, i, j, k);
+                const double duy_dz = deriv_->dk(u_y, i, j, k);
+                const double dw_dx = deriv_->di(w_field, i, j, k);
+                const double dw_dy = deriv_->dj(w_field, i, j, k);
+                const double dw_dz_local = deriv_->dk(w_field, i, j, k);
 
                 double deformation =
                     dux_dx * dux_dx + duy_dy * duy_dy + dw_dz_local * dw_dz_local +
@@ -587,26 +628,5 @@ void CartesianScheme::compute_pressure_diagnostics(
     }
 }
 
-/**
- * @brief Centered ∂/∂x on the regular Cartesian grid (dx = dr_).
- */
-double CartesianScheme::compute_dx(const Field3D& field, int i, int j, int k) const
-{
-    return (field[i + 1][j][k] - field[i - 1][j][k]) / (2.0 * dr_);
-}
-
-/**
- * @brief Centered ∂/∂y on the regular Cartesian grid (dy = dr_).
- */
-double CartesianScheme::compute_dy(const Field3D& field, int i, int j, int k) const
-{
-    return (field[i][j + 1][k] - field[i][j - 1][k]) / (2.0 * dr_);
-}
-
-/**
- * @brief Centered ∂/∂z on the regular Cartesian grid.
- */
-double CartesianScheme::compute_dz(const Field3D& field, int i, int j, int k) const
-{
-    return (field[i][j][k + 1] - field[i][j][k - 1]) / (2.0 * dz_);
-}
+// Derivative operators moved to DerivativeOperators (Phase B.2).
+// CartesianDerivatives is constructed in CartesianScheme::CartesianScheme().

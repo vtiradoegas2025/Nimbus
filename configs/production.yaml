@@ -31,6 +31,10 @@ trigger:
     center_z_km: 1.5
     radius_km: 10
     dtheta_k: 2.0
+numerics:
+  compute:
+    backend: vulkan
+    allow_fallback: true
 microphysics:
   scheme: kessler
 output:

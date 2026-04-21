@@ -10,7 +10,7 @@
 #include "catch2/catch.hpp"
 #include "core/field3d.hpp"
 #include "core/simulation.hpp"
-#include "numerics/diffusion_base.hpp"
+#include "numerics/diffusion/diffusion_base.hpp"
 
 #include <cmath>
 

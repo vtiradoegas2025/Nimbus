@@ -5,11 +5,13 @@
  * This file intentionally contains only Vulkan backend resource management and
  * capability checks. Runtime backend selection/fallback orchestration remains
  * in src/core/compute_backend.cpp for engine-level ownership.
- * I highly advise not editing this file if you're not a Vulkan expert.
+ * I HIGHTLY ADVISE NOT EDITING THIS FILE IF YOU'RE NOT A VULKAN EXPERT.
+ * If any edits need to be made, it will be very obvious with my comments 
+   pointing out where to make the changes and how to make them.
  */
 
-#include "numerics/compute_backend.hpp"
-#include "core/compute_backend_factory.hpp"
+#include "compute/compute_backend.hpp"
+#include "compute/compute_backend_factory.hpp"
 
 #include <algorithm>
 #include <cstdint>
@@ -261,7 +263,7 @@ public:
 
     bool dispatch_advection_batch_pre_vertical(
         const float* scalar_in, float* result_out,
-        const float* u_data, const float* v_theta_data,
+        const float* u_data, const float* v_data,
         int nr, int nth, int nz,
         float dr_val, float dtheta_val, float dt_half) override
     {
@@ -278,7 +280,7 @@ public:
             static_cast<uint32_t>(nr - 2) * static_cast<uint32_t>(nth) *
             static_cast<uint32_t>(nz - 2);
 
-        // We need 4 buffers: scalar_A (ping), scalar_B (pong), u, v_theta
+        // We need 4 buffers: scalar_A (ping), scalar_B (pong), u, v
         // Radial: A→B reads (A, u) writes B
         // Azimuthal: B→A reads (B, v) writes A
         // But we output to result_out, so the final result is in A (the pong
@@ -307,7 +309,7 @@ public:
         std::memcpy(host_ptr(slot_A), scalar_in, field_bytes);
         std::memcpy(host_ptr(slot_B), scalar_in, field_bytes); // boundaries
         std::memcpy(host_ptr(slot_u), u_data, field_bytes);
-        std::memcpy(host_ptr(slot_v), v_theta_data, field_bytes);
+        std::memcpy(host_ptr(slot_v), v_data, field_bytes);
 
         // Record command buffer
         vkResetCommandBuffer_(cmd_buf_, 0);
@@ -478,7 +480,7 @@ public:
         return true;
 #else
         (void)scalar_in; (void)result_out;
-        (void)u_data; (void)v_theta_data;
+        (void)u_data; (void)v_data;
         (void)nr; (void)nth; (void)nz;
         (void)dr_val; (void)dtheta_val; (void)dt_half;
         return false;
@@ -487,7 +489,7 @@ public:
 
     bool dispatch_advection_batch_post_vertical(
         const float* scalar_in, float* result_out,
-        const float* u_data, const float* v_theta_data,
+        const float* u_data, const float* v_data,
         int nr, int nth, int nz,
         float dr_val, float dtheta_val, float dz_val,
         float dt_half, float dt_full, float kappa_val) override
@@ -505,7 +507,7 @@ public:
             static_cast<uint32_t>(nr - 2) * static_cast<uint32_t>(nth) *
             static_cast<uint32_t>(nz - 2);
 
-        // We need 4 buffers: scalar_A (ping), scalar_B (pong), u, v_theta
+        // We need 4 buffers: scalar_A (ping), scalar_B (pong), u, v
         // Azimuthal: A→B
         // Radial: B→A
         // Diffusion: A→B (reuse B as output)
@@ -533,7 +535,7 @@ public:
         std::memcpy(host_ptr(slot_A), scalar_in, field_bytes);
         std::memcpy(host_ptr(slot_B), scalar_in, field_bytes); // boundaries
         std::memcpy(host_ptr(slot_u), u_data, field_bytes);
-        std::memcpy(host_ptr(slot_v), v_theta_data, field_bytes);
+        std::memcpy(host_ptr(slot_v), v_data, field_bytes);
 
         // Record command buffer
         vkResetCommandBuffer_(cmd_buf_, 0);
@@ -756,7 +758,7 @@ public:
         return true;
 #else
         (void)scalar_in; (void)result_out;
-        (void)u_data; (void)v_theta_data;
+        (void)u_data; (void)v_data;
         (void)nr; (void)nth; (void)nz;
         (void)dr_val; (void)dtheta_val; (void)dz_val;
         (void)dt_half; (void)dt_full; (void)kappa_val;
@@ -1055,6 +1057,7 @@ public:
     bool dispatch_supercell_tendencies(
         const float* u_r_data, const float* u_theta_data, const float* u_z_data,
         const float* rho_data, const float* p_data, const float* theta_data,
+        const float* loading_data,
         float* du_r_dt_data, float* du_theta_dt_data, float* du_z_dt_data,
         float* drho_dt_data, float* dp_dt_data,
         int nr, int nth, int nz,
@@ -1083,9 +1086,10 @@ public:
             static_cast<uint32_t>(nr - 2) * static_cast<uint32_t>(nth) *
             static_cast<uint32_t>(nz - 2);
 
-        const float* inputs[6] = {
+        const float* inputs[7] = {
             u_r_data, u_theta_data, u_z_data,
-            rho_data, p_data, theta_data
+            rho_data, p_data, theta_data,
+            loading_data
         };
         float* outputs[5] = {
             du_r_dt_data, du_theta_dt_data, du_z_dt_data,
@@ -1094,13 +1098,14 @@ public:
 
         return dispatch_multi_field_kernel(
             supercell_pipeline_, &pc,
-            inputs, 6,
+            inputs, 7,
             outputs, 5,
             nr, nth, nz,
             interior_points);
 #else
         (void)u_r_data; (void)u_theta_data; (void)u_z_data;
         (void)rho_data; (void)p_data; (void)theta_data;
+        (void)loading_data;
         (void)du_r_dt_data; (void)du_theta_dt_data; (void)du_z_dt_data;
         (void)drho_dt_data; (void)dp_dt_data;
         (void)nr; (void)nth; (void)nz;
@@ -1116,11 +1121,13 @@ public:
         const float* u_x_data, const float* u_y_data, const float* w_data,
         const float* rho_data, const float* p_data, const float* theta_data,
         const float* p0_base_data, const float* rho0_base_data,
+        const float* loading_data,
+        const float* u0_base_data, const float* v0_base_data,
         float* du_x_dt_data, float* du_y_dt_data, float* dw_dt_data,
         float* drho_dt_data, float* dp_dt_data,
         int nr, int nth, int nz,
         float dx_val, float dy_val, float dz_val,
-        float g_val, float gamma_val) override
+        float g_val, float gamma_val, float coriolis_f_val) override
     {
 #if defined(TMV_HAS_VULKAN_COMPUTE_HEADERS) && defined(TMV_HAS_VULKAN_COMPUTE_DLOPEN)
         if (!cartesian_pipeline_.is_ready())
@@ -1137,31 +1144,36 @@ public:
         pc.dz = dz_val;
         pc.g = g_val;
         pc.gamma_val = gamma_val;
-        pc.padding[0] = pc.padding[1] = 0.0f;
+        pc.coriolis_f = coriolis_f_val;
+        pc.padding = 0.0f;
 
         // Cartesian interior: skip all 6 boundary faces
         const uint32_t interior_points =
             static_cast<uint32_t>(nr - 2) * static_cast<uint32_t>(nth - 2) *
             static_cast<uint32_t>(nz - 2);
 
-        // The 1D profiles (p0_base, rho0_base) are passed as full-size buffers
-        // to fit dispatch_multi_field_kernel's uniform-size requirement. The
-        // shader only reads indices [0..nz-1] so the padding is never accessed.
-        // We allocate padded copies on the stack for small grids; the overhead
-        // is negligible (2 * nr*nth*nz * 4 bytes ≈ 1 MB at 64^2 * 32).
+        // The 1D profiles (p0_base, rho0_base, u0_base, v0_base) are passed
+        // as full-size buffers to fit dispatch_multi_field_kernel's uniform-
+        // size requirement. The shader only reads indices [0..nz-1].
         const size_t total_cells = static_cast<size_t>(nr) * nth * nz;
         std::vector<float> p0_padded(total_cells, 0.0f);
         std::vector<float> rho0_padded(total_cells, 0.0f);
+        std::vector<float> u0_padded(total_cells, 0.0f);
+        std::vector<float> v0_padded(total_cells, 0.0f);
         for (int k = 0; k < nz; ++k)
         {
             p0_padded[k] = p0_base_data[k];
             rho0_padded[k] = rho0_base_data[k];
+            u0_padded[k] = u0_base_data[k];
+            v0_padded[k] = v0_base_data[k];
         }
 
-        const float* inputs[8] = {
+        const float* inputs[11] = {
             u_x_data, u_y_data, w_data,
             rho_data, p_data, theta_data,
-            p0_padded.data(), rho0_padded.data()
+            p0_padded.data(), rho0_padded.data(),
+            loading_data,
+            u0_padded.data(), v0_padded.data()
         };
         float* outputs[5] = {
             du_x_dt_data, du_y_dt_data, dw_dt_data,
@@ -1170,7 +1182,7 @@ public:
 
         return dispatch_multi_field_kernel(
             cartesian_pipeline_, &pc,
-            inputs, 8,
+            inputs, 11,
             outputs, 5,
             nr, nth, nz,
             interior_points);
@@ -1178,11 +1190,13 @@ public:
         (void)u_x_data; (void)u_y_data; (void)w_data;
         (void)rho_data; (void)p_data; (void)theta_data;
         (void)p0_base_data; (void)rho0_base_data;
+        (void)loading_data;
+        (void)u0_base_data; (void)v0_base_data;
         (void)du_x_dt_data; (void)du_y_dt_data; (void)dw_dt_data;
         (void)drho_dt_data; (void)dp_dt_data;
         (void)nr; (void)nth; (void)nz;
         (void)dx_val; (void)dy_val; (void)dz_val;
-        (void)g_val; (void)gamma_val;
+        (void)g_val; (void)gamma_val; (void)coriolis_f_val;
         return false;
 #endif
     }
@@ -1270,6 +1284,7 @@ public:
     bool dispatch_tornado_tendencies(
         const float* u_r_data, const float* u_theta_data, const float* u_z_data,
         const float* rho_data, const float* p_data, const float* theta_data,
+        const float* loading_data,
         float* du_r_dt_data, float* du_theta_dt_data, float* du_z_dt_data,
         float* drho_dt_data, float* dp_dt_data,
         int nr, int nth, int nz,
@@ -1298,9 +1313,10 @@ public:
             static_cast<uint32_t>(nr - 2) * static_cast<uint32_t>(nth) *
             static_cast<uint32_t>(nz - 2);
 
-        const float* inputs[6] = {
+        const float* inputs[7] = {
             u_r_data, u_theta_data, u_z_data,
-            rho_data, p_data, theta_data
+            rho_data, p_data, theta_data,
+            loading_data
         };
         float* outputs[5] = {
             du_r_dt_data, du_theta_dt_data, du_z_dt_data,
@@ -1309,13 +1325,14 @@ public:
 
         return dispatch_multi_field_kernel(
             tornado_pipeline_, &pc,
-            inputs, 6,
+            inputs, 7,
             outputs, 5,
             nr, nth, nz,
             interior_points);
 #else
         (void)u_r_data; (void)u_theta_data; (void)u_z_data;
         (void)rho_data; (void)p_data; (void)theta_data;
+        (void)loading_data;
         (void)du_r_dt_data; (void)du_theta_dt_data; (void)du_z_dt_data;
         (void)drho_dt_data; (void)dp_dt_data;
         (void)nr; (void)nth; (void)nz;
@@ -1326,7 +1343,8 @@ public:
     }
 
     bool dispatch_kessler_pointwise(
-        const float* temperature_data, const float* qv_data,
+        const float* temperature_data, const float* p_data,
+        const float* qv_data,
         const float* qc_data, const float* qr_data,
         const float* qg_data, const float* qh_data,
         float* dtheta_dt_data, float* dqv_dt_data,
@@ -1365,8 +1383,9 @@ public:
             static_cast<uint32_t>(nr) * static_cast<uint32_t>(nth) *
             static_cast<uint32_t>(nz);
 
-        const float* inputs[6] = {
-            temperature_data, qv_data, qc_data, qr_data, qg_data, qh_data
+        const float* inputs[7] = {
+            temperature_data, p_data,
+            qv_data, qc_data, qr_data, qg_data, qh_data
         };
         float* outputs[6] = {
             dtheta_dt_data, dqv_dt_data, dqc_dt_data,
@@ -1375,12 +1394,12 @@ public:
 
         return dispatch_multi_field_kernel(
             kessler_pointwise_pipeline_, &pc,
-            inputs, 6,
+            inputs, 7,
             outputs, 6,
             nr, nth, nz,
             total_cells);
 #else
-        (void)temperature_data; (void)qv_data;
+        (void)temperature_data; (void)p_data; (void)qv_data;
         (void)qc_data; (void)qr_data;
         (void)qg_data; (void)qh_data;
         (void)dtheta_dt_data; (void)dqv_dt_data;
@@ -1557,7 +1576,8 @@ private:
         float   dz;
         float   g;
         float   gamma_val;
-        float   padding[2];
+        float   coriolis_f;
+        float   padding;
     };
     static_assert(sizeof(CartesianTendenciesPushConstants) == 40,
                   "cartesian push constants must be 40 bytes");
@@ -1786,7 +1806,14 @@ private:
 #if defined(__APPLE__)
         if (result == VK_ERROR_INCOMPATIBLE_DRIVER)
         {
-            return " (hint: ensure Homebrew packages `vulkan-loader` and `molten-vk` are installed; "
+            return
+#if defined(__APPLE__)
+                " (hint: ensure Homebrew packages `vulkan-loader` and `molten-vk` are installed; "
+#elif defined(__linux__)
+                " (hint: install libvulkan-dev and vulkan-tools, e.g. `sudo apt install libvulkan-dev vulkan-tools`; "
+#else
+                " (hint: ensure Vulkan SDK is installed; "
+#endif
                 "if needed set VK_ICD_FILENAMES to /opt/homebrew/etc/vulkan/icd.d/MoltenVK_icd.json)";
         }
 #endif
@@ -1922,7 +1949,10 @@ private:
 #elif defined(__linux__)
         const std::vector<const char*> loader_candidates = {
             "libvulkan.so.1",
-            "libvulkan.so"
+            "libvulkan.so",
+            "/usr/lib/x86_64-linux-gnu/libvulkan.so.1",   // Debian/Ubuntu
+            "/usr/lib64/libvulkan.so.1",                   // Fedora/RHEL
+            "/usr/lib/libvulkan.so.1",                     // Arch
         };
 #else
         const std::vector<const char*> loader_candidates;
@@ -3582,10 +3612,10 @@ private:
             }
         }
 
-        // Supercell tendencies (optional — 11 SSBOs: 6 input + 5 output)
+        // Supercell tendencies (optional — 12 SSBOs: 7 input + 5 output)
         {
             std::string supercell_error;
-            if (create_pipeline_state("supercell_tendencies.comp.spv", 11,
+            if (create_pipeline_state("supercell_tendencies.comp.spv", 12,
                                       sizeof(SupercellTendenciesPushConstants),
                                       supercell_pipeline_, supercell_error))
             {
@@ -3597,10 +3627,10 @@ private:
             }
         }
 
-        // Cartesian tendencies (optional — 13 SSBOs: 8 input + 5 output)
+        // Cartesian tendencies (optional — 16 SSBOs: 11 input + 5 output)
         {
             std::string cartesian_error;
-            if (create_pipeline_state("cartesian_tendencies.comp.spv", 13,
+            if (create_pipeline_state("cartesian_tendencies.comp.spv", 16,
                                       sizeof(CartesianTendenciesPushConstants),
                                       cartesian_pipeline_, cartesian_error))
             {
@@ -3642,10 +3672,10 @@ private:
             }
         }
 
-        // Tornado tendencies (optional — 11 SSBOs: 6 input + 5 output)
+        // Tornado tendencies (optional — 12 SSBOs: 7 input + 5 output)
         {
             std::string tornado_error;
-            if (create_pipeline_state("tornado_tendencies.comp.spv", 11,
+            if (create_pipeline_state("tornado_tendencies.comp.spv", 12,
                                       sizeof(TornadoTendenciesPushConstants),
                                       tornado_pipeline_, tornado_error))
             {
@@ -3657,10 +3687,10 @@ private:
             }
         }
 
-        // Kessler point-wise microphysics (optional — 12 SSBOs: 6 input + 6 output)
+        /// Kessler point-wise microphysics (optional — 13 SSBOs: 7 input + 6 output)
         {
             std::string kessler_pw_error;
-            if (create_pipeline_state("kessler_pointwise.comp.spv", 12,
+            if (create_pipeline_state("kessler_pointwise.comp.spv", 13,
                                       sizeof(KesslerPointwisePushConstants),
                                       kessler_pointwise_pipeline_, kessler_pw_error))
             {

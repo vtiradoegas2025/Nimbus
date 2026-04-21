@@ -20,7 +20,7 @@ layout(set = 0, binding = 0) readonly buffer SrcBuf {
 };
 
 layout(set = 0, binding = 1) readonly buffer VBuf {
-    float v_theta[];
+    float v[];
 };
 
 layout(set = 0, binding = 2) buffer DstBuf {
@@ -67,7 +67,7 @@ void main() {
     uint jm = uint((i * nth + j_prev) * nz + k);
     uint jp = uint((i * nth + j_next) * nz + k);
 
-    float v_val = v_theta[c];
+    float v_val = v[c];
     float q_c = src[c];
     float dq_dtheta = 0.0;
 

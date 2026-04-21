@@ -135,17 +135,19 @@ void RK4Scheme::update_final(TimeSteppingState& state)
             throw std::runtime_error("RK4 update_final shape mismatch");
         }
 
-        float* out = values.data();
-        const float* k1_ptr = k1.data();
-        const float* k2_ptr = k2.data();
-        const float* k3_ptr = k3.data();
-        const float* k4_ptr = k4.data();
+        float* __restrict__ out = values.data();
+        const float* __restrict__ k1_ptr = k1.data();
+        const float* __restrict__ k2_ptr = k2.data();
+        const float* __restrict__ k3_ptr = k3.data();
+        const float* __restrict__ k4_ptr = k4.data();
         const std::size_t count = values.size();
+        const double dt_over_6 = state.dt / 6.0;
+        #pragma omp parallel for simd schedule(static)
         for (std::size_t idx = 0; idx < count; ++idx)
         {
             const double updated =
                 static_cast<double>(out[idx]) +
-                (state.dt / 6.0) *
+                dt_over_6 *
                     (static_cast<double>(k1_ptr[idx]) +
                      2.0 * static_cast<double>(k2_ptr[idx]) +
                      2.0 * static_cast<double>(k3_ptr[idx]) +
@@ -189,15 +191,17 @@ void RK4Scheme::add_states(const std::vector<NumericalState>& state1, double coe
         }
 
         result[i].data.resize(base.size_r(), base.size_th(), base.size_z(), 0.0f);
-        const float* base_ptr = base.data();
-        const float* tend_ptr = tendency.data();
-        float* out_ptr = result[i].data.data();
+        const float* __restrict__ base_ptr = base.data();
+        const float* __restrict__ tend_ptr = tendency.data();
+        float* __restrict__ out_ptr = result[i].data.data();
         const std::size_t count = base.size();
+        const double scale = coef2 * dt;
+        #pragma omp parallel for simd schedule(static)
         for (std::size_t idx = 0; idx < count; ++idx)
         {
             out_ptr[idx] = static_cast<float>(
                 coef1 * static_cast<double>(base_ptr[idx]) +
-                coef2 * dt * static_cast<double>(tend_ptr[idx]));
+                scale * static_cast<double>(tend_ptr[idx]));
         }
     }
 }

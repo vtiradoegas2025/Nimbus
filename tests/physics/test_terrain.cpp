@@ -12,7 +12,7 @@
  *   Peak: h(0) = h0
  */
 #include "catch2/catch.hpp"
-#include "physics/terrain_base.hpp"
+#include "terrain/terrain_base.hpp"
 #include "terrain/base/topography.hpp"
 #include "core/simulation.hpp"
 

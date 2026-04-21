@@ -4,7 +4,7 @@
  */
 
 #include "data/shm_dataset.hpp"
-#include "core/shm_transport.hpp"
+#include "core/output/shm_transport.hpp"
 
 #include <atomic>
 #include <cstring>

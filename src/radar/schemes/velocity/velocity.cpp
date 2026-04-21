@@ -194,7 +194,7 @@ void VelocityScheme::compute_radial_velocity(const RadarConfig& config, const Ra
             for (int k = 0; k < NZ_; ++k) 
             {
                 const float u_cyl = sample_component(state.u, i, j, k, NR_, NTH_, NZ_, beam_volume);
-                const float v_theta = sample_component(state.v, i, j, k, NR_, NTH_, NZ_, beam_volume);
+                const float v = sample_component(state.v, i, j, k, NR_, NTH_, NZ_, beam_volume);
                 const float w = sample_component(state.w, i, j, k, NR_, NTH_, NZ_, beam_volume);
 
                 double r = static_cast<double>(i) * dr;
@@ -204,8 +204,8 @@ void VelocityScheme::compute_radial_velocity(const RadarConfig& config, const Ra
                 double x = r * cos(theta);
                 double y = r * sin(theta);
 
-                double u_cart = u_cyl * cos(theta) - v_theta * sin(theta);
-                double v_cart = u_cyl * sin(theta) + v_theta * cos(theta);
+                double u_cart = u_cyl * cos(theta) - v * sin(theta);
+                double v_cart = u_cyl * sin(theta) + v * cos(theta);
 
                 double e_r_x, e_r_y, e_r_z, R;
                 RadarGeometry::compute_line_of_sight(radar_x_, radar_y_, radar_z_,

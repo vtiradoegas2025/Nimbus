@@ -8,8 +8,8 @@
  */
 
 #include "explicit.hpp"
-#include "core/field_pool.hpp"
-#include "numerics/compute_kernel_template.hpp"
+#include "core/field/field_pool.hpp"
+#include "compute/compute_kernel_template.hpp"
 #include "util/grid_metric_utils.hpp"
 #include "util/simd_utils.hpp"
 #include "util/log.hpp"

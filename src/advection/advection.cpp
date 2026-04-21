@@ -7,11 +7,11 @@
  * This file is part of the src/advection subsystem.
  */
 
-#include "numerics/advection.hpp"
-#include "numerics/advection_base.hpp"
-#include "numerics/advection_cartesian.hpp"
-#include "numerics/compute_backend.hpp"
-#include "numerics/compute_kernel_template.hpp"
+#include "numerics/advection/advection.hpp"
+#include "numerics/advection/advection_base.hpp"
+#include "numerics/advection/advection_cartesian.hpp"
+#include "compute/compute_backend.hpp"
+#include "compute/compute_kernel_template.hpp"
 #include "core/runtime_config.hpp"
 #include "core/simulation.hpp"
 #include <algorithm>
@@ -441,7 +441,7 @@ static void advect_scalar_1d_theta_kernel(const Field3D& src, Field3D& dst, doub
 
     // Try GPU dispatch for interior points
     if (dispatch_azimuthal_advection_backend(
-            src.data(), v_theta.data(), dst.data(),
+            src.data(), v.data(), dst.data(),
             NR, NTH, NZ,
             static_cast<float>(dr), static_cast<float>(dtheta), static_cast<float>(dt)))
     {
@@ -450,7 +450,7 @@ static void advect_scalar_1d_theta_kernel(const Field3D& src, Field3D& dst, doub
 
     // CPU fallback
     const float* src_data = src.data();
-    const float* v_data = v_theta.data();
+    const float* v_data = v.data();
     float* dst_data = dst.data();
 
     #pragma omp parallel for collapse(2)
@@ -548,7 +548,7 @@ static void advect_scalar_1d_z_numerics_kernel(const Field3D& src, Field3D& dst,
     static AdvectionTendencies tendencies;
     AdvectionStateView state{};
     state.u = &u;
-    state.v = &v_theta;
+    state.v = &v;
     state.w = &w;
     state.q = &src;
     state.rho = &rho;
@@ -557,6 +557,14 @@ static void advect_scalar_1d_z_numerics_kernel(const Field3D& src, Field3D& dst,
     runtime_cfg.positivity_dt = std::max(std::abs(dt), 1.0e-12);
     const auto kernel_t0 = std::chrono::steady_clock::now();
     VerticalFluxKernelTiming kernel_timing{};
+
+    // Set up fused integration: the TVD v2 kernel writes dst = src + dt*tendency
+    // directly, eliminating the separate integration pass below. This halves
+    // memory traffic for the integration step.
+    tendencies.fused_dst = dst.data();
+    tendencies.fused_src = src.data();
+    tendencies.fused_dt = static_cast<float>(dt);
+    tendencies.fused_completed = false;
 
     bool computed = false;
     const bool prefer_gpu_dispatch =
@@ -628,25 +636,31 @@ static void advect_scalar_1d_z_numerics_kernel(const Field3D& src, Field3D& dst,
     const auto sync_t0 = (kernel_timing.gpu_dispatch)
         ? std::chrono::steady_clock::now()
         : std::chrono::steady_clock::time_point{};
-    #pragma omp parallel for collapse(2)
-    for (int i = 1; i < NR - 1; ++i)
+
+    // Skip the separate integration pass when the TVD v2 kernel already
+    // fused it (wrote dst = src + dt*tendency directly in the kernel).
+    if (!tendencies.fused_completed)
     {
-        for (int j = 0; j < NTH; ++j)
+        #pragma omp parallel for collapse(2)
+        for (int i = 1; i < NR - 1; ++i)
         {
-            for (int k = 1; k < NZ - 1; ++k)
+            for (int j = 0; j < NTH; ++j)
             {
-                const float q_old = static_cast<float>(src[i][j][k]);
-                float dqdt = static_cast<float>(tendencies.dqdt_adv[i][j][k]);
-                if (!std::isfinite(static_cast<double>(dqdt)))
+                for (int k = 1; k < NZ - 1; ++k)
                 {
-                    dqdt = 0.0f;
+                    const float q_old = static_cast<float>(src[i][j][k]);
+                    float dqdt = static_cast<float>(tendencies.dqdt_adv[i][j][k]);
+                    if (!std::isfinite(static_cast<double>(dqdt)))
+                    {
+                        dqdt = 0.0f;
+                    }
+                    float q_new = q_old + static_cast<float>(dt) * dqdt;
+                    if (!std::isfinite(static_cast<double>(q_new)))
+                    {
+                        q_new = q_old;
+                    }
+                    dst[i][j][k] = q_new;
                 }
-                float q_new = q_old + static_cast<float>(dt) * dqdt;
-                if (!std::isfinite(static_cast<double>(q_new)))
-                {
-                    q_new = q_old;
-                }
-                dst[i][j][k] = q_new;
             }
         }
     }
@@ -677,114 +691,76 @@ void advect_scalar_3d(Field3D& scalar, double dt, double kappa)
     ensure_field_shape(scratch_b);
 
     const double dt_half = dt * 0.5;
+    const bool is_cartesian = (global_coordinate_system == CoordinateSystem::Cartesian);
 
-    // ── Cartesian early-return path (Phase A.5) ──
+    // ── Select coordinate-appropriate kernels ──
     //
-    // The cylindrical batched dispatch below uses periodic-θ shaders that
-    // would corrupt Cartesian state, so the Cartesian branch skips it
-    // entirely and runs the parallel (x, y) directional split implemented
-    // in `src/advection/advection_cartesian.cpp`. The vertical step is
-    // identical to the cylindrical path because the TVD vertical scheme
-    // is coordinate-agnostic.
-    //
-    // Strang-like ordering: x/2 → y/2 → z → y/2 → x/2 → diffusion. This
-    // mirrors the cylindrical r/2 → θ/2 → z → θ/2 → r/2 → diffusion
-    // sequence so the splitting error has the same structure on both
-    // backends. Perf buckets are reused (`r_s` for x time, `theta_s` for
-    // y time, etc.); the labels are slightly off when Cartesian is active
-    // and will be cleaned up in Phase B alongside the broader perf audit.
-    if (global_coordinate_system == CoordinateSystem::Cartesian)
-    {
-        const auto x1_t0 = perf_on ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
-        ensure_field_shape(scratch_a);
-        if (!dispatch_advection_x_backend(
-                scalar.data(), u.data(), scratch_a.data(),
-                NR, NTH, NZ, static_cast<float>(dr), static_cast<float>(dt_half)))
-        {
-            advect_scalar_1d_x_kernel_cartesian(scalar, scratch_a, dt_half);
-        }
-        if (perf_on)
-        {
-            g_advection_perf_totals.r_s += std::chrono::duration<double>(std::chrono::steady_clock::now() - x1_t0).count();
-        }
+    // Each lambda wraps GPU-try + CPU-fallback for its direction.
+    // Cartesian: x/y kernels, no 1/r factor, no periodic wrap.
+    // Cylindrical: r/θ kernels, 1/r factor in θ, periodic θ wrap.
 
-        const auto y1_t0 = perf_on ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
-        ensure_field_shape(scratch_b);
-        if (!dispatch_advection_y_backend(
-                scratch_a.data(), v_theta.data(), scratch_b.data(),
-                NR, NTH, NZ, static_cast<float>(dr), static_cast<float>(dt_half)))
+    auto step_h1 = [&](const Field3D& src, Field3D& dst, double dt_step) {
+        ensure_field_shape(dst);
+        if (is_cartesian)
         {
-            advect_scalar_1d_y_kernel_cartesian(scratch_a, scratch_b, dt_half);
-        }
-        if (perf_on)
-        {
-            g_advection_perf_totals.theta_s += std::chrono::duration<double>(std::chrono::steady_clock::now() - y1_t0).count();
-        }
-
-        const auto z_t0 = perf_on ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
-        if (use_numerics_vertical_advection())
-        {
-            advect_scalar_1d_z_numerics_kernel(scratch_b, scratch_a, dt, kappa);
+            if (!dispatch_advection_x_backend(
+                    src.data(), u.data(), dst.data(),
+                    NR, NTH, NZ, static_cast<float>(dr), static_cast<float>(dt_step)))
+                advect_scalar_1d_x_kernel_cartesian(src, dst, dt_step);
         }
         else
         {
-            advect_scalar_1d_z_kernel(scratch_b, scratch_a, dt, kappa);
+            advect_scalar_1d_r_kernel(src, dst, dt_step, kappa);
         }
-        if (perf_on)
-        {
-            g_advection_perf_totals.z_s += std::chrono::duration<double>(std::chrono::steady_clock::now() - z_t0).count();
-        }
+    };
 
-        const auto y2_t0 = perf_on ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
-        ensure_field_shape(scratch_b);
-        if (!dispatch_advection_y_backend(
-                scratch_a.data(), v_theta.data(), scratch_b.data(),
-                NR, NTH, NZ, static_cast<float>(dr), static_cast<float>(dt_half)))
+    auto step_h2 = [&](const Field3D& src, Field3D& dst, double dt_step) {
+        ensure_field_shape(dst);
+        if (is_cartesian)
         {
-            advect_scalar_1d_y_kernel_cartesian(scratch_a, scratch_b, dt_half);
+            if (!dispatch_advection_y_backend(
+                    src.data(), v.data(), dst.data(),
+                    NR, NTH, NZ, static_cast<float>(dr), static_cast<float>(dt_step)))
+                advect_scalar_1d_y_kernel_cartesian(src, dst, dt_step);
         }
-        if (perf_on)
+        else
         {
-            g_advection_perf_totals.theta_s += std::chrono::duration<double>(std::chrono::steady_clock::now() - y2_t0).count();
+            advect_scalar_1d_theta_kernel(src, dst, dt_step, kappa);
         }
+    };
 
-        const auto x2_t0 = perf_on ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
-        ensure_field_shape(scratch_a);
-        if (!dispatch_advection_x_backend(
-                scratch_b.data(), u.data(), scratch_a.data(),
-                NR, NTH, NZ, static_cast<float>(dr), static_cast<float>(dt_half)))
-        {
-            advect_scalar_1d_x_kernel_cartesian(scratch_b, scratch_a, dt_half);
-        }
-        if (perf_on)
-        {
-            g_advection_perf_totals.r_s += std::chrono::duration<double>(std::chrono::steady_clock::now() - x2_t0).count();
-        }
+    auto step_z = [&](const Field3D& src, Field3D& dst, double dt_step) {
+        if (use_numerics_vertical_advection())
+            advect_scalar_1d_z_numerics_kernel(src, dst, dt_step, kappa);
+        else
+            advect_scalar_1d_z_kernel(src, dst, dt_step, kappa);
+    };
 
-        const auto diff_t0 = perf_on ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
-        apply_diffusion_kernel_cartesian(scratch_a, scalar, dt, kappa);
-        if (perf_on)
-        {
-            g_advection_perf_totals.diffusion_s += std::chrono::duration<double>(std::chrono::steady_clock::now() - diff_t0).count();
-            g_advection_perf_totals.scalar_total_s +=
-                std::chrono::duration<double>(std::chrono::steady_clock::now() - scalar_t0).count();
-            ++g_advection_perf_totals.scalar_calls;
-        }
-        return;
-    }
+    auto step_diff = [&](const Field3D& src, Field3D& dst, double dt_step, double k) {
+        if (is_cartesian)
+            apply_diffusion_kernel_cartesian(src, dst, dt_step, k);
+        else
+            apply_diffusion_kernel(src, dst, dt_step, k);
+    };
 
-    // ── Try batched GPU dispatch (eliminates intermediate round-trips) ──
-    const bool batched_available = supports_batched_advection_dispatch();
+    // ── Strang split: h1/2 → h2/2 → z → h2/2 → h1/2 → diffusion ──
+    //
+    // Cylindrical has an optional batched GPU path that combines h1+h2
+    // into one GPU submit. When available, it replaces the individual
+    // h1 + h2 steps (pre-vertical batch) or h2 + h1 + diffusion steps
+    // (post-vertical batch). Cartesian always runs individual steps.
+
+    const bool batched_available = !is_cartesian && supports_batched_advection_dispatch();
     bool pre_batch_ok = false;
 
+    // ── Pre-vertical: h1(dt/2) → h2(dt/2) ──
     if (batched_available)
     {
-        // Pre-vertical batch: radial(half) + azimuthal(half) in one GPU submit
         const auto batch_t0 = perf_on ? std::chrono::steady_clock::now()
                                       : std::chrono::steady_clock::time_point{};
         pre_batch_ok = dispatch_advection_batch_pre_vertical_backend(
             scalar.data(), scratch_b.data(),
-            u.data(), v_theta.data(),
+            u.data(), v.data(),
             NR, NTH, NZ,
             static_cast<float>(dr), static_cast<float>(dtheta),
             static_cast<float>(dt_half));
@@ -799,38 +775,24 @@ void advect_scalar_3d(Field3D& scalar, double dt, double kappa)
 
     if (!pre_batch_ok)
     {
-        // Fallback: individual dispatches
-        const auto r1_t0 = perf_on ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
-        advect_scalar_1d_r_kernel(scalar, scratch_a, dt_half, kappa);
+        const auto h1_t0 = perf_on ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
+        step_h1(scalar, scratch_a, dt_half);
         if (perf_on)
-        {
-            g_advection_perf_totals.r_s += std::chrono::duration<double>(std::chrono::steady_clock::now() - r1_t0).count();
-        }
+            g_advection_perf_totals.r_s += std::chrono::duration<double>(std::chrono::steady_clock::now() - h1_t0).count();
 
-        const auto th1_t0 = perf_on ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
-        advect_scalar_1d_theta_kernel(scratch_a, scratch_b, dt_half, kappa);
+        const auto h2_t0 = perf_on ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
+        step_h2(scratch_a, scratch_b, dt_half);
         if (perf_on)
-        {
-            g_advection_perf_totals.theta_s += std::chrono::duration<double>(std::chrono::steady_clock::now() - th1_t0).count();
-        }
+            g_advection_perf_totals.theta_s += std::chrono::duration<double>(std::chrono::steady_clock::now() - h2_t0).count();
     }
 
-    // ── Vertical step (always individual dispatch) ──
+    // ── Vertical step (always individual) ──
     const auto z_t0 = perf_on ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
-    if (use_numerics_vertical_advection())
-    {
-        advect_scalar_1d_z_numerics_kernel(scratch_b, scratch_a, dt, kappa);
-    }
-    else
-    {
-        advect_scalar_1d_z_kernel(scratch_b, scratch_a, dt, kappa);
-    }
+    step_z(scratch_b, scratch_a, dt);
     if (perf_on)
-    {
         g_advection_perf_totals.z_s += std::chrono::duration<double>(std::chrono::steady_clock::now() - z_t0).count();
-    }
 
-    // ── Try post-vertical batch: azimuthal(half) + radial(half) + diffusion ──
+    // ── Post-vertical: h2(dt/2) → h1(dt/2) → diffusion ──
     bool post_batch_ok = false;
 
     if (batched_available)
@@ -839,7 +801,7 @@ void advect_scalar_3d(Field3D& scalar, double dt, double kappa)
                                       : std::chrono::steady_clock::time_point{};
         post_batch_ok = dispatch_advection_batch_post_vertical_backend(
             scratch_a.data(), scalar.data(),
-            u.data(), v_theta.data(),
+            u.data(), v.data(),
             NR, NTH, NZ,
             static_cast<float>(dr), static_cast<float>(dtheta),
             static_cast<float>(dz),
@@ -857,27 +819,20 @@ void advect_scalar_3d(Field3D& scalar, double dt, double kappa)
 
     if (!post_batch_ok)
     {
-        // Fallback: individual dispatches
-        const auto th2_t0 = perf_on ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
-        advect_scalar_1d_theta_kernel(scratch_a, scratch_b, dt_half, kappa);
+        const auto h2_t0 = perf_on ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
+        step_h2(scratch_a, scratch_b, dt_half);
         if (perf_on)
-        {
-            g_advection_perf_totals.theta_s += std::chrono::duration<double>(std::chrono::steady_clock::now() - th2_t0).count();
-        }
+            g_advection_perf_totals.theta_s += std::chrono::duration<double>(std::chrono::steady_clock::now() - h2_t0).count();
 
-        const auto r2_t0 = perf_on ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
-        advect_scalar_1d_r_kernel(scratch_b, scratch_a, dt_half, kappa);
+        const auto h1_t0 = perf_on ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
+        step_h1(scratch_b, scratch_a, dt_half);
         if (perf_on)
-        {
-            g_advection_perf_totals.r_s += std::chrono::duration<double>(std::chrono::steady_clock::now() - r2_t0).count();
-        }
+            g_advection_perf_totals.r_s += std::chrono::duration<double>(std::chrono::steady_clock::now() - h1_t0).count();
 
         const auto diff_t0 = perf_on ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
-        apply_diffusion_kernel(scratch_a, scalar, dt, kappa);
+        step_diff(scratch_a, scalar, dt, kappa);
         if (perf_on)
-        {
             g_advection_perf_totals.diffusion_s += std::chrono::duration<double>(std::chrono::steady_clock::now() - diff_t0).count();
-        }
     }
 
     if (perf_on)

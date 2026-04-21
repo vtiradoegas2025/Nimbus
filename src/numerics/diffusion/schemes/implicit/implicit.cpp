@@ -8,7 +8,7 @@
  */
 
 #include "implicit.hpp"
-#include "core/field_pool.hpp"
+#include "core/field/field_pool.hpp"
 #include "util/grid_metric_utils.hpp"
 #include <algorithm>
 #include <cmath>
@@ -114,6 +114,8 @@ void ImplicitDiffusionScheme::compute_diffusion_tendencies(
         Field3D& theta_new = theta_guard.field;
         implicit_vertical_diffusion(*state.theta, scalar_k, scalar_k_default, *state.grid, dt_eff, theta_new);
 
+        const double inv_dt = 1.0 / dt_eff;
+        #pragma omp parallel for collapse(2)
         for (int i = 0; i < nr; ++i)
         {
             for (int j = 0; j < nth; ++j)
@@ -121,7 +123,7 @@ void ImplicitDiffusionScheme::compute_diffusion_tendencies(
                 for (int k = 0; k < nz; ++k)
                 {
                     tendencies.dthetadt_diff(i, j, k) =
-                        static_cast<float>((theta_new(i, j, k) - (*state.theta)(i, j, k)) / dt_eff);
+                        static_cast<float>((theta_new(i, j, k) - (*state.theta)(i, j, k)) * inv_dt);
                 }
             }
         }
@@ -133,6 +135,8 @@ void ImplicitDiffusionScheme::compute_diffusion_tendencies(
         Field3D& qv_new = qv_guard.field;
         implicit_vertical_diffusion(*state.qv, scalar_k, scalar_k_default, *state.grid, dt_eff, qv_new);
 
+        const double inv_dt = 1.0 / dt_eff;
+        #pragma omp parallel for collapse(2)
         for (int i = 0; i < nr; ++i)
         {
             for (int j = 0; j < nth; ++j)
@@ -140,7 +144,7 @@ void ImplicitDiffusionScheme::compute_diffusion_tendencies(
                 for (int k = 0; k < nz; ++k)
                 {
                     tendencies.dqvdt_diff(i, j, k) =
-                        static_cast<float>((qv_new(i, j, k) - (*state.qv)(i, j, k)) / dt_eff);
+                        static_cast<float>((qv_new(i, j, k) - (*state.qv)(i, j, k)) * inv_dt);
                 }
             }
         }
@@ -162,6 +166,8 @@ void ImplicitDiffusionScheme::compute_diffusion_tendencies(
                                              momentum_k_default, *state.grid, dt_eff,
                                              u_new, v_new, w_new);
 
+        const double inv_dt = 1.0 / dt_eff;
+        #pragma omp parallel for collapse(2)
         for (int i = 0; i < nr; ++i)
         {
             for (int j = 0; j < nth; ++j)
@@ -169,11 +175,11 @@ void ImplicitDiffusionScheme::compute_diffusion_tendencies(
                 for (int k = 0; k < nz; ++k)
                 {
                     tendencies.dudt_diff(i, j, k) =
-                        static_cast<float>((u_new(i, j, k) - (*state.u)(i, j, k)) / dt_eff);
+                        static_cast<float>((u_new(i, j, k) - (*state.u)(i, j, k)) * inv_dt);
                     tendencies.dvdt_diff(i, j, k) =
-                        static_cast<float>((v_new(i, j, k) - (*state.v)(i, j, k)) / dt_eff);
+                        static_cast<float>((v_new(i, j, k) - (*state.v)(i, j, k)) * inv_dt);
                     tendencies.dwdt_diff(i, j, k) =
-                        static_cast<float>((w_new(i, j, k) - (*state.w)(i, j, k)) / dt_eff);
+                        static_cast<float>((w_new(i, j, k) - (*state.w)(i, j, k)) * inv_dt);
                 }
             }
         }
@@ -190,6 +196,7 @@ void ImplicitDiffusionScheme::compute_diffusion_tendencies(
 
         if (scalar_k != nullptr)
         {
+            #pragma omp parallel for collapse(2)
             for (int i = 0; i < nr; ++i)
             {
                 for (int j = 0; j < nth; ++j)
@@ -323,56 +330,65 @@ void ImplicitDiffusionScheme::implicit_vertical_diffusion(
         return std::max(0.0, value);
     };
 
-    for (int i = 0; i < nr; ++i)
+    #pragma omp parallel
     {
-        for (int j = 0; j < nth; ++j)
+        std::vector<double> a(static_cast<size_t>(nz), 0.0);
+        std::vector<double> b(static_cast<size_t>(nz), 1.0);
+        std::vector<double> c(static_cast<size_t>(nz), 0.0);
+        std::vector<double> rhs(static_cast<size_t>(nz), 0.0);
+        std::vector<double> phi_new;
+
+        #pragma omp for collapse(2) schedule(static)
+        for (int i = 0; i < nr; ++i)
         {
-            std::vector<double> a(static_cast<size_t>(nz), 0.0);
-            std::vector<double> b(static_cast<size_t>(nz), 1.0);
-            std::vector<double> c(static_cast<size_t>(nz), 0.0);
-            std::vector<double> rhs(static_cast<size_t>(nz), 0.0);
-
-            for (int k = 1; k < nz - 1; ++k)
+            for (int j = 0; j < nth; ++j)
             {
-                const double dz_up = dz_at(i, j, k - 1);
-                const double dz_down = dz_at(i, j, k + 1);
-                const double dz = dz_at(i, j, k);
+                std::fill(a.begin(), a.end(), 0.0);
+                std::fill(b.begin(), b.end(), 1.0);
+                std::fill(c.begin(), c.end(), 0.0);
+                std::fill(rhs.begin(), rhs.end(), 0.0);
 
-                const double K_here_raw = (K_field != nullptr) ? (*K_field)(i, j, k) : K_default;
-                const double K_up_raw = (K_field != nullptr) ? (*K_field)(i, j, k - 1) : K_default;
-                const double K_down_raw = (K_field != nullptr) ? (*K_field)(i, j, k + 1) : K_default;
-                const double K_here = sanitize_diffusivity(K_here_raw);
-                const double K_up_val = sanitize_diffusivity(K_up_raw);
-                const double K_down_val = sanitize_diffusivity(K_down_raw);
-                const double K_up = 0.5 * (K_here + K_up_val);
-                const double K_down = 0.5 * (K_here + K_down_val);
+                for (int k = 1; k < nz - 1; ++k)
+                {
+                    const double dz_up = dz_at(i, j, k - 1);
+                    const double dz_down = dz_at(i, j, k + 1);
+                    const double dz = dz_at(i, j, k);
 
-                const double coef_up = -0.5 * dt * K_up / (dz_up * dz);
-                const double coef_down = -0.5 * dt * K_down / (dz_down * dz);
+                    const double K_here_raw = (K_field != nullptr) ? (*K_field)(i, j, k) : K_default;
+                    const double K_up_raw = (K_field != nullptr) ? (*K_field)(i, j, k - 1) : K_default;
+                    const double K_down_raw = (K_field != nullptr) ? (*K_field)(i, j, k + 1) : K_default;
+                    const double K_here = sanitize_diffusivity(K_here_raw);
+                    const double K_up_val = sanitize_diffusivity(K_up_raw);
+                    const double K_down_val = sanitize_diffusivity(K_down_raw);
+                    const double K_up = 0.5 * (K_here + K_up_val);
+                    const double K_down = 0.5 * (K_here + K_down_val);
 
-                a[k] = coef_up;
-                b[k] = 1.0 - coef_up - coef_down;
-                c[k] = coef_down;
+                    const double coef_up = -0.5 * dt * K_up / (dz_up * dz);
+                    const double coef_down = -0.5 * dt * K_down / (dz_down * dz);
 
-                const double explicit_up = 0.5 * dt * K_up / (dz_up * dz);
-                const double explicit_down = 0.5 * dt * K_down / (dz_down * dz);
+                    a[k] = coef_up;
+                    b[k] = 1.0 - coef_up - coef_down;
+                    c[k] = coef_down;
 
-                rhs[k] = field(i, j, k) +
-                         explicit_up * (field(i, j, k - 1) - field(i, j, k)) +
-                         explicit_down * (field(i, j, k + 1) - field(i, j, k));
-            }
+                    const double explicit_up = 0.5 * dt * K_up / (dz_up * dz);
+                    const double explicit_down = 0.5 * dt * K_down / (dz_down * dz);
 
-            b[0] = 1.0;
-            rhs[0] = field(i, j, 0);
-            b[nz - 1] = 1.0;
-            rhs[nz - 1] = field(i, j, nz - 1);
+                    rhs[k] = field(i, j, k) +
+                             explicit_up * (field(i, j, k - 1) - field(i, j, k)) +
+                             explicit_down * (field(i, j, k + 1) - field(i, j, k));
+                }
 
-            std::vector<double> phi_new;
-            solve_tridiagonal(a, b, c, rhs, phi_new);
+                b[0] = 1.0;
+                rhs[0] = field(i, j, 0);
+                b[nz - 1] = 1.0;
+                rhs[nz - 1] = field(i, j, nz - 1);
 
-            for (int k = 0; k < nz; ++k)
-            {
-                field_new(i, j, k) = static_cast<float>(phi_new[k]);
+                solve_tridiagonal(a, b, c, rhs, phi_new);
+
+                for (int k = 0; k < nz; ++k)
+                {
+                    field_new(i, j, k) = static_cast<float>(phi_new[k]);
+                }
             }
         }
     }

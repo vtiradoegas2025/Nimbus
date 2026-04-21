@@ -6,7 +6,7 @@
  * NPY magic: \x93NUMPY, version 1.0, dtype '<f4', C-order.
  */
 #include "catch2/catch.hpp"
-#include "core/npy_writer.hpp"
+#include "core/output/npy_writer.hpp"
 #include "core/field3d.hpp"
 
 #include <cstdio>

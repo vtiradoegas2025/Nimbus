@@ -3,7 +3,7 @@
  * @brief Unit tests for FieldPool singleton and RAII guard.
  */
 #include "catch2/catch.hpp"
-#include "core/field_pool.hpp"
+#include "core/field/field_pool.hpp"
 
 TEST_CASE("FieldPool acquire returns zero-filled buffer", "[core][field_pool]")
 {

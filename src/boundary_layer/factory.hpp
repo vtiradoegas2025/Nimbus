@@ -10,7 +10,7 @@
 #pragma once
 #include <memory>
 #include <string>
-#include "physics/boundary_layer_base.hpp"
+#include "boundary_layer/boundary_layer_base.hpp"
 
 class SlabScheme;
 class YSUScheme;

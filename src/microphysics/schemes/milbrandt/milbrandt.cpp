@@ -8,6 +8,7 @@
  */
 
 #include "milbrandt.hpp"
+#include "microphysics/base/thermodynamics.hpp"
 #include "core/simulation.hpp"
 #include <algorithm>
 #include <cmath>
@@ -94,16 +95,39 @@ void MilbrandtScheme::compute_tendencies(
     init_tendency_fields(NR, NTH, NZ, dtheta_dt, dqv_dt, dqc_dt, dqr_dt,
                          dqi_dt, dqs_dt, dqg_dt, dqh_dt);
 
+    // Saturation adjustment: convert supersaturated vapor to cloud water
+    // before processing microphysics. Without this, Milbrandt-Yau only
+    // acts on existing hydrometeors and never initiates condensation.
+    Field3D qv_adj = qv;
+    Field3D qc_adj = qc;
+    #pragma omp parallel for collapse(2)
+    for (int i = 0; i < NR; ++i)
+    {
+        for (int j = 0; j < NTH; ++j)
+        {
+            for (int k = 0; k < NZ; ++k)
+            {
+                double T_val = static_cast<double>(temperature[i][j][k]);
+                double p_val = static_cast<double>(p[i][j][k]);
+                double qv_val = static_cast<double>(qv[i][j][k]);
+                double qc_val = static_cast<double>(qc[i][j][k]);
+                thermodynamics::saturation_adjustment(T_val, p_val, qv_val, qc_val);
+                qv_adj[i][j][k] = static_cast<float>(qv_val);
+                qc_adj[i][j][k] = static_cast<float>(qc_val);
+            }
+        }
+    }
+
     dNr_dt_.resize(NR, NTH, NZ, 0.0f);
     dNi_dt_.resize(NR, NTH, NZ, 0.0f);
     dNs_dt_.resize(NR, NTH, NZ, 0.0f);
     dNg_dt_.resize(NR, NTH, NZ, 0.0f);
     dNh_dt_.resize(NR, NTH, NZ, 0.0f);
 
-    compute_warm_rain_processes(temperature, p, rho, qv, qc, qr,
+    compute_warm_rain_processes(temperature, p, rho, qv_adj, qc_adj, qr,
                                dqc_dt, dqr_dt, dqv_dt, dtheta_dt, dNr_dt_);
 
-    compute_ice_processes(temperature, p, rho, qv, qc, qi, qs, qg, qh,
+    compute_ice_processes(temperature, p, rho, qv_adj, qc_adj, qi, qs, qg, qh,
                          dqc_dt, dqi_dt, dqs_dt, dqg_dt, dqh_dt, dqv_dt, dtheta_dt,
                          dNi_dt_, dNs_dt_, dNg_dt_, dNh_dt_);
 

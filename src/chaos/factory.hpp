@@ -8,7 +8,7 @@
  */
 
 #pragma once
-#include "physics/chaos_base.hpp"
+#include "chaos/chaos_base.hpp"
 #include <memory>
 #include <vector>
 #include <string>

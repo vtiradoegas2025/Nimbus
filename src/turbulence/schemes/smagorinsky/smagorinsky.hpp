@@ -9,7 +9,7 @@
 
 #pragma once
 #include "turbulence/base/eddy_viscosity.hpp"
-#include "physics/turbulence_base.hpp"
+#include "turbulence/turbulence_base.hpp"
 
 
 /**

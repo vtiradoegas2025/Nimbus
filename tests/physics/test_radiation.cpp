@@ -9,7 +9,7 @@
  *   - Energy conservation: net flux divergence has correct sign
  */
 #include "catch2/catch.hpp"
-#include "physics/radiation_base.hpp"
+#include "radiation/radiation_base.hpp"
 #include "core/simulation.hpp"
 
 #include <cmath>

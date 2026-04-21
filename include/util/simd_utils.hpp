@@ -53,22 +53,22 @@ SIMDType get_available_simd();
 /**
  * @brief Computes element-wise vector addition: result[i] = a[i] + b[i].
  */
-void add_vectors(const float* a, const float* b, float* result, int count);
+void add_vectors(const float* __restrict__ a, const float* __restrict__ b, float* __restrict__ result, int count);
 
 /**
  * @brief Computes element-wise vector subtraction: result[i] = a[i] - b[i].
  */
-void subtract_vectors(const float* a, const float* b, float* result, int count);
+void subtract_vectors(const float* __restrict__ a, const float* __restrict__ b, float* __restrict__ result, int count);
 
 /**
  * @brief Computes element-wise vector multiplication: result[i] = a[i] * b[i].
  */
-void multiply_vectors(const float* a, const float* b, float* result, int count);
+void multiply_vectors(const float* __restrict__ a, const float* __restrict__ b, float* __restrict__ result, int count);
 
 /**
  * @brief Computes element-wise fused multiply-add: result[i] = a[i] * b[i] + c[i].
  */
-void fma_vectors(const float* a, const float* b, const float* c, float* result, int count);
+void fma_vectors(const float* __restrict__ a, const float* __restrict__ b, const float* __restrict__ c, float* __restrict__ result, int count);
 
 // ---------------------------------------------------------------------------
 // Scalar-broadcast operations
@@ -77,14 +77,14 @@ void fma_vectors(const float* a, const float* b, const float* c, float* result, 
 /**
  * @brief Scales every element: result[i] = scale * a[i].
  */
-void scale_vectors(float scale, const float* a, float* result, int count);
+void scale_vectors(float scale, const float* __restrict__ a, float* __restrict__ result, int count);
 
 /**
  * @brief Scalar-broadcast fused multiply-add: result[i] = b[i] + scale * a[i].
  *
  * The most common pattern in tendency updates: field += dt * tendency.
  */
-void scale_add_vectors(float scale, const float* a, const float* b, float* result, int count);
+void scale_add_vectors(float scale, const float* __restrict__ a, const float* __restrict__ b, float* __restrict__ result, int count);
 
 // ---------------------------------------------------------------------------
 // Clamping and sanitization
@@ -95,7 +95,7 @@ void scale_add_vectors(float scale, const float* a, const float* b, float* resul
  *
  * Uses branchless min/max intrinsics on all SIMD paths.
  */
-void clamp_vectors(const float* a, float lo, float hi, float* result, int count);
+void clamp_vectors(const float* __restrict__ a, float lo, float hi, float* __restrict__ result, int count);
 
 /**
  * @brief Replaces non-finite values with a fallback: result[i] = isfinite(a[i]) ? a[i] : fallback.
@@ -103,7 +103,7 @@ void clamp_vectors(const float* a, float lo, float hi, float* result, int count)
  *
  * Uses branchless NaN/Inf detection via ordered-comparison intrinsics.
  */
-int sanitize_nonfinite(const float* a, float fallback, float* result, int count);
+int sanitize_nonfinite(const float* __restrict__ a, float fallback, float* __restrict__ result, int count);
 
 // ---------------------------------------------------------------------------
 // Reductions
@@ -114,7 +114,7 @@ int sanitize_nonfinite(const float* a, float fallback, float* result, int count)
  *
  * Uses SIMD tree-reduction with a horizontal add for the final lane merge.
  */
-float reduce_sum(const float* a, int count);
+float reduce_sum(const float* __restrict__ a, int count);
 
 /**
  * @brief Computes the minimum and maximum of all elements in a single pass.
@@ -123,7 +123,7 @@ float reduce_sum(const float* a, int count);
  *
  * For count <= 0, out_min and out_max are set to 0.0f.
  */
-void reduce_min_max(const float* a, int count, float* out_min, float* out_max);
+void reduce_min_max(const float* __restrict__ a, int count, float* __restrict__ out_min, float* __restrict__ out_max);
 
 // ---------------------------------------------------------------------------
 // Stencil kernels
@@ -136,7 +136,7 @@ void reduce_min_max(const float* a, int count, float* out_min, float* out_max);
  * This is the inner-loop kernel for 1D Laplacian diffusion along a stride-1
  * dimension. On NEON/SSE/AVX, processes 4-8 elements per iteration.
  */
-void diffuse_1d(const float* src, float* dst, float scale, int count);
+void diffuse_1d(const float* __restrict__ src, float* __restrict__ dst, float scale, int count);
 
 // ---------------------------------------------------------------------------
 // Scalar fallbacks (testing and verification)
@@ -144,16 +144,16 @@ void diffuse_1d(const float* src, float* dst, float scale, int count);
 
 namespace scalar
 {
-void add_vectors(const float* a, const float* b, float* result, int count);
-void subtract_vectors(const float* a, const float* b, float* result, int count);
-void multiply_vectors(const float* a, const float* b, float* result, int count);
-void fma_vectors(const float* a, const float* b, const float* c, float* result, int count);
-void scale_vectors(float scale, const float* a, float* result, int count);
-void scale_add_vectors(float scale, const float* a, const float* b, float* result, int count);
-void clamp_vectors(const float* a, float lo, float hi, float* result, int count);
-int sanitize_nonfinite(const float* a, float fallback, float* result, int count);
-float reduce_sum(const float* a, int count);
-void reduce_min_max(const float* a, int count, float* out_min, float* out_max);
+void add_vectors(const float* __restrict__ a, const float* __restrict__ b, float* __restrict__ result, int count);
+void subtract_vectors(const float* __restrict__ a, const float* __restrict__ b, float* __restrict__ result, int count);
+void multiply_vectors(const float* __restrict__ a, const float* __restrict__ b, float* __restrict__ result, int count);
+void fma_vectors(const float* __restrict__ a, const float* __restrict__ b, const float* __restrict__ c, float* __restrict__ result, int count);
+void scale_vectors(float scale, const float* __restrict__ a, float* __restrict__ result, int count);
+void scale_add_vectors(float scale, const float* __restrict__ a, const float* __restrict__ b, float* __restrict__ result, int count);
+void clamp_vectors(const float* __restrict__ a, float lo, float hi, float* __restrict__ result, int count);
+int sanitize_nonfinite(const float* __restrict__ a, float fallback, float* __restrict__ result, int count);
+float reduce_sum(const float* __restrict__ a, int count);
+void reduce_min_max(const float* __restrict__ a, int count, float* __restrict__ out_min, float* __restrict__ out_max);
 } // namespace scalar
 
 } // namespace simd_utils

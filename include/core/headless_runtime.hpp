@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-#include "core/output_config.hpp"
+#include "core/output/output_config.hpp"
 
 /**
  * @file headless_runtime.hpp

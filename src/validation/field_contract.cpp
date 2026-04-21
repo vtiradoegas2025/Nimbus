@@ -31,7 +31,7 @@ const std::vector<FieldContract> kContracts = {
     {"u", "m/s", "Radial wind component", FieldDimensionality::Volume3D, FieldImplementationStatus::ExportedNow,
      bounds(-180.0, 180.0), {}, {"ur", "u_r"}, FieldRequirementTier::RequiredNow},
     {"v", "m/s", "Azimuthal wind component", FieldDimensionality::Volume3D, FieldImplementationStatus::ExportedNow,
-     bounds(-180.0, 180.0), {}, {"v_theta", "uth"}, FieldRequirementTier::RequiredNow},
+     bounds(-180.0, 180.0), {}, {"v", "uth"}, FieldRequirementTier::RequiredNow},
     {"w", "m/s", "Vertical wind component", FieldDimensionality::Volume3D, FieldImplementationStatus::ExportedNow,
      bounds(-120.0, 120.0), {}, {"wz", "vertical_velocity"}, FieldRequirementTier::RequiredNow},
     {"rho", "kg/m^3", "Air density", FieldDimensionality::Volume3D, FieldImplementationStatus::ExportedNow,

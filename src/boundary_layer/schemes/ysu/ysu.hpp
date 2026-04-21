@@ -9,7 +9,7 @@
 
 #pragma once
 #include "boundary_layer/base/surface_fluxes.hpp"
-#include "physics/boundary_layer_base.hpp"
+#include "boundary_layer/boundary_layer_base.hpp"
 
 /**
  * @brief Implements the YSU boundary layer scheme.

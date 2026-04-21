@@ -5,7 +5,7 @@
 #include "catch2/catch.hpp"
 #include "core/field3d.hpp"
 #include "core/simulation.hpp"
-#include "numerics/advection_base.hpp"
+#include "numerics/advection/advection_base.hpp"
 
 #include <cmath>
 

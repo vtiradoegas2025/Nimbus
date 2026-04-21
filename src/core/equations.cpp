@@ -16,11 +16,11 @@
 #include "core/initial_conditions.hpp"
 #include "util/simd_utils.hpp"
 #include "util/log.hpp"
-#include "numerics/advection.hpp"
-#include "physics/dynamics_base.hpp"
-#include "numerics/advection_base.hpp"
-#include "numerics/diffusion_base.hpp"
-#include "numerics/time_stepping_base.hpp"
+#include "numerics/advection/advection.hpp"
+#include "dynamics/dynamics_base.hpp"
+#include "numerics/advection/advection_base.hpp"
+#include "numerics/diffusion/diffusion_base.hpp"
+#include "numerics/time_stepping/time_stepping_base.hpp"
 #include "microphysics/factory.hpp"
 #include "radar/factory.hpp"
 #ifdef _OPENMP
@@ -67,7 +67,7 @@ Field3D rho;
 Field3D p;
 Field3D u;
 Field3D w;
-Field3D v_theta;
+Field3D v;
 Field3D tracer;
 
 Field3D theta;
@@ -108,7 +108,7 @@ Field3D nest_rho;
 Field3D nest_p;
 Field3D nest_u;
 Field3D nest_w;
-Field3D nest_v_theta;
+Field3D nest_v;
 Field3D nest_theta;
 Field3D nest_qv;
 Field3D nest_qc;
@@ -128,7 +128,7 @@ void resize_fields()
     p.resize(NR, NTH, NZ, 0.0f);
     u.resize(NR, NTH, NZ, 0.0f);
     w.resize(NR, NTH, NZ, 0.0f);
-    v_theta.resize(NR, NTH, NZ, 0.0f);
+    v.resize(NR, NTH, NZ, 0.0f);
     tracer.resize(NR, NTH, NZ, 0.0f);
     theta.resize(NR, NTH, NZ, 0.0f);
     qv.resize(NR, NTH, NZ, 0.0f);
@@ -148,6 +148,67 @@ void resize_fields()
     dtke_dt_pbl.resize(NR, NTH, NZ, 0.0f);
 
     dtheta_dt_rad.resize(NR, NTH, NZ, 0.0f);
+}
+
+/**
+ * @brief Cylindrical wind initialization: project Cartesian hodograph onto (r, θ).
+ */
+static void apply_cylindrical_wind_initialization()
+{
+    #pragma omp parallel for collapse(2)
+    for (int i = 0; i < NR; ++i)
+    {
+        for (int j = 0; j < NTH; ++j)
+        {
+            const double th = j * dtheta;
+            const double cos_th = std::cos(th);
+            const double sin_th = std::sin(th);
+
+            for (int k = 0; k < NZ; ++k)
+            {
+                const double z = k * dz;
+                double wind_u_cart, wind_v_cart;
+                compute_wind_profile(global_wind_profile, z, wind_u_cart, wind_v_cart);
+
+                u[i][j][k] = static_cast<float>( wind_u_cart * cos_th + wind_v_cart * sin_th);
+                v[i][j][k] = static_cast<float>(-wind_u_cart * sin_th + wind_v_cart * cos_th);
+            }
+        }
+    }
+}
+
+/**
+ * @brief Cylindrical bubble: 2D ring in the (r, z) plane, uniform around all θ.
+ */
+static void apply_cylindrical_bubble_initialization()
+{
+    const double bubble_center_r = std::max(0.0, global_bubble_center_x_m);
+    const double bubble_center_z = std::max(0.0, global_bubble_center_z_m);
+    const double bubble_radius   = std::max(100.0, global_bubble_radius_m);
+    const double bubble_dtheta   = global_bubble_dtheta_k;
+
+    #pragma omp parallel for collapse(2)
+    for (int i = 0; i < NR; ++i)
+    {
+        for (int j = 0; j < NTH; ++j)
+        {
+            const double r_dist = i * dr;
+            for (int k = 0; k < NZ; ++k)
+            {
+                const double z_dist = k * dz;
+                const double dist = std::sqrt(
+                    (r_dist - bubble_center_r) * (r_dist - bubble_center_r) +
+                    (z_dist - bubble_center_z) * (z_dist - bubble_center_z));
+
+                if (dist <= bubble_radius)
+                {
+                    const double factor = std::exp(
+                        -(dist / (bubble_radius / 3.0)) * (dist / (bubble_radius / 3.0)));
+                    theta[i][j][k] += static_cast<float>(bubble_dtheta * factor);
+                }
+            }
+        }
+    }
 }
 
 /**
@@ -234,31 +295,17 @@ void initialize()
                   ", rho0_base[", NZ-1, "]=", rho0_base[NZ-1],
                   ", p_base[0]=", p_base[0], "Pa, p_base[", NZ-1, "]=", p_base[NZ-1], "Pa");
 
-    // Coordinate-system branch (Phase A.4 of the Coordinate Backend Plan).
+    // ── Shared thermodynamic initialization ──
     //
-    // Cylindrical: project the Cartesian (u_x, u_y) wind profile onto the
-    // local (r, θ) basis with the standard rotation
-    //     u_r =  u_x cos θ + u_y sin θ
-    //     u_θ = −u_x sin θ + u_y cos θ
-    //
-    // Cartesian: store the wind components directly. The cylindrical-named
-    // globals carry Cartesian components (parallel-fields-then-unify):
-    //     u       <- u_x
-    //     v_theta <- u_y
-    // No θ-rotation. This is the entire reason Phase A exists — Bug 7 is
-    // exactly the false radial gradient produced by feeding a uniform
-    // Cartesian wind through the cylindrical antisymmetric BC after
-    // projecting it onto a θ-dependent (u_r, u_θ).
-    const bool use_cartesian_wind =
-        (global_coordinate_system == CoordinateSystem::Cartesian);
+    // Fills p, rho, theta, moisture, and scalars from the 1D hydrostatic
+    // profile. Wind is zeroed here and set by the coordinate-specific
+    // wind initializer below.
 
     #pragma omp parallel for collapse(2)
     for (int i = 0; i < NR; ++i)
     {
-
         for (int j = 0; j < NTH; ++j)
         {
-
             for (int k = 0; k < NZ; ++k)
             {
                 const double z = k * dz;
@@ -282,15 +329,11 @@ void initialize()
                 double qv_base;
 
                 if (z < 2000.0)
-                {
                     qv_base = base_moisture;
-                }
                 else
-                {
                     qv_base = base_moisture * exp(-(z - 2000.0) / moisture_scale_height);
-                }
-                qv[i][j][k] = static_cast<float>(qv_base);
 
+                qv[i][j][k] = static_cast<float>(qv_base);
                 qc[i][j][k] = 0.0f;
                 qr[i][j][k] = 0.0f;
                 qi[i][j][k] = 0.0f;
@@ -299,92 +342,40 @@ void initialize()
                 qg[i][j][k] = 0.0f;
                 tke[i][j][k] = 0.1f;
 
-                if (use_cartesian_wind)
-                {
-                    // Placeholder: the real values are written by
-                    // apply_cartesian_wind_initialization() after this loop
-                    // exits. We extract that helper into a separate file so
-                    // the A.4 test can link against it without dragging in
-                    // all of equations.cpp's transitive dependencies.
-                    u[i][j][k]       = 0.0f;
-                    v_theta[i][j][k] = 0.0f;
-                }
-                else
-                {
-                    double wind_u_cart, wind_v_cart;
-                    compute_wind_profile(global_wind_profile, z, wind_u_cart, wind_v_cart);
-
-                    double th = j * dtheta;
-                    double u_r = wind_u_cart * cos(th) + wind_v_cart * sin(th);
-                    double v_th = -wind_u_cart * sin(th) + wind_v_cart * cos(th);
-
-                    u[i][j][k] = static_cast<float>(u_r);
-                    v_theta[i][j][k] = static_cast<float>(v_th);
-                }
+                u[i][j][k] = 0.0f;
+                v[i][j][k] = 0.0f;
                 w[i][j][k] = 0.0f;
                 tracer[i][j][k] = 0.0f;
             }
         }
     }
 
-    // Cartesian wind init must run after the triple loop (which has already
-    // zeroed u and v_theta in the Cartesian branch as placeholders). The
-    // helper lives in src/core/initial_conditions_cartesian.cpp so the
-    // A.4 unit test can link against it without dragging in advection,
-    // microphysics, radiation, etc. via equations.cpp.
-    if (use_cartesian_wind)
+    // ── Coordinate-specific wind initialization ──
+    //
+    // Cylindrical: project the Cartesian (u_x, u_y) hodograph onto the
+    // local (r, θ) basis with cos θ / sin θ rotation.
+    // Cartesian: store (u_x, u_y) directly — no rotation. This is the
+    // entire reason the Cartesian backend exists (Bug 7).
+    if (global_coordinate_system == CoordinateSystem::Cartesian)
     {
         apply_cartesian_wind_initialization();
     }
+    else
+    {
+        apply_cylindrical_wind_initialization();
+    }
 
-    // Trigger-bubble placement (Phase A.4 of the Coordinate Backend Plan).
+    // ── Coordinate-specific trigger bubble ──
     //
-    // Cylindrical: the historical interpretation. `global_bubble_center_x_m`
-    // is a *radial distance* from the singular axis i = 0 and the bubble
-    // becomes a 2D ring in the (r, z) plane that extends uniformly around
-    // every j (azimuth). The y-coordinate is unused. This matches every
-    // tornado-mode config that has shipped to date and must not change.
-    //
-    // Cartesian: literal (x, y, z) center using the full 3D distance
-    //     dist = √((x − x_c)² + (y − y_c)² + (z − z_c)²)
-    // The bubble is a sphere of radius `bubble_radius_m` whose center is
-    // wherever the config says (default y_c = 0 for back-compat with
-    // configs that pre-date `trigger.bubble.center_y_km`).
-    //
-    // The Cartesian path is delegated to a helper for the same testability
-    // reason as the wind init helper above. The cylindrical path stays
-    // inline and bit-identical to the historical implementation.
-    if (use_cartesian_wind)
+    // Cylindrical: 2D ring in the (r, z) plane, uniform around all θ.
+    // Cartesian: 3D sphere at literal (x, y, z) center.
+    if (global_coordinate_system == CoordinateSystem::Cartesian)
     {
         apply_cartesian_bubble_initialization();
     }
     else
     {
-        const double bubble_center_r = std::max(0.0, global_bubble_center_x_m);
-        const double bubble_center_z = std::max(0.0, global_bubble_center_z_m);
-        const double bubble_radius   = std::max(100.0, global_bubble_radius_m);
-        const double bubble_dtheta   = global_bubble_dtheta_k;
-
-        #pragma omp parallel for collapse(2)
-        for (int i = 0; i < NR; ++i)
-        {
-            double r_dist = i * dr;
-
-            for (int j = 0; j < NTH; ++j)
-            {
-                for (int k = 0; k < NZ; ++k)
-                {
-                    double z_dist = k * dz;
-                    double dist_from_center = sqrt(pow(r_dist - bubble_center_r, 2) + pow(z_dist - bubble_center_z, 2));
-
-                    if (dist_from_center <= bubble_radius)
-                    {
-                        double bubble_factor = exp(-pow(dist_from_center / (bubble_radius / 3.0), 2));
-                        theta[i][j][k] += bubble_dtheta * bubble_factor;
-                    }
-                }
-            }
-        }
+        apply_cylindrical_bubble_initialization();
     }
 
     int ic = NR / 4;

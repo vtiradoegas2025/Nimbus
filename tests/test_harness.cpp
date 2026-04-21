@@ -15,19 +15,19 @@
 // Include full definitions for types that simulation.hpp only forward-declares.
 // Order matters: these must come before simulation.hpp so the types are complete
 // when unique_ptr destructors are instantiated.
-#include "physics/dynamics_base.hpp"
-#include "physics/boundary_layer_base.hpp"
-#include "physics/turbulence_base.hpp"
-#include "physics/radiation_base.hpp"
-#include "physics/terrain_base.hpp"
-#include "physics/chaos_base.hpp"
-#include "physics/microphysics_base.hpp"
-#include "numerics/advection_base.hpp"
-#include "numerics/diffusion_base.hpp"
-#include "numerics/time_stepping_base.hpp"
+#include "dynamics/dynamics_base.hpp"
+#include "boundary_layer/boundary_layer_base.hpp"
+#include "turbulence/turbulence_base.hpp"
+#include "radiation/radiation_base.hpp"
+#include "terrain/terrain_base.hpp"
+#include "chaos/chaos_base.hpp"
+#include "microphysics/microphysics_base.hpp"
+#include "numerics/advection/advection_base.hpp"
+#include "numerics/diffusion/diffusion_base.hpp"
+#include "numerics/time_stepping/time_stepping_base.hpp"
 #include "numerics/numerics_base.hpp"
 #include "diagnostics/field_validation.hpp"
-#include "diagnostics/radar_base.hpp"
+#include "radar/radar_base.hpp"
 
 #include "core/simulation.hpp"
 #include "core/runtime_config.hpp"
@@ -58,6 +58,9 @@ int global_perf_report_every_steps = 0;
 // ---------------------------------------------------------------------------
 std::vector<double> rho0_base;
 std::vector<double> p0_base;
+std::vector<double> u0_base;
+std::vector<double> v0_base;
+double coriolis_f = 0.0;
 
 // ---------------------------------------------------------------------------
 // Prognostic fields (simulation.hpp / equations.cpp)
@@ -66,7 +69,7 @@ Field3D rho;
 Field3D p;
 Field3D u;
 Field3D w;
-Field3D v_theta;
+Field3D v;
 Field3D tracer;
 
 Field3D theta;
@@ -109,7 +112,7 @@ Field3D nest_rho;
 Field3D nest_p;
 Field3D nest_u;
 Field3D nest_w;
-Field3D nest_v_theta;
+Field3D nest_v;
 Field3D nest_theta;
 Field3D nest_qv;
 Field3D nest_qc;
@@ -212,8 +215,10 @@ bool dispatch_cartesian_tendencies_backend(
     const float*, const float*, const float*,
     const float*, const float*, const float*,
     const float*, const float*,
+    const float*,
+    const float*, const float*,
     float*, float*, float*, float*, float*,
-    int, int, int, float, float, float, float, float)
+    int, int, int, float, float, float, float, float, float)
 { return false; }
 
 #if defined(__GNUC__) || defined(__clang__)

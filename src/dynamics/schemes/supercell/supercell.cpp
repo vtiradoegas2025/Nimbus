@@ -9,7 +9,7 @@
 
 #include "supercell.hpp"
 #include "core/simulation.hpp"
-#include "numerics/compute_kernel_template.hpp"
+#include "compute/compute_kernel_template.hpp"
 #include "util/grid_metric_utils.hpp"
 #include <cmath>
 #include <algorithm>
@@ -23,7 +23,8 @@
  */
 SupercellScheme::SupercellScheme()
     : NR_(NR), NTH_(NTH), NZ_(NZ),
-      dr_(dr), dtheta_(dtheta), dz_(dz) 
+      dr_(dr), dtheta_(dtheta), dz_(dz),
+      deriv_(std::make_unique<CylindricalDerivatives>(global_grid_metrics, dtheta, NTH, NZ))
 {
 }
 
@@ -32,16 +33,16 @@ SupercellScheme::SupercellScheme()
  */
 
 void SupercellScheme::compute_momentum_tendencies(
-    const Field3D& u_r,
-    const Field3D& u_theta,
-    const Field3D& u_z,
+    const Field3D& u,
+    const Field3D& v,
+    const Field3D& w,
     const Field3D& rho,
     const Field3D& p,
     const Field3D& theta,
     double dt,
-    Field3D& du_r_dt,
-    Field3D& du_theta_dt,
-    Field3D& du_z_dt,
+    Field3D& du_dt,
+    Field3D& dv_dt,
+    Field3D& dw_dt,
     Field3D& drho_dt,
     Field3D& dp_dt)
 {
@@ -52,9 +53,9 @@ void SupercellScheme::compute_momentum_tendencies(
         {
             for (int k = 0; k < NZ_; ++k)
             {
-                du_r_dt[i][j][k] = 0.0f;
-                du_theta_dt[i][j][k] = 0.0f;
-                du_z_dt[i][j][k] = 0.0f;
+                du_dt[i][j][k] = 0.0f;
+                dv_dt[i][j][k] = 0.0f;
+                dw_dt[i][j][k] = 0.0f;
                 drho_dt[i][j][k] = 0.0f;
                 dp_dt[i][j][k] = 0.0f;
             }
@@ -62,19 +63,35 @@ void SupercellScheme::compute_momentum_tendencies(
     }
 
     // Try GPU dispatch for interior points (only when terrain metrics are NOT active)
-    if (!grid_metric::has_terrain_metrics(global_grid_metrics) &&
-        dispatch_supercell_tendencies_backend(
-            u_r.data(), u_theta.data(), u_z.data(),
-            rho.data(), p.data(), theta.data(),
-            du_r_dt.data(), du_theta_dt.data(), du_z_dt.data(),
-            drho_dt.data(), dp_dt.data(),
-            NR_, NTH_, NZ_,
-            static_cast<float>(dr_), static_cast<float>(dtheta_), static_cast<float>(dz_),
-            static_cast<float>(dynamics_constants::g),
-            static_cast<float>(dynamics_constants::gamma),
-            static_cast<float>(dynamics_constants::theta0)))
+    if (!grid_metric::has_terrain_metrics(global_grid_metrics))
     {
-        return;
+        // Precompute total hydrometeor loading for GPU dispatch.
+        const size_t n_total = static_cast<size_t>(NR_) * NTH_ * NZ_;
+        std::vector<float> loading_buf(n_total, 0.0f);
+        if (!qc.empty())
+        {
+            for (size_t idx = 0; idx < n_total; ++idx)
+            {
+                loading_buf[idx] = qc.data()[idx] + qr.data()[idx] +
+                                   qi.data()[idx] + qs.data()[idx] +
+                                   qg.data()[idx] + qh.data()[idx];
+            }
+        }
+
+        if (dispatch_supercell_tendencies_backend(
+                u.data(), v.data(), w.data(),
+                rho.data(), p.data(), theta.data(),
+                loading_buf.data(),
+                du_dt.data(), dv_dt.data(), dw_dt.data(),
+                drho_dt.data(), dp_dt.data(),
+                NR_, NTH_, NZ_,
+                static_cast<float>(dr_), static_cast<float>(dtheta_), static_cast<float>(dz_),
+                static_cast<float>(dynamics_constants::g),
+                static_cast<float>(dynamics_constants::gamma),
+                static_cast<float>(dynamics_constants::theta0)))
+        {
+            return;
+        }
     }
 
     // CPU fallback
@@ -89,29 +106,29 @@ void SupercellScheme::compute_momentum_tendencies(
 
             for (int k = 1; k < NZ_ - 1; ++k) 
             {
-                double ur = u_r[i][j][k];
-                double uth = u_theta[i][j][k];
-                double uz = u_z[i][j][k];
+                double ur = u[i][j][k];
+                double uth = v[i][j][k];
+                double uz = w[i][j][k];
                 double rho_val = rho[i][j][k];
                 double p_val = p[i][j][k];
                 double theta_val = theta[i][j][k];
                 const double rho_safe = (std::isfinite(rho_val) && rho_val > 1.0e-6) ? rho_val : 1.0;
 
-                double dur_dr = compute_dr(u_r, i, j, k);
-                double dur_dth = compute_dtheta(u_r, i, j, k);
-                double dur_dz = compute_dz(u_r, i, j, k);
+                double dur_dr = deriv_->di(u, i, j, k);
+                double dur_dth = deriv_->dj(u, i, j, k);
+                double dur_dz = deriv_->dk(u, i, j, k);
 
-                double duth_dr = compute_dr(u_theta, i, j, k);
-                double duth_dth = compute_dtheta(u_theta, i, j, k);
-                double duth_dz = compute_dz(u_theta, i, j, k);
+                double duth_dr = deriv_->di(v, i, j, k);
+                double duth_dth = deriv_->dj(v, i, j, k);
+                double duth_dz = deriv_->dk(v, i, j, k);
 
-                double duz_dr = compute_dr(u_z, i, j, k);
-                double duz_dth = compute_dtheta(u_z, i, j, k);
-                double duz_dz = compute_dz(u_z, i, j, k);
+                double duz_dr = deriv_->di(w, i, j, k);
+                double duz_dth = deriv_->dj(w, i, j, k);
+                double duz_dz = deriv_->dk(w, i, j, k);
 
-                double dp_dr = compute_dr(p, i, j, k);
-                double dp_dth = compute_dtheta(p, i, j, k);
-                double dp_dz = compute_dz(p, i, j, k);
+                double dp_dr = deriv_->di(p, i, j, k);
+                double dp_dth = deriv_->dj(p, i, j, k);
+                double dp_dz = deriv_->dk(p, i, j, k);
 
                 double advective_r = -ur * dur_dr - (uth / r) * dur_dth - uz * dur_dz;
                 double centrifugal = uth * uth / r;
@@ -122,7 +139,7 @@ void SupercellScheme::compute_momentum_tendencies(
                 {
                     du_r = 0.0;
                 }
-                du_r_dt[i][j][k] = static_cast<float>(du_r);
+                du_dt[i][j][k] = static_cast<float>(du_r);
 
                 double advective_th = -ur * duth_dr - (uth / r) * duth_dth - uz * duth_dz;
                 double coriolis_th = -ur * uth / r;
@@ -133,7 +150,7 @@ void SupercellScheme::compute_momentum_tendencies(
                 {
                     du_theta = 0.0;
                 }
-                du_theta_dt[i][j][k] = static_cast<float>(du_theta);
+                dv_dt[i][j][k] = static_cast<float>(du_theta);
 
                 double advective_z = -ur * duz_dr - (uth / r) * duz_dth - uz * duz_dz;
 
@@ -152,12 +169,20 @@ void SupercellScheme::compute_momentum_tendencies(
                 const double dp_prime_dz = dp_dz - dp0_dz;
                 const double rho0_k = rho0_base[k];
                 const double buoyancy = -dynamics_constants::g * (rho_val - rho0_k) / rho_safe;
-                double du_z = advective_z - dp_prime_dz / rho_safe + buoyancy;
+                double loading = 0.0;
+                if (!qc.empty())
+                {
+                    loading = -dynamics_constants::g *
+                        (static_cast<double>(qc[i][j][k]) + static_cast<double>(qr[i][j][k]) +
+                         static_cast<double>(qi[i][j][k]) + static_cast<double>(qs[i][j][k]) +
+                         static_cast<double>(qg[i][j][k]) + static_cast<double>(qh[i][j][k]));
+                }
+                double du_z = advective_z - dp_prime_dz / rho_safe + buoyancy + loading;
                 if (!std::isfinite(du_z))
                 {
                     du_z = 0.0;
                 }
-                du_z_dt[i][j][k] = static_cast<float>(du_z);
+                dw_dt[i][j][k] = static_cast<float>(du_z);
 
                 double divergence = dur_dr + duz_dz + ur / r + duth_dth / r;
                 double drho = -rho_safe * divergence;
@@ -185,10 +210,10 @@ void SupercellScheme::compute_momentum_tendencies(
 // =========================================================================
 
 void SupercellScheme::compute_slow_tendencies(
-    const Field3D& u_r, const Field3D& u_theta, const Field3D& u_z,
+    const Field3D& u, const Field3D& v, const Field3D& w,
     const Field3D& rho, const Field3D& p, const Field3D& theta,
     double /*dt*/,
-    Field3D& du_r_dt, Field3D& du_theta_dt, Field3D& du_z_dt,
+    Field3D& du_dt, Field3D& dv_dt, Field3D& dw_dt,
     Field3D& drho_dt, Field3D& dp_dt)
 {
     (void)theta;
@@ -198,8 +223,8 @@ void SupercellScheme::compute_slow_tendencies(
         for (int j = 0; j < NTH_; ++j)
             for (int k = 0; k < NZ_; ++k)
             {
-                du_r_dt[i][j][k] = 0.0f; du_theta_dt[i][j][k] = 0.0f;
-                du_z_dt[i][j][k] = 0.0f; drho_dt[i][j][k] = 0.0f;
+                du_dt[i][j][k] = 0.0f; dv_dt[i][j][k] = 0.0f;
+                dw_dt[i][j][k] = 0.0f; drho_dt[i][j][k] = 0.0f;
                 dp_dt[i][j][k] = 0.0f;
             }
 
@@ -211,46 +236,54 @@ void SupercellScheme::compute_slow_tendencies(
             const double r = i * dr_ + dynamics_constants::eps;
             for (int k = 1; k < NZ_ - 1; ++k)
             {
-                const double ur = u_r[i][j][k];
-                const double uth = u_theta[i][j][k];
-                const double uz = u_z[i][j][k];
+                const double ur = u[i][j][k];
+                const double uth = v[i][j][k];
+                const double uz = w[i][j][k];
                 const double rho_val = rho[i][j][k];
                 const double rho_safe = (std::isfinite(rho_val) && rho_val > 1.0e-6) ? rho_val : 1.0;
 
                 // Radial momentum: advection + centrifugal (no pressure gradient)
-                const double dur_dr = compute_dr(u_r, i, j, k);
-                const double dur_dth = compute_dtheta(u_r, i, j, k);
-                const double dur_dz = compute_dz(u_r, i, j, k);
+                const double dur_dr = deriv_->di(u, i, j, k);
+                const double dur_dth = deriv_->dj(u, i, j, k);
+                const double dur_dz = deriv_->dk(u, i, j, k);
                 double du_r_val = -ur * dur_dr - (uth / r) * dur_dth - uz * dur_dz + uth * uth / r;
                 if (!std::isfinite(du_r_val)) du_r_val = 0.0;
-                du_r_dt[i][j][k] = static_cast<float>(du_r_val);
+                du_dt[i][j][k] = static_cast<float>(du_r_val);
 
                 // Azimuthal momentum: advection + coriolis-like (no pressure gradient)
-                const double duth_dr = compute_dr(u_theta, i, j, k);
-                const double duth_dth = compute_dtheta(u_theta, i, j, k);
-                const double duth_dz = compute_dz(u_theta, i, j, k);
+                const double duth_dr = deriv_->di(v, i, j, k);
+                const double duth_dth = deriv_->dj(v, i, j, k);
+                const double duth_dz = deriv_->dk(v, i, j, k);
                 double du_th_val = -ur * duth_dr - (uth / r) * duth_dth - uz * duth_dz - ur * uth / r;
                 if (!std::isfinite(du_th_val)) du_th_val = 0.0;
-                du_theta_dt[i][j][k] = static_cast<float>(du_th_val);
+                dv_dt[i][j][k] = static_cast<float>(du_th_val);
 
-                // Vertical momentum: advection + buoyancy (no pressure gradient)
-                const double duz_dr = compute_dr(u_z, i, j, k);
-                const double duz_dth = compute_dtheta(u_z, i, j, k);
-                const double duz_dz = compute_dz(u_z, i, j, k);
+                // Vertical momentum: advection + buoyancy + loading (no pressure gradient)
+                const double duz_dr = deriv_->di(w, i, j, k);
+                const double duz_dth = deriv_->dj(w, i, j, k);
+                const double duz_dz = deriv_->dk(w, i, j, k);
                 const double advective_z = -ur * duz_dr - (uth / r) * duz_dth - uz * duz_dz;
                 const double rho0_k = rho0_base[k];
                 const double buoyancy = -dynamics_constants::g * (rho_val - rho0_k) / rho_safe;
-                double du_z_val = advective_z + buoyancy;
+                double loading = 0.0;
+                if (!qc.empty())
+                {
+                    loading = -dynamics_constants::g *
+                        (static_cast<double>(qc[i][j][k]) + static_cast<double>(qr[i][j][k]) +
+                         static_cast<double>(qi[i][j][k]) + static_cast<double>(qs[i][j][k]) +
+                         static_cast<double>(qg[i][j][k]) + static_cast<double>(qh[i][j][k]));
+                }
+                double du_z_val = advective_z + buoyancy + loading;
                 if (!std::isfinite(du_z_val)) du_z_val = 0.0;
-                du_z_dt[i][j][k] = static_cast<float>(du_z_val);
+                dw_dt[i][j][k] = static_cast<float>(du_z_val);
 
                 // Density: no slow tendency
                 drho_dt[i][j][k] = 0.0f;
 
                 // Pressure: advection only
-                const double dp_dr = compute_dr(p, i, j, k);
-                const double dp_dth = compute_dtheta(p, i, j, k);
-                const double dp_dz_val = compute_dz(p, i, j, k);
+                const double dp_dr = deriv_->di(p, i, j, k);
+                const double dp_dth = deriv_->dj(p, i, j, k);
+                const double dp_dz_val = deriv_->dk(p, i, j, k);
                 double dp_val = -ur * dp_dr - (uth / r) * dp_dth - uz * dp_dz_val;
                 if (!std::isfinite(dp_val)) dp_val = 0.0;
                 dp_dt[i][j][k] = static_cast<float>(dp_val);
@@ -260,7 +293,7 @@ void SupercellScheme::compute_slow_tendencies(
 }
 
 void SupercellScheme::compute_fast_pressure_tendencies(
-    const Field3D& u_r, const Field3D& u_theta, const Field3D& u_z,
+    const Field3D& u, const Field3D& v, const Field3D& w,
     const Field3D& rho, const Field3D& p,
     Field3D& drho_dt, Field3D& dp_dt)
 {
@@ -281,12 +314,12 @@ void SupercellScheme::compute_fast_pressure_tendencies(
                 const double rho_val = rho[i][j][k];
                 const double p_val = p[i][j][k];
                 const double rho_safe = (std::isfinite(rho_val) && rho_val > 1.0e-6) ? rho_val : 1.0;
-                const double ur = u_r[i][j][k];
+                const double ur = u[i][j][k];
 
-                // Cylindrical divergence: ∂u_r/∂r + u_r/r + (1/r)∂u_θ/∂θ + ∂u_z/∂z
-                const double dur_dr = compute_dr(u_r, i, j, k);
-                const double duth_dth = compute_dtheta(u_theta, i, j, k);
-                const double duz_dz = compute_dz(u_z, i, j, k);
+                // Cylindrical divergence: ∂u/∂r + u/r + (1/r)∂u_θ/∂θ + ∂w/∂z
+                const double dur_dr = deriv_->di(u, i, j, k);
+                const double duth_dth = deriv_->dj(v, i, j, k);
+                const double duz_dz = deriv_->dk(w, i, j, k);
                 const double divergence = dur_dr + ur / r + duth_dth / r + duz_dz;
 
                 double drho_val = -rho_safe * divergence;
@@ -302,15 +335,15 @@ void SupercellScheme::compute_fast_pressure_tendencies(
 }
 
 void SupercellScheme::compute_fast_momentum_tendencies(
-    const Field3D& /*u_r*/, const Field3D& /*u_theta*/, const Field3D& /*u_z*/,
+    const Field3D& /*u*/, const Field3D& /*v*/, const Field3D& /*w*/,
     const Field3D& rho, const Field3D& p,
-    Field3D& du_r_dt, Field3D& du_theta_dt, Field3D& du_z_dt)
+    Field3D& du_dt, Field3D& dv_dt, Field3D& dw_dt)
 {
     #pragma omp parallel for collapse(2)
     for (int i = 0; i < NR_; ++i)
         for (int j = 0; j < NTH_; ++j)
             for (int k = 0; k < NZ_; ++k)
-            { du_r_dt[i][j][k] = 0.0f; du_theta_dt[i][j][k] = 0.0f; du_z_dt[i][j][k] = 0.0f; }
+            { du_dt[i][j][k] = 0.0f; dv_dt[i][j][k] = 0.0f; dw_dt[i][j][k] = 0.0f; }
 
     #pragma omp parallel for collapse(2)
     for (int i = 1; i < NR_ - 1; ++i)
@@ -323,26 +356,26 @@ void SupercellScheme::compute_fast_momentum_tendencies(
                 const double rho_val = rho[i][j][k];
                 const double rho_safe = (std::isfinite(rho_val) && rho_val > 1.0e-6) ? rho_val : 1.0;
 
-                const double dp_dr = compute_dr(p, i, j, k);
-                const double dp_dth = compute_dtheta(p, i, j, k);
-                const double dp_dz_val = compute_dz(p, i, j, k);
+                const double dp_dr = deriv_->di(p, i, j, k);
+                const double dp_dth = deriv_->dj(p, i, j, k);
+                const double dp_dz_val = deriv_->dk(p, i, j, k);
 
                 // Radial pressure gradient
                 double du_r_val = -dp_dr / rho_safe;
                 if (!std::isfinite(du_r_val)) du_r_val = 0.0;
-                du_r_dt[i][j][k] = static_cast<float>(du_r_val);
+                du_dt[i][j][k] = static_cast<float>(du_r_val);
 
                 // Azimuthal pressure gradient
                 double du_th_val = -dp_dth / (rho_safe * r);
                 if (!std::isfinite(du_th_val)) du_th_val = 0.0;
-                du_theta_dt[i][j][k] = static_cast<float>(du_th_val);
+                dv_dt[i][j][k] = static_cast<float>(du_th_val);
 
                 // Vertical: perturbation pressure gradient (reference-state subtraction)
                 const double dp0_dz = (p0_base[k + 1] - p0_base[k - 1]) / (2.0 * dz_);
                 const double dp_prime_dz = dp_dz_val - dp0_dz;
                 double du_z_val = -dp_prime_dz / rho_safe;
                 if (!std::isfinite(du_z_val)) du_z_val = 0.0;
-                du_z_dt[i][j][k] = static_cast<float>(du_z_val);
+                dw_dt[i][j][k] = static_cast<float>(du_z_val);
             }
         }
     }
@@ -352,9 +385,9 @@ void SupercellScheme::compute_fast_momentum_tendencies(
  * @brief Computes the vorticity diagnostics for the supercell scheme.
  */
 void SupercellScheme::compute_vorticity_diagnostics(
-    const Field3D& u_r,
-    const Field3D& u_theta,
-    const Field3D& u_z,
+    const Field3D& u,
+    const Field3D& v,
+    const Field3D& w,
     const Field3D& rho,
     const Field3D& p,
     Field3D& vorticity_r,
@@ -372,52 +405,52 @@ void SupercellScheme::compute_vorticity_diagnostics(
             double r = i * dr_ + dynamics_constants::eps;
             for (int k = 1; k < NZ_ - 1; ++k)
             {
-                double duth_dz = compute_dz(u_theta, i, j, k);
-                double duz_dth = compute_dtheta(u_z, i, j, k);
+                double duth_dz = deriv_->dk(v, i, j, k);
+                double duz_dth = deriv_->dj(w, i, j, k);
                 vorticity_r[i][j][k] = static_cast<float>((duz_dth / r) - duth_dz);
                 if (!std::isfinite(vorticity_r[i][j][k]))
                 {
                     vorticity_r[i][j][k] = 0.0f;
                 }
 
-                const double duz_dr = compute_dr(u_z, i, j, k);
-                const double dur_dz = compute_dz(u_r, i, j, k);
+                const double duz_dr = deriv_->di(w, i, j, k);
+                const double dur_dz = deriv_->dk(u, i, j, k);
                 vorticity_theta[i][j][k] = static_cast<float>(dur_dz - duz_dr);
                 if (!std::isfinite(vorticity_theta[i][j][k]))
                 {
                     vorticity_theta[i][j][k] = 0.0f;
                 }
 
-                const double duth_dr = compute_dr(u_theta, i, j, k);
-                const double dur_dth = compute_dtheta(u_r, i, j, k);
-                const double v_theta_local = static_cast<double>(u_theta[i][j][k]);
-                const double zeta = duth_dr + (v_theta_local - dur_dth) / r;
+                const double duth_dr = deriv_->di(v, i, j, k);
+                const double dur_dth = deriv_->dj(u, i, j, k);
+                const double v_local = static_cast<double>(v[i][j][k]);
+                const double zeta = duth_dr + (v_local - dur_dth) / r;
                 vorticity_z[i][j][k] = static_cast<float>(std::isfinite(zeta) ? zeta : 0.0);
                 
-                double dw_dz = compute_dz(u_z, i, j, k);
+                double dw_dz = deriv_->dk(w, i, j, k);
                 stretching_term[i][j][k] = static_cast<float>(zeta * dw_dz);
                 if (!std::isfinite(stretching_term[i][j][k]))
                 {
                     stretching_term[i][j][k] = 0.0f;
                 }
 
-                double dw_dr = compute_dr(u_z, i, j, k);
-                double dv_dz = compute_dz(u_theta, i, j, k);
-                double dw_dth = compute_dtheta(u_z, i, j, k);
-                double du_dz = compute_dz(u_r, i, j, k);
+                double dw_dr = deriv_->di(w, i, j, k);
+                double dv_dz = deriv_->dk(v, i, j, k);
+                double dw_dth = deriv_->dj(w, i, j, k);
+                double du_dz = deriv_->dk(u, i, j, k);
                 tilting_term[i][j][k] = dw_dr * dv_dz - (dw_dth / r) * du_dz;
                 if (!std::isfinite(tilting_term[i][j][k]))
                 {
                     tilting_term[i][j][k] = 0.0f;
                 }
 
-                double drho_dr = compute_dr(rho, i, j, k);
-                double drho_dth = compute_dtheta(rho, i, j, k);
-                double drho_dz = compute_dz(rho, i, j, k);
+                double drho_dr = deriv_->di(rho, i, j, k);
+                double drho_dth = deriv_->dj(rho, i, j, k);
+                double drho_dz = deriv_->dk(rho, i, j, k);
 
-                double dp_dr = compute_dr(p, i, j, k);
-                double dp_dth = compute_dtheta(p, i, j, k);
-                double dp_dz = compute_dz(p, i, j, k);
+                double dp_dr = deriv_->di(p, i, j, k);
+                double dp_dth = deriv_->dj(p, i, j, k);
+                double dp_dz = deriv_->dk(p, i, j, k);
 
                 double rho_sq = rho[i][j][k] * rho[i][j][k];
 
@@ -443,9 +476,9 @@ void SupercellScheme::compute_vorticity_diagnostics(
  * @brief Computes the pressure diagnostics for the supercell scheme.
  */
 void SupercellScheme::compute_pressure_diagnostics(
-    const Field3D& u_r,
-    const Field3D& u_theta,
-    const Field3D& u_z,
+    const Field3D& u,
+    const Field3D& v,
+    const Field3D& w,
     const Field3D& rho,
     const Field3D& theta,
     Field3D& p_prime,
@@ -460,11 +493,11 @@ void SupercellScheme::compute_pressure_diagnostics(
         {
             for (int k = 1; k < NZ_ - 1; ++k)
             {
-                double dur_dr = compute_dr(u_r, i, j, k);
-                double dur_dth = compute_dtheta(u_r, i, j, k);
-                double duth_dr = compute_dr(u_theta, i, j, k);
-                double duth_dth = compute_dtheta(u_theta, i, j, k);
-                double duz_dz = compute_dz(u_z, i, j, k);
+                double dur_dr = deriv_->di(u, i, j, k);
+                double dur_dth = deriv_->dj(u, i, j, k);
+                double duth_dr = deriv_->di(v, i, j, k);
+                double duth_dth = deriv_->dj(v, i, j, k);
+                double duz_dz = deriv_->dk(w, i, j, k);
 
                 double deformation = dur_dr * dur_dr + (1.0/(i*dr_+dynamics_constants::eps)) *
                     (dur_dth * dur_dth + duth_dr * duth_dr + duth_dth * duth_dth) + duz_dz * duz_dz;
@@ -482,33 +515,8 @@ void SupercellScheme::compute_pressure_diagnostics(
 }
 
 
-/**
- * @brief Computes the derivative in the radial direction.
- */
-double SupercellScheme::compute_dr(const Field3D& field, int i, int j, int k) const 
-{
-    const double dx_local = std::max(grid_metric::local_dx(global_grid_metrics, i, j, k), 1.0e-6);
-    return (field[i + 1][j][k] - field[i - 1][j][k]) / (2.0 * dx_local);
-}
-
-/**
- * @brief Computes the derivative in the azimuthal direction.
- */
-double SupercellScheme::compute_dtheta(const Field3D& field, int i, int j, int k) const 
-{
-    int j_prev = (j - 1 + NTH_) % NTH_;
-    int j_next = (j + 1) % NTH_;
-    return (field[i][j_next][k] - field[i][j_prev][k]) / (2 * dtheta_);
-}
-
-/**
- * @brief Computes the derivative in the vertical direction.
- */
-double SupercellScheme::compute_dz(const Field3D& field, int i, int j, int k) const 
-{
-    const double denom = std::max(grid_metric::centered_dz_span(global_grid_metrics, i, j, k, NZ_), 1.0e-6);
-    return (field[i][j][k + 1] - field[i][j][k - 1]) / denom;
-}
+// Derivative operators moved to DerivativeOperators (Phase B.2).
+// CylindricalDerivatives is constructed in SupercellScheme::SupercellScheme().
 
 /**
  * @brief Computes the vorticity in the radial direction.

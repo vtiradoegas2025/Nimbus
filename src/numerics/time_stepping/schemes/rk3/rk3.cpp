@@ -132,17 +132,19 @@ void RK3Scheme::compute_final(TimeSteppingState& state, std::vector<NumericalTen
         }
 
         stage2_[i].data.resize(qn.size_r(), qn.size_th(), qn.size_z(), 0.0f);
-        const float* qn_ptr = qn.data();
-        const float* q1_ptr = q1.data();
-        const float* k2_ptr = k2.data();
-        float* q2_ptr = stage2_[i].data.data();
+        const float* __restrict__ qn_ptr = qn.data();
+        const float* __restrict__ q1_ptr = q1.data();
+        const float* __restrict__ k2_ptr = k2.data();
+        float* __restrict__ q2_ptr = stage2_[i].data.data();
         const std::size_t count = qn.size();
+        const double dt_local = state.dt;
+        #pragma omp parallel for simd schedule(static)
         for (std::size_t idx = 0; idx < count; ++idx)
         {
             const double q2 =
                 0.75 * static_cast<double>(qn_ptr[idx]) +
                 0.25 * (static_cast<double>(q1_ptr[idx]) +
-                        state.dt * static_cast<double>(k2_ptr[idx]));
+                        dt_local * static_cast<double>(k2_ptr[idx]));
             q2_ptr[idx] = static_cast<float>(q2);
         }
     }
@@ -164,17 +166,19 @@ void RK3Scheme::compute_final(TimeSteppingState& state, std::vector<NumericalTen
             throw std::runtime_error("RK3 final stage shape mismatch");
         }
 
-        float* qn_ptr = qn.data();
-        const float* q2_ptr = q2.data();
-        const float* k3_ptr = k3_field.data();
+        float* __restrict__ qn_ptr = qn.data();
+        const float* __restrict__ q2_ptr = q2.data();
+        const float* __restrict__ k3_ptr = k3_field.data();
         const std::size_t count = qn.size();
+        const double dt_local = state.dt;
+        #pragma omp parallel for simd schedule(static)
         for (std::size_t idx = 0; idx < count; ++idx)
         {
             const double qn_val = static_cast<double>(qn_ptr[idx]);
             const double updated =
                 (1.0 / 3.0) * qn_val +
                 (2.0 / 3.0) * (static_cast<double>(q2_ptr[idx]) +
-                               state.dt * static_cast<double>(k3_ptr[idx]));
+                               dt_local * static_cast<double>(k3_ptr[idx]));
             qn_ptr[idx] = static_cast<float>(updated);
         }
     }
@@ -213,15 +217,17 @@ void RK3Scheme::add_states(const std::vector<NumericalState>& state1, double coe
         }
 
         result[i].data.resize(base.size_r(), base.size_th(), base.size_z(), 0.0f);
-        const float* base_ptr = base.data();
-        const float* tend_ptr = tendency.data();
-        float* out_ptr = result[i].data.data();
+        const float* __restrict__ base_ptr = base.data();
+        const float* __restrict__ tend_ptr = tendency.data();
+        float* __restrict__ out_ptr = result[i].data.data();
         const std::size_t count = base.size();
+        const double scale = coef2 * dt;
+        #pragma omp parallel for simd schedule(static)
         for (std::size_t idx = 0; idx < count; ++idx)
         {
             out_ptr[idx] = static_cast<float>(
                 coef1 * static_cast<double>(base_ptr[idx]) +
-                coef2 * dt * static_cast<double>(tend_ptr[idx]));
+                scale * static_cast<double>(tend_ptr[idx]));
         }
     }
 }
@@ -230,9 +236,9 @@ void RK3Scheme::add_states(const std::vector<NumericalState>& state1, double coe
  * @brief Updates the state.
  */
 void RK3Scheme::update_state(std::vector<NumericalState>& state,
-                           const std::vector<NumericalTendencies>& tendencies, double dt) 
+                           const std::vector<NumericalTendencies>& tendencies, double dt)
 {
-    for (size_t i = 0; i < state.size(); ++i) 
+    for (size_t i = 0; i < state.size(); ++i)
     {
         Field3D& values = state[i].data;
         const Field3D& tendency = tendencies[i].tendencies;
@@ -241,9 +247,10 @@ void RK3Scheme::update_state(std::vector<NumericalState>& state,
             throw std::runtime_error("RK3 update_state shape mismatch");
         }
 
-        float* state_ptr = values.data();
-        const float* tend_ptr = tendency.data();
+        float* __restrict__ state_ptr = values.data();
+        const float* __restrict__ tend_ptr = tendency.data();
         const std::size_t count = values.size();
+        #pragma omp parallel for simd schedule(static)
         for (std::size_t idx = 0; idx < count; ++idx)
         {
             state_ptr[idx] = static_cast<float>(

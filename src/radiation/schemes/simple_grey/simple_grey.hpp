@@ -9,7 +9,7 @@
 
 #pragma once
 #include "radiation/base/radiative_transfer.hpp"
-#include "physics/radiation_base.hpp"
+#include "radiation/radiation_base.hpp"
 
 /**
  * @brief Implements the simple grey radiation scheme.
@@ -21,9 +21,6 @@ private:
     double tau_sw_ref_;
     double n_lw_;
     double n_sw_;
-
-    std::vector<double> tau_lw_profile_;
-    std::vector<double> tau_sw_profile_;
 
 public:
     /**

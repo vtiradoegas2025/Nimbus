@@ -3,7 +3,7 @@
  * @brief Unit tests for compute backend configuration and kind parsing.
  */
 #include "catch2/catch.hpp"
-#include "numerics/compute_backend.hpp"
+#include "compute/compute_backend.hpp"
 
 TEST_CASE("parse_compute_backend_kind recognizes cpu", "[vulkan][backend]")
 {

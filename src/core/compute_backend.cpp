@@ -7,7 +7,7 @@
  * units (e.g., vulkan/src/compute_backend_vulkan.cpp).
  */
 
-#include "numerics/compute_backend.hpp"
+#include "compute/compute_backend.hpp"
 #include "core/compute_backend_factory.hpp"
 #include "core/hardware_info.hpp"
 

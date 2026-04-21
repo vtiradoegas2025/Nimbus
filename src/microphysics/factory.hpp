@@ -11,7 +11,7 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include "physics/microphysics_base.hpp"
+#include "microphysics/microphysics_base.hpp"
 
 class KesslerScheme;
 class LinScheme;

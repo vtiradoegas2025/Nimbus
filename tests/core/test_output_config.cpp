@@ -3,7 +3,7 @@
  * @brief Unit tests for OutputConfig parsing, field presets, and disk budget.
  */
 #include "catch2/catch.hpp"
-#include "core/output_config.hpp"
+#include "core/output/output_config.hpp"
 
 TEST_CASE("OutputConfig default values", "[core][output_config]")
 {

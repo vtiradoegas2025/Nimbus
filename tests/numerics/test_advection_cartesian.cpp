@@ -49,8 +49,8 @@
 #include "core/field3d.hpp"
 #include "core/runtime_config.hpp"
 #include "core/simulation.hpp"
-#include "numerics/advection.hpp"
-#include "numerics/advection_base.hpp"
+#include "numerics/advection/advection.hpp"
+#include "numerics/advection/advection_base.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -90,13 +90,12 @@ void setup_cartesian_grid(int nr, int nth, int nz, double dx_m, double dz_m, dou
 
 /**
  * @brief Resizes the global velocity fields and seeds them with a uniform
- *        (u_x, u_y, u_z). The Phase A field aliasing is in effect:
- *        `u` carries `u_x`, `v_theta` carries `u_y`, `w` carries `u_z`.
+ *        (u_x, u_y, u_z): `u` carries u_x, `v` carries u_y, `w` carries u_z.
  */
 void set_uniform_velocity(double ux, double uy, double uz)
 {
     u.resize(NR, NTH, NZ, static_cast<float>(ux));
-    v_theta.resize(NR, NTH, NZ, static_cast<float>(uy));
+    v.resize(NR, NTH, NZ, static_cast<float>(uy));
     w.resize(NR, NTH, NZ, static_cast<float>(uz));
 }
 

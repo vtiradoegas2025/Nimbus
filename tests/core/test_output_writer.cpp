@@ -9,9 +9,9 @@
  *   - Statistics (bytes written, snapshot count) are accurate
  */
 #include "catch2/catch.hpp"
-#include "core/output_writer.hpp"
-#include "core/output_config.hpp"
-#include "core/field_snapshot.hpp"
+#include "core/output/output_writer.hpp"
+#include "core/output/output_config.hpp"
+#include "core/field/field_snapshot.hpp"
 #include "core/field3d.hpp"
 
 #include <cmath>
