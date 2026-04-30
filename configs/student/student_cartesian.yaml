@@ -42,8 +42,24 @@ numerics:
     scheme: split_explicit
     split_acoustic: true
     n_acoustic_substeps: 6
+  compute:
+    backend: vulkan
+    allow_fallback: true
+boundary_layer:
+  scheme: ysu
+  apply_surface_fluxes: true
+  dt: 30.0
+  surface_layer: bulk
+turbulence:
+  scheme: smagorinsky
+  Cs: 0.18
+radiation:
+  scheme: simple_grey
+  dt: 300
 output:
-  write_every_s: 60
+  write_every_s: 10
   fields: minimal
   format: npy_3d
+  live_shm: true
+  live_shm_fields: qc,qr
 duration_s: 7200

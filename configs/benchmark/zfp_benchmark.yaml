@@ -1,6 +1,6 @@
 # ZFP compression benchmark: research grid, all fields, short run.
 # Purpose: Measure actual compression ratios per field type.
-# Run with: ./bin/tornado_sim --headless --config=configs/zfp_benchmark.yaml
+# Run with: ./bin/tornado_sim --headless --config=configs/benchmark/zfp_benchmark.yaml
 case_name: zfp_benchmark
 grid:
   nx: 256

@@ -13,18 +13,19 @@
 # Usage:
 #   ./bin/tornado_sim --headless --config=configs/teaching/supercell_30min.yaml
 #
-# Expected output: ~200 MB in data/exports/
-# Expected runtime: ~30 minutes on a modern laptop
+# Or with live viewer:
+#   ./scripts/demo.sh --preset supercell
 
 case_name: supercell_30min
+coordinate_system: cartesian
 grid:
-  nx: 128
-  ny: 128
-  nz: 48
-  dx: 1000.0
-  dy: 1000.0
-  dz: 400.0
-  dt: 1.5
+  nx: 400
+  ny: 400
+  nz: 200
+  dx: 250.0
+  dy: 250.0
+  dz: 75.0
+  dt: 0.3
 environment:
   cape_target_jkg: 2500
   shear_0_6km_ms: 30
@@ -48,15 +49,32 @@ trigger:
     radius_km: 10
     dtheta_k: 2.5
 microphysics:
-  scheme: kessler
+  scheme: thompson
 dynamics:
-  scheme: supercell
+  scheme: cartesian
+numerics:
+  time_stepping:
+    scheme: split_explicit
+    split_acoustic: true
+    n_acoustic_substeps: 6
+  compute:
+    backend: vulkan
+    allow_fallback: true
+boundary_layer:
+  scheme: ysu
+  apply_surface_fluxes: true
+  dt: 30.0
+  surface_layer: bulk
+turbulence:
+  scheme: smagorinsky
+  Cs: 0.18
 radiation:
   scheme: simple_grey
   dt: 300
 output:
-  write_every_s: 30
-  fields: presentation
+  write_every_s: 0
+  fields: minimal
   format: npy_3d
-  estimate_disk_budget: true
+  live_shm: true
+  live_shm_fields: qc,qr
 duration_s: 1800
