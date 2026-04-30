@@ -130,7 +130,7 @@ double TerrainFollowingCoordinate::z_to_zeta(double z, int i, int j) const
         {
             return ztop * (z - h) / (ztop - h);
         }
-         else 
+        else
         {
             return z;
         }
@@ -281,29 +281,39 @@ bool check_coordinate_validity(const TerrainMetrics3D& metrics, TerrainDiagnosti
     diag.coordinate_folding = false;
     diag.warnings.clear();
 
-    for (int i = 0; i < NR; ++i) 
+    double local_min_j = diag.min_jacobian;
+    double local_max_j = diag.max_jacobian;
+
+    #pragma omp parallel for collapse(3) reduction(min:local_min_j) reduction(max:local_max_j)
+    for (int i = 0; i < NR; ++i)
     {
-        for (int j = 0; j < NTH; ++j) 
+        for (int j = 0; j < NTH; ++j)
         {
-            for (int k = 0; k < NZ; ++k) 
+            for (int k = 0; k < NZ; ++k)
             {
                 double J = metrics.J(i, j, k);
                 if (std::isfinite(J))
                 {
-                    diag.min_jacobian = std::min(diag.min_jacobian, J);
-                    diag.max_jacobian = std::max(diag.max_jacobian, J);
+                    local_min_j = std::min(local_min_j, J);
+                    local_max_j = std::max(local_max_j, J);
                 }
 
-                if (!std::isfinite(J) || J <= terrain_constants::epsilon) 
+                if (!std::isfinite(J) || J <= terrain_constants::epsilon)
                 {
-                    diag.coordinate_folding = true;
-                    diag.warnings.push_back("Coordinate folding detected at (i,j,k)=(" +
-                                          std::to_string(i) + "," + std::to_string(j) + "," +
-                                          std::to_string(k) + "), J=" + std::to_string(J));
+                    #pragma omp critical
+                    {
+                        diag.coordinate_folding = true;
+                        diag.warnings.push_back("Coordinate folding detected at (i,j,k)=(" +
+                                              std::to_string(i) + "," + std::to_string(j) + "," +
+                                              std::to_string(k) + "), J=" + std::to_string(J));
+                    }
                 }
             }
         }
     }
+
+    diag.min_jacobian = local_min_j;
+    diag.max_jacobian = local_max_j;
 
     if (!std::isfinite(diag.min_jacobian))
     {

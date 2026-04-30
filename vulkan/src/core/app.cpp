@@ -102,6 +102,11 @@ void VulkanBootstrap::print_runtime_summary(const Options& options) const
                   << ")\n";
     }
 
+    if (options.capture_interval > 0.0f)
+    {
+        std::cout << "Capture interval: " << options.capture_interval << "s -> " << options.capture_dir << "/\n";
+    }
+
     const auto& devices = context_.devices();
     std::cout << "Detected physical devices: " << devices.size() << "\n";
 
@@ -175,6 +180,8 @@ int VulkanBootstrap::run(const Options& options)
         config.sun_dir_x = options.sun_dir_x;
         config.sun_dir_y = options.sun_dir_y;
         config.sun_dir_z = options.sun_dir_z;
+        config.capture_interval = options.capture_interval;
+        config.capture_dir = options.capture_dir;
 
         VulkanSwapchainRunner runner;
         if (!runner.initialize(context_, config, error)) 

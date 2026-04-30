@@ -25,8 +25,9 @@
 class Field3D;
 namespace thermodynamics { void update_density_from_eos(const Field3D& p, const Field3D& theta, Field3D& rho); }
 
-// Forward-declare Rayleigh damping sponge layer (src/core/infra/rayleigh_damping.cpp).
+// Forward-declare Rayleigh damping sponge layers (src/core/infra/rayleigh_damping.cpp).
 void apply_rayleigh_damping(double dt_damp);
+void apply_lateral_damping(double dt_damp);
 #include "diagnostics/field_contract.hpp"
 #include "util/log.hpp"
 #include <algorithm>
@@ -97,24 +98,14 @@ void initialize_dynamics(const std::string& scheme_name)
         const std::string active_scheme_name = dynamics_scheme ? dynamics_scheme->get_scheme_name() : scheme_name;
         tmv::log_info("Initialized dynamics scheme: ", active_scheme_name);
 
-        // Initialize coordinate-matched boundary condition scheme.
-        if (global_coordinate_system == CoordinateSystem::Cartesian)
-            bc_scheme = create_cartesian_bc_scheme();
-        else
-            bc_scheme = create_cylindrical_bc_scheme();
+        // Boundary-condition scheme matched to (coordinate, stagger).
+        // Dispatch lives in src/boundary_conditions/factory.cpp.
+        bc_scheme = create_boundary_condition_scheme(
+            global_coordinate_system, global_stagger_type);
         tmv::log_info("Initialized BC scheme: ", bc_scheme->get_scheme_name());
 
-        vorticity_r.resize(NR, NTH, NZ, 0.0f);
-        vorticity_theta.resize(NR, NTH, NZ, 0.0f);
-        vorticity_z.resize(NR, NTH, NZ, 0.0f);
-        stretching_term.resize(NR, NTH, NZ, 0.0f);
-        tilting_term.resize(NR, NTH, NZ, 0.0f);
-        baroclinic_term.resize(NR, NTH, NZ, 0.0f);
-        angular_momentum.resize(NR, NTH, NZ, 0.0f);
-        angular_momentum_tendency.resize(NR, NTH, NZ, 0.0f);
-        p_prime.resize(NR, NTH, NZ, 0.0f);
-        dynamic_pressure.resize(NR, NTH, NZ, 0.0f);
-        buoyancy_pressure.resize(NR, NTH, NZ, 0.0f);
+        // Diagnostic fields (vorticity, angular momentum, pressure decomposition)
+        // are allocated on first use in compute_dynamics_diagnostics().
         ensure_dynamics_tendency_buffers();
 
     } 
@@ -149,25 +140,24 @@ void step_dynamics_split_explicit(
 
     callbacks.apply_slow_tendencies = [&](double dt_large)
     {
-        const float dt_f = static_cast<float>(dt_large);
         #pragma omp parallel for collapse(2)
         for (int i = 0; i < NR; ++i)
             for (int j = 0; j < NTH; ++j)
                 for (int k = 0; k < NZ; ++k)
                 {
-                    float du_slow = du_dt[i][j][k] + du_dt_pbl[i][j][k];
-                    float dv_slow = dv_dt[i][j][k] + dv_dt_pbl[i][j][k];
-                    float dw_slow = dw_dt[i][j][k];
-                    float dp_slow = dp_dt[i][j][k];
-                    if (!std::isfinite(du_slow)) du_slow = 0.0f;
-                    if (!std::isfinite(dv_slow)) dv_slow = 0.0f;
-                    if (!std::isfinite(dw_slow)) dw_slow = 0.0f;
-                    if (!std::isfinite(dp_slow)) dp_slow = 0.0f;
+                    double du_slow = static_cast<double>(du_dt[i][j][k]) + static_cast<double>(du_dt_pbl[i][j][k]);
+                    double dv_slow = static_cast<double>(dv_dt[i][j][k]) + static_cast<double>(dv_dt_pbl[i][j][k]);
+                    double dw_slow = static_cast<double>(dw_dt[i][j][k]);
+                    double dp_slow = static_cast<double>(dp_dt[i][j][k]);
+                    if (!std::isfinite(du_slow)) du_slow = 0.0;
+                    if (!std::isfinite(dv_slow)) dv_slow = 0.0;
+                    if (!std::isfinite(dw_slow)) dw_slow = 0.0;
+                    if (!std::isfinite(dp_slow)) dp_slow = 0.0;
 
-                    u[i][j][k]       += du_slow * dt_f;
-                    v[i][j][k] += dv_slow * dt_f;
-                    w[i][j][k]       += dw_slow * dt_f;
-                    p[i][j][k]       += dp_slow * dt_f;
+                    u[i][j][k] = static_cast<float>(static_cast<double>(u[i][j][k]) + du_slow * dt_large);
+                    v[i][j][k] = static_cast<float>(static_cast<double>(v[i][j][k]) + dv_slow * dt_large);
+                    w[i][j][k] = static_cast<float>(static_cast<double>(w[i][j][k]) + dw_slow * dt_large);
+                    p[i][j][k] = static_cast<float>(static_cast<double>(p[i][j][k]) + dp_slow * dt_large);
                 }
     };
 
@@ -203,20 +193,20 @@ void step_dynamics_split_explicit(
             for (int j = 0; j < NTH; ++j)
                 for (int k = 0; k < NZ; ++k)
                 {
-                    float drho_f = drho_dt[i][j][k];
-                    float dp_f = dp_dt[i][j][k];
-                    if (!std::isfinite(drho_f)) drho_f = 0.0f;
-                    if (!std::isfinite(dp_f)) dp_f = 0.0f;
+                    double drho_d = static_cast<double>(drho_dt[i][j][k]);
+                    double dp_d = static_cast<double>(dp_dt[i][j][k]);
+                    if (!std::isfinite(drho_d)) drho_d = 0.0;
+                    if (!std::isfinite(dp_d)) dp_d = 0.0;
 
-                    float rho_new = rho[i][j][k] + drho_f * dt_s;
-                    float p_new = p[i][j][k] + dp_f * dt_s;
-                    if (!std::isfinite(rho_new) || rho_new <= 0.0f)
-                        rho_new = static_cast<float>(std::max(0.1, rho0_base[k]));
-                    if (!std::isfinite(p_new) || p_new <= 0.0f)
-                        p_new = static_cast<float>(p0);
+                    double rho_new = static_cast<double>(rho[i][j][k]) + drho_d * dt_small;
+                    double p_new = static_cast<double>(p[i][j][k]) + dp_d * dt_small;
+                    if (!std::isfinite(rho_new) || rho_new <= 0.0)
+                        rho_new = std::max(0.1, rho0_base[k]);
+                    if (!std::isfinite(p_new) || p_new <= 0.0)
+                        p_new = p0;
 
-                    rho[i][j][k] = clamp_density_kgm3(rho_new);
-                    p[i][j][k] = clamp_pressure_pa(p_new);
+                    rho[i][j][k] = clamp_density_kgm3(static_cast<float>(rho_new));
+                    p[i][j][k] = clamp_pressure_pa(static_cast<float>(p_new));
                 }
     };
 
@@ -245,17 +235,43 @@ void step_dynamics_split_explicit(
             for (int j = 0; j < NTH; ++j)
                 for (int k = 0; k < NZ; ++k)
                 {
-                    float du_f = du_dt[i][j][k];
-                    float dv_f = dv_dt[i][j][k];
-                    float dw_f = dw_dt[i][j][k];
-                    if (!std::isfinite(du_f)) du_f = 0.0f;
-                    if (!std::isfinite(dv_f)) dv_f = 0.0f;
-                    if (!std::isfinite(dw_f)) dw_f = 0.0f;
+                    double du_d = static_cast<double>(du_dt[i][j][k]);
+                    double dv_d = static_cast<double>(dv_dt[i][j][k]);
+                    double dw_d = static_cast<double>(dw_dt[i][j][k]);
+                    if (!std::isfinite(du_d)) du_d = 0.0;
+                    if (!std::isfinite(dv_d)) dv_d = 0.0;
+                    if (!std::isfinite(dw_d)) dw_d = 0.0;
 
-                    u[i][j][k]       = clamp_wind_horizontal_ms(u[i][j][k] + du_f * dt_s);
-                    v[i][j][k] = clamp_wind_horizontal_ms(v[i][j][k] + dv_f * dt_s);
-                    w[i][j][k]       = clamp_wind_vertical_ms(w[i][j][k] + dw_f * dt_s);
+                    u[i][j][k] = clamp_wind_horizontal_ms(static_cast<float>(static_cast<double>(u[i][j][k]) + du_d * dt_small));
+                    v[i][j][k] = clamp_wind_horizontal_ms(static_cast<float>(static_cast<double>(v[i][j][k]) + dv_d * dt_small));
+                    w[i][j][k] = clamp_wind_vertical_ms(static_cast<float>(static_cast<double>(w[i][j][k]) + dw_d * dt_small));
                 }
+    };
+
+    callbacks.apply_fast_fused = [&, flat_terrain, dr_f, dtheta_f, dz_f](double dt_small) -> bool
+    {
+        if (!flat_terrain) return false;
+        const float dt_s = static_cast<float>(dt_small);
+        return dispatch_acoustic_substep_fused_backend(
+            u.data(), v.data(), w.data(),
+            rho.data(), p.data(),
+            NR, NTH, NZ, dr_f, dtheta_f, dz_f,
+            static_cast<float>(dynamics_constants::gamma), dt_s,
+            density_min_kgm3, pressure_min_pa,
+            wind_horizontal_abs_max_ms, wind_vertical_abs_max_ms);
+    };
+
+    callbacks.apply_fast_batched = [&, flat_terrain, dr_f, dtheta_f, dz_f](double dt_small, int n_substeps) -> bool
+    {
+        if (!flat_terrain) return false;
+        const float dt_s = static_cast<float>(dt_small);
+        return dispatch_acoustic_substeps_batched_backend(
+            u.data(), v.data(), w.data(),
+            rho.data(), p.data(),
+            NR, NTH, NZ, dr_f, dtheta_f, dz_f,
+            static_cast<float>(dynamics_constants::gamma), dt_s, n_substeps,
+            density_min_kgm3, pressure_min_pa,
+            wind_horizontal_abs_max_ms, wind_vertical_abs_max_ms);
     };
 
     callbacks.acoustic_bcs = [&]() { bc_scheme->apply_acoustic(); };
@@ -301,7 +317,6 @@ void step_dynamics_new(double dt_dynamics, double current_time)
         };
 
         auto apply = [&](double dt_step) {
-            const float dt_s = static_cast<float>(dt_step);
             #pragma omp parallel for collapse(2)
             for (int i = 0; i < NR; ++i)
             {
@@ -309,37 +324,37 @@ void step_dynamics_new(double dt_dynamics, double current_time)
                 {
                     for (int k = 0; k < NZ; ++k)
                     {
-                        float du_f = du_dt[i][j][k] + du_dt_pbl[i][j][k];
-                        float dv_f = dv_dt[i][j][k] + dv_dt_pbl[i][j][k];
-                        float dw_f = dw_dt[i][j][k];
-                        float drho_f = drho_dt[i][j][k];
-                        float dp_f = dp_dt[i][j][k];
+                        double du_d = static_cast<double>(du_dt[i][j][k]) + static_cast<double>(du_dt_pbl[i][j][k]);
+                        double dv_d = static_cast<double>(dv_dt[i][j][k]) + static_cast<double>(dv_dt_pbl[i][j][k]);
+                        double dw_d = static_cast<double>(dw_dt[i][j][k]);
+                        double drho_d = static_cast<double>(drho_dt[i][j][k]);
+                        double dp_d = static_cast<double>(dp_dt[i][j][k]);
 
-                        if (!std::isfinite(du_f)) du_f = 0.0f;
-                        if (!std::isfinite(dv_f)) dv_f = 0.0f;
-                        if (!std::isfinite(dw_f)) dw_f = 0.0f;
-                        if (!std::isfinite(drho_f)) drho_f = 0.0f;
-                        if (!std::isfinite(dp_f)) dp_f = 0.0f;
+                        if (!std::isfinite(du_d)) du_d = 0.0;
+                        if (!std::isfinite(dv_d)) dv_d = 0.0;
+                        if (!std::isfinite(dw_d)) dw_d = 0.0;
+                        if (!std::isfinite(drho_d)) drho_d = 0.0;
+                        if (!std::isfinite(dp_d)) dp_d = 0.0;
 
-                        float u_new = u[i][j][k] + du_f * dt_s;
-                        float v_new = v[i][j][k] + dv_f * dt_s;
-                        float w_new = w[i][j][k] + dw_f * dt_s;
-                        float rho_new = rho[i][j][k] + drho_f * dt_s;
-                        float p_new = p[i][j][k] + dp_f * dt_s;
+                        double u_new = static_cast<double>(u[i][j][k]) + du_d * dt_step;
+                        double v_new = static_cast<double>(v[i][j][k]) + dv_d * dt_step;
+                        double w_new = static_cast<double>(w[i][j][k]) + dw_d * dt_step;
+                        double rho_new = static_cast<double>(rho[i][j][k]) + drho_d * dt_step;
+                        double p_new = static_cast<double>(p[i][j][k]) + dp_d * dt_step;
 
-                        if (!std::isfinite(u_new)) u_new = 0.0f;
-                        if (!std::isfinite(v_new)) v_new = 0.0f;
-                        if (!std::isfinite(w_new)) w_new = 0.0f;
-                        if (!std::isfinite(rho_new) || rho_new <= 0.0f)
-                            rho_new = static_cast<float>(std::max(0.1, rho0_base[k]));
-                        if (!std::isfinite(p_new) || p_new <= 0.0f)
-                            p_new = static_cast<float>(p0);
+                        if (!std::isfinite(u_new)) u_new = 0.0;
+                        if (!std::isfinite(v_new)) v_new = 0.0;
+                        if (!std::isfinite(w_new)) w_new = 0.0;
+                        if (!std::isfinite(rho_new) || rho_new <= 0.0)
+                            rho_new = std::max(0.1, rho0_base[k]);
+                        if (!std::isfinite(p_new) || p_new <= 0.0)
+                            p_new = p0;
 
-                        u[i][j][k] = clamp_wind_horizontal_ms(u_new);
-                        v[i][j][k] = clamp_wind_horizontal_ms(v_new);
-                        w[i][j][k] = clamp_wind_vertical_ms(w_new);
-                        rho[i][j][k] = clamp_density_kgm3(rho_new);
-                        p[i][j][k] = clamp_pressure_pa(p_new);
+                        u[i][j][k] = clamp_wind_horizontal_ms(static_cast<float>(u_new));
+                        v[i][j][k] = clamp_wind_horizontal_ms(static_cast<float>(v_new));
+                        w[i][j][k] = clamp_wind_vertical_ms(static_cast<float>(w_new));
+                        rho[i][j][k] = clamp_density_kgm3(static_cast<float>(rho_new));
+                        p[i][j][k] = clamp_pressure_pa(static_cast<float>(p_new));
                     }
                 }
             }
@@ -378,56 +393,55 @@ void step_dynamics_new(double dt_dynamics, double current_time)
     {
         for (int j = 0; j < NTH; ++j) 
         {
-            for (int k = 0; k < NZ; ++k) 
+            for (int k = 0; k < NZ; ++k)
             {
-                float dudt_sgs = turb_tend.dudt_sgs[i][j][k];
-                float dvdt_sgs = turb_tend.dvdt_sgs[i][j][k];
-                float dwdt_sgs = turb_tend.dwdt_sgs[i][j][k];
-                float dthetadt_sgs = turb_tend.dthetadt_sgs[i][j][k];
+                double dudt_sgs = static_cast<double>(turb_tend.dudt_sgs[i][j][k]);
+                double dvdt_sgs = static_cast<double>(turb_tend.dvdt_sgs[i][j][k]);
+                double dwdt_sgs = static_cast<double>(turb_tend.dwdt_sgs[i][j][k]);
+                double dthetadt_sgs = static_cast<double>(turb_tend.dthetadt_sgs[i][j][k]);
 
-                if (!std::isfinite(dudt_sgs)) dudt_sgs = 0.0f;
-                if (!std::isfinite(dvdt_sgs)) dvdt_sgs = 0.0f;
-                if (!std::isfinite(dwdt_sgs)) dwdt_sgs = 0.0f;
-                if (!std::isfinite(dthetadt_sgs)) dthetadt_sgs = 0.0f;
+                if (!std::isfinite(dudt_sgs)) dudt_sgs = 0.0;
+                if (!std::isfinite(dvdt_sgs)) dvdt_sgs = 0.0;
+                if (!std::isfinite(dwdt_sgs)) dwdt_sgs = 0.0;
+                if (!std::isfinite(dthetadt_sgs)) dthetadt_sgs = 0.0;
 
-                float u_new = u[i][j][k] + dudt_sgs * dt_dynamics;
-                float v_new = v[i][j][k] + dvdt_sgs * dt_dynamics;
-                float w_new = w[i][j][k] + dwdt_sgs * dt_dynamics;
-                if (!std::isfinite(u_new)) u_new = 0.0f;
-                if (!std::isfinite(v_new)) v_new = 0.0f;
-                if (!std::isfinite(w_new)) w_new = 0.0f;
-                u[i][j][k] = clamp_wind_horizontal_ms(u_new);
-                v[i][j][k] = clamp_wind_horizontal_ms(v_new);
-                w[i][j][k] = clamp_wind_vertical_ms(w_new);
+                double u_new = static_cast<double>(u[i][j][k]) + dudt_sgs * dt_dynamics;
+                double v_new = static_cast<double>(v[i][j][k]) + dvdt_sgs * dt_dynamics;
+                double w_new = static_cast<double>(w[i][j][k]) + dwdt_sgs * dt_dynamics;
+                if (!std::isfinite(u_new)) u_new = 0.0;
+                if (!std::isfinite(v_new)) v_new = 0.0;
+                if (!std::isfinite(w_new)) w_new = 0.0;
+                u[i][j][k] = clamp_wind_horizontal_ms(static_cast<float>(u_new));
+                v[i][j][k] = clamp_wind_horizontal_ms(static_cast<float>(v_new));
+                w[i][j][k] = clamp_wind_vertical_ms(static_cast<float>(w_new));
 
-                float theta_new = theta[i][j][k] + dthetadt_sgs * dt_dynamics;
+                double theta_new = static_cast<double>(theta[i][j][k]) + dthetadt_sgs * dt_dynamics;
                 if (!std::isfinite(theta_new))
                 {
-                    theta_new = static_cast<float>(theta0);
+                    theta_new = theta0;
                 }
-                theta[i][j][k] = clamp_theta_k(theta_new);
+                theta[i][j][k] = clamp_theta_k(static_cast<float>(theta_new));
 
-                if (!qv.empty()) 
+                if (!qv.empty())
                 {
-                    float dqvdt_sgs = turb_tend.dqvdt_sgs[i][j][k];
-                    if (!std::isfinite(dqvdt_sgs)) dqvdt_sgs = 0.0f;
-                    float qv_new = qv[i][j][k] + dqvdt_sgs * dt_dynamics;
+                    double dqvdt_sgs = static_cast<double>(turb_tend.dqvdt_sgs[i][j][k]);
+                    if (!std::isfinite(dqvdt_sgs)) dqvdt_sgs = 0.0;
+                    double qv_new = static_cast<double>(qv[i][j][k]) + dqvdt_sgs * dt_dynamics;
                     if (!std::isfinite(qv_new))
                     {
-                        qv_new = 0.0f;
+                        qv_new = 0.0;
                     }
-                    qv[i][j][k] = clamp_qv_kgkg(qv_new);
+                    qv[i][j][k] = clamp_qv_kgkg(static_cast<float>(qv_new));
                 }
 
                 if (!tke.empty()) {
-                    float dtkedt_sgs = turb_tend.dtkedt_sgs[i][j][k];
-                    float dtkedt_pbl = dtke_dt_pbl[i][j][k];
-                    if (!std::isfinite(dtkedt_sgs)) dtkedt_sgs = 0.0f;
-                    if (!std::isfinite(dtkedt_pbl)) dtkedt_pbl = 0.0f;
-                    float tke_new = tke[i][j][k] + (dtkedt_sgs + dtkedt_pbl) * dt_dynamics;
-                    float tke_val = tke_new;
-                    if (!std::isfinite(tke_val)) tke_val = 0.001f;
-                    tke[i][j][k] = std::max(0.001f, tke_val);
+                    double dtkedt_sgs = static_cast<double>(turb_tend.dtkedt_sgs[i][j][k]);
+                    double dtkedt_pbl = static_cast<double>(dtke_dt_pbl[i][j][k]);
+                    if (!std::isfinite(dtkedt_sgs)) dtkedt_sgs = 0.0;
+                    if (!std::isfinite(dtkedt_pbl)) dtkedt_pbl = 0.0;
+                    double tke_new = static_cast<double>(tke[i][j][k]) + (dtkedt_sgs + dtkedt_pbl) * dt_dynamics;
+                    if (!std::isfinite(tke_new)) tke_new = 0.001;
+                    tke[i][j][k] = static_cast<float>(std::max(0.001, tke_new));
                 }
             }
         }
@@ -448,10 +462,10 @@ void step_dynamics_new(double dt_dynamics, double current_time)
     // of the next dynamics step.
     thermodynamics::update_density_from_eos(p, theta, rho);
 
-    // Rayleigh damping sponge layer: relax fields toward the base state
-    // in the upper portion of the domain to absorb outgoing gravity waves
-    // and prevent reflection off the rigid lid.
-    apply_rayleigh_damping(dt_dynamics);
+    // Rayleigh damping sponge layers: relax fields toward the base state
+    // near boundaries to absorb outgoing gravity waves and prevent reflection.
+    apply_rayleigh_damping(dt_dynamics);     // upper boundary (all grids)
+    apply_lateral_damping(dt_dynamics);      // lateral boundaries (Cartesian only)
 
     compute_dynamics_diagnostics();
 
@@ -464,9 +478,25 @@ void step_dynamics_new(double dt_dynamics, double current_time)
 /**
  * @brief Computes the dynamics diagnostics.
  */
-void compute_dynamics_diagnostics() 
+void compute_dynamics_diagnostics()
 {
     if (!dynamics_scheme){return;}
+
+    // Lazy allocation: diagnostic fields are only needed when this function runs.
+    if (!field_matches_domain(vorticity_r))
+    {
+        vorticity_r.resize(NR, NTH, NZ, 0.0f);
+        vorticity_theta.resize(NR, NTH, NZ, 0.0f);
+        vorticity_z.resize(NR, NTH, NZ, 0.0f);
+        stretching_term.resize(NR, NTH, NZ, 0.0f);
+        tilting_term.resize(NR, NTH, NZ, 0.0f);
+        baroclinic_term.resize(NR, NTH, NZ, 0.0f);
+        angular_momentum.resize(NR, NTH, NZ, 0.0f);
+        angular_momentum_tendency.resize(NR, NTH, NZ, 0.0f);
+        p_prime.resize(NR, NTH, NZ, 0.0f);
+        dynamic_pressure.resize(NR, NTH, NZ, 0.0f);
+        buoyancy_pressure.resize(NR, NTH, NZ, 0.0f);
+    }
 
     vorticity_r.fill(0.0f);
     vorticity_theta.fill(0.0f);

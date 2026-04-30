@@ -31,8 +31,8 @@ Scheme implementations:
 - `src/radar/schemes/zdr/zdr.cpp`
 
 Runtime integration points:
-- `src/core/radar.cpp`
-- `src/core/equations.cpp`
+- `src/core/orchestration/physics/radar.cpp`
+- `src/core/orchestration/dynamics/equations.cpp`
 
 ## Scheme Behavior
 
@@ -84,12 +84,12 @@ Outputs written:
 
 - Each scheme now reshapes and clears its owned output fields at the start of `compute(...)`.
 - Each scheme validates state/output dimensions; on mismatch it logs a warning once and returns zeroed output for that scheme.
-- `src/core/radar.cpp` sanitizes and clamps output ranges before returning:
+- `src/core/orchestration/physics/radar.cpp` sanitizes and clamps output ranges before returning:
   - `Ze_*`: `[0, 1e12]`
   - `Z*_dBZ`: `[-40, 100]`
   - `ZDR_dB`: `[-12, 12]`
   - `Vr`: `[-250, 250]`
-- `src/core/equations.cpp` has guarded fallback behavior in `calculate_radar_reflectivity()`:
+- `src/core/orchestration/dynamics/equations.cpp` has guarded fallback behavior in `calculate_radar_reflectivity()`:
   - Uses radar scheme when available.
   - Falls back to microphysics reflectivity if radar scheme is unavailable or throws.
   - Keeps previous reflectivity field if fallback input/output shape is invalid.
@@ -104,7 +104,7 @@ state.NR = NR;
 state.NTH = NTH;
 state.NZ = NZ;
 state.u = &u;
-state.v = &v_theta;
+state.v = &v;
 state.w = &w;
 state.qr = &qr;
 state.qs = &qs;

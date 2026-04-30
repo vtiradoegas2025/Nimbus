@@ -44,6 +44,15 @@ double dz = 100.0;
 double dt = 0.1;
 double dtheta = 2.0 * 3.14159265358979323846 / 8;
 
+GridGeometry global_grid_geometry;
+StaggerType global_stagger_type = StaggerType::Collocated;
+
+static const bool grid_geometry_initialized = []() {
+    global_grid_geometry.initialize(NR, NTH, NZ, dr, dz, dtheta,
+                                    CoordinateSystem::Cylindrical);
+    return true;
+}();
+
 double simulation_time = 0.0;
 
 // ---------------------------------------------------------------------------
@@ -58,6 +67,7 @@ int global_perf_report_every_steps = 0;
 // ---------------------------------------------------------------------------
 std::vector<double> rho0_base;
 std::vector<double> p0_base;
+std::vector<double> qv0_base;
 std::vector<double> u0_base;
 std::vector<double> v0_base;
 double coriolis_f = 0.0;

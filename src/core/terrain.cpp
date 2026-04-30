@@ -12,7 +12,6 @@
 #include "terrain/base/topography.hpp"
 #include "util/string_utils.hpp"
 #include "util/log.hpp"
-#include <iostream>
 #include <cmath>
 
 
@@ -215,6 +214,7 @@ void build_terrain_fields()
     else
     {
         auto zeta_levels = topography::build_zeta_levels(NZ, global_terrain_config.ztop);
+        #pragma omp parallel for collapse(3)
         for (int i = 0; i < NR; ++i)
         {
             for (int j = 0; j < NTH; ++j)

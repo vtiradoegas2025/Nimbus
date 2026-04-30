@@ -91,8 +91,10 @@ void setup_cartesian_grid()
     dr  = 1000.0;
     dz  = 500.0;
     dt  = 0.1;
-    dtheta = 0.0;  // unused on the Cartesian path
+    dtheta = dr;  // Cartesian: square cells (matches update_grid_resolution())
     global_coordinate_system = CoordinateSystem::Cartesian;
+    global_grid_geometry.initialize(NR, NTH, NZ, dr, dz, dtheta,
+                                    global_coordinate_system);
 }
 
 /**

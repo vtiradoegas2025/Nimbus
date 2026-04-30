@@ -82,7 +82,12 @@ TEST_CASE("parse_output_config reads zfp settings", "[core][output_config]")
     kv["output.zfp_keyframe_interval"] = "10";
 
     auto cfg = parse_output_config(kv);
+#ifdef HAVE_ZFP
     REQUIRE(cfg.format == OutputFormat::zfp);
+#else
+    // Without ZFP support, format falls back to npy_3d with an error log.
+    REQUIRE(cfg.format == OutputFormat::npy_3d);
+#endif
     REQUIRE(cfg.zfp_tolerance == Approx(1.0e-5));
     REQUIRE(cfg.zfp_mode == "accuracy");
     REQUIRE(cfg.zfp_keyframe_interval == 10);

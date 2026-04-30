@@ -39,6 +39,16 @@ extern std::string global_validation_report_path;
 extern CoordinateSystem global_coordinate_system;
 
 /**
+ * @brief Active grid staggering arrangement for the run.
+ *
+ * Defaults to StaggerType::Collocated so existing configurations are
+ * unchanged. Set from the `grid.staggering` YAML key in load_config().
+ * Used by the dynamics factory to select collocated vs C-grid scheme
+ * variants (Phase C of the Coordinate Backend Plan).
+ */
+extern StaggerType global_stagger_type;
+
+/**
  * @brief Returns a lowercased copy of the input.
  * @param value Input string.
  * @return Lowercased string.

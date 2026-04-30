@@ -141,7 +141,8 @@ TEST_CASE("SHM multiple fields are independently addressable", "[integration][sh
             {
                 field_u(i, j, k) = static_cast<float>(i);
                 field_w(i, j, k) = static_cast<float>(j);
-                field_theta(i, j, k) = 280.0f + static_cast<float>(k) * 5.0f;
+                field_theta(i, j, k) = 280.0f + static_cast<float>(k) * 5.0f
+                                      + static_cast<float>(i) * 0.5f;
             }
 
     writer.write_field(0, field_u);

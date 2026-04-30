@@ -35,6 +35,22 @@ enum class CoordinateSystem : int
 };
 
 /**
+ * @brief Identifies the grid staggering arrangement.
+ *
+ * - Collocated (Arakawa A-grid): all variables at cell centers. The
+ *   historical default for both cylindrical and Cartesian backends.
+ * - CGrid (Arakawa C-grid): velocities at cell faces, scalars at cell
+ *   centers. Eliminates checkerboard pressure modes and provides
+ *   conservative flux-form divergence. Currently supported for the
+ *   cylindrical coordinate system only (Phase C).
+ */
+enum class StaggerType : int
+{
+    Collocated = 0,
+    CGrid      = 1,
+};
+
+/**
  * @brief Returns the canonical lowercase string label for a coordinate system.
  * @param system Coordinate system enum value.
  * @return Static string label ("cylindrical" or "cartesian"). Returns
@@ -58,3 +74,22 @@ const char* coordinate_system_name(CoordinateSystem system);
  * with spherical) or "xy" (does not say anything about z handling).
  */
 bool parse_coordinate_system(const std::string& value, CoordinateSystem& system_out);
+
+/**
+ * @brief Returns the canonical lowercase string label for a stagger type.
+ * @param stagger Stagger type enum value.
+ * @return Static string label ("collocated" or "c_grid").
+ */
+const char* stagger_type_name(StaggerType stagger);
+
+/**
+ * @brief Parses a stagger-type identifier from a configuration string.
+ * @param value Input identifier. Matching is case-insensitive. Accepted:
+ *              - "collocated", "a_grid"  -> StaggerType::Collocated
+ *              - "c_grid", "cgrid"       -> StaggerType::CGrid
+ * @param stagger_out Receives the parsed stagger type on success.
+ *                    Left unchanged on failure.
+ * @return True on successful parse; false if the value is empty or
+ *         unrecognized.
+ */
+bool parse_stagger_type(const std::string& value, StaggerType& stagger_out);

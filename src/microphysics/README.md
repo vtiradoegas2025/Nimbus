@@ -25,11 +25,11 @@ src/microphysics/
 ```
 
 Runtime coupling is in:
-- `src/core/equations.cpp`
+- `src/core/orchestration/dynamics/equations.cpp`
   - `initialize_microphysics(...)`
   - `step_microphysics(...)`
   - `calculate_radar_reflectivity(...)`
-- `src/core/dynamics.cpp`
+- `src/core/orchestration/dynamics/dynamics.cpp`
   - calls `step_microphysics(...)` each dynamics step
 
 ## Prognostic Fields

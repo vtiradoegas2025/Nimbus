@@ -175,24 +175,24 @@ void apply_runtime_diffusion(double dt_dynamics)
             {
                 for (int k = 0; k < NZ; ++k)
                 {
-                    float dudt = diffusion_tend_buf.dudt_diff[i][j][k];
-                    float dvdt = diffusion_tend_buf.dvdt_diff[i][j][k];
-                    float dwdt = diffusion_tend_buf.dwdt_diff[i][j][k];
-                    if (!std::isfinite(dudt)) dudt = 0.0f;
-                    if (!std::isfinite(dvdt)) dvdt = 0.0f;
-                    if (!std::isfinite(dwdt)) dwdt = 0.0f;
+                    double dudt = static_cast<double>(diffusion_tend_buf.dudt_diff[i][j][k]);
+                    double dvdt = static_cast<double>(diffusion_tend_buf.dvdt_diff[i][j][k]);
+                    double dwdt = static_cast<double>(diffusion_tend_buf.dwdt_diff[i][j][k]);
+                    if (!std::isfinite(dudt)) dudt = 0.0;
+                    if (!std::isfinite(dvdt)) dvdt = 0.0;
+                    if (!std::isfinite(dwdt)) dwdt = 0.0;
 
-                    float u_new = u[i][j][k] + dudt * static_cast<float>(dt_dynamics);
-                    float v_new = v[i][j][k] + dvdt * static_cast<float>(dt_dynamics);
-                    float w_new = w[i][j][k] + dwdt * static_cast<float>(dt_dynamics);
+                    double u_new = static_cast<double>(u[i][j][k]) + dudt * dt_dynamics;
+                    double v_new = static_cast<double>(v[i][j][k]) + dvdt * dt_dynamics;
+                    double w_new = static_cast<double>(w[i][j][k]) + dwdt * dt_dynamics;
 
-                    if (!std::isfinite(u_new)) u_new = 0.0f;
-                    if (!std::isfinite(v_new)) v_new = 0.0f;
-                    if (!std::isfinite(w_new)) w_new = 0.0f;
+                    if (!std::isfinite(u_new)) u_new = 0.0;
+                    if (!std::isfinite(v_new)) v_new = 0.0;
+                    if (!std::isfinite(w_new)) w_new = 0.0;
 
-                    u[i][j][k] = clamp_wind_horizontal_ms(u_new);
-                    v[i][j][k] = clamp_wind_horizontal_ms(v_new);
-                    w[i][j][k] = clamp_wind_vertical_ms(w_new);
+                    u[i][j][k] = clamp_wind_horizontal_ms(static_cast<float>(u_new));
+                    v[i][j][k] = clamp_wind_horizontal_ms(static_cast<float>(v_new));
+                    w[i][j][k] = clamp_wind_vertical_ms(static_cast<float>(w_new));
                 }
             }
         }
@@ -207,19 +207,19 @@ void apply_runtime_diffusion(double dt_dynamics)
             {
                 for (int k = 0; k < NZ; ++k)
                 {
-                    float dthetadt = diffusion_tend_buf.dthetadt_diff[i][j][k];
-                    float dqvdt = diffusion_tend_buf.dqvdt_diff[i][j][k];
-                    if (!std::isfinite(dthetadt)) dthetadt = 0.0f;
-                    if (!std::isfinite(dqvdt)) dqvdt = 0.0f;
+                    double dthetadt = static_cast<double>(diffusion_tend_buf.dthetadt_diff[i][j][k]);
+                    double dqvdt = static_cast<double>(diffusion_tend_buf.dqvdt_diff[i][j][k]);
+                    if (!std::isfinite(dthetadt)) dthetadt = 0.0;
+                    if (!std::isfinite(dqvdt)) dqvdt = 0.0;
 
-                    float theta_new = theta[i][j][k] + dthetadt * static_cast<float>(dt_dynamics);
-                    float qv_new = qv[i][j][k] + dqvdt * static_cast<float>(dt_dynamics);
+                    double theta_new = static_cast<double>(theta[i][j][k]) + dthetadt * dt_dynamics;
+                    double qv_new = static_cast<double>(qv[i][j][k]) + dqvdt * dt_dynamics;
 
-                    if (!std::isfinite(theta_new)) theta_new = static_cast<float>(theta0);
-                    if (!std::isfinite(qv_new)) qv_new = 0.0f;
+                    if (!std::isfinite(theta_new)) theta_new = theta0;
+                    if (!std::isfinite(qv_new)) qv_new = 0.0;
 
-                    theta[i][j][k] = clamp_theta_k(theta_new);
-                    qv[i][j][k] = clamp_qv_kgkg(qv_new);
+                    theta[i][j][k] = clamp_theta_k(static_cast<float>(theta_new));
+                    qv[i][j][k] = clamp_qv_kgkg(static_cast<float>(qv_new));
                 }
             }
         }

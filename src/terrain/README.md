@@ -12,13 +12,13 @@ Terrain support provides:
 ## Layout
 
 ```text
-src/core/terrain.cpp                  # runtime coordinator and config sanitation
-src/terrain/factory.cpp/.hpp          # scheme factory
-src/terrain/base/topography.cpp/.hpp  # topography + metric utilities
+src/core/orchestration/physics/terrain.cpp      # runtime coordinator and config sanitation
+src/terrain/factory.cpp/.hpp                    # scheme factory
+src/terrain/base/topography.cpp/.hpp            # topography + metric utilities
 src/terrain/schemes/bell/
 src/terrain/schemes/schar/
 src/terrain/schemes/none/
-include/terrain_base.hpp              # public terrain interfaces/config
+include/terrain/terrain_base.hpp                # public terrain interfaces/config
 ```
 
 ## Supported Schemes
@@ -42,7 +42,7 @@ Aliases such as `terrain_following`, `terrain-following`, and `sigma` map to `bt
 
 ## Runtime Flow
 
-1. Runtime parses/sanitizes terrain config in `src/core/runtime_config.cpp` and `src/core/terrain.cpp`.
+1. Runtime parses/sanitizes terrain config in `src/core/runtime/runtime_config.cpp` and `src/core/orchestration/physics/terrain.cpp`.
 2. `initialize_terrain(...)` selects and initializes the scheme.
 3. `build_terrain_fields()` builds topography and metrics for the active grid.
 4. Terrain diagnostics are logged (max height, Jacobian range, warnings).

@@ -61,7 +61,9 @@ int run_headless_simulation(const HeadlessRunOptions& options)
     if (log_normal_enabled())
     {
         std::cout << "[CONFIG] coordinate_system="
-                  << coordinate_system_name(global_coordinate_system) << std::endl;
+                  << coordinate_system_name(global_coordinate_system)
+                  << ", staggering=" << stagger_type_name(global_stagger_type)
+                  << std::endl;
         std::cout << "[OUTPUT] Format: " << output_format_name(output_config.format)
                   << ", fields: " << field_preset_name(output_config.preset)
                   << " (" << output_config.resolved_fields.size() << " fields)"

@@ -69,6 +69,8 @@ class VulkanComputeBackend final : public ComputeBackend
 public:
     std::string name() const override { return "vulkan"; }
 
+    void set_coordinate_system(CoordinateSystem cs) override { coord_system_ = cs; }
+
     bool initialize(std::string& error) override
     {
 #if defined(TMV_HAS_VULKAN_COMPUTE_HEADERS) && defined(TMV_HAS_VULKAN_COMPUTE_DLOPEN)
@@ -249,9 +251,29 @@ public:
 #endif
     }
 
+    bool supports_thompson_pointwise_dispatch() const override
+    {
+#if defined(TMV_HAS_VULKAN_COMPUTE_HEADERS) && defined(TMV_HAS_VULKAN_COMPUTE_DLOPEN)
+        return thompson_pointwise_pipeline_.is_ready();
+#else
+        return false;
+#endif
+    }
+
+    bool supports_thompson_sedimentation_dispatch() const override
+    {
+#if defined(TMV_HAS_VULKAN_COMPUTE_HEADERS) && defined(TMV_HAS_VULKAN_COMPUTE_DLOPEN)
+        return thompson_sedimentation_pipeline_.is_ready();
+#else
+        return false;
+#endif
+    }
+
     bool supports_acoustic_pressure_dispatch() const override
     {
 #if defined(TMV_HAS_VULKAN_COMPUTE_HEADERS) && defined(TMV_HAS_VULKAN_COMPUTE_DLOPEN)
+        if (coord_system_ == CoordinateSystem::Cartesian)
+            return acoustic_pressure_cartesian_pipeline_.is_ready();
         return acoustic_pressure_pipeline_.is_ready();
 #else
         return false;
@@ -261,6 +283,8 @@ public:
     bool supports_acoustic_momentum_dispatch() const override
     {
 #if defined(TMV_HAS_VULKAN_COMPUTE_HEADERS) && defined(TMV_HAS_VULKAN_COMPUTE_DLOPEN)
+        if (coord_system_ == CoordinateSystem::Cartesian)
+            return acoustic_momentum_cartesian_pipeline_.is_ready();
         return acoustic_momentum_pipeline_.is_ready();
 #else
         return false;
@@ -277,7 +301,8 @@ public:
         float rho_floor, float p_floor) override
     {
 #if defined(TMV_HAS_VULKAN_COMPUTE_HEADERS) && defined(TMV_HAS_VULKAN_COMPUTE_DLOPEN)
-        if (!acoustic_pressure_pipeline_.is_ready()) return false;
+        auto& pipeline = active_acoustic_pressure_pipeline();
+        if (!pipeline.is_ready()) return false;
 
         AcousticPressurePushConstants pc{};
         pc.nr = nr; pc.nth = nth; pc.nz = nz;
@@ -290,7 +315,7 @@ public:
         float* outputs[2] = { rho_out, p_out };
 
         return dispatch_multi_field_kernel(
-            acoustic_pressure_pipeline_, &pc,
+            pipeline, &pc,
             inputs, 5, outputs, 2,
             nr, nth, nz, total_points);
 #else
@@ -314,7 +339,8 @@ public:
         float wind_clamp_h, float wind_clamp_v) override
     {
 #if defined(TMV_HAS_VULKAN_COMPUTE_HEADERS) && defined(TMV_HAS_VULKAN_COMPUTE_DLOPEN)
-        if (!acoustic_momentum_pipeline_.is_ready()) return false;
+        auto& pipeline = active_acoustic_momentum_pipeline();
+        if (!pipeline.is_ready()) return false;
 
         AcousticMomentumPushConstants pc{};
         pc.nr = nr; pc.nth = nth; pc.nz = nz;
@@ -328,7 +354,7 @@ public:
         float* outputs[3] = { u_out, v_out, w_out };
 
         return dispatch_multi_field_kernel(
-            acoustic_momentum_pipeline_, &pc,
+            pipeline, &pc,
             inputs, 5, outputs, 3,
             nr, nth, nz, total_points);
 #else
@@ -338,6 +364,506 @@ public:
         (void)nr; (void)nth; (void)nz;
         (void)dr_val; (void)dtheta_val; (void)dz_val;
         (void)dt_small;
+        (void)wind_clamp_h; (void)wind_clamp_v;
+        return false;
+#endif
+    }
+
+    // ── Fused acoustic substep (pressure + momentum in one submission) ──
+
+    bool supports_acoustic_substep_fused_dispatch() const override
+    {
+#if defined(TMV_HAS_VULKAN_COMPUTE_HEADERS) && defined(TMV_HAS_VULKAN_COMPUTE_DLOPEN)
+        if (coord_system_ == CoordinateSystem::Cartesian)
+            return acoustic_pressure_cartesian_pipeline_.is_ready() &&
+                   acoustic_momentum_cartesian_pipeline_.is_ready();
+        return acoustic_pressure_pipeline_.is_ready() &&
+               acoustic_momentum_pipeline_.is_ready();
+#else
+        return false;
+#endif
+    }
+
+    bool dispatch_acoustic_substep_fused(
+        float* u, float* v, float* w,
+        float* rho, float* p,
+        int nr, int nth, int nz,
+        float dr_val, float dtheta_val, float dz_val,
+        float gamma_val, float dt_small,
+        float rho_floor, float p_floor,
+        float wind_clamp_h, float wind_clamp_v) override
+    {
+#if defined(TMV_HAS_VULKAN_COMPUTE_HEADERS) && defined(TMV_HAS_VULKAN_COMPUTE_DLOPEN)
+        if (!supports_acoustic_substep_fused_dispatch()) return false;
+
+        const int total_cells = nr * nth * nz;
+        const VkDeviceSize field_bytes =
+            static_cast<VkDeviceSize>(total_cells) * sizeof(float);
+        const uint32_t total_points =
+            static_cast<uint32_t>(nr) * uint32_t(nth) * uint32_t(nz);
+
+        // 5 pool slots: u(0), v(1), w(2), rho(3), p(4)
+        constexpr int kSlotCount = 5;
+        int slots[kSlotCount];
+        if (!acquire_pool_slots(field_bytes, kSlotCount, slots))
+        {
+            log_vulkan_warning("failed to acquire pool slots for fused acoustic substep");
+            return false;
+        }
+        const int slot_u   = slots[0];
+        const int slot_v   = slots[1];
+        const int slot_w   = slots[2];
+        const int slot_rho = slots[3];
+        const int slot_p   = slots[4];
+
+        const bool unified = has_unified_memory_;
+        auto host_ptr = [&](int slot) -> void*
+        {
+            return unified ? buffer_pool_.device(slot).mapped
+                           : buffer_pool_.staging(slot).mapped;
+        };
+
+        // Upload all 5 fields
+        std::memcpy(host_ptr(slot_u),   u,   field_bytes);
+        std::memcpy(host_ptr(slot_v),   v,   field_bytes);
+        std::memcpy(host_ptr(slot_w),   w,   field_bytes);
+        std::memcpy(host_ptr(slot_rho), rho, field_bytes);
+        std::memcpy(host_ptr(slot_p),   p,   field_bytes);
+
+        // Record command buffer
+        vkResetCommandBuffer_(cmd_buf_, 0);
+        VkCommandBufferBeginInfo begin_info{};
+        begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        if (vkBeginCommandBuffer_(cmd_buf_, &begin_info) != VK_SUCCESS)
+        {
+            release_pool_slots(slots, kSlotCount);
+            return false;
+        }
+
+        VkMemoryBarrier barrier{};
+        barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+
+        // ── H2D transfer ──
+        if (unified)
+        {
+            barrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT;
+            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+            vkCmdPipelineBarrier_(cmd_buf_,
+                                  VK_PIPELINE_STAGE_HOST_BIT,
+                                  VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                  0, 1, &barrier, 0, nullptr, 0, nullptr);
+        }
+        else
+        {
+            VkBufferCopy copy_region{};
+            copy_region.size = field_bytes;
+            for (int i = 0; i < kSlotCount; ++i)
+            {
+                vkCmdCopyBuffer_(cmd_buf_,
+                                 buffer_pool_.staging(slots[i]).buffer,
+                                 buffer_pool_.device(slots[i]).buffer,
+                                 1, &copy_region);
+            }
+
+            barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+            vkCmdPipelineBarrier_(cmd_buf_,
+                                  VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                  VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                  0, 1, &barrier, 0, nullptr, 0, nullptr);
+        }
+
+        const uint32_t workgroup_count = (total_points + 63u) / 64u;
+
+        // ── Dispatch 1: Acoustic pressure (reads u,v,w,rho,p; writes rho,p) ──
+        {
+            auto& p_pipeline = active_acoustic_pressure_pipeline();
+            int pressure_bindings[7] = {
+                slot_u, slot_v, slot_w, slot_rho, slot_p, slot_rho, slot_p
+            };
+            update_pooled_descriptor_set(p_pipeline,
+                                         pressure_bindings, field_bytes, 7);
+
+            AcousticPressurePushConstants pc{};
+            pc.nr = nr; pc.nth = nth; pc.nz = nz;
+            pc.dr = dr_val; pc.dtheta = dtheta_val; pc.dz_val = dz_val;
+            pc.gamma_val = gamma_val; pc.dt_small = dt_small;
+            pc.rho_floor = rho_floor; pc.p_floor = p_floor;
+
+            vkCmdBindPipeline_(cmd_buf_, VK_PIPELINE_BIND_POINT_COMPUTE,
+                               p_pipeline.pipeline);
+            vkCmdBindDescriptorSets_(cmd_buf_, VK_PIPELINE_BIND_POINT_COMPUTE,
+                                     p_pipeline.pipeline_layout, 0, 1,
+                                     &p_pipeline.descriptor_set, 0, nullptr);
+            vkCmdPushConstants_(cmd_buf_, p_pipeline.pipeline_layout,
+                                VK_SHADER_STAGE_COMPUTE_BIT,
+                                0, sizeof(pc), &pc);
+            vkCmdDispatch_(cmd_buf_, workgroup_count, 1, 1);
+        }
+
+        // ── Barrier: pressure writes complete before momentum reads ──
+        barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+        vkCmdPipelineBarrier_(cmd_buf_,
+                              VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                              VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                              0, 1, &barrier, 0, nullptr, 0, nullptr);
+
+        // ── Dispatch 2: Acoustic momentum (reads rho,p [updated],u,v,w; writes u,v,w) ──
+        {
+            auto& m_pipeline = active_acoustic_momentum_pipeline();
+            int momentum_bindings[8] = {
+                slot_rho, slot_p, slot_u, slot_v, slot_w, slot_u, slot_v, slot_w
+            };
+            update_pooled_descriptor_set(m_pipeline,
+                                         momentum_bindings, field_bytes, 8);
+
+            AcousticMomentumPushConstants pc{};
+            pc.nr = nr; pc.nth = nth; pc.nz = nz;
+            pc.dr = dr_val; pc.dtheta = dtheta_val; pc.dz_val = dz_val;
+            pc.dt_small = dt_small;
+            pc.wind_clamp_h = wind_clamp_h; pc.wind_clamp_v = wind_clamp_v;
+            pc.padding = 0.0f;
+
+            vkCmdBindPipeline_(cmd_buf_, VK_PIPELINE_BIND_POINT_COMPUTE,
+                               m_pipeline.pipeline);
+            vkCmdBindDescriptorSets_(cmd_buf_, VK_PIPELINE_BIND_POINT_COMPUTE,
+                                     m_pipeline.pipeline_layout, 0, 1,
+                                     &m_pipeline.descriptor_set, 0, nullptr);
+            vkCmdPushConstants_(cmd_buf_, m_pipeline.pipeline_layout,
+                                VK_SHADER_STAGE_COMPUTE_BIT,
+                                0, sizeof(pc), &pc);
+            vkCmdDispatch_(cmd_buf_, workgroup_count, 1, 1);
+        }
+
+        // ── D2H transfer (all 5 fields modified) ──
+        if (unified)
+        {
+            barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+            barrier.dstAccessMask = VK_ACCESS_HOST_READ_BIT;
+            vkCmdPipelineBarrier_(cmd_buf_,
+                                  VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                  VK_PIPELINE_STAGE_HOST_BIT,
+                                  0, 1, &barrier, 0, nullptr, 0, nullptr);
+        }
+        else
+        {
+            barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+            barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+            vkCmdPipelineBarrier_(cmd_buf_,
+                                  VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                  VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                  0, 1, &barrier, 0, nullptr, 0, nullptr);
+
+            VkBufferCopy copy_region{};
+            copy_region.size = field_bytes;
+            for (int i = 0; i < kSlotCount; ++i)
+            {
+                vkCmdCopyBuffer_(cmd_buf_,
+                                 buffer_pool_.device(slots[i]).buffer,
+                                 buffer_pool_.staging(slots[i]).buffer,
+                                 1, &copy_region);
+            }
+        }
+
+        if (vkEndCommandBuffer_(cmd_buf_) != VK_SUCCESS)
+        {
+            release_pool_slots(slots, kSlotCount);
+            return false;
+        }
+
+        // Submit and wait
+        vkResetFences_(device_, 1, &fence_);
+        VkSubmitInfo submit_info{};
+        submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submit_info.commandBufferCount = 1;
+        submit_info.pCommandBuffers = &cmd_buf_;
+        if (vkQueueSubmit_(compute_queue_, 1, &submit_info, fence_) != VK_SUCCESS)
+        {
+            release_pool_slots(slots, kSlotCount);
+            return false;
+        }
+
+        constexpr uint64_t kTimeoutNs = 10ULL * 1000000000ULL;
+        if (vkWaitForFences_(device_, 1, &fence_, VK_TRUE, kTimeoutNs) != VK_SUCCESS)
+        {
+            release_pool_slots(slots, kSlotCount);
+            return false;
+        }
+
+        // Download all 5 fields
+        std::memcpy(u,   host_ptr(slot_u),   field_bytes);
+        std::memcpy(v,   host_ptr(slot_v),   field_bytes);
+        std::memcpy(w,   host_ptr(slot_w),   field_bytes);
+        std::memcpy(rho, host_ptr(slot_rho), field_bytes);
+        std::memcpy(p,   host_ptr(slot_p),   field_bytes);
+
+        release_pool_slots(slots, kSlotCount);
+        return true;
+#else
+        (void)u; (void)v; (void)w; (void)rho; (void)p;
+        (void)nr; (void)nth; (void)nz;
+        (void)dr_val; (void)dtheta_val; (void)dz_val;
+        (void)gamma_val; (void)dt_small;
+        (void)rho_floor; (void)p_floor;
+        (void)wind_clamp_h; (void)wind_clamp_v;
+        return false;
+#endif
+    }
+
+    // ── Batched acoustic substeps (all N in one command buffer) ──────
+
+    bool supports_acoustic_substeps_batched_dispatch() const override
+    {
+#if defined(TMV_HAS_VULKAN_COMPUTE_HEADERS) && defined(TMV_HAS_VULKAN_COMPUTE_DLOPEN)
+        if (coord_system_ == CoordinateSystem::Cartesian)
+            return acoustic_pressure_cartesian_pipeline_.is_ready() &&
+                   acoustic_momentum_cartesian_pipeline_.is_ready();
+        return acoustic_pressure_pipeline_.is_ready() &&
+               acoustic_momentum_pipeline_.is_ready();
+#else
+        return false;
+#endif
+    }
+
+    bool dispatch_acoustic_substeps_batched(
+        float* u, float* v, float* w,
+        float* rho, float* p,
+        int nr, int nth, int nz,
+        float dr_val, float dtheta_val, float dz_val,
+        float gamma_val, float dt_small, int n_substeps,
+        float rho_floor, float p_floor,
+        float wind_clamp_h, float wind_clamp_v) override
+    {
+#if defined(TMV_HAS_VULKAN_COMPUTE_HEADERS) && defined(TMV_HAS_VULKAN_COMPUTE_DLOPEN)
+        if (!supports_acoustic_substeps_batched_dispatch()) return false;
+        if (n_substeps <= 0) return false;
+
+        const int total_cells = nr * nth * nz;
+        const VkDeviceSize field_bytes =
+            static_cast<VkDeviceSize>(total_cells) * sizeof(float);
+        const uint32_t total_points =
+            static_cast<uint32_t>(nr) * uint32_t(nth) * uint32_t(nz);
+        const uint32_t workgroup_count = (total_points + 63u) / 64u;
+
+        // 5 pool slots: u(0), v(1), w(2), rho(3), p(4)
+        constexpr int kSlotCount = 5;
+        int slots[kSlotCount];
+        if (!acquire_pool_slots(field_bytes, kSlotCount, slots))
+        {
+            log_vulkan_warning("failed to acquire pool slots for batched acoustic substeps");
+            return false;
+        }
+        const int slot_u   = slots[0];
+        const int slot_v   = slots[1];
+        const int slot_w   = slots[2];
+        const int slot_rho = slots[3];
+        const int slot_p   = slots[4];
+
+        const bool unified = has_unified_memory_;
+        auto host_ptr = [&](int slot) -> void*
+        {
+            return unified ? buffer_pool_.device(slot).mapped
+                           : buffer_pool_.staging(slot).mapped;
+        };
+
+        // Upload all 5 fields once
+        std::memcpy(host_ptr(slot_u),   u,   field_bytes);
+        std::memcpy(host_ptr(slot_v),   v,   field_bytes);
+        std::memcpy(host_ptr(slot_w),   w,   field_bytes);
+        std::memcpy(host_ptr(slot_rho), rho, field_bytes);
+        std::memcpy(host_ptr(slot_p),   p,   field_bytes);
+
+        // Prepare push constants (same for every substep)
+        AcousticPressurePushConstants pressure_pc{};
+        pressure_pc.nr = nr; pressure_pc.nth = nth; pressure_pc.nz = nz;
+        pressure_pc.dr = dr_val; pressure_pc.dtheta = dtheta_val;
+        pressure_pc.dz_val = dz_val;
+        pressure_pc.gamma_val = gamma_val; pressure_pc.dt_small = dt_small;
+        pressure_pc.rho_floor = rho_floor; pressure_pc.p_floor = p_floor;
+
+        AcousticMomentumPushConstants momentum_pc{};
+        momentum_pc.nr = nr; momentum_pc.nth = nth; momentum_pc.nz = nz;
+        momentum_pc.dr = dr_val; momentum_pc.dtheta = dtheta_val;
+        momentum_pc.dz_val = dz_val;
+        momentum_pc.dt_small = dt_small;
+        momentum_pc.wind_clamp_h = wind_clamp_h;
+        momentum_pc.wind_clamp_v = wind_clamp_v;
+        momentum_pc.padding = 0.0f;
+
+        // Set up descriptor sets once (shared slots for in-place operation)
+        auto& p_pipeline = active_acoustic_pressure_pipeline();
+        auto& m_pipeline = active_acoustic_momentum_pipeline();
+
+        int pressure_bindings[7] = {
+            slot_u, slot_v, slot_w, slot_rho, slot_p, slot_rho, slot_p
+        };
+        update_pooled_descriptor_set(p_pipeline,
+                                     pressure_bindings, field_bytes, 7);
+
+        int momentum_bindings[8] = {
+            slot_rho, slot_p, slot_u, slot_v, slot_w, slot_u, slot_v, slot_w
+        };
+        update_pooled_descriptor_set(m_pipeline,
+                                     momentum_bindings, field_bytes, 8);
+
+        // Record command buffer with all N substeps
+        vkResetCommandBuffer_(cmd_buf_, 0);
+        VkCommandBufferBeginInfo begin_info{};
+        begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        if (vkBeginCommandBuffer_(cmd_buf_, &begin_info) != VK_SUCCESS)
+        {
+            release_pool_slots(slots, kSlotCount);
+            return false;
+        }
+
+        VkMemoryBarrier barrier{};
+        barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+
+        // ── H2D transfer ──
+        if (unified)
+        {
+            barrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT;
+            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+            vkCmdPipelineBarrier_(cmd_buf_,
+                                  VK_PIPELINE_STAGE_HOST_BIT,
+                                  VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                  0, 1, &barrier, 0, nullptr, 0, nullptr);
+        }
+        else
+        {
+            VkBufferCopy copy_region{};
+            copy_region.size = field_bytes;
+            for (int i = 0; i < kSlotCount; ++i)
+            {
+                vkCmdCopyBuffer_(cmd_buf_,
+                                 buffer_pool_.staging(slots[i]).buffer,
+                                 buffer_pool_.device(slots[i]).buffer,
+                                 1, &copy_region);
+            }
+            barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+            vkCmdPipelineBarrier_(cmd_buf_,
+                                  VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                  VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                  0, 1, &barrier, 0, nullptr, 0, nullptr);
+        }
+
+        // ── Record N acoustic substeps ──
+        for (int n = 0; n < n_substeps; ++n)
+        {
+            // Pressure dispatch (reads u,v,w,rho,p; writes rho,p)
+            vkCmdBindPipeline_(cmd_buf_, VK_PIPELINE_BIND_POINT_COMPUTE,
+                               p_pipeline.pipeline);
+            vkCmdBindDescriptorSets_(cmd_buf_, VK_PIPELINE_BIND_POINT_COMPUTE,
+                                     p_pipeline.pipeline_layout, 0, 1,
+                                     &p_pipeline.descriptor_set, 0, nullptr);
+            vkCmdPushConstants_(cmd_buf_, p_pipeline.pipeline_layout,
+                                VK_SHADER_STAGE_COMPUTE_BIT,
+                                0, sizeof(pressure_pc), &pressure_pc);
+            vkCmdDispatch_(cmd_buf_, workgroup_count, 1, 1);
+
+            // Barrier: pressure writes -> momentum reads
+            barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+            vkCmdPipelineBarrier_(cmd_buf_,
+                                  VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                  VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                  0, 1, &barrier, 0, nullptr, 0, nullptr);
+
+            // Momentum dispatch (reads rho,p [updated],u,v,w; writes u,v,w)
+            vkCmdBindPipeline_(cmd_buf_, VK_PIPELINE_BIND_POINT_COMPUTE,
+                               m_pipeline.pipeline);
+            vkCmdBindDescriptorSets_(cmd_buf_, VK_PIPELINE_BIND_POINT_COMPUTE,
+                                     m_pipeline.pipeline_layout, 0, 1,
+                                     &m_pipeline.descriptor_set, 0, nullptr);
+            vkCmdPushConstants_(cmd_buf_, m_pipeline.pipeline_layout,
+                                VK_SHADER_STAGE_COMPUTE_BIT,
+                                0, sizeof(momentum_pc), &momentum_pc);
+            vkCmdDispatch_(cmd_buf_, workgroup_count, 1, 1);
+
+            // Barrier between substeps (momentum writes -> next pressure reads)
+            if (n < n_substeps - 1)
+            {
+                vkCmdPipelineBarrier_(cmd_buf_,
+                                      VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                      VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                      0, 1, &barrier, 0, nullptr, 0, nullptr);
+            }
+        }
+
+        // ── D2H transfer (all 5 fields modified) ──
+        if (unified)
+        {
+            barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+            barrier.dstAccessMask = VK_ACCESS_HOST_READ_BIT;
+            vkCmdPipelineBarrier_(cmd_buf_,
+                                  VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                  VK_PIPELINE_STAGE_HOST_BIT,
+                                  0, 1, &barrier, 0, nullptr, 0, nullptr);
+        }
+        else
+        {
+            barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+            barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+            vkCmdPipelineBarrier_(cmd_buf_,
+                                  VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                  VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                  0, 1, &barrier, 0, nullptr, 0, nullptr);
+
+            VkBufferCopy copy_region{};
+            copy_region.size = field_bytes;
+            for (int i = 0; i < kSlotCount; ++i)
+            {
+                vkCmdCopyBuffer_(cmd_buf_,
+                                 buffer_pool_.device(slots[i]).buffer,
+                                 buffer_pool_.staging(slots[i]).buffer,
+                                 1, &copy_region);
+            }
+        }
+
+        if (vkEndCommandBuffer_(cmd_buf_) != VK_SUCCESS)
+        {
+            release_pool_slots(slots, kSlotCount);
+            return false;
+        }
+
+        // Submit and wait (single submission for all N substeps)
+        vkResetFences_(device_, 1, &fence_);
+        VkSubmitInfo submit_info{};
+        submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submit_info.commandBufferCount = 1;
+        submit_info.pCommandBuffers = &cmd_buf_;
+        if (vkQueueSubmit_(compute_queue_, 1, &submit_info, fence_) != VK_SUCCESS)
+        {
+            release_pool_slots(slots, kSlotCount);
+            return false;
+        }
+
+        constexpr uint64_t kTimeoutNs = 10ULL * 1000000000ULL;
+        if (vkWaitForFences_(device_, 1, &fence_, VK_TRUE, kTimeoutNs) != VK_SUCCESS)
+        {
+            release_pool_slots(slots, kSlotCount);
+            return false;
+        }
+
+        // Download all 5 fields once
+        std::memcpy(u,   host_ptr(slot_u),   field_bytes);
+        std::memcpy(v,   host_ptr(slot_v),   field_bytes);
+        std::memcpy(w,   host_ptr(slot_w),   field_bytes);
+        std::memcpy(rho, host_ptr(slot_rho), field_bytes);
+        std::memcpy(p,   host_ptr(slot_p),   field_bytes);
+
+        release_pool_slots(slots, kSlotCount);
+        return true;
+#else
+        (void)u; (void)v; (void)w; (void)rho; (void)p;
+        (void)nr; (void)nth; (void)nz;
+        (void)dr_val; (void)dtheta_val; (void)dz_val;
+        (void)gamma_val; (void)dt_small; (void)n_substeps;
+        (void)rho_floor; (void)p_floor;
         (void)wind_clamp_h; (void)wind_clamp_v;
         return false;
 #endif
@@ -475,23 +1001,12 @@ public:
         }
 
         // Barrier: compute → compute (radial output → azimuthal input)
+        // No buffer copy needed: both A and B have correct boundary values from
+        // the initial upload, and shaders only write interior points.
         barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
         barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
         vkCmdPipelineBarrier_(cmd_buf_,
                               VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                              VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                              0, 1, &barrier, 0, nullptr, 0, nullptr);
-
-        // Copy B → A boundaries before azimuthal step (ensures boundary data)
-        vkCmdCopyBuffer_(cmd_buf_,
-                         buffer_pool_.device(slot_B).buffer,
-                         buffer_pool_.device(slot_A).buffer,
-                         1, &copy_region);
-
-        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-        vkCmdPipelineBarrier_(cmd_buf_,
-                              VK_PIPELINE_STAGE_TRANSFER_BIT,
                               VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                               0, 1, &barrier, 0, nullptr, 0, nullptr);
 
@@ -699,24 +1214,13 @@ public:
             vkCmdDispatch_(cmd_buf_, (interior_points + 63u) / 64u, 1, 1);
         }
 
-        // Barrier + boundary copy for radial step
+        // Barrier: compute → compute (azimuthal output → radial input)
+        // No buffer copy needed: both A and B retain correct boundary values
+        // from the initial upload, and shaders only write interior points.
         barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-        barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
-        vkCmdPipelineBarrier_(cmd_buf_,
-                              VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                              VK_PIPELINE_STAGE_TRANSFER_BIT,
-                              0, 1, &barrier, 0, nullptr, 0, nullptr);
-
-        // Copy B → A (boundaries for radial input)
-        vkCmdCopyBuffer_(cmd_buf_,
-                         buffer_pool_.device(slot_B).buffer,
-                         buffer_pool_.device(slot_A).buffer,
-                         1, &copy_region);
-
-        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
         barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
         vkCmdPipelineBarrier_(cmd_buf_,
-                              VK_PIPELINE_STAGE_TRANSFER_BIT,
+                              VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                               VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                               0, 1, &barrier, 0, nullptr, 0, nullptr);
 
@@ -742,24 +1246,13 @@ public:
             vkCmdDispatch_(cmd_buf_, (interior_points + 63u) / 64u, 1, 1);
         }
 
-        // Barrier + boundary copy for diffusion step
+        // Barrier: compute → compute (radial output → diffusion input)
+        // No buffer copy needed: A retains correct boundary values from the
+        // initial upload (radial only wrote interior), and diffusion reads A.
         barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-        barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
-        vkCmdPipelineBarrier_(cmd_buf_,
-                              VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                              VK_PIPELINE_STAGE_TRANSFER_BIT,
-                              0, 1, &barrier, 0, nullptr, 0, nullptr);
-
-        // Copy A → B (boundaries for diffusion)
-        vkCmdCopyBuffer_(cmd_buf_,
-                         buffer_pool_.device(slot_A).buffer,
-                         buffer_pool_.device(slot_B).buffer,
-                         1, &copy_region);
-
-        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
         barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
         vkCmdPipelineBarrier_(cmd_buf_,
-                              VK_PIPELINE_STAGE_TRANSFER_BIT,
+                              VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                               VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                               0, 1, &barrier, 0, nullptr, 0, nullptr);
 
@@ -1562,6 +2055,146 @@ public:
 #endif
     }
 
+    bool dispatch_thompson_pointwise(
+        const float* temperature_data, const float* p_data,
+        const float* qv_data, const float* qc_data, const float* qr_data,
+        const float* qi_data, const float* qs_data,
+        const float* qg_data, const float* qh_data,
+        float* dtheta_dt_data, float* dqv_dt_data,
+        float* dqc_dt_data, float* dqr_dt_data,
+        float* dqi_dt_data, float* dqs_dt_data,
+        float* dqg_dt_data, float* dqh_dt_data,
+        int nr, int nth, int nz,
+        float qc0, float c_auto_val, float c_evap_val,
+        float c_dep_val, float c_subl_val, float c_melt_val,
+        float Lv_cp, float Lf_cp, float Ls_cp, float T0_val,
+        float ccn_conc_val, float in_conc_val) override
+    {
+#if defined(TMV_HAS_VULKAN_COMPUTE_HEADERS) && defined(TMV_HAS_VULKAN_COMPUTE_DLOPEN)
+        if (!thompson_pointwise_pipeline_.is_ready())
+        {
+            return false;
+        }
+
+        ThompsonPointwisePushConstants pc{};
+        pc.nr = nr;
+        pc.nth = nth;
+        pc.nz = nz;
+        pc.qc0 = qc0;
+        pc.c_auto = c_auto_val;
+        pc.c_evap = c_evap_val;
+        pc.c_dep = c_dep_val;
+        pc.c_subl = c_subl_val;
+        pc.c_melt = c_melt_val;
+        pc.Lv_cp = Lv_cp;
+        pc.Lf_cp = Lf_cp;
+        pc.Ls_cp = Ls_cp;
+        pc.T0 = T0_val;
+        pc.ccn_conc = ccn_conc_val;
+        pc.in_conc = in_conc_val;
+        pc.padding = 0.0f;
+
+        const uint32_t total_cells =
+            static_cast<uint32_t>(nr) * static_cast<uint32_t>(nth) *
+            static_cast<uint32_t>(nz);
+
+        const float* inputs[9] = {
+            temperature_data, p_data,
+            qv_data, qc_data, qr_data, qi_data, qs_data,
+            qg_data, qh_data
+        };
+        float* outputs[8] = {
+            dtheta_dt_data, dqv_dt_data,
+            dqc_dt_data, dqr_dt_data,
+            dqi_dt_data, dqs_dt_data,
+            dqg_dt_data, dqh_dt_data
+        };
+
+        return dispatch_multi_field_kernel(
+            thompson_pointwise_pipeline_, &pc,
+            inputs, 9,
+            outputs, 8,
+            nr, nth, nz,
+            total_cells);
+#else
+        (void)temperature_data; (void)p_data;
+        (void)qv_data; (void)qc_data; (void)qr_data;
+        (void)qi_data; (void)qs_data;
+        (void)qg_data; (void)qh_data;
+        (void)dtheta_dt_data; (void)dqv_dt_data;
+        (void)dqc_dt_data; (void)dqr_dt_data;
+        (void)dqi_dt_data; (void)dqs_dt_data;
+        (void)dqg_dt_data; (void)dqh_dt_data;
+        (void)nr; (void)nth; (void)nz;
+        (void)qc0; (void)c_auto_val; (void)c_evap_val;
+        (void)c_dep_val; (void)c_subl_val; (void)c_melt_val;
+        (void)Lv_cp; (void)Lf_cp; (void)Ls_cp; (void)T0_val;
+        (void)ccn_conc_val; (void)in_conc_val;
+        return false;
+#endif
+    }
+
+    bool dispatch_thompson_sedimentation(
+        const float* qr_data, const float* qs_data,
+        const float* qg_data, const float* qh_data,
+        float* dqr_dt_data, float* dqs_dt_data,
+        float* dqg_dt_data, float* dqh_dt_data,
+        int nr, int nth, int nz,
+        float dz_val,
+        float a_rain, float b_rain, float Vt_max_rain,
+        float a_snow, float b_snow, float Vt_max_snow,
+        float a_grau, float b_grau, float Vt_max_grau,
+        float a_hail, float b_hail, float Vt_max_hail) override
+    {
+#if defined(TMV_HAS_VULKAN_COMPUTE_HEADERS) && defined(TMV_HAS_VULKAN_COMPUTE_DLOPEN)
+        if (!thompson_sedimentation_pipeline_.is_ready())
+        {
+            return false;
+        }
+
+        ThompsonSedimentationPushConstants pc{};
+        pc.nr = nr;
+        pc.nth = nth;
+        pc.nz = nz;
+        pc.dz_val = dz_val;
+        pc.a_rain = a_rain;
+        pc.b_rain = b_rain;
+        pc.Vt_max_rain = Vt_max_rain;
+        pc.a_snow = a_snow;
+        pc.b_snow = b_snow;
+        pc.Vt_max_snow = Vt_max_snow;
+        pc.a_grau = a_grau;
+        pc.b_grau = b_grau;
+        pc.Vt_max_grau = Vt_max_grau;
+        pc.a_hail = a_hail;
+        pc.b_hail = b_hail;
+        pc.Vt_max_hail = Vt_max_hail;
+
+        const uint32_t total_columns =
+            static_cast<uint32_t>(nr) * static_cast<uint32_t>(nth);
+
+        const float* inputs[4] = { qr_data, qs_data, qg_data, qh_data };
+        float* outputs[4] = { dqr_dt_data, dqs_dt_data, dqg_dt_data, dqh_dt_data };
+
+        return dispatch_multi_field_kernel(
+            thompson_sedimentation_pipeline_, &pc,
+            inputs, 4,
+            outputs, 4,
+            nr, nth, nz,
+            total_columns);
+#else
+        (void)qr_data; (void)qs_data; (void)qg_data; (void)qh_data;
+        (void)dqr_dt_data; (void)dqs_dt_data;
+        (void)dqg_dt_data; (void)dqh_dt_data;
+        (void)nr; (void)nth; (void)nz; (void)dz_val;
+        (void)a_rain; (void)b_rain; (void)Vt_max_rain;
+        (void)a_snow; (void)b_snow; (void)Vt_max_snow;
+        (void)a_grau; (void)b_grau; (void)Vt_max_grau;
+        (void)a_hail; (void)b_hail; (void)Vt_max_hail;
+        return false;
+#endif
+    }
+
     void shutdown() override
     {
 #if defined(TMV_HAS_VULKAN_COMPUTE_HEADERS) && defined(TMV_HAS_VULKAN_COMPUTE_DLOPEN)
@@ -1757,6 +2390,50 @@ private:
     };
     static_assert(sizeof(KesslerSedimentationPushConstants) == 64,
                   "kessler sedimentation push constants must be 64 bytes");
+
+    struct ThompsonPointwisePushConstants
+    {
+        int32_t nr;
+        int32_t nth;
+        int32_t nz;
+        float   qc0;
+        float   c_auto;
+        float   c_evap;
+        float   c_dep;
+        float   c_subl;
+        float   c_melt;
+        float   Lv_cp;
+        float   Lf_cp;
+        float   Ls_cp;
+        float   T0;
+        float   ccn_conc;
+        float   in_conc;
+        float   padding;
+    };
+    static_assert(sizeof(ThompsonPointwisePushConstants) == 64,
+                  "thompson pointwise push constants must be 64 bytes");
+
+    struct ThompsonSedimentationPushConstants
+    {
+        int32_t nr;
+        int32_t nth;
+        int32_t nz;
+        float   dz_val;
+        float   a_rain;
+        float   b_rain;
+        float   Vt_max_rain;
+        float   a_snow;
+        float   b_snow;
+        float   Vt_max_snow;
+        float   a_grau;
+        float   b_grau;
+        float   Vt_max_grau;
+        float   a_hail;
+        float   b_hail;
+        float   Vt_max_hail;
+    };
+    static_assert(sizeof(ThompsonSedimentationPushConstants) == 64,
+                  "thompson sedimentation push constants must be 64 bytes");
 
     struct AcousticPressurePushConstants
     {
@@ -1954,6 +2631,24 @@ private:
         }
     }
 
+    // ── Pipeline routing for coordinate-system-specific shaders ─────
+
+    ComputePipelineState& active_acoustic_pressure_pipeline()
+    {
+        return (coord_system_ == CoordinateSystem::Cartesian &&
+                acoustic_pressure_cartesian_pipeline_.is_ready())
+               ? acoustic_pressure_cartesian_pipeline_
+               : acoustic_pressure_pipeline_;
+    }
+
+    ComputePipelineState& active_acoustic_momentum_pipeline()
+    {
+        return (coord_system_ == CoordinateSystem::Cartesian &&
+                acoustic_momentum_cartesian_pipeline_.is_ready())
+               ? acoustic_momentum_cartesian_pipeline_
+               : acoustic_momentum_pipeline_;
+    }
+
     static void log_vulkan_warning(const std::string& message)
     {
         if (log_normal_enabled())
@@ -2043,6 +2738,8 @@ private:
         tornado_pipeline_ = {};
         kessler_pointwise_pipeline_ = {};
         kessler_sedimentation_pipeline_ = {};
+        thompson_pointwise_pipeline_ = {};
+        thompson_sedimentation_pipeline_ = {};
         cmd_pool_ = VK_NULL_HANDLE;
         cmd_buf_ = VK_NULL_HANDLE;
         fence_ = VK_NULL_HANDLE;
@@ -3843,6 +4540,36 @@ private:
             }
         }
 
+        // Thompson pointwise microphysics (optional — 17 SSBOs: 9 input + 8 output)
+        {
+            std::string thompson_pw_error;
+            if (create_pipeline_state("thompson_pointwise.comp.spv", 17,
+                                      sizeof(ThompsonPointwisePushConstants),
+                                      thompson_pointwise_pipeline_, thompson_pw_error))
+            {
+                log_vulkan_info("pipeline ready: Thompson point-wise microphysics");
+            }
+            else
+            {
+                log_vulkan_warning("Thompson point-wise pipeline unavailable: " + thompson_pw_error);
+            }
+        }
+
+        // Thompson sedimentation (optional — 8 SSBOs: 4 input + 4 read-write)
+        {
+            std::string thompson_sed_error;
+            if (create_pipeline_state("thompson_sedimentation.comp.spv", 8,
+                                      sizeof(ThompsonSedimentationPushConstants),
+                                      thompson_sedimentation_pipeline_, thompson_sed_error))
+            {
+                log_vulkan_info("pipeline ready: Thompson sedimentation");
+            }
+            else
+            {
+                log_vulkan_warning("Thompson sedimentation pipeline unavailable: " + thompson_sed_error);
+            }
+        }
+
         // Acoustic pressure substep (optional — 7 SSBOs: 5 input + 2 output)
         {
             std::string acoustic_p_error;
@@ -3870,6 +4597,36 @@ private:
             else
             {
                 log_vulkan_warning("acoustic momentum pipeline unavailable: " + acoustic_m_error);
+            }
+        }
+
+        // Cartesian acoustic pressure substep (same layout as cylindrical: 7 SSBOs)
+        {
+            std::string err;
+            if (create_pipeline_state("acoustic_pressure_cartesian.comp.spv", 7,
+                                      sizeof(AcousticPressurePushConstants),
+                                      acoustic_pressure_cartesian_pipeline_, err))
+            {
+                log_vulkan_info("pipeline ready: acoustic pressure substep (cartesian)");
+            }
+            else
+            {
+                log_vulkan_warning("cartesian acoustic pressure pipeline unavailable: " + err);
+            }
+        }
+
+        // Cartesian acoustic momentum substep (same layout as cylindrical: 8 SSBOs)
+        {
+            std::string err;
+            if (create_pipeline_state("acoustic_momentum_cartesian.comp.spv", 8,
+                                      sizeof(AcousticMomentumPushConstants),
+                                      acoustic_momentum_cartesian_pipeline_, err))
+            {
+                log_vulkan_info("pipeline ready: acoustic momentum substep (cartesian)");
+            }
+            else
+            {
+                log_vulkan_warning("cartesian acoustic momentum pipeline unavailable: " + err);
             }
         }
 
@@ -3906,6 +4663,8 @@ private:
         destroy_pipeline_state(tornado_pipeline_);
         destroy_pipeline_state(kessler_pointwise_pipeline_);
         destroy_pipeline_state(kessler_sedimentation_pipeline_);
+        destroy_pipeline_state(thompson_pointwise_pipeline_);
+        destroy_pipeline_state(thompson_sedimentation_pipeline_);
     }
 
     // ── Member variables ───────────────────────────────────────────────
@@ -4009,8 +4768,14 @@ private:
     ComputePipelineState tornado_pipeline_{};
     ComputePipelineState kessler_pointwise_pipeline_{};
     ComputePipelineState kessler_sedimentation_pipeline_{};
+    ComputePipelineState thompson_pointwise_pipeline_{};
+    ComputePipelineState thompson_sedimentation_pipeline_{};
     ComputePipelineState acoustic_pressure_pipeline_{};
     ComputePipelineState acoustic_momentum_pipeline_{};
+    ComputePipelineState acoustic_pressure_cartesian_pipeline_{};
+    ComputePipelineState acoustic_momentum_cartesian_pipeline_{};
+
+    CoordinateSystem coord_system_ = CoordinateSystem::Cylindrical;
 
     // Shared command infrastructure
     VkCommandPool cmd_pool_ = VK_NULL_HANDLE;

@@ -1,0 +1,310 @@
+#version 450
+
+/**
+ * Fused Thompson point-wise microphysics: full ice-phase scheme.
+ *
+ * Handles all point-wise Thompson microphysics processes in a single GPU
+ * dispatch: saturation adjustment, warm rain (autoconversion, accretion,
+ * evaporation), ice nucleation (stochastic freezing), vapor deposition onto
+ * ice, ice-to-snow conversion, riming (cloud water collected by ice ->
+ * graupel), sublimation of ice and snow, and melting of snow/graupel/hail.
+ *
+ * Seven hydrometeor species: qc (cloud water), qr (rain), qi (cloud ice),
+ * qs (snow), qg (graupel), qh (hail).
+ *
+ * One invocation per grid cell (i, j, k).
+ */
+
+layout(local_size_x = 64) in;
+
+// -- Input fields (readonly) -------------------------------------------------
+layout(set = 0, binding = 0)  readonly buffer Temperature { float temperature[]; };
+layout(set = 0, binding = 1)  readonly buffer Pressure    { float pressure[];    };
+layout(set = 0, binding = 2)  readonly buffer QV  { float qv[];  };
+layout(set = 0, binding = 3)  readonly buffer QC  { float qc[];  };
+layout(set = 0, binding = 4)  readonly buffer QR  { float qr[];  };
+layout(set = 0, binding = 5)  readonly buffer QI  { float qi[];  };
+layout(set = 0, binding = 6)  readonly buffer QS  { float qs[];  };
+layout(set = 0, binding = 7)  readonly buffer QG  { float qg[];  };
+layout(set = 0, binding = 8)  readonly buffer QH  { float qh[];  };
+
+// -- Output tendency fields (writeonly) ---------------------------------------
+layout(set = 0, binding = 9)  writeonly buffer DTheta { float dtheta_dt[]; };
+layout(set = 0, binding = 10) writeonly buffer DQV    { float dqv_dt[];    };
+layout(set = 0, binding = 11) writeonly buffer DQC    { float dqc_dt[];    };
+layout(set = 0, binding = 12) writeonly buffer DQR    { float dqr_dt[];    };
+layout(set = 0, binding = 13) writeonly buffer DQI    { float dqi_dt[];    };
+layout(set = 0, binding = 14) writeonly buffer DQS    { float dqs_dt[];    };
+layout(set = 0, binding = 15) writeonly buffer DQG    { float dqg_dt[];    };
+layout(set = 0, binding = 16) writeonly buffer DQH    { float dqh_dt[];    };
+
+// -- Push constants (64 bytes) ------------------------------------------------
+layout(push_constant) uniform PushConstants
+{
+    int   nr;
+    int   nth;
+    int   nz;
+    float qc0;        // autoconversion threshold
+    float c_auto;      // autoconversion rate
+    float c_evap;      // evaporation rate
+    float c_dep;       // deposition rate
+    float c_subl;      // sublimation rate
+    float c_melt;      // melting rate
+    float Lv_cp;       // L_v / cp  (precomputed on CPU)
+    float Lf_cp;       // L_f / cp
+    float Ls_cp;       // L_s / cp
+    float T0;          // freezing temperature (273.15 K)
+    float ccn_conc;    // CCN concentration (unitless scaling)
+    float in_conc;     // IN concentration (unitless scaling)
+    float padding;
+} pc;
+
+// -- Constants ----------------------------------------------------------------
+const float PI = 3.14159265358979323846;
+
+// -- Saturation vapor pressure and mixing ratio functions ---------------------
+
+float saturation_vapor_pressure_water(float T)
+{
+    float T_c = T - pc.T0;
+    if (T >= pc.T0)
+    {
+        return 611.21 * exp((18.678 - T_c / 234.5) * T_c / (257.14 + T_c));
+    }
+    else
+    {
+        return 611.15 * exp((23.036 - T_c / 333.7) * T_c / (279.82 + T_c));
+    }
+}
+
+float saturation_vapor_pressure_ice(float T)
+{
+    float T_c = T - pc.T0;
+    return 611.15 * exp((23.036 - T_c / 333.7) * T_c / (279.82 + T_c));
+}
+
+float saturation_mixing_ratio_water(float T, float p_val)
+{
+    float e_sat = saturation_vapor_pressure_water(T);
+    float denom = max(p_val - e_sat, 1.0);
+    return clamp(0.62198 * e_sat / denom, 0.0, 0.2);
+}
+
+float saturation_mixing_ratio_ice(float T, float p_val)
+{
+    float e_sat = saturation_vapor_pressure_ice(T);
+    float denom = max(p_val - e_sat, 1.0);
+    return clamp(0.62198 * e_sat / denom, 0.0, 0.2);
+}
+
+// -- Sanitization helper ------------------------------------------------------
+
+float sanitize(float val)
+{
+    return (isnan(val) || isinf(val)) ? 0.0 : val;
+}
+
+void main()
+{
+    uint gid = gl_GlobalInvocationID.x;
+    uint total = uint(pc.nr) * uint(pc.nth) * uint(pc.nz);
+    if (gid >= total)
+    {
+        return;
+    }
+
+    float T      = temperature[gid];
+    float p_val  = pressure[gid];
+    float qv_val = qv[gid];
+    float qc_val = qc[gid];
+    float qr_val = qr[gid];
+    float qi_val = qi[gid];
+    float qs_val = qs[gid];
+    float qg_val = qg[gid];
+    float qh_val = qh[gid];
+
+    // Accumulate tendencies locally
+    float d_theta = 0.0;
+    float d_qv    = 0.0;
+    float d_qc    = 0.0;
+    float d_qr    = 0.0;
+    float d_qi    = 0.0;
+    float d_qs    = 0.0;
+    float d_qg    = 0.0;
+    float d_qh    = 0.0;
+
+    // -- 1. Saturation adjustment --------------------------------------------
+    // If qv exceeds saturation over liquid water, condense the excess into qc.
+    {
+        float qvsat = saturation_mixing_ratio_water(T, p_val);
+        if (qv_val > qvsat)
+        {
+            float excess = qv_val - qvsat;
+            d_qv -= excess;
+            d_qc += excess;
+            d_theta += pc.Lv_cp * excess / T;
+        }
+    }
+
+    // -- 2. Warm rain - autoconversion (qc -> qr) ----------------------------
+    if (qc_val > pc.qc0)
+    {
+        float auto_rate = pc.c_auto * (qc_val - pc.qc0);
+        d_qc    -= auto_rate;
+        d_qr    += auto_rate;
+        d_theta += pc.Lv_cp * auto_rate / T;
+    }
+
+    // -- 3. Warm rain - accretion (qc -> qr) ---------------------------------
+    if (qc_val > 0.0 && qr_val > 0.0)
+    {
+        float accr_rate = 2.2 * qc_val * qr_val;
+        d_qc    -= accr_rate;
+        d_qr    += accr_rate;
+        d_theta += pc.Lv_cp * accr_rate / T;
+    }
+
+    // -- 4. Warm rain - evaporation (qr -> qv) -------------------------------
+    if (qr_val > 0.0)
+    {
+        float qvsat = saturation_mixing_ratio_water(T, p_val);
+        float RH = (qv_val > 0.0 && qvsat > 0.0) ? qv_val / qvsat : 0.0;
+        if (RH < 1.0)
+        {
+            float evap_rate = pc.c_evap * (1.0 - RH) * qr_val;
+            d_qv    += evap_rate;
+            d_qr    -= evap_rate;
+            d_theta -= pc.Lv_cp * evap_rate / T;
+        }
+    }
+
+    // -- 5. Ice - freezing (qc -> qi) ----------------------------------------
+    // Stochastic immersion freezing following Bigg (1953) parameterization.
+    if (qc_val > 0.0 && T < pc.T0)
+    {
+        float T_celsius   = T - pc.T0;
+        float supercooling = -T_celsius;
+        float nuc_factor   = exp(0.2 * supercooling) - 1.0;
+        float qc_vol       = qc_val / (4.0 / 3.0 * PI * 1.0e-15);
+        float P_freeze     = 1.0 - exp(-120.0 * qc_vol * 5.2e-4 * max(nuc_factor, 0.0));
+        float freeze_rate  = P_freeze * qc_val;
+        d_qc    -= freeze_rate;
+        d_qi    += freeze_rate;
+        d_theta += pc.Lf_cp * freeze_rate / T;
+    }
+
+    // -- 6. Ice - deposition (qv -> qi) --------------------------------------
+    // Vapor deposition onto existing ice crystals when supersaturated w.r.t. ice.
+    if (qi_val > 0.0 && T < pc.T0)
+    {
+        float qvsat_ice = saturation_mixing_ratio_ice(T, p_val);
+        if (qv_val > qvsat_ice)
+        {
+            float dep_rate = pc.c_dep * (qv_val - qvsat_ice);
+            d_qv    -= dep_rate;
+            d_qi    += dep_rate;
+            d_theta += pc.Ls_cp * dep_rate / T;
+        }
+    }
+
+    // -- 7. Ice -> snow conversion (qi -> qs) --------------------------------
+    // Simple fractional conversion: ice crystals grow and aggregate into snow.
+    if (qi_val > 0.0)
+    {
+        float conv_rate = 0.1 * qi_val;
+        d_qi -= conv_rate;
+        d_qs += conv_rate;
+    }
+
+    // -- 8. Riming (qc -> qg) ------------------------------------------------
+    // Cloud water collected by ice crystals produces graupel. Efficiency is
+    // temperature-dependent: high at cold temperatures, zero above freezing.
+    if (qc_val > 0.0 && qi_val > 0.0)
+    {
+        float T_celsius = T - pc.T0;
+        float E = 0.0;
+        if (T_celsius < -5.0)
+        {
+            E = 0.8;
+        }
+        else if (T_celsius < 0.0)
+        {
+            E = 0.6;
+        }
+
+        if (E > 0.0)
+        {
+            float rime_rate = E * qc_val * qi_val;
+            d_qc    -= rime_rate;
+            d_qg    += rime_rate;
+            d_theta += pc.Lf_cp * rime_rate / T;
+        }
+    }
+
+    // -- 9. Sublimation (qi -> qv, qs -> qv) ---------------------------------
+    // Ice species sublimate in sub-saturated air (w.r.t. ice).
+    if (T < pc.T0)
+    {
+        float qvsat_ice = saturation_mixing_ratio_ice(T, p_val);
+        float RH_ice = (qv_val > 0.0 && qvsat_ice > 0.0) ? qv_val / qvsat_ice : 0.0;
+        if (RH_ice < 1.0)
+        {
+            float deficit = 1.0 - RH_ice;
+
+            if (qi_val > 0.0)
+            {
+                float subl_rate = pc.c_subl * deficit * qi_val;
+                d_qv    += subl_rate;
+                d_qi    -= subl_rate;
+                d_theta -= pc.Ls_cp * subl_rate / T;
+            }
+
+            if (qs_val > 0.0)
+            {
+                float subl_rate = pc.c_subl * deficit * qs_val;
+                d_qv    += subl_rate;
+                d_qs    -= subl_rate;
+                d_theta -= pc.Ls_cp * subl_rate / T;
+            }
+        }
+    }
+
+    // -- 10. Melting (qs -> qr, qg -> qr, qh -> qr) -------------------------
+    // Frozen hydrometeors melt above the freezing level.
+    if (T > pc.T0)
+    {
+        if (qs_val > 0.0)
+        {
+            float melt_rate = pc.c_melt * qs_val;
+            d_qs    -= melt_rate;
+            d_qr    += melt_rate;
+            d_theta -= pc.Lf_cp * melt_rate / T;
+        }
+
+        if (qg_val > 0.0)
+        {
+            float melt_rate = pc.c_melt * qg_val;
+            d_qg    -= melt_rate;
+            d_qr    += melt_rate;
+            d_theta -= pc.Lf_cp * melt_rate / T;
+        }
+
+        if (qh_val > 0.0)
+        {
+            float melt_rate = pc.c_melt * qh_val;
+            d_qh    -= melt_rate;
+            d_qr    += melt_rate;
+            d_theta -= pc.Lf_cp * melt_rate / T;
+        }
+    }
+
+    // -- Write sanitized outputs ----------------------------------------------
+    dtheta_dt[gid] = sanitize(d_theta);
+    dqv_dt[gid]    = sanitize(d_qv);
+    dqc_dt[gid]    = sanitize(d_qc);
+    dqr_dt[gid]    = sanitize(d_qr);
+    dqi_dt[gid]    = sanitize(d_qi);
+    dqs_dt[gid]    = sanitize(d_qs);
+    dqg_dt[gid]    = sanitize(d_qg);
+    dqh_dt[gid]    = sanitize(d_qh);
+}

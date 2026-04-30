@@ -95,6 +95,9 @@ public:
     /** @copydoc RenderBackend::set_camera_input */
     void set_camera_input(const CameraInputState& input) override;
 
+    /** @copydoc RenderBackend::status_label */
+    std::string status_label() const override;
+
     /** @copydoc RenderBackend::shutdown */
     void shutdown(VkDevice device) override;
 
@@ -207,6 +210,9 @@ private:
     float volume_raw_max_ = 0.0f;
     float volume_norm_low_ = 0.0f;
     float volume_norm_high_ = 0.0f;
+
+    bool grid_ready_ = false;
+    bool convection_detected_ = false;
 
     static constexpr std::size_t kMaxVolumeComponents = 8;
     std::vector<VkImage> component_images_;

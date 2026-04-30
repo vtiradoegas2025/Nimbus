@@ -8,6 +8,7 @@
 
 #include "core/coordinate_system.hpp"
 #include "core/field3d.hpp"
+#include "core/grid_geometry.hpp"
 #include "core/physical_constants.hpp"
 
 /**
@@ -50,6 +51,8 @@ extern double dr;
 extern double dz;
 extern double dt;
 extern double dtheta;
+
+extern GridGeometry global_grid_geometry;
 
 inline constexpr double gamma = physical_constants::dry_air_gamma;
 inline constexpr double theta0 = physical_constants::theta_reference_k;
@@ -201,6 +204,7 @@ inline float clamp_hydrometeor_kgkg(float value)
 
 extern std::vector<double> rho0_base;
 extern std::vector<double> p0_base;
+extern std::vector<double> qv0_base;
 
 // Base-state wind profiles for perturbation Coriolis (Rotunno & Klemp 1982).
 // Stored at initialization so Coriolis is applied to (u-u0, v-v0) rather than

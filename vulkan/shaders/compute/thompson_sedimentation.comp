@@ -1,0 +1,114 @@
+#version 450
+
+/**
+ * Thompson sedimentation: column-wise terminal-velocity fallout for rain,
+ * snow, graupel, and hail.
+ *
+ * One invocation per (i, j) column.  Each invocation loops over k = 0..NZ-1
+ * sequentially, matching the CPU loop order so that the accumulation into
+ * dq_dt[k-1] is deterministic (no race conditions).
+ *
+ * The tendency buffers (bindings 4-7) are read-write: the shader reads
+ * existing tendency values (from the pointwise pass) and adds sedimentation
+ * contributions in-place.
+ *
+ * Four precipitating species, each with its own fall speed parameters:
+ *   - rain:    Vt = a_rain * q^b_rain,  capped at Vt_max_rain
+ *   - snow:    Vt = a_snow * q^b_snow,  capped at Vt_max_snow
+ *   - graupel: Vt = a_grau * q^b_grau,  capped at Vt_max_grau
+ *   - hail:    Vt = a_hail * q^b_hail,  capped at Vt_max_hail
+ */
+
+layout(local_size_x = 64) in;
+
+// -- Input mixing-ratio fields (readonly) -------------------------------------
+layout(set = 0, binding = 0) readonly buffer QR { float qr[]; };
+layout(set = 0, binding = 1) readonly buffer QS { float qs[]; };
+layout(set = 0, binding = 2) readonly buffer QG { float qg[]; };
+layout(set = 0, binding = 3) readonly buffer QH { float qh[]; };
+
+// -- Tendency fields (read-write, adds to existing values) --------------------
+layout(set = 0, binding = 4) buffer DQR { float dqr_dt[]; };
+layout(set = 0, binding = 5) buffer DQS { float dqs_dt[]; };
+layout(set = 0, binding = 6) buffer DQG { float dqg_dt[]; };
+layout(set = 0, binding = 7) buffer DQH { float dqh_dt[]; };
+
+// -- Push constants (64 bytes) ------------------------------------------------
+layout(push_constant) uniform PushConstants
+{
+    int   nr;
+    int   nth;
+    int   nz;
+    float dz_val;
+    float a_rain,  b_rain,  Vt_max_rain;
+    float a_snow,  b_snow,  Vt_max_snow;
+    float a_grau,  b_grau,  Vt_max_grau;
+    float a_hail,  b_hail,  Vt_max_hail;
+} pc;
+
+void main()
+{
+    uint col_id = gl_GlobalInvocationID.x;
+    uint total_columns = uint(pc.nr) * uint(pc.nth);
+    if (col_id >= total_columns)
+    {
+        return;
+    }
+
+    uint nz   = uint(pc.nz);
+    uint base = col_id * nz;
+    float inv_dz = 1.0 / pc.dz_val;
+
+    // Sequential loop over vertical levels (matches CPU k-loop order)
+    for (uint k = 0; k < nz; ++k)
+    {
+        uint idx = base + k;
+
+        if (k > 0u)
+        {
+            // Rain sedimentation
+            float qr_val = qr[idx];
+            if (qr_val > 0.0)
+            {
+                float Vt = min(pc.Vt_max_rain,
+                               pc.a_rain * pow(max(qr_val, 1e-6), pc.b_rain));
+                float sed_flux = Vt * qr_val;
+                dqr_dt[idx]     -= sed_flux * inv_dz;
+                dqr_dt[idx - 1] += sed_flux * inv_dz;
+            }
+
+            // Snow sedimentation
+            float qs_val = qs[idx];
+            if (qs_val > 0.0)
+            {
+                float Vt = min(pc.Vt_max_snow,
+                               pc.a_snow * pow(max(qs_val, 1e-6), pc.b_snow));
+                float sed_flux = Vt * qs_val;
+                dqs_dt[idx]     -= sed_flux * inv_dz;
+                dqs_dt[idx - 1] += sed_flux * inv_dz;
+            }
+
+            // Graupel sedimentation
+            float qg_val = qg[idx];
+            if (qg_val > 0.0)
+            {
+                float Vt = min(pc.Vt_max_grau,
+                               pc.a_grau * pow(max(qg_val, 1e-6), pc.b_grau));
+                float sed_flux = Vt * qg_val;
+                dqg_dt[idx]     -= sed_flux * inv_dz;
+                dqg_dt[idx - 1] += sed_flux * inv_dz;
+            }
+
+            // Hail sedimentation
+            float qh_val = qh[idx];
+            if (qh_val > 0.0)
+            {
+                float Vt = min(pc.Vt_max_hail,
+                               pc.a_hail * pow(max(qh_val, 1e-6), pc.b_hail));
+                float sed_flux = Vt * qh_val;
+                dqh_dt[idx]     -= sed_flux * inv_dz;
+                dqh_dt[idx - 1] += sed_flux * inv_dz;
+            }
+        }
+    }
+}

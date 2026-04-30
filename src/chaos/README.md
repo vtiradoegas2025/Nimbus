@@ -31,21 +31,21 @@ src/chaos/
 ## Runtime Boundaries and Call Sites
 
 - Initialization path:
-  - `src/core/tornado_sim.cpp` calls `initialize_chaos(global_chaos_config)` after numerics init.
-  - `src/core/tornado_sim.cpp` then calls `apply_chaos_initial_conditions()` once.
+  - `src/core/runtime/tornado_sim.cpp` calls `initialize_chaos(global_chaos_config)` after numerics init.
+  - `src/core/runtime/tornado_sim.cpp` then calls `apply_chaos_initial_conditions()` once.
 - Time-stepping path (headless runtime):
-  - `src/core/headless_runtime.cpp` calls, in order:
+  - `src/core/runtime/headless_runtime.cpp` calls, in order:
     - `step_boundary_layer(simulation_time)`
     - `step_chaos_noise(dt)`
     - `apply_chaos_tendencies()`
     - `step_dynamics(simulation_time)`
 - Additional tendency hook points:
-  - `src/core/equations.cpp` calls `apply_chaos_to_microphysics_tendencies(...)`.
-  - `src/core/dynamics.cpp` calls `apply_chaos_to_turbulence_tendencies(...)`.
+  - `src/core/orchestration/dynamics/equations.cpp` calls `apply_chaos_to_microphysics_tendencies(...)`.
+  - `src/core/orchestration/dynamics/dynamics.cpp` calls `apply_chaos_to_turbulence_tendencies(...)`.
 
 ## Supported Config Keys
 
-Primary keys parsed in `src/core/runtime_config.cpp`:
+Primary keys parsed in `src/core/runtime/runtime_config.cpp`:
 
 ```yaml
 chaos:
@@ -98,25 +98,3 @@ chaos:
 - Perturbed tendency fields are sanitized for non-finite values before returning to physics.
 - PBL chaos perturbations are applied from deterministic base tendencies each update (prevents accidental multiplicative compounding between PBL refreshes).
 
-## Next Structure (Handoff)
-
-For the next `src` folder review, use this boundary-layer structure and call boundaries:
-
-```text
-src/boundary_layer/
-├── factory.cpp
-├── factory.hpp
-├── base/
-│   ├── surface_fluxes.cpp
-│   └── surface_fluxes.hpp
-└── schemes/
-    ├── slab/
-    ├── ysu/
-    └── mynn/
-```
-
-Integration entry points:
-
-- Coordinator: `src/core/boundary_layer.cpp`
-- Public API: `include/boundary_layer_base.hpp` and `include/simulation.hpp`
-- Main loop caller: `src/core/headless_runtime.cpp`

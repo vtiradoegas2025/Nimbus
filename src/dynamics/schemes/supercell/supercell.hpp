@@ -99,5 +99,6 @@ private:
 
     int NR_, NTH_, NZ_;
     double dr_, dtheta_, dz_;
+    const GridGeometry& geo_;
     std::unique_ptr<DerivativeOperators> deriv_;
 };

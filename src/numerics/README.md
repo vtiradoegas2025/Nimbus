@@ -1,20 +1,20 @@
 # Numerics Module
 
-This module provides the numerical kernels used by the simulation runtime and is wired through `src/core/numerics.cpp`.
+This module provides the numerical kernels used by the simulation runtime and is wired through `src/core/orchestration/dynamics/numerics.cpp`.
 
 ## Current Runtime Integration
 
 Numerics components are initialized once by:
-- `src/core/tornado_sim.cpp` -> `initialize_numerics()`
+- `src/core/runtime/tornado_sim.cpp` -> `initialize_numerics()`
 
 Numerics components are consumed at runtime by:
-- `src/advection/advection.cpp`
-  - Uses numerics advection schemes for the vertical split step (`z`) when active scheme is `tvd` or `weno5`.
-  - Radial and azimuthal transport (`r`, `theta`) still use advection module kernels.
-- `src/core/dynamics.cpp`
+- `src/numerics/advection/advection.cpp` and `advection_cartesian.cpp`
+  - Directional splitting kernels for cylindrical and Cartesian coordinate systems.
+  - Uses factory-selected advection schemes (TVD, WENO5) for the vertical split step.
+- `src/core/orchestration/dynamics/dynamics.cpp`
   - Applies numerics diffusion tendencies (`explicit` or `implicit`) to momentum/scalars.
-- `src/core/headless_runtime.cpp`
-- `src/core/gui.cpp`
+- `src/core/runtime/headless_runtime.cpp`
+- `src/core/runtime/gui.cpp`
   - Both use `choose_runtime_timestep()` to enforce numerics stability caps.
 
 ## Directory Layout
@@ -23,6 +23,8 @@ Numerics components are consumed at runtime by:
 src/numerics/
 ├── advection/
 │   ├── factory.cpp/.hpp
+│   ├── advection.cpp              cylindrical directional splitting kernels
+│   ├── advection_cartesian.cpp    Cartesian directional splitting kernels
 │   └── schemes/
 │       ├── tvd/
 │       └── weno5/
@@ -35,7 +37,8 @@ src/numerics/
 │   ├── factory.cpp/.hpp
 │   └── schemes/
 │       ├── rk3/
-│       └── rk4/
+│       ├── rk4/
+│       └── split_explicit/
 └── README.md
 ```
 
@@ -55,13 +58,15 @@ src/numerics/
 - Variable diffusivity fields are supported and sanitized to non-negative finite values at use sites.
 
 ### Time Stepping
-- Implementations: `rk3`, `rk4`
-- `rk3` is implemented as a 3-stage SSPRK3 update in the numerics class.
-- In current app wiring, global model stepping is handled in dynamics; numerics time-stepping schemes are currently used for timestep guidance (`suggest_dt`) rather than owning the full prognostic state integration loop.
+- Implementations: `rk3`, `rk4`, `split_explicit`
+- `rk3` is implemented as a 3-stage SSPRK3 update.
+- `rk4` is a standard 4-stage Runge-Kutta update.
+- `split_explicit` is a Klemp-Wilhelmson (1978) forward-backward scheme that separates fast acoustic modes from slow advective modes. The acoustic substep loop supports GPU-accelerated fused and batched dispatch paths.
+- In current app wiring, global model stepping is handled in dynamics; numerics time-stepping schemes provide both the integration logic and timestep guidance (`suggest_dt`).
 
 ## Runtime Timestep Guardrails
 
-`choose_runtime_timestep()` in `src/core/numerics.cpp` applies:
+`choose_runtime_timestep()` in `src/core/orchestration/dynamics/numerics.cpp` applies:
 - Config bounds: `dt_min`, `dt_max`
 - Advection cap: based on max resolved flow speed and grid spacing
 - Explicit diffusion cap: based on `K_h`, `K_v`, and grid spacing
@@ -97,6 +102,5 @@ All checks above completed successfully.
 
 ## Known Limitations
 
-- Numerics advection currently covers the vertical split step only; `r/theta` transport remains in advection module kernels.
 - Diffusion kernels are currently vertical-focused in both explicit and implicit schemes.
-- Numerics RK classes are not yet the main driver of the global prognostic integration path.
+- Full 3D anisotropic diffusion is not yet implemented.

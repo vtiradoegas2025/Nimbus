@@ -107,6 +107,26 @@ bool ShmWriter::open(int nx, int ny, int nz,
 #endif
 }
 
+namespace
+{
+
+/// Fields dominated by a large base-state value. These fill every voxel
+/// uniformly so naive percentile normalization makes the entire domain
+/// opaque. Instead we subtract the per-level horizontal mean and
+/// normalize the perturbation, making only anomalies (warm updraft,
+/// cold downdraft, density deficit) visible.
+bool is_base_state_field(const char* name)
+{
+    return std::strcmp(name, "theta") == 0 ||
+           std::strcmp(name, "rho") == 0 ||
+           std::strcmp(name, "p") == 0 ||
+           std::strcmp(name, "pressure") == 0 ||
+           std::strcmp(name, "density") == 0 ||
+           std::strcmp(name, "temperature") == 0;
+}
+
+} // namespace
+
 void ShmWriter::write_field(int field_index, const Field3D& field)
 {
     if (!shm_base_)
@@ -129,11 +149,11 @@ void ShmWriter::write_field(int field_index, const Field3D& field)
                                static_cast<std::size_t>(ny_) *
                                static_cast<std::size_t>(nz_);
 
-    // Transpose from Field3D [NR][NTH][NZ] → viewer layout [Z][TH][X]
-    // and compute min/max for normalization in one pass
-    float fmin = std::numeric_limits<float>::max();
-    float fmax = std::numeric_limits<float>::lowest();
+    // Check if this field needs perturbation normalization
+    const std::string field_name = tmv_shm::read_field_name(shm_base_, field_index);
+    const bool perturbation_mode = is_base_state_field(field_name.c_str());
 
+    // Transpose from Field3D [NR][NTH][NZ] -> viewer layout [Z][TH][X]
     for (int k = 0; k < nz && k < nz_; ++k)
     {
         for (int j = 0; j < nth && j < ny_; ++j)
@@ -147,32 +167,65 @@ void ShmWriter::write_field(int field_index, const Field3D& field)
                     static_cast<std::size_t>(j) * static_cast<std::size_t>(nx_) +
                     static_cast<std::size_t>(i);
 
-                if (std::isfinite(val))
+                dst[viewer_idx] = std::isfinite(val) ? val : 0.0f;
+            }
+        }
+    }
+
+    // For base-state fields: subtract per-level horizontal mean so only
+    // perturbations are visible (warm updraft, cold pool, density deficit).
+    if (perturbation_mode)
+    {
+        const std::size_t slice_size = static_cast<std::size_t>(ny_) *
+                                      static_cast<std::size_t>(nx_);
+        for (int k = 0; k < nz_; ++k)
+        {
+            float* slice = dst + static_cast<std::size_t>(k) * slice_size;
+            double sum = 0.0;
+            int count = 0;
+            for (std::size_t s = 0; s < slice_size; ++s)
+            {
+                if (std::isfinite(slice[s]))
                 {
-                    fmin = std::min(fmin, val);
-                    fmax = std::max(fmax, val);
-                    dst[viewer_idx] = val;
+                    sum += static_cast<double>(slice[s]);
+                    ++count;
                 }
-                else
+            }
+            if (count > 0)
+            {
+                const float mean = static_cast<float>(sum / count);
+                for (std::size_t s = 0; s < slice_size; ++s)
                 {
-                    dst[viewer_idx] = 0.0f;
+                    slice[s] -= mean;
                 }
             }
         }
     }
 
-    // Normalize to [0,1] using robust percentile clipping (2%–98%)
-    // Build a 256-bin histogram for fast percentile estimation
+    // Compute min/max for normalization
+    float fmin = std::numeric_limits<float>::max();
+    float fmax = std::numeric_limits<float>::lowest();
+    for (std::size_t idx = 0; idx < voxels; ++idx)
+    {
+        float val = dst[idx];
+        if (std::isfinite(val))
+        {
+            fmin = std::min(fmin, val);
+            fmax = std::max(fmax, val);
+        }
+    }
+
     if (fmin >= fmax)
     {
-        // Constant field or all non-finite → fill with 0.5
+
         for (std::size_t idx = 0; idx < voxels; ++idx)
         {
-            dst[idx] = 0.5f;
+            dst[idx] = 0.0f;
         }
         return;
     }
 
+    // Normalize to [0,1] using robust percentile clipping (2%-98%)
     constexpr int kBins = 256;
     int histogram[kBins] = {};
     const float inv_range = static_cast<float>(kBins - 1) / (fmax - fmin);
@@ -181,7 +234,7 @@ void ShmWriter::write_field(int field_index, const Field3D& field)
     for (std::size_t idx = 0; idx < voxels; ++idx)
     {
         float val = dst[idx];
-        if (val != 0.0f || (fmin <= 0.0f && fmax >= 0.0f))
+        if (std::isfinite(val))
         {
             int bin = static_cast<int>((val - fmin) * inv_range);
             bin = std::max(0, std::min(kBins - 1, bin));
@@ -190,7 +243,6 @@ void ShmWriter::write_field(int field_index, const Field3D& field)
         }
     }
 
-    // Find 2% and 98% percentile values
     const int low_target = std::max(1, finite_count * 2 / 100);
     const int high_target = std::max(1, finite_count * 98 / 100);
     float norm_low = fmin;
@@ -211,16 +263,39 @@ void ShmWriter::write_field(int field_index, const Field3D& field)
         }
     }
 
-    if (norm_high <= norm_low)
+    // Field-aware minimum normalization range. Prevents tiny values from
+    // being amplified to full brightness (which makes the entire domain box
+    // glow white before real convection develops).
+    //
+    // For visualization, we normalize absolute values: the viewer renders
+    // density as opacity, so only magnitude matters. Normalizing relative
+    // to zero (instead of norm_low) ensures that cells with near-zero
+    // values remain transparent.
+    float min_range = 1.0e-4f;   // default: safe for most fields
+    if (field_name == "w")
     {
-        norm_high = norm_low + 1.0e-6f;
+        min_range = 2.0f;        // vertical velocity: 2 m/s minimum range
+    }
+    else if (field_name == "u" || field_name == "v")
+    {
+        min_range = 5.0f;        // horizontal velocity: 5 m/s
+    }
+    else if (field_name == "qc" || field_name == "qr" ||
+             field_name == "qi" || field_name == "qs" ||
+             field_name == "qg" || field_name == "qh")
+    {
+        min_range = 1.0e-3f;     // hydrometeors: 1 g/kg
     }
 
-    // Apply normalization in-place
-    const float scale = 1.0f / (norm_high - norm_low);
+    // Use absolute-value normalization: cells near zero stay transparent.
+    const float abs_max = std::max(std::abs(norm_low), std::abs(norm_high));
+    const float range = std::max(abs_max, min_range);
+    const float scale = 1.0f / range;
+
+
     for (std::size_t idx = 0; idx < voxels; ++idx)
     {
-        float val = (dst[idx] - norm_low) * scale;
+        float val = std::abs(dst[idx]) * scale;
         dst[idx] = std::max(0.0f, std::min(1.0f, val));
     }
 }

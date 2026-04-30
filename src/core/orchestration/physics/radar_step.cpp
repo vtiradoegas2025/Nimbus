@@ -58,6 +58,9 @@ void initialize_radar(const std::string& scheme_name)
 
 void calculate_radar_reflectivity()
 {
+    if (radar_reflectivity.size_r() != NR || radar_reflectivity.size_th() != NTH || radar_reflectivity.size_z() != NZ)
+        radar_reflectivity.resize(NR, NTH, NZ, 0.0f);
+
     constexpr float radar_linear_min = 0.0f;
     constexpr float radar_linear_max = 1.0e12f;
 

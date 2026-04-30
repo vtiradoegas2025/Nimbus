@@ -20,22 +20,22 @@ bool file_exists(const std::string& path)
 
 TEST_CASE("Student config file exists", "[integration][configs]")
 {
-    REQUIRE(file_exists("configs/student.yaml"));
+    REQUIRE(file_exists("configs/student/student.yaml"));
 }
 
 TEST_CASE("Research config file exists", "[integration][configs]")
 {
-    REQUIRE(file_exists("configs/research.yaml"));
+    REQUIRE(file_exists("configs/simulation/research.yaml"));
 }
 
 TEST_CASE("Production config file exists", "[integration][configs]")
 {
-    REQUIRE(file_exists("configs/production.yaml"));
+    REQUIRE(file_exists("configs/simulation/production.yaml"));
 }
 
 TEST_CASE("Benchmark config file exists", "[integration][configs]")
 {
-    REQUIRE(file_exists("configs/benchmark.yaml"));
+    REQUIRE(file_exists("configs/benchmark/benchmark.yaml"));
 }
 
 TEST_CASE("Teaching configs exist", "[integration][configs]")

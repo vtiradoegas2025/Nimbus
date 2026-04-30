@@ -51,6 +51,34 @@ float density_from_sample(float sample_value, float threshold) {
     return d * d;
 }
 
+/** @brief Signed distance from point to line segment in 2D. */
+float line_segment_sdf(vec2 p, vec2 a, vec2 b) {
+    vec2 ab = b - a;
+    float t = clamp(dot(p - a, ab) / max(dot(ab, ab), 1e-8), 0.0, 1.0);
+    return length(p - (a + t * ab));
+}
+
+/** @brief Render a single axis letter glyph (X=0, Y=1, Z=2) as line segments. */
+float glyph_sdf(vec2 p, int letter, float half_size) {
+    float d = 1e6;
+    if (letter == 0) {
+        // X: two crossing diagonals
+        d = min(d, line_segment_sdf(p, vec2(-half_size, -half_size), vec2(half_size, half_size)));
+        d = min(d, line_segment_sdf(p, vec2(-half_size, half_size), vec2(half_size, -half_size)));
+    } else if (letter == 1) {
+        // Y: two diagonals meeting at center, vertical stem downward
+        d = min(d, line_segment_sdf(p, vec2(-half_size, -half_size), vec2(0.0, 0.0)));
+        d = min(d, line_segment_sdf(p, vec2(half_size, -half_size), vec2(0.0, 0.0)));
+        d = min(d, line_segment_sdf(p, vec2(0.0, 0.0), vec2(0.0, half_size)));
+    } else {
+        // Z: top bar, diagonal, bottom bar
+        d = min(d, line_segment_sdf(p, vec2(-half_size, -half_size), vec2(half_size, -half_size)));
+        d = min(d, line_segment_sdf(p, vec2(half_size, -half_size), vec2(-half_size, half_size)));
+        d = min(d, line_segment_sdf(p, vec2(-half_size, half_size), vec2(half_size, half_size)));
+    }
+    return d;
+}
+
 /** @brief Stable world-space pseudo-turbulence used to break synthetic smoothness. */
 float procedural_detail(vec3 uvw, float seed) {
     vec3 q = uvw * 15.0 + vec3(seed, seed * 1.41, seed * 2.07);
@@ -242,25 +270,20 @@ void main() {
 
     float t_near = 0.0;
     float t_far = 0.0;
-    if (!intersect_aabb(ray_origin, ray_dir, -aabb_half, aabb_half, t_near, t_far)) {
-        out_color = vec4(sky_color(ray_dir, light_dir, cinematic_bw), 1.0);
-        return;
+    bool volume_hit = intersect_aabb(ray_origin, ray_dir, -aabb_half, aabb_half, t_near, t_far);
+    if (volume_hit) {
+        t_near = max(t_near, 0.0);
+        t_far = min(t_far, pc.render1.w);
+        if (t_far <= t_near) volume_hit = false;
     }
 
-    t_near = max(t_near, 0.0);
-    t_far = min(t_far, pc.render1.w);
-    if (t_far <= t_near) {
-        out_color = vec4(sky_color(ray_dir, light_dir, cinematic_bw), 1.0);
-        return;
-    }
-
-    int steps = clamp(int(pc.volume_dims.w + 0.5), 32, 512);
-    // Clamp march count so quality controls cannot trigger runaway GPU loops.
-    float dt = (t_far - t_near) / float(steps);
-
-    vec3 texel = 1.0 / max(pc.volume_dims.xyz, vec3(1.0));
     vec3 radiance = vec3(0.0);
     float transmittance = 1.0;
+
+    if (volume_hit) {
+    int steps = clamp(int(pc.volume_dims.w + 0.5), 32, 512);
+    float dt = (t_far - t_near) / float(steps);
+    vec3 texel = 1.0 / max(pc.volume_dims.xyz, vec3(1.0));
     float t = t_near;
 
     for (int i = 0; i < 512; ++i) {
@@ -332,8 +355,91 @@ void main() {
 
         t += dt;
     }
+    } // volume_hit
 
     vec3 sky = sky_color(ray_dir, light_dir, cinematic_bw);
     vec3 color = radiance + transmittance * sky;
+
+    // --- 3D Axis Gizmo Overlay (bottom-left corner) ---
+    // Vulkan UV: (0,0)=top-left, (1,1)=bottom-right.
+    // "Bottom-left" visually = low UV.x, high UV.y.
+    {
+        vec2 gizmo_center = vec2(0.09, 0.88);
+        float gizmo_radius = 0.055;
+        float line_half_w = 0.0022;
+        float arrow_len = 0.013;
+        float arrow_angle = 0.45;
+        float label_offset = 0.018;
+        float label_half = 0.006;
+        float label_half_w = 0.0016;
+
+        vec2 local = v_uv - gizmo_center;
+        float dist_center = length(local);
+
+        if (dist_center < gizmo_radius * 1.6) {
+            vec3 cam_r = normalize(pc.camera_right.xyz);
+            vec3 cam_u = normalize(pc.camera_up.xyz);
+
+            // Background disc: dark on light scenes, lighter on dark scenes
+            // so the gizmo is always visible regardless of style.
+            float scene_luma = dot(color, vec3(0.299, 0.587, 0.114));
+            vec3 bg_color = scene_luma > 0.3 ? vec3(0.04, 0.02, 0.02) : vec3(0.18, 0.16, 0.16);
+            float bg_alpha = smoothstep(gizmo_radius * 1.45, gizmo_radius * 1.05, dist_center);
+            color = mix(color, bg_color, bg_alpha * 0.85);
+
+            // Thin ring border.
+            float ring = abs(dist_center - gizmo_radius * 1.15);
+            float ring_alpha = smoothstep(0.003, 0.001, ring) * bg_alpha;
+            color = mix(color, vec3(0.55, 0.55, 0.55), ring_alpha * 0.6);
+
+            // World-space axis directions with distinct colors visible in all styles.
+            vec3 axes[3] = vec3[](vec3(1, 0, 0), vec3(0, 1, 0), vec3(0, 0, 1));
+            vec3 colors[3] = vec3[](
+                vec3(1.0, 0.25, 0.20),   // X: red
+                vec3(0.30, 1.0, 0.30),   // Y: green (altitude)
+                vec3(0.35, 0.55, 1.0));  // Z: blue
+
+            for (int a = 0; a < 3; ++a) {
+                // Project world axis onto camera screen plane.
+                // UV.x increases rightward (matches camera_right).
+                // UV.y increases downward, so negate camera_up projection.
+                vec2 proj = vec2(dot(axes[a], cam_r), -dot(axes[a], cam_u));
+                float proj_len = length(proj);
+                if (proj_len < 0.01) continue;
+
+                vec2 dir2d = proj / proj_len;
+                float axis_len = gizmo_radius * clamp(proj_len, 0.35, 1.0);
+                vec2 tip = gizmo_center + dir2d * axis_len;
+
+                // Axis line.
+                float d = line_segment_sdf(v_uv, gizmo_center, tip);
+                float axis_a = smoothstep(line_half_w, line_half_w * 0.25, d);
+                color = mix(color, colors[a], axis_a);
+
+                // Arrowhead: two short lines angling off the tip.
+                float ca = cos(arrow_angle);
+                float sa = sin(arrow_angle);
+                vec2 back = -dir2d;
+                vec2 wing_l = vec2(back.x * ca - back.y * sa, back.x * sa + back.y * ca) * arrow_len;
+                vec2 wing_r = vec2(back.x * ca + back.y * sa, -back.x * sa + back.y * ca) * arrow_len;
+                float d_wl = line_segment_sdf(v_uv, tip, tip + wing_l);
+                float d_wr = line_segment_sdf(v_uv, tip, tip + wing_r);
+                float arrow_a = smoothstep(line_half_w, line_half_w * 0.25, min(d_wl, d_wr));
+                color = mix(color, colors[a], arrow_a);
+
+                // Axis label (X/Y/Z) near the tip.
+                vec2 label_pos = tip + dir2d * label_offset;
+                vec2 lp = v_uv - label_pos;
+                float gd = glyph_sdf(lp, a, label_half);
+                float label_a = smoothstep(label_half_w, label_half_w * 0.2, gd);
+                color = mix(color, colors[a], label_a);
+            }
+
+            // Small dot at gizmo origin.
+            float dot_d = smoothstep(0.004, 0.002, dist_center);
+            color = mix(color, vec3(0.85, 0.18, 0.14), dot_d);
+        }
+    }
+
     out_color = vec4(color, 1.0);
 }

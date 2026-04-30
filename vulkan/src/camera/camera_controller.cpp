@@ -251,7 +251,7 @@ Pose build_pose(const std::string& mode,
     }
 
     const float distance = std::max(camera_distance, 0.80f);
-    const double azimuth_rad = (mode == "orbit") ? orbit_angle_rad : 0.78;
+    const double azimuth_rad = (mode == "orbit" || mode == "fixed") ? orbit_angle_rad : 0.78;
     const Vec3 position{
         static_cast<float>(std::cos(azimuth_rad) * static_cast<double>(distance)),
         camera_height,

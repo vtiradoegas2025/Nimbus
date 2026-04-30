@@ -51,6 +51,51 @@
 void apply_cartesian_wind_initialization();
 
 /**
+ * @brief Fills the wind field on an Arakawa C-grid cylindrical mesh with the
+ *        configured Cartesian hodograph projected onto the staggered (r, theta)
+ *        face positions. Phase C.3 of the Coordinate Backend Plan.
+ *
+ * Field placement on this scheme (matches docs/CoordinateBackend_Plan.md
+ * "Field Storage Convention"):
+ *   u (radial)    r-face         u[i][j][k]   at (r_face[i], theta[j],         z[k])
+ *   v (azimuthal) theta-face     v[i][j][k]   at (r[i],      theta_{j+1/2},    z[k])
+ *   w (vertical)  z-face         w[i][j][k]   at (r[i],      theta[j],         z_face[k])
+ *
+ * For every cell (i, j, k):
+ *   u[i][j][k] =   u_x(z[k]) * cos(theta[j])         + u_y(z[k]) * sin(theta[j])
+ *   v[i][j][k] = - u_x(z[k]) * sin(theta_{j+1/2})    + u_y(z[k]) * cos(theta_{j+1/2})
+ *   w[i][j][k] = 0
+ *
+ * The trig argument for u uses theta[j] (the cell-center azimuth, since the
+ * r-face shares its cell's theta), while v uses theta_{j+1/2} = (j + 0.5) *
+ * dtheta -- the half-cell-shifted azimuth where the theta-face lives. This
+ * shift is the only structural difference vs the collocated cylindrical wind
+ * init; it is what the C-grid divergence operator expects so that the
+ * discrete flux-form divergence picks up only the geometric O(dtheta^2)
+ * cylindrical-from-Cartesian projection error rather than an additional
+ * placement-induced error.
+ *
+ * The continuous divergence of a uniform Cartesian wind is exactly zero;
+ * the discrete C-grid divergence is
+ *   (1 - sin(dtheta/2) / (dtheta/2)) * (u_x cos(theta_j) + u_y sin(theta_j)) / r_i
+ *   ~ (dtheta^2 / 24) * |u_h| / r_i
+ * which converges to zero quadratically with grid refinement. This is the
+ * inherent "cylindrical-from-Cartesian" placement error that motivated the
+ * Cartesian backend in Phase A; on the cylindrical C-grid we minimize it
+ * (and avoid the Bug 7 amplification at the axis) by using face-centered
+ * placement.
+ *
+ * Preconditions:
+ *   - `u`, `v`, `w` have all been resized to (NR, NTH, NZ).
+ *   - `dz > 0`, `dtheta > 0`, NZ >= 1, NTH >= 1.
+ *   - `global_grid_geometry` has been initialized for cylindrical C-grid
+ *     (so `geo.z[k]` and the cell-center sin/cos lookups are populated).
+ *   - `global_wind_profile` is set; `compute_wind_profile` returns the
+ *     Cartesian (u_x, u_y) at altitude z.
+ */
+void apply_cylindrical_cgrid_wind_initialization();
+
+/**
  * @brief Adds the configured trigger-bubble Δθ patch on a Cartesian grid.
  *
  * The bubble is a 3D Gaussian centered at

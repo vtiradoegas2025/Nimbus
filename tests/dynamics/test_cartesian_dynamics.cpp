@@ -76,6 +76,7 @@ void setup_cartesian_grid()
     // state for the synthetic test atmosphere.
     u0_base.assign(NZ, 0.0);
     v0_base.assign(NZ, 0.0);
+    qv0_base.assign(NZ, 0.012);
 }
 
 /**

@@ -1,6 +1,6 @@
-# Nimbus — Project Status
+# Nimbus -- Project Status
 
-**Last Updated:** March 22, 2026
+**Last Updated:** April 22, 2026
 
 ---
 
@@ -8,52 +8,63 @@
 
 ### Working
 
-- **Core Simulation Engine** — Compressible Euler equations in cylindrical coordinates, RK3/RK4 time integration with CFL-adaptive stepping, Field3D contiguous storage, OpenMP parallelization
-- **Physics Modules** — All wired and testable through factory architecture:
-  - Microphysics: Kessler, Thompson, Lin, Milbrandt-Yau
-  - Boundary Layer: YSU, MYNN, Slab
+- **Core Simulation Engine** -- Compressible non-hydrostatic Euler equations in both cylindrical (r, theta, z) and Cartesian (x, y, z) coordinates. Split-explicit time stepping (Klemp-Wilhelmson 1978), RK3/RK4 with CFL-adaptive stepping. Field3D contiguous storage with OpenMP parallelization.
+- **Physics Modules** -- All wired and testable through factory architecture:
+  - Microphysics: Kessler, Thompson, Lin, Milbrandt-Yau (warm-rain through double-moment)
+  - Boundary Layer: YSU, MYNN, Slab (with bulk and Monin-Obukhov surface fluxes)
   - Turbulence: Smagorinsky-Lilly, TKE prognostic
-  - Radiation: `simple_grey` (RRTMG recognized as planned target)
-  - Dynamics: tornado (axisymmetric), supercell (full 3D)
+  - Radiation: simple_grey (broadband two-stream longwave, Beer-Lambert shortwave)
+  - Dynamics: tornado (axisymmetric cylindrical), supercell (full 3D cylindrical), cartesian (x, y, z)
   - Radar: reflectivity, Doppler velocity, Z_DR forward operators
   - Terrain: bell mountain, Schar
-  - Chaos: IC perturbation, BL stochastic, full stochastic
-  - Soundings: SHARPY (NetCDF classic, NetCDF C API, HDF5 native readers)
-- **Numerics** — TVD/WENO5 advection, explicit/implicit diffusion, RK3/RK4 time stepping
-- **Vulkan Viewer** — Native volume renderer with NPY field ingestion, orbital camera, cylindrical-to-Cartesian transform
-- **Field Contract** — CM1-style validation with 99 defined fields, 87 exported, 20/20 required-now covered
-- **Test Suite** — `make test` (aggregate), `make test-backend-physics`, `make test-soundings`, `make test-radiation-regression`, `make test-terrain-regression`
+  - Chaos: IC perturbation, BL stochastic, full stochastic (SPPT-style)
+  - Soundings: SHARPY (native NetCDF classic, NetCDF C API, HDF5 readers)
+- **Numerics** -- TVD/WENO5 advection with coordinate-specific kernels, explicit/implicit diffusion, split-explicit/RK3/RK4 time stepping
+- **GPU Compute** -- Vulkan compute backend with 15 shaders covering advection, acoustic substeps (cylindrical and Cartesian), microphysics, dynamics tendencies, and diffusion. Fused and batched acoustic substep dispatch. Coordinate-aware shader routing.
+- **Vulkan Viewer** -- Native volume ray marcher with NPY field ingestion, live shared-memory ingest from running simulations, orbital and freefly cameras, cinematic rendering styles
+- **Field Contract** -- CM1-style validation with 99 defined fields, 87 exported, 20/20 required-now covered
+- **Test Suite** -- 26 test binaries, 42,000+ assertions across 9 test categories:
+  - `make test` (full suite), `make test-core`, `make test-diagnostics`, `make test-dynamics`, `make test-numerics`, `make test-physics`, `make test-data`, `make test-vulkan`, `make test-integration`, `make test-shm-e2e`
+- **Cross-Platform Build** -- Automated setup script (`scripts/setup.sh`) for macOS, Ubuntu/Debian/Pop!_OS, Fedora, Arch. Auto-detecting compiler, `make check-deps` target, BUILDING.md with per-OS instructions.
+
+### Known Limitations
+
+- **Collocated grid** -- Arakawa A-grid admits 2-delta-x computational mode. C-grid staggering planned.
+- **Radiation fidelity** -- Runtime is simple_grey only; RRTMG recognized as a planned target.
 
 ### Incomplete
 
-- **Diagnostic breadth**: 12 CM1-style contract fields remain unimplemented (streamlines, q-vectors, cross-section/trajectory diagnostics)
-- **Radiation fidelity**: Runtime is `simple_grey` only; no in-tree RRTMG implementation yet
+- **Diagnostic breadth**: 12 CM1-style contract fields remain unimplemented (streamlines, q-vectors, trajectory diagnostics)
+- **Radiation fidelity**: Runtime is simple_grey only; RRTMG recognized as a planned target
 - **Science validation**: Terrain and chaos are runtime-integrated but lack broader case-based calibration
-- **Soundings validation**: Native ingestion pipeline works; broader science validation pending
 
 ---
 
-## Known Limitations
+## Recent Changes (April 2026)
 
-- Terrain module is integrated but not calibrated against reference orographic cases
-- Chaos/ensemble workflows need broader calibration and case-based validation
-- Radar beam physics and advanced scatterer microphysics remain simplified
-- APIs and file formats may change (research prototype)
+- Cartesian coordinate system: full dynamics scheme, BCs, ICs, GPU acoustic shaders
+- Split-explicit time stepping with GPU-accelerated acoustic substeps
+- Fused and batched GPU dispatch: single H2D/D2H for all acoustic substeps per timestep
+- Shader compilation optimization (-Os flag on all 15 compute shaders)
+- Removed redundant GPU buffer copies in advection batch dispatch
+- Cross-platform build system: setup.sh, check-deps, BUILDING.md
+- Documentation overhaul: all src/ READMEs updated with correct paths and architecture guide
 
 ---
 
 ## Roadmap
 
-1. **Stability & verification** — Extend guard coverage, add targeted regression tests for tendency bounds across more physics modules
-2. **Science validation** — Terrain and chaos calibration against published reference cases
-3. **Diagnostic breadth** — Implement remaining 12 contract fields (streamlines, q-vectors, trajectory diagnostics)
-4. **Radiation fidelity** — RRTMG implementation
-5. **GPU compute** — Vulkan compute kernel offload for advection/diffusion hot paths
+1. **C-grid staggering** -- Arakawa C-grid migration for improved pressure-velocity coupling
+2. **Science validation** -- Terrain and chaos calibration against published reference cases
+3. **Diagnostic breadth** -- Remaining 12 contract fields (streamlines, q-vectors, trajectories)
+4. **Radiation fidelity** -- RRTMG implementation
 
 ---
 
 ## References
 
-- Visualization details: [`vulkan/README.md`](../vulkan/README.md)
-- Technical reference: [`docs/README.md`](README.md)
-- Scientific foundations: [`docs/foundationalScience.md`](foundationalScience.md)
+- Build instructions: [BUILDING.md](../BUILDING.md)
+- Source architecture: [src/README.md](../src/README.md)
+- Visualization: [vulkan/README.md](../vulkan/README.md)
+- Technical reference: [docs/README.md](README.md)
+- Scientific foundations: [foundationalScience.md](foundationalScience.md)

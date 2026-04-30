@@ -5,10 +5,10 @@ This module computes radiative heating/cooling tendencies used by the backend th
 ## Architecture
 
 ```
-src/core/radiation.cpp                      # Runtime coordinator + integration
-src/radiation/factory.cpp/.hpp              # Scheme factory
-src/radiation/base/radiative_transfer.*     # Transfer/math utilities
-src/radiation/schemes/simple_grey/*         # Implemented scheme
+src/core/orchestration/physics/radiation.cpp   # Runtime coordinator + integration
+src/radiation/factory.cpp/.hpp                 # Scheme factory
+src/radiation/base/radiative_transfer.*        # Transfer/math utilities
+src/radiation/schemes/simple_grey/*            # Implemented scheme
 ```
 
 `rrtmg` is recognized as a canonical planned scheme id for platform-fidelity config compatibility, but current runtime execution remains `simple_grey`.
@@ -27,7 +27,7 @@ dT/dt = -(1 / (rho * cp)) * dFnet/dz
 
 ## Runtime Integration Notes
 
-- Radiation is stepped in `src/core/radiation.cpp` on cadence `radiation.dt` (or `radiation.dt_radiation` alias).
+- Radiation is stepped in `src/core/orchestration/physics/radiation.cpp` on cadence `radiation.dt` (or `radiation.dt_radiation` alias).
 - Surface properties used by radiation come from shared surface config (`surface.albedo`, `surface.emissivity`, `surface.tsfc`/`surface.Tsfc`).
 - Radiation tendencies are converted from `dT/dt` to `dtheta/dt` before entering the main physics tendency sum.
 

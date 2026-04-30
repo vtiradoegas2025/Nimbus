@@ -334,11 +334,13 @@ static void apply_diffusion_kernel(const Field3D& src, Field3D& dst, double dt, 
     const float* src_data = src.data();
     float* dst_data = dst.data();
 
-    const double inv_dr2 = 1.0 / (dr * dr);
-    const double inv_dz2 = 1.0 / (dz * dz);
+    const auto& geo = global_grid_geometry;
+    const double inv_dr2 = geo.inv_dr2;
+    const double inv_dz2 = geo.inv_dz2;
+    const double inv_dtheta2 = geo.inv_dtheta * geo.inv_dtheta;
 
-    // Cache-blocked j-tiling: keeps the stencil neighborhood (3 i-planes × tile_j × NZ)
-    // in L1/L2 cache. At tile_j=32, NZ=128: working set ≈ 3×34×128×4 = 52 KB per tile.
+    // Cache-blocked j-tiling: keeps the stencil neighborhood (3 i-planes x tile_j x NZ)
+    // in L1/L2 cache. At tile_j=32, NZ=128: working set = 3x34x128x4 = 52 KB per tile.
     static constexpr int TILE_J = 32;
 
     #pragma omp parallel for collapse(2)
@@ -346,8 +348,8 @@ static void apply_diffusion_kernel(const Field3D& src, Field3D& dst, double dt, 
     {
         for (int jt = 0; jt < NTH; jt += TILE_J)
         {
-            const double r = i * dr + 1.0e-6;
-            const double inv_r2_dtheta2 = 1.0 / (dtheta * dtheta * r * r);
+            const double r_inv = geo.r_inv[i];
+            const double inv_r2_dtheta2 = r_inv * r_inv * inv_dtheta2;
             const int j_end = std::min(jt + TILE_J, NTH);
 
             for (int j = jt; j < j_end; ++j)
@@ -453,11 +455,12 @@ static void advect_scalar_1d_theta_kernel(const Field3D& src, Field3D& dst, doub
     const float* v_data = v.data();
     float* dst_data = dst.data();
 
-    #pragma omp parallel for collapse(2)
+    const auto& geo = global_grid_geometry;
 
+    #pragma omp parallel for collapse(2)
     for (int i = 1; i < NR - 1; ++i)
     {
-        const double r = i * dr + 1.0e-6;
+        const double r_inv = geo.r_inv[i];
 
         for (int j = 0; j < NTH; ++j)
         {
@@ -482,7 +485,7 @@ static void advect_scalar_1d_theta_kernel(const Field3D& src, Field3D& dst, doub
                     dq_dtheta = (static_cast<double>(src_data[jp]) - static_cast<double>(src_data[c])) / dtheta;
                 }
 
-                const double dqdt = -(v_val / r) * dq_dtheta;
+                const double dqdt = -v_val * r_inv * dq_dtheta;
                 dst_data[c] = static_cast<float>(static_cast<double>(src_data[c]) + dt * dqdt);
             }
         }

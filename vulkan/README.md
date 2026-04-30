@@ -1,35 +1,45 @@
-# vulkan
+# Vulkan Viewer
 
-Experimental Vulkan rendering scaffold for Nimbus.
-
-Legacy OpenGL/Python stacks are no longer part of the active Vulkan build path in this workspace.
+Native GPU-accelerated 3D visualization for Nimbus simulations. Volume ray marching through atmospheric fields with real-time interactive camera controls.
 
 ## Current Scope
 
-- Creates a Vulkan instance
-- Optional validation-layer setup (`VK_LAYER_KHRONOS_validation`)
-- Enumerates/scores physical devices
-- Selects target device (automatic or `--device-index`)
-- Creates logical device + graphics queue
-- Uses pluggable render backend interface (`clear`, `volume`)
-- `volume` backend now runs a Vulkan fullscreen raymarch shader path
-- Supports `--dry-run` for CI/smoke testing
+- Vulkan instance with optional validation layers (`VK_LAYER_KHRONOS_validation`)
+- Automatic GPU selection with scoring (or manual `--device-index`)
+- Pluggable render backends (`clear`, `volume`)
+- Volume ray marching with per-field 3D textures (`R32_SFLOAT`)
+- Live shared-memory ingest from running simulations
+- NPY field ingestion from simulation exports
+- `--dry-run` mode for CI/smoke testing
 
 ## Build
 
 ### Dependencies
 
-- Vulkan headers and loader must be installed.
-- macOS (Homebrew): `brew install vulkan-headers vulkan-loader molten-vk`
-- Windowed Vulkan test path prefers GLFW when available.
-- Install GLFW for the most reliable window/surface path:
-  - macOS (Homebrew): `brew install glfw`
-- Without GLFW, a SFML fallback path is used.
-- SPIR-V shader compilation tool is required:
-  - macOS (Homebrew): `brew install glslang`
+| Dependency | Required | Install |
+|-----------|----------|---------|
+| Vulkan headers + loader | Yes | macOS: `brew install vulkan-headers vulkan-loader molten-vk` | 
+| | | Ubuntu/Debian: `sudo apt install libvulkan-dev` |
+| | | Fedora: `sudo dnf install vulkan-headers vulkan-loader-devel` |
+| | | Arch: `sudo pacman -S vulkan-headers vulkan-icd-loader` |
+| glslangValidator | Yes | macOS: `brew install glslang` |
+| | | Ubuntu/Debian: `sudo apt install glslang-tools` |
+| | | Fedora: `sudo dnf install glslang` |
+| | | Arch: `sudo pacman -S glslang` |
+| GLFW | Recommended | macOS: `brew install glfw` |
+| | | Ubuntu/Debian: `sudo apt install libglfw3-dev` |
+| | | Fedora: `sudo dnf install glfw-devel` |
+| | | Arch: `sudo pacman -S glfw-x11` |
 
-Optional validation layers:
-- If `--validation` reports missing layer, install: `brew install vulkan-validationlayers`
+Without GLFW, a SFML fallback path is used.
+
+Optional validation layers (for debugging):
+- macOS: `brew install vulkan-validationlayers`
+- Ubuntu/Debian: `sudo apt install vulkan-validationlayers`
+
+**LunarG Vulkan SDK:** If using the LunarG SDK instead of system packages, set `VULKAN_SDK` before building. See [BUILDING.md](../BUILDING.md) for details.
+
+**Automated setup:** Run `./scripts/setup.sh` from the repository root to install all dependencies for your platform automatically.
 
 ### Commands
 
@@ -109,30 +119,33 @@ bin/vulkan_viewer
   --camera-mode freefly
 ```
 
-Notes:
-- If validation layers are missing at runtime, the app now falls back to non-validation mode and continues.
-- If window test fails on SFML fallback, install GLFW and rebuild with `make vulkan`.
-- `--window-test` now runs until you close the window by default (`--window-frames 0`).
-- `volume` backend reuses the OpenGL export loader and streams frames into per-field Vulkan 3D textures (`R32_SFLOAT`).
-- `--field` renders a single normalized field.
-- `--fields` enables multi-field rendering.
-- Use `--volume-mode supercell|composite|isolated|cycle` to switch whether fields render together or independently.
-- `--texture-mode natural` adds stable world-space micro-detail to reduce synthetic smoothness.
-- `--camera-mode orbit` keeps a physically coherent turntable view around the storm core.
-- `--camera-mode freefly` enables constrained interactive motion with collision-like bounds:
+### Notes
+
+- If validation layers are missing at runtime, the viewer falls back to non-validation mode automatically.
+- If the SFML window path fails, install GLFW and rebuild with `make vulkan`.
+- `--window-test` runs until you close the window by default (`--window-frames 0`).
+- `--field` renders a single normalized field; `--fields` enables multi-field rendering.
+- `--volume-mode supercell|composite|isolated|cycle` controls whether fields render together or independently.
+- `--texture-mode natural` adds world-space micro-detail to reduce synthetic smoothness.
+- `--camera-mode orbit` provides a turntable view around the storm core.
+- `--camera-mode freefly` enables constrained interactive motion:
   `WASD` move, `Q/E` descend/ascend, arrows or right-mouse look, `Shift` boost, `R` reset pose.
-- Missing fields are skipped with a warning; known aliases are attempted automatically (e.g., `qi` can resolve to `qh` datasets).
+- Missing fields are skipped with a warning; known aliases are attempted automatically (e.g., `qi` resolves to `qh`).
 - `--style cinematic-bw` enables a desaturated high-contrast storm palette.
-- Playback is time-based through `--playback-fps`.
-- Runtime shading controls are available via:
-  - `--ray-steps`
-  - `--ray-threshold`
-  - `--ray-opacity`
-  - `--ray-brightness`
-  - `--ray-ambient`
-  - `--ray-anisotropy`
-  - `--ray-max-distance`
-  - `--sun-dir`
+
+### Ray Marching Controls
+
+| Flag | Purpose |
+|------|---------|
+| `--ray-steps` | Number of ray march steps |
+| `--ray-threshold` | Density threshold for visibility |
+| `--ray-opacity` | Global opacity multiplier |
+| `--ray-brightness` | Brightness multiplier |
+| `--ray-ambient` | Ambient light level |
+| `--ray-anisotropy` | Phase function anisotropy |
+| `--ray-max-distance` | Maximum ray travel distance |
+| `--sun-dir` | Sun direction vector (x,y,z) |
+| `--playback-fps` | Time-based frame playback rate |
 
 ## Mode Test Scripts
 
@@ -146,9 +159,14 @@ From repository root:
 ./vulkan/scripts/test_freefly_controls.sh [input_dir]
 ```
 
-## Next Incremental Milestones
+## GPU Compute
 
-1. Interactive camera and live controls (keyboard/mouse + UI overlay)
-2. Physical transfer-function tuning per field (hail/rain/ice separation)
-3. Temporal smoothing/interpolation between frames for smoother playback
-4. Backend switch flag (`--backend opengl|vulkan`) in native viewer
+The Vulkan backend also provides GPU-accelerated compute for the simulation engine (advection, acoustic substeps, microphysics, diffusion). This is separate from the viewer and configured via the simulation YAML:
+
+```yaml
+numerics:
+  compute:
+    backend: vulkan    # or "cpu"
+```
+
+Compute shaders live in `shaders/compute/` and are pre-compiled as SPIR-V (`.spv`) in the repository. Running `make` from the project root automatically recompiles any shaders whose source has changed (requires `glslangValidator`).

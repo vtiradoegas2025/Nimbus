@@ -97,20 +97,19 @@ SHARPY is a Python package for analyzing atmospheric sounding data. This module 
 ## Implementation Status
 
 ### Current Implementation
-- ✅ Data structures and base classes
-- ✅ Factory pattern and API
-- ✅ Quality control and validation
-- ✅ Linear interpolation
-- ✅ Monotone spline interpolation (PCHIP-style)
-- ✅ Log-linear pressure interpolation
-- ✅ Native in-process NetCDF classic reader path (CDF1/CDF2), including record-variable layouts
-- ✅ Native in-process NetCDF C API reader path for NetCDF4/HDF-backed layouts
-- ✅ Native in-process HDF5 (HL API) reader path for SHARPY-style HDF5 datasets
-- ✅ Packaging/runtime library validation report in backend regression (`tests/test_backend_physics.sh`)
-- ✅ Integration examples and documentation
+- Data structures and base classes
+- Factory pattern and API
+- Quality control and validation
+- Linear interpolation
+- Monotone spline interpolation (PCHIP-style)
+- Log-linear pressure interpolation
+- Native in-process NetCDF classic reader path (CDF1/CDF2), including record-variable layouts
+- Native in-process NetCDF C API reader path for NetCDF4/HDF-backed layouts
+- Native in-process HDF5 (HL API) reader path for SHARPY-style HDF5 datasets
+- Packaging/runtime library validation report in backend regression
 
-### Still Incomplete / Deferred
-- 🔄 Broader real-case atmospheric validation suite across multiple observed events
+### Deferred
+- Broader real-case atmospheric validation suite across multiple observed events
 
 ## Dependencies
 

@@ -21,6 +21,7 @@
 
 TornadoScheme::TornadoScheme()
     : NR_(NR), NTH_(NTH), NZ_(NZ), dr_(dr), dtheta_(dtheta), dz_(dz),
+      geo_(global_grid_geometry),
       deriv_(std::make_unique<CylindricalDerivatives>(global_grid_metrics, dtheta, NTH, NZ))
 {
 }
@@ -98,7 +99,7 @@ void TornadoScheme::compute_momentum_tendencies(const Field3D& u,
     {
         for (int k = 1; k < NZ_ - 1; ++k)
         {
-            double r = i * dr_ + dynamics_constants::eps;
+            const double r_inv = geo_.r_inv[i];
             double ur = u[i][j][k];
             double uth = v[i][j][k];
             double uz = w[i][j][k];
@@ -122,7 +123,7 @@ void TornadoScheme::compute_momentum_tendencies(const Field3D& u,
             double dp_dz = deriv_->dk(p, i, j, k);
 
             double advective_r = -ur * dur_dr - uz * dur_dz;
-            double centrifugal = uth * uth / r;
+            double centrifugal = uth * uth * r_inv;
             double pressure_grad_r = -dp_dr / rho_val;
 
             double du_r = advective_r + centrifugal + pressure_grad_r;
@@ -138,7 +139,7 @@ void TornadoScheme::compute_momentum_tendencies(const Field3D& u,
             }
 
             double advective_th = -ur * duth_dr - uz * duth_dz;
-            double coriolis_th = -ur * uth / r;
+            double coriolis_th = -ur * uth * r_inv;
 
             double fv = 0.0;
 
@@ -176,6 +177,15 @@ void TornadoScheme::compute_momentum_tendencies(const Field3D& u,
             // explanation and docs/Journey.md Phase 2 "Bug 3: Double-counted
             // buoyancy". Do NOT reintroduce an explicit g·(θ-θ₀)/θ₀ term here.
             //
+            // Virtual temperature buoyancy: moist air is lighter (Rv/Rd - 1 = 0.608).
+            double moisture_buoyancy = 0.0;
+            if (!qv.empty() && !qv0_base.empty())
+            {
+                const double qv_val = static_cast<double>(qv[i][j][k]);
+                const double qv0_k = qv0_base[k];
+                moisture_buoyancy = dynamics_constants::g * 0.608 * (qv_val - qv0_k);
+            }
+
             // Precipitation loading (Klemp & Wilhelmson 1978): hydrometeor
             // mass acts as ballast in the vertical momentum equation.
             double loading = 0.0;
@@ -186,7 +196,7 @@ void TornadoScheme::compute_momentum_tendencies(const Field3D& u,
                      static_cast<double>(qi[i][j][k]) + static_cast<double>(qs[i][j][k]) +
                      static_cast<double>(qg[i][j][k]) + static_cast<double>(qh[i][j][k]));
             }
-            double du_z = advective_z + pressure_grad_z - dynamics_constants::g - loading;
+            double du_z = advective_z + pressure_grad_z - dynamics_constants::g + moisture_buoyancy - loading;
             if (!std::isfinite(du_z))
             {
                 du_z = 0.0;
@@ -198,7 +208,7 @@ void TornadoScheme::compute_momentum_tendencies(const Field3D& u,
                 dw_dt[i][jj][k] = dw_dt[i][j][k];
             }
 
-            double drho_dt_val = -rho_val * (dur_dr + ur / r + duz_dz);
+            double drho_dt_val = -rho_val * (dur_dr + ur * r_inv + duz_dz);
             if (!std::isfinite(drho_dt_val))
             {
                 drho_dt_val = 0.0;
@@ -210,7 +220,7 @@ void TornadoScheme::compute_momentum_tendencies(const Field3D& u,
                 drho_dt[i][jj][k] = drho_dt_val;
             }
 
-            double cyclostrophic_dp_dr = rho_val * uth * uth / r;
+            double cyclostrophic_dp_dr = rho_val * uth * uth * r_inv;
             double dp_t = -ur * dp_dr - uz * dp_dz + cyclostrophic_dp_dr;
             if (!std::isfinite(dp_t))
             {
@@ -240,7 +250,7 @@ void TornadoScheme::compute_angular_momentum(
     {
         for (int j = 0; j < NTH_; ++j)
         {
-            const double r = i * dr_ + dynamics_constants::eps;
+            const double r = geo_.r[i];
             for (int k = 0; k < NZ_; ++k)
             {
                 double v_val = v[i][j][k];
@@ -285,14 +295,14 @@ void TornadoScheme::compute_vorticity_diagnostics(
     {
         for (int k = 1; k < NZ_ - 1; ++k)
         {
-            double r = i * dr_ + dynamics_constants::eps;
+            const double r_inv = geo_.r_inv[i];
             double dur_dz = deriv_->dk(u, i, j, k);
             double duz_dr = deriv_->di(w, i, j, k);
 
             vorticity_r[i][j][k] = 0.0;
             vorticity_theta[i][j][k] = dur_dz - duz_dr;
             const double duth_dr = deriv_->di(v, i, j, k);
-            vorticity_z[i][j][k] = duth_dr + (v[i][j][k] / r);
+            vorticity_z[i][j][k] = duth_dr + v[i][j][k] * r_inv;
 
             for (int jj = 1; jj < NTH_; ++jj) 
             {
@@ -334,6 +344,6 @@ double TornadoScheme::compute_radial_mass_flux(const Field3D& u,
                                                int i, int k) const 
 {
     int j = 0;
-    double r = i * dr_ + dynamics_constants::eps;
+    const double r = geo_.r[i];
     return rho[i][j][k] * r * u[i][j][k];
 }

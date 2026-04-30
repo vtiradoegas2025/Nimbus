@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/coordinate_system.hpp"
+
 #include <string>
 #include <vector>
 
@@ -61,6 +63,15 @@ public:
      * @brief Releases backend resources.
      */
     virtual void shutdown() = 0;
+
+    /**
+     * @brief Sets the coordinate system for dispatch routing.
+     *
+     * Called once after initialization. Backends that have coordinate-system-
+     * specific pipelines (e.g., Vulkan with cylindrical vs Cartesian acoustic
+     * shaders) use this to select the correct shader variant at dispatch time.
+     */
+    virtual void set_coordinate_system(CoordinateSystem /*cs*/) {}
 
     /**
      * @brief Fills GPU-specific fields in HardwareInfo after initialization.
@@ -567,6 +578,81 @@ public:
         return false;
     }
 
+    // ── Thompson microphysics dispatch ─────────────────────────────────
+
+    virtual bool supports_thompson_pointwise_dispatch() const { return false; }
+
+    /**
+     * @brief Execute fused Thompson point-wise microphysics on device.
+     *
+     * Includes saturation adjustment, warm rain, ice processes (freezing,
+     * deposition, riming, ice-to-snow, sublimation), and melting.
+     *
+     * @return True if dispatch succeeded.
+     */
+    virtual bool dispatch_thompson_pointwise(
+        const float* temperature_data, const float* p_data,
+        const float* qv_data, const float* qc_data, const float* qr_data,
+        const float* qi_data, const float* qs_data,
+        const float* qg_data, const float* qh_data,
+        float* dtheta_dt_data, float* dqv_dt_data,
+        float* dqc_dt_data, float* dqr_dt_data,
+        float* dqi_dt_data, float* dqs_dt_data,
+        float* dqg_dt_data, float* dqh_dt_data,
+        int nr, int nth, int nz,
+        float qc0, float c_auto, float c_evap,
+        float c_dep, float c_subl, float c_melt,
+        float Lv_cp, float Lf_cp, float Ls_cp, float T0,
+        float ccn_conc, float in_conc)
+    {
+        (void)temperature_data; (void)p_data;
+        (void)qv_data; (void)qc_data; (void)qr_data;
+        (void)qi_data; (void)qs_data;
+        (void)qg_data; (void)qh_data;
+        (void)dtheta_dt_data; (void)dqv_dt_data;
+        (void)dqc_dt_data; (void)dqr_dt_data;
+        (void)dqi_dt_data; (void)dqs_dt_data;
+        (void)dqg_dt_data; (void)dqh_dt_data;
+        (void)nr; (void)nth; (void)nz;
+        (void)qc0; (void)c_auto; (void)c_evap;
+        (void)c_dep; (void)c_subl; (void)c_melt;
+        (void)Lv_cp; (void)Lf_cp; (void)Ls_cp; (void)T0;
+        (void)ccn_conc; (void)in_conc;
+        return false;
+    }
+
+    virtual bool supports_thompson_sedimentation_dispatch() const { return false; }
+
+    /**
+     * @brief Execute Thompson sedimentation on device (4 species: qr, qs, qg, qh).
+     *
+     * Adds sedimentation contributions to existing tendency values in-place.
+     *
+     * @return True if dispatch succeeded.
+     */
+    virtual bool dispatch_thompson_sedimentation(
+        const float* qr_data, const float* qs_data,
+        const float* qg_data, const float* qh_data,
+        float* dqr_dt_data, float* dqs_dt_data,
+        float* dqg_dt_data, float* dqh_dt_data,
+        int nr, int nth, int nz,
+        float dz_val,
+        float a_rain, float b_rain, float Vt_max_rain,
+        float a_snow, float b_snow, float Vt_max_snow,
+        float a_grau, float b_grau, float Vt_max_grau,
+        float a_hail, float b_hail, float Vt_max_hail)
+    {
+        (void)qr_data; (void)qs_data; (void)qg_data; (void)qh_data;
+        (void)dqr_dt_data; (void)dqs_dt_data;
+        (void)dqg_dt_data; (void)dqh_dt_data;
+        (void)nr; (void)nth; (void)nz; (void)dz_val;
+        (void)a_rain; (void)b_rain; (void)Vt_max_rain;
+        (void)a_snow; (void)b_snow; (void)Vt_max_snow;
+        (void)a_grau; (void)b_grau; (void)Vt_max_grau;
+        (void)a_hail; (void)b_hail; (void)Vt_max_hail;
+        return false;
+    }
+
     // ── Acoustic substep dispatch ─────────────────────────────────────
 
     virtual bool supports_acoustic_pressure_dispatch() const { return false; }
@@ -622,6 +708,78 @@ public:
         (void)nr; (void)nth; (void)nz;
         (void)dr_val; (void)dtheta_val; (void)dz_val;
         (void)dt_small;
+        (void)wind_clamp_h; (void)wind_clamp_v;
+        return false;
+    }
+
+    // ── Fused acoustic substep dispatch ──────────────────────────────
+
+    virtual bool supports_acoustic_substep_fused_dispatch() const { return false; }
+
+    /**
+     * @brief Fused acoustic substep: pressure + momentum in a single GPU submission.
+     *
+     * Performs both the divergence -> rho/p update (forward phase) and the
+     * pressure gradient -> u/v/w update (backward phase) using one command
+     * buffer with a compute-to-compute barrier between the two kernels.
+     * All 5 fields are updated in-place.
+     *
+     * Eliminates one full H2D/D2H round-trip per acoustic substep compared
+     * to calling dispatch_acoustic_pressure + dispatch_acoustic_momentum
+     * separately.
+     *
+     * @return True if dispatch succeeded.
+     */
+    virtual bool dispatch_acoustic_substep_fused(
+        float* u, float* v, float* w,
+        float* rho, float* p,
+        int nr, int nth, int nz,
+        float dr, float dtheta, float dz,
+        float gamma_val, float dt_small,
+        float rho_floor, float p_floor,
+        float wind_clamp_h, float wind_clamp_v)
+    {
+        (void)u; (void)v; (void)w; (void)rho; (void)p;
+        (void)nr; (void)nth; (void)nz;
+        (void)dr; (void)dtheta; (void)dz;
+        (void)gamma_val; (void)dt_small;
+        (void)rho_floor; (void)p_floor;
+        (void)wind_clamp_h; (void)wind_clamp_v;
+        return false;
+    }
+
+    // ── Batched acoustic substeps (all N substeps in one submission) ──
+
+    virtual bool supports_acoustic_substeps_batched_dispatch() const { return false; }
+
+    /**
+     * @brief Batched acoustic substeps: all N substeps in one GPU submission.
+     *
+     * Records N iterations of (pressure dispatch -> barrier -> momentum dispatch
+     * -> barrier) in a single command buffer. Fields stay GPU-resident across
+     * all substeps. Single H2D upload at start, single D2H download at end.
+     *
+     * The GPU shaders handle boundary conditions internally (rigid-lid w=0,
+     * antisymmetric u, zero-gradient v/rho, hydrostatic p extrapolation at
+     * z-faces; antisymmetric u, symmetric v/w/rho/p at r-faces).
+     *
+     * @param n_substeps Number of acoustic substeps to execute.
+     * @return True if dispatch succeeded.
+     */
+    virtual bool dispatch_acoustic_substeps_batched(
+        float* u, float* v, float* w,
+        float* rho, float* p,
+        int nr, int nth, int nz,
+        float dr, float dtheta, float dz,
+        float gamma_val, float dt_small, int n_substeps,
+        float rho_floor, float p_floor,
+        float wind_clamp_h, float wind_clamp_v)
+    {
+        (void)u; (void)v; (void)w; (void)rho; (void)p;
+        (void)nr; (void)nth; (void)nz;
+        (void)dr; (void)dtheta; (void)dz;
+        (void)gamma_val; (void)dt_small; (void)n_substeps;
+        (void)rho_floor; (void)p_floor;
         (void)wind_clamp_h; (void)wind_clamp_v;
         return false;
     }

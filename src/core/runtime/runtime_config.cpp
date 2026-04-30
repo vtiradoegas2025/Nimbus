@@ -16,6 +16,7 @@
 #include <cctype>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <limits>
 #include <sstream>
@@ -671,6 +672,8 @@ std::string global_dynamics_scheme_name = "";
 
 CoordinateSystem global_coordinate_system = CoordinateSystem::Cylindrical;
 
+StaggerType global_stagger_type = StaggerType::Collocated;
+
 LogProfile global_log_profile = LogProfile::normal;
 bool global_perf_timing_enabled = false;
 int global_perf_report_every_steps = 0;
@@ -705,6 +708,22 @@ void load_config(const std::string& config_path, int& duration_s, int& write_eve
             tmv::log_warn("Invalid coordinate_system '", raw,
                          "'. Valid values: cylindrical, cartesian. Falling back to '",
                          coordinate_system_name(global_coordinate_system), "'.");
+        }
+    }
+
+    if (config.count("grid.staggering"))
+    {
+        const std::string& raw = config["grid.staggering"];
+        StaggerType parsed = global_stagger_type;
+        if (parse_stagger_type(raw, parsed))
+        {
+            global_stagger_type = parsed;
+        }
+        else
+        {
+            tmv::log_warn("Invalid grid.staggering '", raw,
+                         "'. Valid values: collocated, c_grid. Falling back to '",
+                         stagger_type_name(global_stagger_type), "'.");
         }
     }
 
@@ -2508,6 +2527,28 @@ void load_config(const std::string& config_path, int& duration_s, int& write_eve
         std::cout << "\nGrid parameters:" << std::endl;
         std::cout << "  NR=" << NR << ", NTH=" << NTH << ", NZ=" << NZ << std::endl;
         std::cout << "  dr=" << dr << "m, dz=" << dz << "m, dt=" << dt << "s" << std::endl;
+        {
+            const uint64_t grid_bytes = estimate_grid_memory_bytes(NR, NTH, NZ);
+            const uint64_t ram_bytes = detect_hardware().total_ram_bytes;
+            const double grid_gb = static_cast<double>(grid_bytes) / (uint64_t(1) << 30);
+            const auto prev_flags = std::cout.flags();
+            const auto prev_prec = std::cout.precision();
+            if (ram_bytes > 0)
+            {
+                const double ram_gb = static_cast<double>(ram_bytes) / (uint64_t(1) << 30);
+                const double pct = 100.0 * static_cast<double>(grid_bytes) / ram_bytes;
+                std::cout << "  Memory: ~" << std::fixed << std::setprecision(1)
+                          << grid_gb << " GB / " << ram_gb << " GB"
+                          << " (" << pct << "%)" << std::endl;
+            }
+            else
+            {
+                std::cout << "  Memory: ~" << std::fixed << std::setprecision(1)
+                          << grid_gb << " GB" << std::endl;
+            }
+            std::cout.flags(prev_flags);
+            std::cout.precision(prev_prec);
+        }
         std::cout << "\nEnvironment:" << std::endl;
         std::cout << "  CAPE target: " << global_cape_target << " J/kg" << std::endl;
         std::cout << "  Surface theta: " << global_sfc_theta_k << " K" << std::endl;

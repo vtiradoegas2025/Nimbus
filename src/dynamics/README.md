@@ -4,7 +4,7 @@ This module provides the dynamics-scheme layer used by the core runtime.
 
 ## Purpose
 
-`src/dynamics/` supplies scheme implementations for momentum tendencies and diagnostic fields. The runtime coordinator in `src/core/dynamics.cpp` owns the timestep coupling, while this module provides scheme-specific calculations.
+`src/dynamics/` supplies scheme implementations for momentum tendencies and diagnostic fields. The runtime coordinator in `src/core/orchestration/dynamics/dynamics.cpp` owns the timestep coupling, while this module provides scheme-specific calculations.
 
 ## Layout
 
@@ -16,8 +16,8 @@ src/dynamics/
     ├── supercell/
     └── tornado/
 
-src/core/dynamics.cpp        # runtime coordinator and coupling
-include/dynamics_base.hpp    # scheme interface
+src/core/orchestration/dynamics/dynamics.cpp   # runtime coordinator and coupling
+include/dynamics/dynamics_base.hpp             # scheme interface
 ```
 
 ## Supported Schemes
@@ -25,10 +25,8 @@ include/dynamics_base.hpp    # scheme interface
 - `tornado` — axisymmetric cylindrical; default when `dynamics.scheme` is unset.
 - `supercell` — non-axisymmetric cylindrical.
 - `cartesian` — Cartesian (x, y, z) backend. Required for non-axisymmetric
-  hodographs (e.g. WK2002 supercell). Phase A of the Coordinate Backend Plan
-  (docs/CoordinateBackend_Plan.md). CPU-only until Phase A.7 adds GPU shaders.
-  The field globals `u`, `v_theta`, `w` are reused to carry `u_x`, `u_y`, `u_z`
-  while this scheme is active — Phase B handles the global rename.
+  hodographs (e.g. WK2002 supercell). Supports both CPU and GPU compute paths
+  with dedicated Cartesian acoustic shaders.
 
 Alias handling (factory canonicalization):
 - `axisymmetric` -> `tornado`
@@ -42,9 +40,9 @@ If `dynamics.scheme` is not set, runtime defaults to `tornado`.
 Main coupling points:
 - `initialize_dynamics(...)` initializes the selected scheme.
 - `step_dynamics(simulation_time)` applies coordinated dynamics updates.
-- `src/core/headless_runtime.cpp` calls `step_dynamics(...)` each model step.
+- `src/core/runtime/headless_runtime.cpp` calls `step_dynamics(...)` each model step.
 
-`src/core/dynamics.cpp` also couples in:
+`src/core/orchestration/dynamics/dynamics.cpp` also couples in:
 - microphysics tendencies
 - turbulence SGS tendencies
 - boundary-layer tendencies
@@ -83,4 +81,4 @@ These cover strict exported-field checks and integration behavior under multiple
 
 ## Notes
 
-This module is focused on scheme-level dynamics logic. Numerical advection/diffusion/time-stepping orchestration is documented in `src/numerics/README.md` and coordinated through `src/core/numerics.cpp` plus `src/core/dynamics.cpp`.
+This module is focused on scheme-level dynamics logic. Numerical advection/diffusion/time-stepping orchestration is documented in `src/numerics/README.md` and coordinated through `src/core/orchestration/dynamics/numerics.cpp` and `src/core/orchestration/dynamics/dynamics.cpp`.

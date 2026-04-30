@@ -73,3 +73,38 @@ bool parse_coordinate_system(const std::string& value, CoordinateSystem& system_
 
     return false;
 }
+
+const char* stagger_type_name(StaggerType stagger)
+{
+    switch (stagger)
+    {
+        case StaggerType::Collocated:
+            return "collocated";
+        case StaggerType::CGrid:
+            return "c_grid";
+    }
+    return "collocated";
+}
+
+bool parse_stagger_type(const std::string& value, StaggerType& stagger_out)
+{
+    if (value.empty())
+    {
+        return false;
+    }
+
+    const std::string normalized = to_lower_local(value);
+
+    if (normalized == "collocated" || normalized == "a_grid")
+    {
+        stagger_out = StaggerType::Collocated;
+        return true;
+    }
+    if (normalized == "c_grid" || normalized == "cgrid")
+    {
+        stagger_out = StaggerType::CGrid;
+        return true;
+    }
+
+    return false;
+}

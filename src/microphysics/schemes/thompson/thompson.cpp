@@ -9,6 +9,7 @@
 
 #include "thompson.hpp"
 #include "core/simulation.hpp"
+#include "compute/compute_kernel_template.hpp"
 #include <algorithm>
 #include <cmath>
 #ifdef _OPENMP
@@ -68,15 +69,61 @@ void ThompsonScheme::compute_tendencies(
                          dqi_dt, dqs_dt, dqg_dt, dqh_dt);
     dNi_dt_.resize(NR, NTH, NZ, 0.0f);
 
-    Field3D qv_temp = qv;
-    Field3D qc_temp = qc;
-    saturation_adjustment(temperature, p, qv_temp, qc_temp);
+    // Try GPU dispatch for fused point-wise processes
+    const float Lv_cp = static_cast<float>(microphysics_constants::L_v / microphysics_constants::cp);
+    const float Lf_cp = static_cast<float>(microphysics_constants::L_f / microphysics_constants::cp);
+    const float Ls_cp = static_cast<float>(microphysics_constants::L_s / microphysics_constants::cp);
 
-    compute_warm_rain_processes(temperature, p, qv_temp, qc_temp, qr, dqc_dt, dqr_dt, dqv_dt, dtheta_dt);
-    compute_ice_processes(temperature, p, qv_temp, qc_temp, qi, qs, qg, qh,
-                         dqc_dt, dqi_dt, dqs_dt, dqg_dt, dqh_dt, dqv_dt, dtheta_dt, dNi_dt_);
-    compute_melting_processes(temperature, qs, qg, qh, dqs_dt, dqg_dt, dqh_dt, dqr_dt, dtheta_dt);
-    compute_sedimentation(qr, qs, qg, qh, dqr_dt, dqs_dt, dqg_dt, dqh_dt);
+    bool gpu_pointwise_ok = dispatch_thompson_pointwise_backend(
+        temperature.data(), p.data(),
+        qv.data(), qc.data(), qr.data(), qi.data(), qs.data(),
+        qg.data(), qh.data(),
+        dtheta_dt.data(), dqv_dt.data(),
+        dqc_dt.data(), dqr_dt.data(),
+        dqi_dt.data(), dqs_dt.data(),
+        dqg_dt.data(), dqh_dt.data(),
+        NR, NTH, NZ,
+        static_cast<float>(qc0_), static_cast<float>(c_auto_),
+        1.0e-3f,  // c_evap
+        1.0e-3f,  // c_dep
+        1.0e-3f,  // c_subl
+        1.0e-3f,  // c_melt
+        Lv_cp, Lf_cp, Ls_cp,
+        static_cast<float>(microphysics_constants::T0),
+        static_cast<float>(ccn_conc_), static_cast<float>(in_conc_));
+
+    if (gpu_pointwise_ok)
+    {
+        // Try GPU sedimentation (4 species)
+        const double dz_local = std::max(::dz, 1.0e-6);
+        bool gpu_sed_ok = dispatch_thompson_sedimentation_backend(
+            qr.data(), qs.data(), qg.data(), qh.data(),
+            dqr_dt.data(), dqs_dt.data(), dqg_dt.data(), dqh_dt.data(),
+            NR, NTH, NZ,
+            static_cast<float>(dz_local),
+            static_cast<float>(a_r_), static_cast<float>(b_r_), 20.0f,
+            static_cast<float>(a_s_), static_cast<float>(b_s_), 5.0f,
+            static_cast<float>(a_g_), static_cast<float>(b_g_), 30.0f,
+            static_cast<float>(a_h_), static_cast<float>(b_h_), 40.0f);
+
+        if (!gpu_sed_ok)
+        {
+            compute_sedimentation(qr, qs, qg, qh, dqr_dt, dqs_dt, dqg_dt, dqh_dt);
+        }
+    }
+    else
+    {
+        // CPU fallback
+        Field3D qv_temp = qv;
+        Field3D qc_temp = qc;
+        saturation_adjustment(temperature, p, qv_temp, qc_temp);
+
+        compute_warm_rain_processes(temperature, p, qv_temp, qc_temp, qr, dqc_dt, dqr_dt, dqv_dt, dtheta_dt);
+        compute_ice_processes(temperature, p, qv_temp, qc_temp, qi, qs, qg, qh,
+                             dqc_dt, dqi_dt, dqs_dt, dqg_dt, dqh_dt, dqv_dt, dtheta_dt, dNi_dt_);
+        compute_melting_processes(temperature, qs, qg, qh, dqs_dt, dqg_dt, dqh_dt, dqr_dt, dtheta_dt);
+        compute_sedimentation(qr, qs, qg, qh, dqr_dt, dqs_dt, dqg_dt, dqh_dt);
+    }
 
     #pragma omp parallel for collapse(2)
     for (int i = 0; i < NR; ++i) 

@@ -101,15 +101,35 @@ void SplitExplicitScheme::step_split_acoustic(
     cb.apply_slow_tendencies(dt_large);
 
     // Step 3: Acoustic substep loop (forward-backward).
-    for (int n = 0; n < N; ++n)
+    // Try batched GPU path first (all N substeps in one submission).
+    const bool batched = cb.apply_fast_batched &&
+                         cb.apply_fast_batched(dt_small, N);
+
+    if (!batched)
     {
-        // 3a. FORWARD: compute divergence → update p, ρ.
-        cb.apply_fast_pressure(dt_small);
+        for (int n = 0; n < N; ++n)
+        {
+            // Try fused GPU path (pressure + momentum in one command buffer).
+            const bool fused = cb.apply_fast_fused && cb.apply_fast_fused(dt_small);
 
-        // 3b. BACKWARD: compute pressure gradient using NEW p, ρ → update u, v, w.
-        cb.apply_fast_momentum(dt_small);
+            if (!fused)
+            {
+                // 3a. FORWARD: compute divergence -> update p, rho.
+                cb.apply_fast_pressure(dt_small);
 
-        // 3c. Lightweight BCs on acoustic fields.
+                // 3b. BACKWARD: compute pressure gradient using NEW p, rho -> update u, v, w.
+                cb.apply_fast_momentum(dt_small);
+            }
+
+            // 3c. Lightweight BCs on acoustic fields.
+            cb.acoustic_bcs();
+        }
+    }
+
+    // Final BCs after batched path (GPU handles internal BCs but CPU
+    // applies once at the end for full consistency).
+    if (batched)
+    {
         cb.acoustic_bcs();
     }
 }

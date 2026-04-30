@@ -9,22 +9,25 @@ This document outlines the peer-reviewed literature foundations underlying the N
 ### Current Implementation Status
 
 #### Complete & Functional
-- **Core Dynamics**: Non-hydrostatic compressible equations with RK3 time integration
+- **Core Dynamics**: Non-hydrostatic compressible equations in cylindrical and Cartesian coordinates
+- **Time Integration**: Split-explicit (Klemp-Wilhelmson 1978), RK3, RK4 with CFL-adaptive stepping
 - **Advection Schemes**: TVD and WENO5 implementations for scalar transport
 - **Diffusion**: Explicit and implicit Laplacian operators
 - **Microphysics**: Kessler, Thompson, Lin, and Milbrandt schemes
-- **Radiation**: Simple grey and RRTMG implementations
+- **Radiation**: Simple grey (broadband two-stream longwave, Beer-Lambert shortwave)
 - **Boundary Layer**: YSU, MYNN, and slab PBL schemes with surface fluxes
 - **Turbulence**: Smagorinsky and TKE closures
-- **3D Visualization**: Complete OpenGL volume ray marching pipeline
+- **GPU Compute**: Vulkan compute backend with 15 shaders (advection, acoustic substeps, microphysics, diffusion)
+- **3D Visualization**: Vulkan volume ray marching with live shared-memory ingest
 
-#### Intentionally Simplified (Documented Gaps)
-- **Chaos/Stochastic Module**: Initial-condition, boundary-layer, and full stochastic schemes are integrated; additional calibration/validation is still needed
-- **Terrain Module**: Bell and Schär mountain implementations are integrated in runtime; broader physics validation against reference cases is still needed
+#### Known Limitations
+- **Collocated Grid**: Arakawa A-grid; C-grid staggering planned for improved pressure-velocity coupling
+- **Radiation fidelity**: Runtime is simple_grey only; RRTMG recognized as a planned target
 
-#### **Grid Resolution**
-- **Production**: 256×128×128 grid (1km × 1km × 100m) — appropriate for convection-permitting supercell simulations
-- **Test Case**: 64×64×32 grid (2km × 2km × 500m) — for rapid development/testing
+#### Grid Resolution
+- **Production**: 800x800x200 grid (250m x 250m x 75m) -- convection-permitting supercell simulations
+- **Research**: 256x128x128 grid (1km x 1km x 100m) -- moderate-resolution runs
+- **Student**: 64x64x32 grid (2km x 2km x 500m) -- rapid development and testing
 
 ## Scientific Attribution by Component
 
@@ -33,6 +36,10 @@ This document outlines the peer-reviewed literature foundations underlying the N
 The compressible non-hydrostatic equations follow the formulation established in:
 - **Klemp, J. B., and R. B. Wilhelmson (1978)**: *The Simulation of Three-Dimensional Convective Storm Dynamics.* **Journal of the Atmospheric Sciences**.
 - **Rotunno, R., and J. B. Klemp (1985)**: *On the Rotation and Propagation of Simulated Supercell Thunderstorms.* **Journal of the Atmospheric Sciences**.
+
+Supercell dynamics and mesocyclone formation:
+- **Rotunno, R., and J. B. Klemp (1982)**: *The Influence of the Shear-Induced Pressure Gradient on Thunderstorm Motion.* **Monthly Weather Review**, 110, 136-151.
+- **Davies-Jones, R. (2021)**: *Invented Forces in Supercell Models.* **Journal of the Atmospheric Sciences**, 78, 2927-2939.
 
 Model benchmarking and resolution requirements:
 - **Bryan, G. H., and J. M. Fritsch (2002)**: *A Benchmark Simulation for Moist Nonhydrostatic Numerical Models.* **Monthly Weather Review**.
@@ -86,8 +93,12 @@ Tornado-scale dynamics:
 #### YSU PBL
 - **Hong, S.-Y., Y. Noh, and J. Dudhia (2006)**: *A New Vertical Diffusion Package with an Explicit Treatment of Entrainment Processes.* **Monthly Weather Review**.
 
-#### MYNN / other higher-order closures
-- MYNN's original technical description is often *not* an AMS-journal paper; if you implement MYNN, cite the original primary reference (see "Non-AMS foundational" section below if needed), plus any AMS evaluation papers you specifically rely on.
+#### Convective boundary layer in storm environments
+- **Markowski, P. M., and G. H. Bryan (2016)**: *LES of Laminar Flow in the PBL: A Potential Problem for Convective Storm Simulations.* **Monthly Weather Review**, 144, 1841-1850.
+- **Nowotarski, C. J., P. M. Markowski, Y. P. Richardson, and G. H. Bryan (2014)**: *Properties of a Simulated Convective Boundary Layer in an Idealized Supercell Thunderstorm Environment.* **Monthly Weather Review**, 142, 3955-3976.
+
+#### MYNN / higher-order closures
+- See "Non-AMS Foundational References" section below for the primary MYNN scheme paper.
 
 ### 5. Turbulence / sub-grid closures (LES-style)
 
@@ -104,8 +115,13 @@ Tornado-scale dynamics:
 - **Lunet, T., et al. (2017)**: *High-Order WENO + explicit Runge–Kutta integration approaches in an atmospheric context.* **Monthly Weather Review**.
 - **Wang, A., et al. (2021)**: *Influence of WENO-style high-order transport on LES of deep convection / CM1-like modeling.* **Journal of the Atmospheric Sciences**.
 
+#### Grid staggering and discrete operators
+- **Arakawa, A., and V. R. Lamb (1977)**: *Computational Design of the Basic Dynamical Processes of the UCLA General Circulation Model.* **Methods in Computational Physics**, Vol. 17, Academic Press, 173-265.
+- **Randall, D. A. (1994)**: *Geostrophic Adjustment and the Finite-Difference Shallow-Water Equations.* **Monthly Weather Review**, 122, 1371-1377.
+- **Adcroft, A., C. Hill, and J. Marshall (1999)**: *A New Treatment of the Coriolis Terms in C-Grid Models at Both High and Low Resolutions.* **Monthly Weather Review**, 127, 1928-1936.
+
 #### Diffusion (explicit/implicit)
-- If your diffusion modules implement standard Laplacian / biharmonic forms and implicit solves, attribute the specific AMS paper(s) you follow for stability/consistency over terrain (often overlaps with terrain/coordinate literature below).
+- Standard Laplacian and biharmonic forms; stability and consistency over terrain overlaps with terrain/coordinate literature below.
 
 #### Time stepping (RK + split/HEVI options)
 - **Wicker, L. J., and W. C. Skamarock (2002)**: *Time-Splitting Methods for Elastic Models Using Forward Time Schemes.* **Monthly Weather Review**.
@@ -193,28 +209,6 @@ These are *not* AMS-journal originals, but are often the primary "scheme papers"
 - **Jiang, G.-S., and C.-W. Shu (1996)** (and related Shu/Osher papers): *WENO scheme foundations.* **J. Comput. Phys.** (and related applied-math venues).
 - **Nakanishi, M., and H. Niino (2009)**: *MYNN PBL scheme foundations.* **J. Meteor. Soc. Japan**.
 
-## Development Notes
-
-### Architecture & Design
-The codebase follows modern C++ practices with a modular factory pattern for physics schemes, enabling easy extension and comparison of different parameterizations. The design prioritizes:
-- **Physical accuracy** in core atmospheric equations
-- **Numerical stability** through appropriate CFL constraints and limiters
-- **Computational efficiency** for large-scale 3D simulations
-- **Extensibility** for future physics additions
-
-### Intended Use Cases
-- **Research**: Supercell thunderstorm simulation and analysis
-- **Education**: Demonstrating atmospheric modeling concepts
-- **Development**: Testing new physics parameterizations
-- **Visualization**: 3D rendering of convective storm structures
-
-### Future Development Priorities
-1. Expand chaos/stochastic calibration and ensemble validation workflows
-2. Extend terrain-science validation against reference idealized and real-case benchmarks
-3. Add more diagnostic outputs (helicity, vorticity, etc.)
-4. Performance optimization for larger domains
-5. Ensemble capability for uncertainty quantification
-
 ---
 
-*This document serves as comprehensive attribution for the scientific foundations of Nimbus. For practical usage instructions, see the main [README.md](../README.md).*"
+*This document serves as comprehensive attribution for the scientific foundations of Nimbus. For practical usage instructions, see the main [README.md](../README.md).*

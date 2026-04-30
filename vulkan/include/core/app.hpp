@@ -56,6 +56,8 @@ struct Options
     float sun_dir_x = 0.66f;
     float sun_dir_y = 0.34f;
     float sun_dir_z = 0.67f;
+    float capture_interval = 0.0f;
+    std::string capture_dir = "captures";
 };
 
 /**

@@ -115,29 +115,32 @@ void step_microphysics(double dt_micro)
 
             for (int k = 0; k < NZ; ++k)
             {
-                float theta_old = theta[i][j][k];
-                float dtheta_total = (dtheta_dt[i][j][k] + dtheta_dt_rad[i][j][k] + dtheta_dt_pbl[i][j][k]) * dt_micro;
+                const double theta_old = static_cast<double>(theta[i][j][k]);
+                double dtheta_total = (static_cast<double>(dtheta_dt[i][j][k])
+                                     + static_cast<double>(dtheta_dt_rad[i][j][k])
+                                     + static_cast<double>(dtheta_dt_pbl[i][j][k])) * dt_micro;
                 if (!std::isfinite(dtheta_total))
                 {
-                    dtheta_total = 0.0f;
+                    dtheta_total = 0.0;
                     ++non_finite_theta_tendency_count;
                 }
 
-                float dtheta_limited = std::clamp(dtheta_total, -max_theta_step_change_k, max_theta_step_change_k);
+                const double max_step = static_cast<double>(max_theta_step_change_k);
+                double dtheta_limited = std::clamp(dtheta_total, -max_step, max_step);
                 if (dtheta_limited != dtheta_total)
                 {
                     ++theta_tendency_limited_count;
                 }
 
-                float theta_new = theta_old + dtheta_limited;
-                float theta_bounded = clamp_theta_k(theta_new);
-                if (theta_bounded != theta_new)
+                double theta_new = theta_old + dtheta_limited;
+                float theta_bounded = clamp_theta_k(static_cast<float>(theta_new));
+                if (theta_bounded != static_cast<float>(theta_new))
                 {
                     ++theta_bounds_clamp_count;
                 }
                 theta[i][j][k] = theta_bounded;
 
-                if (std::abs(dtheta_total) > 100.0f && i == 0 && j == 0 && k < 5)
+                if (std::abs(dtheta_total) > 100.0 && i == 0 && j == 0 && k < 5)
                 {
                     tmv::log_debug("[MICRO DEBUG] Large theta change at i=", i, ",j=", j, ",k=", k,
                                    ": ", theta_old, " -> ", theta[i][j][k],
@@ -147,13 +150,13 @@ void step_microphysics(double dt_micro)
                                    ", dtheta_dt_rad=", dtheta_dt_rad[i][j][k],
                                    ", dtheta_dt_pbl=", dtheta_dt_pbl[i][j][k]);
                 }
-                qv[i][j][k] += (dqv_dt[i][j][k] + dqv_dt_pbl[i][j][k]) * dt_micro;
-                qc[i][j][k] += dqc_dt[i][j][k] * dt_micro;
-                qr[i][j][k] += dqr_dt[i][j][k] * dt_micro;
-                qi[i][j][k] += dqi_dt[i][j][k] * dt_micro;
-                qs[i][j][k] += dqs_dt[i][j][k] * dt_micro;
-                qg[i][j][k] += dqg_dt[i][j][k] * dt_micro;
-                qh[i][j][k] += dqh_dt[i][j][k] * dt_micro;
+                qv[i][j][k] = static_cast<float>(static_cast<double>(qv[i][j][k]) + (static_cast<double>(dqv_dt[i][j][k]) + static_cast<double>(dqv_dt_pbl[i][j][k])) * dt_micro);
+                qc[i][j][k] = static_cast<float>(static_cast<double>(qc[i][j][k]) + static_cast<double>(dqc_dt[i][j][k]) * dt_micro);
+                qr[i][j][k] = static_cast<float>(static_cast<double>(qr[i][j][k]) + static_cast<double>(dqr_dt[i][j][k]) * dt_micro);
+                qi[i][j][k] = static_cast<float>(static_cast<double>(qi[i][j][k]) + static_cast<double>(dqi_dt[i][j][k]) * dt_micro);
+                qs[i][j][k] = static_cast<float>(static_cast<double>(qs[i][j][k]) + static_cast<double>(dqs_dt[i][j][k]) * dt_micro);
+                qg[i][j][k] = static_cast<float>(static_cast<double>(qg[i][j][k]) + static_cast<double>(dqg_dt[i][j][k]) * dt_micro);
+                qh[i][j][k] = static_cast<float>(static_cast<double>(qh[i][j][k]) + static_cast<double>(dqh_dt[i][j][k]) * dt_micro);
 
                 qv[i][j][k] = clamp_qv_kgkg(qv[i][j][k]);
                 qc[i][j][k] = clamp_hydrometeor_kgkg(qc[i][j][k]);

@@ -32,6 +32,10 @@ struct SplitExplicitCallbacks
     std::function<void(double dt_small)> apply_fast_pressure;
     /// Compute and apply fast momentum tendencies (backward phase, uses updated p/rho).
     std::function<void(double dt_small)> apply_fast_momentum;
+    /// Optional fused pressure+momentum substep (GPU path). Returns true if handled.
+    std::function<bool(double dt_small)> apply_fast_fused;
+    /// Optional batched all-N-substeps dispatch (GPU path). Returns true if handled.
+    std::function<bool(double dt_small, int n_substeps)> apply_fast_batched;
     /// Lightweight boundary conditions for u, v, w, rho, p only.
     std::function<void()> acoustic_bcs;
 };

@@ -172,7 +172,7 @@ void step_radiation(double current_time)
 
                     if (theta_val < 200.0 || theta_val > 500.0 || p_val < 10000.0 || p_val > 120000.0)
                     {
-                        double z = k * dz;
+                        const double z = global_grid_geometry.z[k];
                         T_col[k] = theta0 - 0.0065 * z;
 
                         if (i == 0 && j == 0 && k < 3)

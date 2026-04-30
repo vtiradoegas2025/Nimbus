@@ -11,19 +11,22 @@
 #include "schemes/cartesian/cartesian.hpp"
 #include "schemes/supercell/supercell.hpp"
 #include "schemes/tornado/tornado.hpp"
+#include "schemes/tornado/tornado_cgrid.hpp"
 #include "util/scheme_factory.hpp"
 
 namespace
 {
 const tmv::SchemeRegistry<DynamicsScheme> registry({
-    {"cartesian", [] { return std::make_unique<CartesianScheme>(); }},
-    {"supercell", [] { return std::make_unique<SupercellScheme>(); }},
-    {"tornado",   [] { return std::make_unique<TornadoScheme>(); }},
+    {"cartesian",      [] { return std::make_unique<CartesianScheme>(); }},
+    {"supercell",      [] { return std::make_unique<SupercellScheme>(); }},
+    {"tornado",        [] { return std::make_unique<TornadoScheme>(); }},
+    {"tornado_cgrid",  [] { return std::make_unique<TornadoCGridScheme>(); }},
 }, {
-    {"mesocyclone",  "supercell"},
-    {"axisymmetric", "tornado"},
-    {"cart",         "cartesian"},
-    {"cartesian_cpu", "cartesian"},
+    {"mesocyclone",        "supercell"},
+    {"axisymmetric",       "tornado"},
+    {"axisymmetric_cgrid", "tornado_cgrid"},
+    {"cart",               "cartesian"},
+    {"cartesian_cpu",      "cartesian"},
 });
 }
 

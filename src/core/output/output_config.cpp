@@ -10,6 +10,7 @@
 #include <cctype>
 #include <cmath>
 #include <sstream>
+#include <stdexcept>
 
 namespace {
 
@@ -418,7 +419,13 @@ OutputConfig parse_output_config(
         }
         else if (val == "zfp")
         {
+#ifdef HAVE_ZFP
             out.format = OutputFormat::zfp;
+#else
+            throw std::runtime_error(
+                "output.format 'zfp' requested but binary was compiled without ZFP support. "
+                "Rebuild with ZFP=1 or change output.format.");
+#endif
         }
         else if (val == "csv")
         {

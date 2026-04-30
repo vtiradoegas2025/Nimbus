@@ -44,13 +44,19 @@ public:
     void update_from_sfml(sf::Window& window);
 #endif
 
+    /** @brief Accumulate scroll input from GLFW callback (called from static trampoline). */
+    void accumulate_scroll(float y_offset);
+
 private:
     CameraInputState input_{};
     bool reset_pose_latched_ = false;
+    bool capture_latched_ = false;
     bool cursor_position_initialized_ = false;
     bool look_active_last_frame_ = false;
+    bool orbit_drag_last_frame_ = false;
     float last_cursor_x_ = 0.0f;
     float last_cursor_y_ = 0.0f;
+    float accumulated_scroll_ = 0.0f;
 };
 
 }  // namespace vkcpp::camera

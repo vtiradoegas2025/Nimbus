@@ -16,16 +16,34 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstring>
+#include <ctime>
+#include <filesystem>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
 #include <limits>
 #include <optional>
+#include <sstream>
 #include <string>
 
 namespace vkcpp 
 {
 
 #if VKCPP_USE_GLFW
+/** @brief GLFW callback that routes scroll events to the camera input tracker. */
+void VulkanSwapchainRunner::scroll_callback(GLFWwindow* window, double, double y_offset)
+{
+    if (window == nullptr) return;
+    auto* self = static_cast<VulkanSwapchainRunner*>(glfwGetWindowUserPointer(window));
+    if (self && self->camera_input_tracker_)
+    {
+        self->camera_input_tracker_->accumulate_scroll(static_cast<float>(y_offset));
+    }
+}
+
 /** @brief GLFW callback that marks swapchain resources dirty after resize. */
-void VulkanSwapchainRunner::framebuffer_resize_callback(GLFWwindow* window, int, int) 
+void VulkanSwapchainRunner::framebuffer_resize_callback(GLFWwindow* window, int, int)
 {
     if (window == nullptr) {return;}
 
@@ -76,9 +94,9 @@ bool VulkanSwapchainRunner::initialize(VulkanContext& context, const WindowRunCo
 }
 
 /** @brief Run the frame loop and submit frames until exit conditions are reached. */
-bool VulkanSwapchainRunner::run(std::string& error) 
+bool VulkanSwapchainRunner::run(std::string& error)
 {
-    if (context_ == nullptr) 
+    if (context_ == nullptr)
     {
         error = "swapchain runner not initialized";
         return false;
@@ -86,37 +104,95 @@ bool VulkanSwapchainRunner::run(std::string& error)
 
     int rendered_frames = 0;
     auto last_input_time = std::chrono::steady_clock::now();
-    while (is_window_open()) 
+    perf_epoch_ = last_input_time;
+    last_title_update_ = last_input_time;
+    last_perf_log_ = last_input_time;
+    title_frame_count_ = 0;
+    title_frame_time_sum_ = 0.0f;
+    log_frame_count_ = 0;
+    log_frame_time_sum_ = 0.0f;
+    log_frame_time_min_ = 1e9f;
+    log_frame_time_max_ = 0.0f;
+    capture_accumulator_ = 0.0;
+
+    while (is_window_open())
     {
         process_events();
 
-        if (camera_input_tracker_ == nullptr) 
+        if (camera_input_tracker_ == nullptr)
         {
             camera_input_tracker_ = new camera::CameraInputTracker();
         }
 
         const auto now = std::chrono::steady_clock::now();
         const std::chrono::duration<float> elapsed = now - last_input_time;
+        const float dt = elapsed.count();
         last_input_time = now;
-        camera_input_tracker_->set_delta_seconds(elapsed.count());
+        camera_input_tracker_->set_delta_seconds(dt);
 
-        if (render_backend_ != nullptr) 
+        const CameraInputState& input_snapshot = camera_input_tracker_->snapshot();
+
+        if (render_backend_ != nullptr)
         {
-            render_backend_->set_camera_input(camera_input_tracker_->snapshot());
+            render_backend_->set_camera_input(input_snapshot);
         }
 
-        if (!is_window_open()) {break;}
+        // Check for manual screenshot request (F12 key).
+        if (input_snapshot.capture_requested)
+        {
+            capture_pending_ = true;
+        }
 
-        if (config_.max_frames > 0 && rendered_frames >= config_.max_frames) {break;}
+        // Periodic auto-capture for overnight/timelapse runs.
+        if (config_.capture_interval > 0.0f)
+        {
+            capture_accumulator_ += static_cast<double>(dt);
+            if (capture_accumulator_ >= static_cast<double>(config_.capture_interval))
+            {
+                capture_accumulator_ -= static_cast<double>(config_.capture_interval);
+                capture_pending_ = true;
+            }
+        }
 
-        if (render_backend_ != nullptr && !render_backend_->update_for_frame(*context_, static_cast<std::uint64_t>(rendered_frames), error)) 
+        if (!is_window_open()) { break; }
+
+        if (config_.max_frames > 0 && rendered_frames >= config_.max_frames) { break; }
+
+        if (render_backend_ != nullptr &&
+            !render_backend_->update_for_frame(*context_, static_cast<std::uint64_t>(rendered_frames), error))
         {
             return false;
         }
 
-        if (!draw_frame(error)) {return false; }
+        if (!draw_frame(error)) { return false; }
+
+        // Performance timing bookkeeping.
+        update_title_fps(dt);
+        log_perf_summary();
+
+        // Execute pending screenshot after draw_frame completes.
+        if (capture_pending_)
+        {
+            capture_pending_ = false;
+            std::string capture_error;
+            if (!capture_frame(capture_image_index_, capture_error))
+            {
+                std::cerr << "[vulkan][capture] " << capture_error << "\n";
+            }
+        }
 
         ++rendered_frames;
+    }
+
+    // Final performance summary.
+    {
+        const auto end = std::chrono::steady_clock::now();
+        const std::chrono::duration<double> total_elapsed = end - perf_epoch_;
+        const double total_sec = std::max(total_elapsed.count(), 1e-9);
+        std::cerr << "[vulkan][perf] Session: " << rendered_frames << " frames in "
+                  << std::fixed << std::setprecision(1) << total_sec << "s ("
+                  << std::setprecision(1) << static_cast<double>(rendered_frames) / total_sec
+                  << " avg FPS)\n";
     }
 
     vkDeviceWaitIdle(context_->device());
@@ -155,9 +231,11 @@ void VulkanSwapchainRunner::shutdown()
         }
     }
 
-    if (render_backend_ != nullptr) 
+    destroy_capture_resources();
+
+    if (render_backend_ != nullptr)
     {
-        if (context_ != nullptr && context_->device() != VK_NULL_HANDLE) 
+        if (context_ != nullptr && context_->device() != VK_NULL_HANDLE)
         {
             render_backend_->shutdown(context_->device());
         }
@@ -214,7 +292,7 @@ bool VulkanSwapchainRunner::create_window(std::string& error)
     window_ = glfwCreateWindow(
         static_cast<int>(config_.width),
         static_cast<int>(config_.height),
-        "TornadoModel Vulkan Window Test",
+        "Nimbus Vulkan Window Test",
         nullptr,
         nullptr);
 
@@ -226,11 +304,12 @@ bool VulkanSwapchainRunner::create_window(std::string& error)
 
     glfwSetWindowUserPointer(window_, this);
     glfwSetFramebufferSizeCallback(window_, framebuffer_resize_callback);
+    glfwSetScrollCallback(window_, scroll_callback);
     return true;
 #else
     window_.create(
         sf::VideoMode({config_.width, config_.height}),
-        "TornadoModel Vulkan Window Test",
+        "Nimbus Vulkan Window Test",
         sf::Style::Default,
         sf::State::Windowed);
 
@@ -337,7 +416,7 @@ bool VulkanSwapchainRunner::create_swapchain(std::string& error)
     create_info.imageColorSpace = surface_format.colorSpace;
     create_info.imageExtent = extent;
     create_info.imageArrayLayers = 1;
-    create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
     create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
     create_info.preTransform = support.capabilities.currentTransform;
     create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
@@ -725,9 +804,11 @@ bool VulkanSwapchainRunner::draw_frame(std::string& error)
         return false;
     }
 
+    capture_image_index_ = image_index;
+
     // Re-record each frame so push-constant state (camera orbit, isolate/cycle selection) stays live.
     if (!render_backend_->record(command_buffers_[image_index], swapchain_framebuffers_[image_index],
-            swapchain_extent_, error)) 
+            swapchain_extent_, error))
     {
         return false;
     }
@@ -971,8 +1052,382 @@ VkExtent2D VulkanSwapchainRunner::choose_extent(const VkSurfaceCapabilitiesKHR& 
     return extent;
 }
 
+/** @brief Update window title with rolling FPS counter (every ~0.5s). */
+void VulkanSwapchainRunner::update_title_fps(float delta_seconds)
+{
+    ++title_frame_count_;
+    title_frame_time_sum_ += delta_seconds;
+
+    // Also feed the log accumulator.
+    ++log_frame_count_;
+    log_frame_time_sum_ += delta_seconds;
+    if (delta_seconds < log_frame_time_min_) { log_frame_time_min_ = delta_seconds; }
+    if (delta_seconds > log_frame_time_max_) { log_frame_time_max_ = delta_seconds; }
+
+    const auto now = std::chrono::steady_clock::now();
+    const std::chrono::duration<float> since_title = now - last_title_update_;
+    if (since_title.count() < 0.5f) { return; }
+
+    const float avg_ms = (title_frame_count_ > 0)
+                             ? (title_frame_time_sum_ / static_cast<float>(title_frame_count_)) * 1000.0f
+                             : 0.0f;
+    const float fps = (title_frame_time_sum_ > 0.0f)
+                          ? static_cast<float>(title_frame_count_) / title_frame_time_sum_
+                          : 0.0f;
+
+    std::ostringstream title;
+    title << "Nimbus | "
+          << std::fixed << std::setprecision(0) << fps << " FPS | "
+          << std::setprecision(1) << avg_ms << " ms";
+    if (render_backend_ != nullptr)
+    {
+        const std::string status = render_backend_->status_label();
+        if (!status.empty())
+        {
+            title << " | " << status;
+        }
+    }
+
+#if VKCPP_USE_GLFW
+    if (window_ != nullptr)
+    {
+        glfwSetWindowTitle(window_, title.str().c_str());
+    }
+#else
+    if (window_created_)
+    {
+        window_.setTitle(sf::String(title.str()));
+    }
+#endif
+
+    title_frame_count_ = 0;
+    title_frame_time_sum_ = 0.0f;
+    last_title_update_ = now;
+}
+
+/** @brief Print periodic performance summary to stderr (every ~5s). */
+void VulkanSwapchainRunner::log_perf_summary()
+{
+    const auto now = std::chrono::steady_clock::now();
+    const std::chrono::duration<float> since_log = now - last_perf_log_;
+    if (since_log.count() < 5.0f) { return; }
+
+    if (log_frame_count_ > 0)
+    {
+        const float avg_ms = (log_frame_time_sum_ / static_cast<float>(log_frame_count_)) * 1000.0f;
+        const float fps = static_cast<float>(log_frame_count_) / log_frame_time_sum_;
+        const float min_ms = log_frame_time_min_ * 1000.0f;
+        const float max_ms = log_frame_time_max_ * 1000.0f;
+
+        std::cerr << "[vulkan][perf] " << log_frame_count_ << " frames in "
+                  << std::fixed << std::setprecision(2) << since_log.count() << "s | "
+                  << std::setprecision(1) << fps << " FPS | "
+                  << "frame: avg=" << std::setprecision(2) << avg_ms << "ms "
+                  << "min=" << min_ms << "ms "
+                  << "max=" << max_ms << "ms\n";
+    }
+
+    log_frame_count_ = 0;
+    log_frame_time_sum_ = 0.0f;
+    log_frame_time_min_ = 1e9f;
+    log_frame_time_max_ = 0.0f;
+    last_perf_log_ = now;
+}
+
+/** @brief Allocate or recreate the host-visible staging buffer for screenshot readback. */
+bool VulkanSwapchainRunner::ensure_capture_staging(std::string& error)
+{
+    const VkDeviceSize needed = static_cast<VkDeviceSize>(swapchain_extent_.width) *
+                                static_cast<VkDeviceSize>(swapchain_extent_.height) * 4;
+
+    if (capture_staging_buffer_ != VK_NULL_HANDLE &&
+        capture_staging_width_ == swapchain_extent_.width &&
+        capture_staging_height_ == swapchain_extent_.height)
+    {
+        return true;
+    }
+
+    destroy_capture_resources();
+
+    VkBufferCreateInfo buf_info{};
+    buf_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    buf_info.size = needed;
+    buf_info.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    buf_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    VkResult result = vkCreateBuffer(context_->device(), &buf_info, nullptr, &capture_staging_buffer_);
+    if (result != VK_SUCCESS)
+    {
+        error = "vkCreateBuffer(capture staging) failed";
+        return false;
+    }
+
+    VkMemoryRequirements mem_req{};
+    vkGetBufferMemoryRequirements(context_->device(), capture_staging_buffer_, &mem_req);
+
+    VkPhysicalDeviceMemoryProperties mem_props{};
+    vkGetPhysicalDeviceMemoryProperties(context_->physical_device(), &mem_props);
+
+    uint32_t mem_type_index = UINT32_MAX;
+    const VkMemoryPropertyFlags desired = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+    for (uint32_t i = 0; i < mem_props.memoryTypeCount; ++i)
+    {
+        if ((mem_req.memoryTypeBits & (1u << i)) != 0 &&
+            (mem_props.memoryTypes[i].propertyFlags & desired) == desired)
+        {
+            mem_type_index = i;
+            break;
+        }
+    }
+    if (mem_type_index == UINT32_MAX)
+    {
+        error = "no suitable memory type for capture staging buffer";
+        destroy_capture_resources();
+        return false;
+    }
+
+    VkMemoryAllocateInfo alloc_info{};
+    alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    alloc_info.allocationSize = mem_req.size;
+    alloc_info.memoryTypeIndex = mem_type_index;
+
+    result = vkAllocateMemory(context_->device(), &alloc_info, nullptr, &capture_staging_memory_);
+    if (result != VK_SUCCESS)
+    {
+        error = "vkAllocateMemory(capture staging) failed";
+        destroy_capture_resources();
+        return false;
+    }
+
+    result = vkBindBufferMemory(context_->device(), capture_staging_buffer_, capture_staging_memory_, 0);
+    if (result != VK_SUCCESS)
+    {
+        error = "vkBindBufferMemory(capture staging) failed";
+        destroy_capture_resources();
+        return false;
+    }
+
+    capture_staging_size_ = needed;
+    capture_staging_width_ = swapchain_extent_.width;
+    capture_staging_height_ = swapchain_extent_.height;
+    return true;
+}
+
+/** @brief Release staging buffer resources used for capture. */
+void VulkanSwapchainRunner::destroy_capture_resources()
+{
+    if (context_ != nullptr && context_->device() != VK_NULL_HANDLE)
+    {
+        if (capture_staging_buffer_ != VK_NULL_HANDLE)
+        {
+            vkDestroyBuffer(context_->device(), capture_staging_buffer_, nullptr);
+        }
+        if (capture_staging_memory_ != VK_NULL_HANDLE)
+        {
+            vkFreeMemory(context_->device(), capture_staging_memory_, nullptr);
+        }
+    }
+    capture_staging_buffer_ = VK_NULL_HANDLE;
+    capture_staging_memory_ = VK_NULL_HANDLE;
+    capture_staging_size_ = 0;
+    capture_staging_width_ = 0;
+    capture_staging_height_ = 0;
+}
+
+/** @brief Capture the specified swapchain image to a PPM file on disk. */
+bool VulkanSwapchainRunner::capture_frame(uint32_t image_index, std::string& error)
+{
+    if (context_ == nullptr || context_->device() == VK_NULL_HANDLE)
+    {
+        error = "context not initialized";
+        return false;
+    }
+
+    if (image_index >= swapchain_images_.size())
+    {
+        error = "capture image index out of range";
+        return false;
+    }
+
+    if (swapchain_extent_.width == 0 || swapchain_extent_.height == 0)
+    {
+        error = "swapchain extent is zero";
+        return false;
+    }
+
+    if (!ensure_capture_staging(error)) { return false; }
+
+    // Stall the pipeline to ensure the rendered image is fully available.
+    vkDeviceWaitIdle(context_->device());
+
+    // One-shot command buffer for the copy.
+    VkCommandPool tmp_pool = VK_NULL_HANDLE;
+    VkCommandBuffer tmp_cmd = VK_NULL_HANDLE;
+
+    VkCommandPoolCreateInfo pool_ci{};
+    pool_ci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    pool_ci.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+    pool_ci.queueFamilyIndex = context_->graphics_queue_family_index();
+
+    VkResult result = vkCreateCommandPool(context_->device(), &pool_ci, nullptr, &tmp_pool);
+    if (result != VK_SUCCESS)
+    {
+        error = "vkCreateCommandPool(capture) failed";
+        return false;
+    }
+
+    auto cleanup_cmd = [&]()
+    {
+        if (tmp_cmd != VK_NULL_HANDLE) { vkFreeCommandBuffers(context_->device(), tmp_pool, 1, &tmp_cmd); }
+        if (tmp_pool != VK_NULL_HANDLE) { vkDestroyCommandPool(context_->device(), tmp_pool, nullptr); }
+    };
+
+    VkCommandBufferAllocateInfo alloc_ci{};
+    alloc_ci.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    alloc_ci.commandPool = tmp_pool;
+    alloc_ci.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    alloc_ci.commandBufferCount = 1;
+
+    result = vkAllocateCommandBuffers(context_->device(), &alloc_ci, &tmp_cmd);
+    if (result != VK_SUCCESS) { cleanup_cmd(); error = "vkAllocateCommandBuffers(capture) failed"; return false; }
+
+    VkCommandBufferBeginInfo begin_ci{};
+    begin_ci.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    begin_ci.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    result = vkBeginCommandBuffer(tmp_cmd, &begin_ci);
+    if (result != VK_SUCCESS) { cleanup_cmd(); error = "vkBeginCommandBuffer(capture) failed"; return false; }
+
+    // Transition swapchain image: PRESENT_SRC -> TRANSFER_SRC.
+    VkImageMemoryBarrier to_transfer{};
+    to_transfer.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    to_transfer.oldLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    to_transfer.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    to_transfer.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    to_transfer.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    to_transfer.image = swapchain_images_[image_index];
+    to_transfer.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    to_transfer.subresourceRange.levelCount = 1;
+    to_transfer.subresourceRange.layerCount = 1;
+    to_transfer.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+    to_transfer.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+
+    vkCmdPipelineBarrier(tmp_cmd,
+                         VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+                         VK_PIPELINE_STAGE_TRANSFER_BIT,
+                         0, 0, nullptr, 0, nullptr, 1, &to_transfer);
+
+    // Copy image to staging buffer.
+    VkBufferImageCopy region{};
+    region.bufferOffset = 0;
+    region.bufferRowLength = 0;
+    region.bufferImageHeight = 0;
+    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.imageSubresource.layerCount = 1;
+    region.imageOffset = {0, 0, 0};
+    region.imageExtent = {swapchain_extent_.width, swapchain_extent_.height, 1};
+
+    vkCmdCopyImageToBuffer(tmp_cmd, swapchain_images_[image_index],
+                           VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                           capture_staging_buffer_, 1, &region);
+
+    // Transition back: TRANSFER_SRC -> PRESENT_SRC (render pass uses UNDEFINED initial
+    // layout so any layout works, but PRESENT_SRC is cleanest for the presentation engine).
+    VkImageMemoryBarrier to_present{};
+    to_present.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    to_present.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    to_present.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    to_present.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    to_present.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    to_present.image = swapchain_images_[image_index];
+    to_present.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    to_present.subresourceRange.levelCount = 1;
+    to_present.subresourceRange.layerCount = 1;
+    to_present.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+    to_present.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+
+    vkCmdPipelineBarrier(tmp_cmd,
+                         VK_PIPELINE_STAGE_TRANSFER_BIT,
+                         VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+                         0, 0, nullptr, 0, nullptr, 1, &to_present);
+
+    result = vkEndCommandBuffer(tmp_cmd);
+    if (result != VK_SUCCESS) { cleanup_cmd(); error = "vkEndCommandBuffer(capture) failed"; return false; }
+
+    VkSubmitInfo submit_info{};
+    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submit_info.commandBufferCount = 1;
+    submit_info.pCommandBuffers = &tmp_cmd;
+
+    result = vkQueueSubmit(context_->graphics_queue(), 1, &submit_info, VK_NULL_HANDLE);
+    if (result != VK_SUCCESS) { cleanup_cmd(); error = "vkQueueSubmit(capture) failed"; return false; }
+
+    vkQueueWaitIdle(context_->graphics_queue());
+    cleanup_cmd();
+
+    // Map staging buffer and write PPM file.
+    void* mapped = nullptr;
+    result = vkMapMemory(context_->device(), capture_staging_memory_, 0, capture_staging_size_, 0, &mapped);
+    if (result != VK_SUCCESS || mapped == nullptr)
+    {
+        error = "vkMapMemory(capture staging) failed";
+        return false;
+    }
+
+    const uint32_t w = swapchain_extent_.width;
+    const uint32_t h = swapchain_extent_.height;
+
+    // Build output path: {capture_dir}/frame_{NNNNNN}_{YYYYMMDD_HHMMSS}.ppm
+    std::filesystem::create_directories(config_.capture_dir);
+
+    const auto wall_now = std::chrono::system_clock::now();
+    const std::time_t wall_time = std::chrono::system_clock::to_time_t(wall_now);
+    std::tm tm_buf{};
+    localtime_r(&wall_time, &tm_buf);
+
+    std::ostringstream fname;
+    fname << config_.capture_dir << "/frame_"
+          << std::setfill('0') << std::setw(6) << capture_count_ << "_"
+          << std::put_time(&tm_buf, "%Y%m%d_%H%M%S") << ".ppm";
+
+    const std::string path = fname.str();
+
+    std::ofstream file(path, std::ios::binary);
+    if (!file.is_open())
+    {
+        vkUnmapMemory(context_->device(), capture_staging_memory_);
+        error = "failed to open capture file: " + path;
+        return false;
+    }
+
+    // PPM P6 header.
+    file << "P6\n" << w << " " << h << "\n255\n";
+
+    // Swapchain format is B8G8R8A8_SRGB. Convert BGRA -> RGB.
+    const auto* src = static_cast<const uint8_t*>(mapped);
+    std::vector<uint8_t> row(static_cast<std::size_t>(w) * 3);
+    for (uint32_t y = 0; y < h; ++y)
+    {
+        const uint8_t* row_src = src + static_cast<std::size_t>(y) * static_cast<std::size_t>(w) * 4;
+        for (uint32_t x = 0; x < w; ++x)
+        {
+            row[x * 3 + 0] = row_src[x * 4 + 2]; // R (from B8G8R8A8 position 2)
+            row[x * 3 + 1] = row_src[x * 4 + 1]; // G
+            row[x * 3 + 2] = row_src[x * 4 + 0]; // B
+        }
+        file.write(reinterpret_cast<const char*>(row.data()), static_cast<std::streamsize>(row.size()));
+    }
+
+    file.close();
+    vkUnmapMemory(context_->device(), capture_staging_memory_);
+
+    ++capture_count_;
+    std::cerr << "[vulkan][capture] Saved " << path << " (" << w << "x" << h << ")\n";
+    return true;
+}
+
 /** @brief Destroy command buffers and all swapchain-dependent Vulkan resources. */
-void VulkanSwapchainRunner::cleanup_swapchain() 
+void VulkanSwapchainRunner::cleanup_swapchain()
 {
     if (context_ != nullptr && context_->device() != VK_NULL_HANDLE && command_pool_ != VK_NULL_HANDLE && !command_buffers_.empty()) 
     {

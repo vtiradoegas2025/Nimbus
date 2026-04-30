@@ -1,8 +1,8 @@
 # Coordinate Backend Plan
 
-**Status:** Phase A complete (2026-04-07). Phase B complete (2026-04-20). Phase C deferred.
-**Target completion:** Phase A + B done ahead of mid-June target. Phase C deferred until tornado-mode work resumes.
-**AMS deadline:** January 2027 (~36 calendar weeks of runway).
+**Status:** Phase A complete (2026-04-07). Phase B complete (2026-04-20). Grid prerequisites complete (2026-04-27). Phase C in progress: C.1 + C.2 + C.3 complete (2026-04-28); C.4 complete (2026-04-29).
+**Target completion:** Phase C CPU-side by 2026-05-23. GPU shaders by 2026-06-06.
+**AMS deadline:** January 2027 (~35 calendar weeks of runway).
 
 ---
 
@@ -262,71 +262,362 @@ The `DynamicsScheme` base class now carries 8+ virtual methods (original tendenc
 
 ---
 
-## Phase C — Stagger the cylindrical grid (deferred)
+## Phase C -- Stagger the Cylindrical Grid (Arakawa C-Grid)
 
-**Goal:** Move the cylindrical grid from collocated to Arakawa C-grid (`u_r` at radial faces, `u_θ` at azimuthal faces, `u_z` at vertical faces, scalars at cell centers). This is the standard discretization for compressible cloud models (CM1, WRF, MPAS) and improves accuracy of pressure-gradient handling and mass-flux accounting.
+### Context
 
-**Why deferred:** Phase A already gives us a working backend for the supercell case (the broken thing). Phase C would improve accuracy of the **tornado** case (which already works for axisymmetric vortex modeling). It's polish, not a fix. Deferring it preserves runway for the supercell-side work that is on the critical path for the AMS presentation.
+Phases A and B gave the model a working Cartesian backend for supercells and cleaned up the dual-backend architecture. The cylindrical grid still uses a
+collocated discretization where u, v, w, p, rho, theta all live at cell centers. This causes three concrete problems for tornado-mode simulations:
 
-**When to revisit:** After Phase A + B are done, if there's time before AMS, or whenever tornado-mode work resumes after AMS.
+1. **Checkerboard pressure modes.** The centered 2dr stencil `(p[i+1] - p[i-1]) / 2dr` is blind to the grid-scale oscillation. The C-grid stencil `(p[i+1] - p[i]) / dr` resolves it at full resolution.
+2. **Fragile axis singularity.** The antisymmetric ghost cell hack `u[0] = -u[1]` creates a false radial gradient at i=1 that drives spurious divergence. On C-grid, the radial face at r=0 simply carries `u_r=0` (no flow through the axis) -- no hack needed.
+3. **Non-conservative mass flux.** Collocated divergence `du/dr + u/r + (1/r)dv/dtheta + dw/dz` is not in flux form. The C-grid flux divergence `(1/r) d(r*u)/dr` using face-normal velocities is conservative to machine precision.
 
-**Estimate (when revisited):** 3–4 weeks.
+The Arakawa C-grid is the standard for compressible NWP codes (CM1, WRF, MPAS). This phase brings the cylindrical grid up to that standard.
+
+### Prerequisites (completed 2026-04-27)
+
+Three items from `docs/grid.md` were completed before Phase C:
+
+1. **Precomputed coordinate lookup tables.** `GridGeometry` struct in `include/core/grid_geometry.hpp` with `r[]`, `r_inv[]`, `z[]`, `theta[]`, `sin_theta[]`, `cos_theta[]`, and spacing reciprocals (`inv_dr`, `inv_2dr`, `inv_dr2`, etc.). Epsilon inconsistency eliminated: `r[0] = 0`, `r_inv[0] = 0`, axis handled by loop ranges. All dynamics and advection hot loops use geometry lookups.
+2. **Double-precision tendency accumulation.** All application paths (`dynamics.cpp`, `microphysics_step.cpp`, `diffusion_step.cpp`) accumulate `field + tendency * dt` in double before casting back to float.
+3. **Lazy field allocation.** Diagnostic fields deferred to first compute. PBL/radiation/radar fields deferred to their `initialize_*()` functions.
+
+### Design Decisions
+
+**Extend GridGeometry, not a new struct.** Add `r_face[NR]`, `r_face_inv[NR]`, `z_face[NZ]`, and a `staggered` flag to the existing `GridGeometry`. Both dynamics schemes already hold `const GridGeometry& geo_` references.
+
+**Axis singularity centralized in div_flux().** The flux-form divergence `(1/r) d(ru)/dr` is 0/0 at i=0. The control-volume derivation gives `2 * u[0] / dr`. This goes inside `StaggeredCylindricalDerivatives::div_flux()` so dynamics loops never see the special case.
+
+**Separate scheme classes, not branches.** New `TornadoCGridScheme` and `SupercellCGridScheme` in their own files, registered in the factory as `"tornado_cgrid"` and `"supercell_cgrid"`. Zero modifications to existing scheme source files. The `grid.staggering: c_grid` config key auto-selects the `_cgrid` variant. Rationale: C-grid kernels have different loop ranges, stencil widths, and interpolation requirements. Branching inside the existing 200-line loops would double their length.
+
+**Tornado before Supercell.** Tornado is axisymmetric (no theta derivatives, j-replication, no split-explicit). The Lamb-Oseen vortex test has an analytical cyclostrophic balance solution -- the gold-standard C-grid validation. Supercell adds theta-derivatives and split-explicit decomposition as incremental complexity.
+
+**GPU deferred to weeks 5-6.** Phase A.7 (3 GPU shaders) took 2x predicted. Phase C has 6 shaders. CPU-side completion (C.1-C.8) is the priority.
+
+### Field Storage Convention
+
+Keep all Field3D arrays at dimension (NR, NTH, NZ). No dimension changes. Velocity components are reinterpreted with half-grid offsets:
+
+| Field | Location | Index meaning |
+|-------|----------|---------------|
+| u (radial) | r-face | `u[i][j][k]` = u_r at (r_{i+1/2}, theta_j, z_k) -- right face of cell i |
+| v (azimuthal) | theta-face | `v[i][j][k]` = u_theta at (r_i, theta_{j+1/2}, z_k) -- "north" face of cell i |
+| w (vertical) | z-face | `w[i][j][k]` = u_z at (r_i, theta_j, z_{k+1/2}) -- top face of cell i |
+| scalars (p, rho, theta, q*) | cell center | `p[i][j][k]` at (r_i, theta_j, z_k) -- unchanged |
+
+Interior loop ranges for velocity tendencies shift:
+- u: i = 0..NR-2, j = 0..NTH-1, k = 1..NZ-2
+- v: i = 1..NR-2, j = 0..NTH-1 (periodic), k = 1..NZ-2
+- w: i = 1..NR-2, j = 0..NTH-1, k = 0..NZ-2
+- scalars: i = 1..NR-2, j = 0..NTH-1, k = 1..NZ-2 (unchanged)
+
+### Key Stencil Transformations
+
+Pressure gradient at u-face (C-grid):
+
+    dp/dr at (i+1/2) = (p[i+1] - p[i]) / dr
+    rho at (i+1/2)   = 0.5 * (rho[i] + rho[i+1])
+    du/dt = -dp_dr / rho_face
+
+Divergence at cell center (C-grid, flux form):
+
+    div = (1/r_i) * (r_{i+1/2}*u[i] - r_{i-1/2}*u[i-1]) / dr
+        + (v[i][j] - v[i][j-1]) / (r_i * dtheta)
+        + (w[i][j][k] - w[i][j][k-1]) / dz
+
+Axis (i=0) divergence -- control-volume derivation:
+
+    if (i == 0): div_r = 2.0 * u[0][j][k] / dr
+    else:        div_r = (r_face[i]*u[i] - r_face[i-1]*u[i-1]) / (r_center[i] * dr)
 
 ---
 
-## Verification gates (summary)
+### C.1 -- Extend GridGeometry + StaggeredCylindricalDerivatives + Config
 
-| Gate | Phase | Pass criterion | Status |
-|---|---|---|---|
-| Existing tests still pass | A.1 | `make test` green | PASS |
-| Cartesian dynamics tendencies are zero in equilibrium | A.2 | `\|du/dt\|, \|dw/dt\| ≤ 1e−3` at every cell with hydrostatic IC + uniform Cartesian wind | PASS |
-| Cartesian BCs preserve hydrostatic balance | A.3 | 60 s sim with 2 K bubble: `\|w\|_max < 2 m/s`, mass conserved to 1e−4 | PASS |
-| Cartesian IC uses literal Cartesian coordinates | A.4 | bubble at config-specified `(x_c, y_c)` | PASS |
-| Cartesian advection conserves and translates | A.5 | 1D + 2D Gaussian-bump tests | PASS |
-| Smoke test: Cartesian student.yaml is in equilibrium | A.6 | 60 s no-trigger run, `\|w\|_max ~ 1e−2`, no clamps | PASS |
-| GPU parity for Cartesian | A.7 | new `test_vulkan_gpu_parity_cartesian` passes to 1e−4 | PASS |
-| First real storm | A.8 | 60–120 s sim, recognizable updraft, 0 clamps, conservation drift < 0.05 %/step | PASS |
-| Field rename: `v_theta` gone | B.1 | `v_theta` appears nowhere except comments | PASS |
-| Derivative operators shared | B.2 | dynamics schemes share `DerivativeOperators` interface | PASS |
-| BCs in factory | B.3 | no inline BCs in `dynamics.cpp` | PASS |
-| Advection unified | B.4 | single dispatch in `src/advection/` | PASS |
-| Init unified | B.5 | single init path in `equations.cpp` | PASS |
-| Time stepping wired | B.6 | no inline Forward Euler in `dynamics.cpp` | PASS |
-| DynamicsScheme slim | B.7 | split-explicit methods on separate interface | PASS |
+**Scope (reduced from original):** Extend existing `GridGeometry` with face arrays. Add `StaggeredCylindricalDerivatives`. Parse `grid.staggering` config key.
+
+**Files modified:**
+- `include/core/grid_geometry.hpp` -- add `r_face`, `r_face_inv`, `z_face`, `staggered`
+- `include/core/coordinate_system.hpp` -- add `enum class StaggerType { Collocated, CGrid }` + `parse_stagger_type()`
+- `include/numerics/derivatives/derivative_operators.hpp` -- add `StaggeredCylindricalDerivatives` (grad_r, grad_theta, grad_z, div_flux, interp helpers)
+- `src/core/runtime/runtime_config.cpp` -- parse `grid.staggering` key
+- `include/core/runtime_config.hpp` -- declare `extern StaggerType global_stagger_type`
+- `src/core/orchestration/dynamics/equations.cpp` -- pass stagger flag to geometry init
+
+**Estimate:** 1 day.
+
+**Verification:** Unit tests for div_flux (uniform flow = 0, linear flow = analytical), grad_r against known function. `make test` passes.
 
 ---
 
-## Risks
+### C.2 -- C-Grid Cylindrical Boundary Conditions [COMPLETE] (2026-04-28)
 
-1. **GPU debugging is slow.** Every GPU shader port in the project so far has taken 2× the predicted time. Plan A.7 is intentionally ranged 1–2 weeks, not "1 week".
-2. **Refactoring two-backend code post-hoc is harder than abstracting up front *if* you guess right.** I'm betting we won't guess right, and that the post-hoc cost is lower than the up-front cost. If Phase B turns out to be > 2 weeks of work, that's still acceptable on the timeline.
-3. **The 267 `v_theta` references.** The first instinct is to rename them all up front. Resist. Doing the rename after both backends work is much safer because we'll have tests on both sides confirming correctness — without that, the rename is a 267-site change with no safety net.
-4. **A latent BC bug surfaces in the Cartesian path.** The Field3D no-op fix from Bug 5 means several BC patterns that were silently dead are now live. If a Cartesian-specific BC bug shows up, treat it as Bug 8 and add it to Journey.md, do not absorb it silently.
+**New files:**
+- `src/boundary_conditions/boundary_conditions_cylindrical_cgrid.cpp` -- `CylindricalCGridBCScheme` implementation
+- `src/boundary_conditions/factory.cpp` -- dispatcher `create_boundary_condition_scheme(coord, stagger)`
+- `tests/dynamics/test_cylindrical_cgrid_boundary_conditions.cpp` -- 11 verification gates
+
+**Modified:**
+- `include/boundary_conditions/boundary_conditions.hpp` -- factory declaration, removed unused `<string>` include
+- `src/core/orchestration/dynamics/dynamics.cpp` -- BC selection collapsed to a single factory call (dispatch logic moved out of orchestration into the BC module for modularity)
+- `Makefile` -- added cgrid + factory sources, new test binary
+
+Axis u is implicit zero (handled by div_flux), not antisymmetric hack -- the
+BC explicitly leaves `u[0]` untouched. `w[0]` is likewise interior on the
+C-grid (the rigid surface at z=0 is below `z_face[0]` and implicit in
+div_flux_z). The only explicit rigid-boundary writes are `u[NR-1] = 0` (outer
+wall) and `w[NZ-1] = 0` (lid).
+
+**Verification gates passed:** factory dispatch correctness (4 cases including
+loud rejection of unsupported Cartesian + CGrid); 100-cycle stability of a
+hydrostatic column with bit-exact field preservation; structural distinctions
+vs collocated (`u[0]`/`w[0]` interior, `u[NR-1]`/`w[NZ-1]` rigid faces, axis
+v zeroed); zero-gradient scalar ghosts; hydrostatic pressure extrapolation;
+acoustic-substep BC scope (momentum + pressure only). 1409 assertions pass.
+
+The "tendencies < 1e-10 over 100 steps" formulation in the original gate
+requires the C.4 tornado_cgrid dynamics scheme; that gate moves to C.4.
 
 ---
 
-## Open decisions (asked of Victor on 2026-04-06)
+### C.3 -- C-Grid Initial Conditions [COMPLETE] (2026-04-28)
 
-1. **Field naming.** Keep `u, v_theta, w` for the existing cylindrical scheme and introduce *new* field arrays `u_x, u_y, u_z` for Cartesian (parallel-fields-then-unify), or rename `v_theta → v` everywhere up front (267 sites)? **Recommendation: parallel-fields-then-unify.** Lower short-term blast radius, the rename happens in Phase B with both backends green.
-2. **Where to start.** A.1 (config plumbing) is small, mechanical, and immediately verifiable. A.2 (the actual scheme) is the first piece that does real work but is also where mistakes have cost. **Recommendation: A.1 today, A.2 starting tomorrow once A.1 is verified green.**
+**New files:**
+- `src/core/orchestration/dynamics/initial_conditions_cylindrical_cgrid.cpp` -- `apply_cylindrical_cgrid_wind_initialization()`. Split out (mirroring `initial_conditions_cartesian.cpp`) so the unit test can link the IC code without dragging in advection / microphysics / radiation via the rest of `equations.cpp`.
+- `tests/dynamics/test_cylindrical_cgrid_initial_conditions.cpp` -- 6 verification gates.
 
-These are flagged for Victor's call, not to be decided unilaterally.
+**Modified:**
+- `include/core/initial_conditions.hpp` -- declared the new C-grid wind init helper.
+- `src/core/orchestration/dynamics/equations.cpp` -- branched `initialize()` on `(coordinate, stagger)` so cylindrical+CGrid dispatches to the new helper while collocated cylindrical and Cartesian paths are unchanged.
+- `Makefile` -- added the new IC source and test binary.
+
+**Field placement on C-grid:**
+
+    u (radial, r-face)      u[i][j][k] = u_x(z) cos(theta[j])         + u_y(z) sin(theta[j])
+    v (azimuthal, theta-face) v[i][j][k] = -u_x(z) sin(theta_{j+1/2}) + u_y(z) cos(theta_{j+1/2})
+    w (vertical)             0
+
+The half-cell-shifted theta_{j+1/2} = (j + 0.5) * dtheta in the v projection
+is the only structural difference vs the collocated cylindrical wind init.
+The half-shifted sin/cos are computed from the cell-center lookups via the
+angle-addition identities, so the inner loop has no transcendental calls.
+
+**Verification gate translated to assertions** (the literal "div_flux < 1e-12"
+gate is unattainable for non-axisymmetric uniform Cartesian winds because of
+the inherent O(dtheta^2) cylindrical-from-Cartesian projection error; the gate
+below is the rigorous form):
+
+1. **Pointwise placement:** every (i, j, k) cell satisfies the analytic
+   formulas above. Verified at 24 x 16 x 12 = 4608 cells per check.
+2. **C-grid distinguishing feature:** v matches the theta-face projection
+   AND differs from the cell-center projection (else the test catches a
+   regression to the collocated lookup).
+3. **Radial uniformity:** with a hodograph that depends only on z, both u
+   and v are bit-exactly constant across i.
+4. **Divergence formula:** at every interior cell (1 <= i <= NR-2),
+   `div_flux(u, v, w)` matches the analytical
+   `(1 - sinc(dtheta/2)) * (u_x cos(theta) + u_y sin(theta)) / r` to 2e-5,
+   and the global maximum stays below 1e-3 for the test grid (NTH=16).
+5. **Zero hodograph:** velocities and div_flux are bit-exactly zero.
+6. **Vertical shear preservation:** the (u_x(z), u_y(z)) split survives at
+   every level with no swap or aliasing.
+
+39,100 assertions pass.
 
 ---
 
-## What "this week" means
+### C.4 -- Tornado C-Grid Dynamics (CPU) [COMPLETE] (2026-04-29)
 
-April 6 → April 12, focused-but-realistic pace:
+**New files:**
+- `src/dynamics/schemes/tornado/tornado_cgrid.{hpp,cpp}` -- `TornadoCGridScheme`
+  with momentum, mass, and pressure tendency computation on staggered fields.
+  Uses `StaggeredCylindricalDerivatives::grad_r/grad_z/div_flux` from C.1, the
+  axis ghost `u[-1] = -u[0]` inline (no antisymmetric BC hack on a stored
+  field), and reference-state subtraction for vertical momentum (perturbation
+  pressure + perturbation density buoyancy) matching the supercell scheme.
+  Pressure equation is the standard compressible form
+  `dp/dt = -gamma p div(u) - u . grad(p)` (no spurious "centrifugal pressure
+  source" that would drift Lamb-Oseen out of cyclostrophic balance).
+- `tests/dynamics/test_tornado_cgrid_dynamics.cpp` -- 6 verification gates.
 
-| Day | Target |
-|---|---|
-| Mon Apr 6 | Plan doc (this file) + numerical-output audit |
-| Tue Apr 7 | A.1 (config plumbing) + start A.2 |
-| Wed Apr 8 | Finish A.2 (CartesianDynamicsScheme CPU) |
-| Thu Apr 9 | A.3 (BCs) + A.4 (IC) |
-| Fri Apr 10 | A.5 (CartesianAdvectionScheme CPU) |
-| Sat–Sun | A.6 (wiring + smoke test). End-of-week milestone: **Cartesian CPU path is in equilibrium for `student.yaml`-no-trigger.** |
+**Modified:**
+- `src/dynamics/factory.cpp` -- registered `"tornado_cgrid"` and the
+  `"axisymmetric_cgrid"` alias.
+- `Makefile` -- added the new source to the dynamics object list and the
+  `bin/test_dynamics_tornado_cgrid` test target; added it to `CATCH2_BINS`
+  and `test-dynamics`.
 
-Following week: A.7 (GPU shaders) and A.8 (real storm test).
+**Field placements:**
 
-If anything slips, A.5 is the most likely day to absorb it — TVD cylindrical → TVD Cartesian is the largest mechanical edit.
+    u (radial,    r-face)     u[i][j][k] at (r_face[i], theta[j],     z[k])
+    v (azimuthal, theta-face) v[i][j][k] at (r[i],      theta_{j+1/2}, z[k])
+    w (vertical,  z-face)     w[i][j][k] at (r[i],      theta[j],     z_face[k])
+    scalars                   p, rho, theta, q* at (r[i], theta[j],   z[k])
+
+**Loop ranges (axisymmetric: compute at j=0 and replicate):**
+- `du/dt`     at r-face:     i = 0..NR-2,   k = 1..NZ-2 (axis ghost u[-1]=-u[0])
+- `dv/dt`     at theta-face: i = 1..NR-2,   k = 1..NZ-2 (v[0] = 0 by axis BC)
+- `dw/dt`     at z-face:     i = 1..NR-2,   k = 0..NZ-2 (surface ghost w[-1]=0)
+- `drho/dt`   at cell center: i = 1..NR-2,  k = 1..NZ-2
+- `dp/dt`     at cell center: i = 1..NR-2,  k = 1..NZ-2
+
+**Verification gates passed:**
+
+1. **Hydrostatic equilibrium has machine-zero tendencies.** With kRho0 = 1.25
+   (exact in float and double) and the round-trip `p0_base[k] =
+   double(float(p0_base[k]))` so the reference profile bit-exactly matches
+   the float storage, all five tendencies cancel to <= 1e-10 at every
+   interior face/cell.
+2. **Hydrostatic state preserved over 300 Euler steps.** dt=1s; 300 steps;
+   tendencies stay <= 1e-10 at every step; rho and p match initial values
+   bit-exactly; u, v, w stay identically zero.
+3. **Lamb-Oseen at discrete cyclostrophic balance.** v(r) =
+   (Gamma/(2 pi r))(1 - exp(-r^2/r_c^2)) with r_c = 10*dr, v_max = 50 m/s;
+   p(r,z) = p0(z) + sum dp_cyclo to make the discrete grad_r(p) at every
+   r-face equal exactly rho_face*v_face^2/r_face*dr. Result:
+   `dv/dt`, `drho/dt`, `dp/dt` all bit-exactly zero; `du/dt` and `dw/dt`
+   below 1e-3 (~1e-5 in practice -- float-storage cancellation floor).
+4. **Lamb-Oseen vortex preserved over 60 simulated seconds.** Forward Euler
+   on momentum only (Forward Euler is unconditionally unstable for the
+   acoustic wave equation, which the production split-explicit scheme
+   handles separately in C.6); 120 steps at dt=0.5s; partial BC (outer wall
+   u=0, lid w=0; axis untouched, the dynamics scheme handles its own ghost);
+   v profile drift < 0.1% of v_max.
+5. **C-grid axis advantage at the first interior r-face.** The axis r-face
+   residual `|du/dt[0]|` stays at the same float-storage cancellation floor
+   as the interior; no special "antisymmetric ghost cell artifact"
+   amplification because the C-grid replaces the stored `u[0] = -u[1]`
+   hack with an inline antisymmetric stencil ghost handled where it is
+   actually used.
+6. **Scheme metadata.** `get_scheme_name() == "tornado_cgrid"`,
+   `get_coordinate_system() == "cylindrical_cgrid"`, 5 prognostic vars.
+
+11757 assertions pass. Total dynamics test count after C.4: 64,725 assertions
+across 33 test cases (Cartesian + cylindrical_cgrid BCs/IC + tornado_cgrid).
+
+---
+
+### C.5 -- Supercell C-Grid Slow Tendencies (CPU)
+
+**New files:** `src/dynamics/schemes/supercell/supercell_cgrid.{hpp,cpp}`
+**Modified:** `src/dynamics/factory.cpp` (register `"supercell_cgrid"`), Makefile
+
+Adds: azimuthal advection (4-point interpolation), azimuthal pressure gradient at theta-face, cross-derivative terms, reference-state subtraction. Inherits both `DynamicsScheme` and `SplitExplicitDynamics`.
+
+**Estimate:** 2-3 days.
+
+**Verification:** Hydrostatic + WK2002 wind, tendencies < 1e-6 (Bug 7 on C-grid). Warm bubble: no checkerboard in pressure.
+
+---
+
+### C.6 -- Split-Explicit Acoustic Substep on C-Grid
+
+**Modified:** `src/dynamics/schemes/supercell/supercell_cgrid.cpp` -- implement fast pressure and fast momentum tendencies.
+
+Fast pressure: flux-form divergence at cell center. Fast momentum: one-sided pressure gradient at faces. Callback interface in `dynamics.cpp` unchanged.
+
+**Estimate:** 2 days.
+
+**Verification:** Acoustic pulse, 10 substeps, clean circular propagation without checkerboard.
+
+---
+
+### C.7 -- Advection on C-Grid
+
+**Modified:** `src/numerics/advection/advection.cpp` -- C-grid branch with new `_cgrid` static kernels.
+
+Scalar advection: face velocities already available. Momentum advection: staggered positions with interpolated advecting velocities. Highest technical risk (index bookkeeping).
+
+**Estimate:** 2-3 days.
+
+**Verification:** Solid-body rotation < 5% L2 error. Mass conservation to machine precision.
+
+---
+
+### C.8 -- Output Interpolation
+
+**New file:** `src/core/output/stagger_interpolation.cpp`
+**Modified:** Output paths in `npy_writer.cpp`, `shm_writer.cpp`, `headless_runtime.cpp`
+
+Face-to-center: `u_center[i] = 0.5*(u[i] + u[i-1])`. Axis: `u_center[0] = 0.5*u[0]`.
+
+**Estimate:** 1 day.
+
+**Verification:** Output from C-grid run shows smooth velocity fields in viewer.
+
+---
+
+### C.9 -- GPU Compute Shaders
+
+6 new `.comp` shaders mirroring CPU kernels. Deferred to after full CPU validation.
+
+**Estimate:** 2 weeks. GPU debugging overhead applies (Phase A.7 took 2x predicted).
+
+**Verification:** CPU-GPU parity to 1e-4 for tendencies, 1e-3 for advection.
+
+---
+
+### C.10 -- Integration Tests and Validation
+
+| Test | Config | Scheme | Duration | Pass criterion |
+|------|--------|--------|----------|----------------|
+| Hydrostatic equilibrium | cylindrical, c_grid, no trigger, no wind | tornado_cgrid | 300s | all tendencies < 1e-10, zero clamps |
+| Uniform wind equilibrium | cylindrical, c_grid, WK2002, no trigger | supercell_cgrid | 60s | tendencies < 1e-6 |
+| Lamb-Oseen vortex | cylindrical, c_grid, analytic vortex IC | tornado_cgrid | 120s | cyclostrophic drift < 0.1% |
+| Warm bubble supercell | full supercell config + c_grid | supercell_cgrid | 300s | 0 theta clamps, recognizable updraft |
+| Tornado genesis | tornado_genesis.yaml + c_grid | tornado_cgrid | 1800s | stable vortex, 0 GUARD events |
+| Mass conservation | any c_grid config | both | 120s | sum(rho*dV) drift < 1e-12 per step |
+| Collocated regression | existing configs, default staggering | all existing | 60s | identical output to pre-Phase-C baseline |
+
+**Estimate:** 2 days.
+
+---
+
+### Schedule
+
+| Week | Tasks | Milestone |
+|------|-------|-----------|
+| Week 1 (Apr 28 - May 2) | C.1 + C.2 + C.3 | Infrastructure complete. Hydrostatic C-grid passes. |
+| Week 2 (May 5 - May 9) | C.4 | Tornado C-grid dynamics. Lamb-Oseen vortex passes. |
+| Week 3 (May 12 - May 16) | C.5 + C.6 | Supercell C-grid + split-explicit acoustics. Bug 7 test passes on C-grid. |
+| Week 4 (May 19 - May 23) | C.7 + C.8 + C.10 | Advection + output + integration. Full CPU path validated. |
+| Week 5-6 (May 26 - Jun 6) | C.9 | GPU shaders. CPU-GPU parity. |
+
+CPU-side complete after week 4. GPU can slip without blocking science runs.
+
+---
+
+### Risks
+
+1. **Momentum advection (C.7)** is the hardest kernel. Face-staggered velocity advected by interpolated velocities. Mitigated by doing scalar advection first, then momentum.
+2. **GPU debugging (C.9).** 2x overrun expected based on Phase A.7. Mitigated by deferring to weeks 5-6.
+3. **Axis singularity.** Resolved by design. `div_flux()` uses direct `2*u[0]/dr` formula. No epsilon, no L'Hopital at runtime.
+4. **Backward compatibility.** Fully mitigated by separate scheme classes. Existing files untouched. Three regression tests verify collocated paths.
+5. **Reference-state subtraction.** No bias. One-sided stencil on cell-center p0 is exact. Theta0 interpolation to z-face has same O(dz^2) truncation as collocated.
+
+---
+
+### Files Summary
+
+New files (~14):
+- `src/dynamics/schemes/tornado/tornado_cgrid.{hpp,cpp}`
+- `src/dynamics/schemes/supercell/supercell_cgrid.{hpp,cpp}`
+- `src/boundary_conditions/boundary_conditions_cylindrical_cgrid.cpp`
+- `src/core/output/stagger_interpolation.cpp`
+- 6 GPU shaders (`*_cgrid.comp`)
+- Test configs/runners
+
+Modified files (~10):
+- `include/core/grid_geometry.hpp` -- face arrays, staggered flag
+- `include/core/coordinate_system.hpp` -- StaggerType enum
+- `include/core/runtime_config.hpp` -- global_stagger_type
+- `include/numerics/derivatives/derivative_operators.hpp` -- StaggeredCylindricalDerivatives
+- `src/core/runtime/runtime_config.cpp` -- parse grid.staggering
+- `src/core/orchestration/dynamics/equations.cpp` -- C-grid init branch
+- `src/core/orchestration/dynamics/dynamics.cpp` -- BC selection for C-grid
+- `src/dynamics/factory.cpp` -- register cgrid schemes
+- `src/numerics/advection/advection.cpp` -- C-grid kernels
+- Makefile -- new source files
+
+Untouched: Existing TornadoScheme, SupercellScheme, CartesianScheme source files. All Cartesian code, teaching configs, student configs, microphysics, radiation, PBL, turbulence, terrain, chaos.

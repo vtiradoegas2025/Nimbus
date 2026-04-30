@@ -39,6 +39,11 @@ struct CameraInputState {
     bool look_active = false;
     float look_delta_x = 0.0f;
     float look_delta_y = 0.0f;
+    float scroll_delta = 0.0f;
+    bool orbit_drag_active = false;
+    float orbit_drag_delta_x = 0.0f;
+    float orbit_drag_delta_y = 0.0f;
+    bool capture_requested = false;
 };
 
 /**
@@ -83,6 +88,9 @@ public:
 
     /** @brief Optional camera/navigation input hook for interactive backends. */
     virtual void set_camera_input(const CameraInputState&) {}
+
+    /** @brief Status label for the window title (e.g., "Grid Ready", "Convection"). */
+    virtual std::string status_label() const { return ""; }
 
     /** @brief Destroy backend-owned Vulkan resources. */
     virtual void shutdown(VkDevice device) = 0;

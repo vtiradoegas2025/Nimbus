@@ -1,0 +1,126 @@
+// acoustic_momentum_cartesian.comp
+//
+// Fused acoustic momentum substep for Cartesian grids: pressure gradient -> u/v/w integration.
+//
+// GPU equivalent of compute_fast_momentum_tendencies + integration for Cartesian
+// coordinate systems. Uses simple Cartesian pressure gradient (-dp/dx, -dp/dy, -dp/dz)
+// with no geometric curvature terms.
+//
+// Boundary handling: zero-gradient u/v/w on x/y faces, zero-gradient u/v + rigid-lid
+// w=0 on z faces.
+//
+// Ping-pong design: reads rho/p from the UPDATED set (output of acoustic_pressure),
+// reads u/v/w from the CURRENT set, writes updated u/v/w to the output set.
+//
+// Data layout is row-major [nx][ny][nz].
+
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+// Input: updated rho, p (from pressure substep output)
+layout(set = 0, binding = 0) readonly buffer RhoInBuf { float rho_in[]; };
+layout(set = 0, binding = 1) readonly buffer PInBuf   { float p_in[];   };
+
+// Input: current u, v, w (from previous substep)
+layout(set = 0, binding = 2) readonly buffer UInBuf   { float u_in[];   };
+layout(set = 0, binding = 3) readonly buffer VInBuf   { float v_in[];   };
+layout(set = 0, binding = 4) readonly buffer WInBuf   { float w_in[];   };
+
+// Output: updated u, v, w after integration
+layout(set = 0, binding = 5) writeonly buffer UOutBuf { float u_out[]; };
+layout(set = 0, binding = 6) writeonly buffer VOutBuf { float v_out[]; };
+layout(set = 0, binding = 7) writeonly buffer WOutBuf { float w_out[]; };
+
+// Push constants (40 bytes, same struct as cylindrical variant)
+layout(push_constant) uniform PushConstants {
+    int   nr;          // nx
+    int   nth;         // ny
+    int   nz;
+    float dr;          // dx
+    float dtheta;      // dy
+    float dz_val;
+    float dt_small;
+    float wind_clamp_h;
+    float wind_clamp_v;
+    float padding;
+};
+
+const float RHO_MIN = 1.0e-6;
+
+float sanitize(float val) {
+    return (isnan(val) || isinf(val)) ? 0.0 : val;
+}
+
+float clamp_h(float val) {
+    return clamp(val, -wind_clamp_h, wind_clamp_h);
+}
+
+float clamp_v(float val) {
+    return clamp(val, -wind_clamp_v, wind_clamp_v);
+}
+
+void main() {
+    uint gid = gl_GlobalInvocationID.x;
+    uint total = uint(nr) * uint(nth) * uint(nz);
+    if (gid >= total) return;
+
+    int k = int(gid % uint(nz));
+    uint ij = gid / uint(nz);
+    int j = int(ij % uint(nth));
+    int i = int(ij / uint(nth));
+
+    uint c = gid;
+
+    bool is_x_boundary = (i == 0 || i == nr - 1);
+    bool is_y_boundary = (j == 0 || j == nth - 1);
+    bool is_z_boundary = (k == 0 || k == nz - 1);
+    bool is_boundary = is_x_boundary || is_y_boundary || is_z_boundary;
+
+    if (is_boundary) {
+        // Cartesian acoustic BCs
+        int i_src = clamp(i, 1, nr - 2);
+        int j_src = clamp(j, 1, nth - 2);
+        int k_src = clamp(k, 1, nz - 2);
+        uint src_idx = uint((i_src * nth + j_src) * nz + k_src);
+
+        // Zero-gradient for u/v on all faces
+        u_out[c] = u_in[src_idx];
+        v_out[c] = v_in[src_idx];
+
+        // Rigid lid/floor for w at z-faces, zero-gradient elsewhere
+        if (is_z_boundary) {
+            w_out[c] = 0.0;
+        } else {
+            w_out[c] = w_in[src_idx];
+        }
+        return;
+    }
+
+    // Interior: Cartesian pressure gradient
+    uint ip = uint(((i + 1) * nth + j) * nz + k);
+    uint im = uint(((i - 1) * nth + j) * nz + k);
+    uint jp = uint((i * nth + (j + 1)) * nz + k);
+    uint jm = uint((i * nth + (j - 1)) * nz + k);
+    uint kp = uint((i * nth + j) * nz + (k + 1));
+    uint km = uint((i * nth + j) * nz + (k - 1));
+
+    float inv_2dx = 1.0 / (2.0 * dr);
+    float inv_2dy = 1.0 / (2.0 * dtheta);
+    float inv_2dz = 1.0 / (2.0 * dz_val);
+
+    float dp_dx = (p_in[ip] - p_in[im]) * inv_2dx;
+    float dp_dy = (p_in[jp] - p_in[jm]) * inv_2dy;
+    float dp_dz = (p_in[kp] - p_in[km]) * inv_2dz;
+
+    float rho_val = rho_in[c];
+    float rho_safe = (rho_val > RHO_MIN && !isinf(rho_val)) ? rho_val : 1.0;
+
+    float du = sanitize(-dp_dx / rho_safe);
+    float dv = sanitize(-dp_dy / rho_safe);
+    float dw = sanitize(-dp_dz / rho_safe);
+
+    u_out[c] = clamp_h(u_in[c] + du * dt_small);
+    v_out[c] = clamp_h(v_in[c] + dv * dt_small);
+    w_out[c] = clamp_v(w_in[c] + dw * dt_small);
+}

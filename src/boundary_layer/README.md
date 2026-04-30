@@ -29,11 +29,11 @@ src/boundary_layer/
 
 Module coordination lives in:
 
-- `src/core/boundary_layer.cpp` (initialize, cadence stepping, tendency field fill)
+- `src/core/orchestration/physics/boundary_layer.cpp` (initialize, cadence stepping, tendency field fill)
 
 Shared interfaces and config structures live in:
 
-- `include/boundary_layer_base.hpp`
+- `include/boundary_layer/boundary_layer_base.hpp`
 
 ## Available Schemes
 
@@ -74,7 +74,7 @@ The selected method is applied through `compute_surface_fluxes(...)` in `src/bou
 
 ## Runtime Configuration (Supported Keys)
 
-The keys below are parsed in `src/core/runtime_config.cpp`.
+The keys below are parsed in `src/core/runtime/runtime_config.cpp`.
 
 ### `boundary_layer.*`
 
@@ -157,6 +157,6 @@ boundary_layer:
 
 ```bash
 make bin/tornado_sim
-./bin/tornado_sim --headless --config=configs/physical_supercell.yaml --duration=1 --write-every=1 --outdir=/tmp/tmv_pbl_smoke --log-profile quiet
+./bin/tornado_sim --headless --config=configs/simulation/physical_supercell.yaml --duration=1 --write-every=1 --outdir=/tmp/tmv_pbl_smoke --log-profile quiet
 ```
 

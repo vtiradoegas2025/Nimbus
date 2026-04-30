@@ -442,9 +442,13 @@ void print_help()
               << "  --ray-anisotropy  HG anisotropy in [-0.85,0.85] (default: 0.58)\n"
               << "  --ray-max-distance Max ray distance through volume (default: 5.0)\n"
               << "  --sun-dir         Comma-separated sun direction x,y,z (default: 0.66,0.34,0.67)\n"
+              << "  --capture-interval Seconds between auto-captures for timelapse (default: 0 = off)\n"
+              << "  --capture-dir     Output directory for screenshots (default: captures)\n"
               << "  --validate-input  Validate export datasets without creating Vulkan instance\n"
               << "  --dry-run         Initialize Vulkan and exit\n"
-              << "  --help            Show this help\n";
+              << "  --help            Show this help\n"
+              << "\nKeybindings:\n"
+              << "  F12               Take screenshot (saved as PPM to --capture-dir)\n";
 }
 
 }  // namespace
@@ -836,14 +840,39 @@ int main(int argc, char** argv)
             }
             continue;
         }
-        if (arg == "--sun-dir") 
+        if (arg == "--sun-dir")
         {
             const char* value = require_value(arg);
             if (value == nullptr) {return 1;}
 
-            if (!parse_vec3_csv(value, options.sun_dir_x, options.sun_dir_y, options.sun_dir_z)) 
+            if (!parse_vec3_csv(value, options.sun_dir_x, options.sun_dir_y, options.sun_dir_z))
             {
                 std::cerr << "Invalid --sun-dir value: " << value << " (expected x,y,z)\n";
+                return 1;
+            }
+            continue;
+        }
+        if (arg == "--capture-interval")
+        {
+            const char* value = require_value(arg);
+            if (value == nullptr) {return 1;}
+
+            if (!parse_float_arg(value, 0.0f, 86400.0f, options.capture_interval))
+            {
+                std::cerr << "Invalid --capture-interval value: " << value << " (expected 0..86400 seconds)\n";
+                return 1;
+            }
+            continue;
+        }
+        if (arg == "--capture-dir")
+        {
+            const char* value = require_value(arg);
+            if (value == nullptr) {return 1;}
+
+            options.capture_dir = value;
+            if (options.capture_dir.empty())
+            {
+                std::cerr << "Invalid --capture-dir value\n";
                 return 1;
             }
             continue;

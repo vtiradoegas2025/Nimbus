@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <cstring>
@@ -612,10 +613,31 @@ bool VolumeBackend::update_for_frame(VulkanContext& context, std::uint64_t, std:
         now,
         camera_input_.delta_seconds);
 
-    if (resolved_camera_mode_ == "orbit") 
+    // Scroll-wheel zoom: adjust camera distance in all modes
+    if (std::abs(camera_input_.scroll_delta) > 0.01f)
     {
-        camera::advance_orbit(camera_orbit_angle_rad_, config_.camera_orbit_fps, camera_dt);
-    } 
+        const float zoom_speed = 0.15f;
+        config_.camera_distance -= camera_input_.scroll_delta * zoom_speed;
+        config_.camera_distance = std::clamp(config_.camera_distance, 0.80f, 10.0f);
+    }
+
+    // Left-mouse-drag orbit: rotate camera in orbit/fixed modes
+    if (camera_input_.orbit_drag_active &&
+        (resolved_camera_mode_ == "orbit" || resolved_camera_mode_ == "fixed"))
+    {
+        camera_orbit_angle_rad_ -= static_cast<double>(camera_input_.orbit_drag_delta_x) * 0.005;
+        config_.camera_height -= camera_input_.orbit_drag_delta_y * 0.003f;
+        config_.camera_height = std::clamp(config_.camera_height, -0.5f, 2.5f);
+    }
+
+    if (resolved_camera_mode_ == "orbit")
+    {
+        // Auto-orbit only when not manually dragging
+        if (!camera_input_.orbit_drag_active)
+        {
+            camera::advance_orbit(camera_orbit_angle_rad_, config_.camera_orbit_fps, camera_dt);
+        }
+    }
     else if (resolved_camera_mode_ == "freefly") 
     {
         camera::update_freefly_pose(
@@ -630,7 +652,41 @@ bool VolumeBackend::update_for_frame(VulkanContext& context, std::uint64_t, std:
             camera_dt);
     }
 
-    if (frame_count_ > 1 && config_.playback_fps > 0.0f) 
+    // Poll SHM live sources for new simulation data (independent of disk playback).
+    // When the simulation writes a new frame, the sequence number changes and
+    // we reload + re-upload all SHM-connected fields.
+    {
+        bool any_new = false;
+        for (std::size_t i = 0; i < shm_datasets_.size(); ++i)
+        {
+            if (shm_datasets_[i].has_new_frame())
+            {
+                any_new = true;
+                break;
+            }
+        }
+        if (any_new)
+        {
+            // Reload from SHM and re-upload to GPU. This bypasses
+            // advance_to_next_frame() which early-returns when frame_count<=1.
+            std::vector<FieldFrame> field_frames;
+            std::string shm_reload_error;
+            if (load_dataset_frame(0, field_frames, shm_reload_error))
+            {
+                current_field_frames_ = std::move(field_frames);
+                if (!upload_volume_data(context, shm_reload_error))
+                {
+                    std::cerr << "[vulkan][volume] SHM upload error: " << shm_reload_error << "\n";
+                }
+            }
+            else
+            {
+                std::cerr << "[vulkan][volume] SHM reload error: " << shm_reload_error << "\n";
+            }
+        }
+    }
+
+    if (frame_count_ > 1 && config_.playback_fps > 0.0f)
     {
         if (!playback_clock_initialized_) 
         {
@@ -708,6 +764,13 @@ bool VolumeBackend::update_for_frame(VulkanContext& context, std::uint64_t, std:
 
 /** @brief Cache latest interactive camera input snapshot from the window layer. */
 void VolumeBackend::set_camera_input(const CameraInputState& input) {camera_input_ = input;}
+
+std::string VolumeBackend::status_label() const
+{
+    if (convection_detected_) { return "Convection"; }
+    if (grid_ready_)          { return "Grid Ready"; }
+    return "Waiting for SHM";
+}
 
 /** @brief Destroy backend-owned Vulkan and dataset resources. */
 void VolumeBackend::shutdown(VkDevice) 
@@ -936,12 +999,49 @@ bool VolumeBackend::scan_datasets(std::string& error)
             break;
         }
 
-        if (!resolved) 
+        if (!resolved)
         {
-            std::cout << "[vulkan][volume] Skipping field '" << requested_field << "'";
-
-            if (!last_scan_error.empty()) {std::cout << " (" << last_scan_error << ")";}
-            std::cout << "\n";
+            // What is SHM: A shared memory region that is written by the simulation and read by the viewer.
+            // Disk resolution failed — check SHM before giving up.
+            // SHM-only fields (e.g. qc before any disk export) are valid
+            // visualization sources during live simulation. 
+            const std::vector<std::string> shm_candidates = field_alias_candidates(requested_field);
+            bool shm_resolved = false;
+            for (const std::string& candidate : shm_candidates)
+            {
+                if (used_resolved_fields.count(candidate)) continue;
+                oglcpp::ShmDataset shm_probe(candidate);
+                std::string shm_error;
+                if (shm_probe.scan(shm_error))
+                {
+                    resolved_field_name = candidate;
+                    if (datasets_.empty() && shm_datasets_.empty())
+                    {
+                        expected_nx = shm_probe.nx();
+                        expected_ny = shm_probe.ny();
+                        expected_nz = shm_probe.nz();
+                        frame_count_ = 1;
+                        volume_width_ = static_cast<uint32_t>(expected_nx);
+                        volume_height_ = static_cast<uint32_t>(expected_ny);
+                        volume_depth_ = static_cast<uint32_t>(expected_nz);
+                    }
+                    std::cout << "[vulkan][volume] Live SHM source for '" << candidate << "'\n";
+                    field_index_by_name_.emplace(candidate, datasets_.size());
+                    field_names_.push_back(candidate);
+                    // Empty disk dataset placeholder (SHM provides all data)
+                    datasets_.push_back(oglcpp::ExportDataset(config_.input_dir, candidate));
+                    shm_datasets_.push_back(std::move(shm_probe));
+                    used_resolved_fields.insert(candidate);
+                    shm_resolved = true;
+                    break;
+                }
+            }
+            if (!shm_resolved)
+            {
+                std::cout << "[vulkan][volume] Skipping field '" << requested_field << "'";
+                if (!last_scan_error.empty()) {std::cout << " (" << last_scan_error << ")";}
+                std::cout << "\n";
+            }
             continue;
         }
 
@@ -1094,6 +1194,11 @@ bool VolumeBackend::load_dataset_frame(std::size_t frame_idx, std::vector<FieldF
         if (i < shm_datasets_.size() && shm_datasets_[i].frame_count() > 0)
         {
             loaded = shm_datasets_[i].load_frame(0, frame, load_error);
+            if (loaded && !grid_ready_)
+            {
+                grid_ready_ = true;
+                std::cerr << "[vulkan][status] Grid Ready\n";
+            }
         }
 
         if (!loaded && !datasets_[i].load_frame(frame_idx, frame, load_error))
@@ -1145,6 +1250,20 @@ bool VolumeBackend::load_dataset_frame(std::size_t frame_idx, std::vector<FieldF
             volume_raw_max_ = frame.raw_max;
             volume_norm_low_ = frame.norm_low;
             volume_norm_high_ = frame.norm_high;
+        }
+
+        if (!convection_detected_)
+        {
+            float field_max = 0.0f;
+            for (float v : frame.normalized)
+            {
+                if (v > field_max) { field_max = v; }
+            }
+            if (field_max > 0.05f)
+            {
+                convection_detected_ = true;
+                std::cerr << "[vulkan][status] Convection (field_max=" << field_max << ")\n";
+            }
         }
 
         FieldFrame field_frame;

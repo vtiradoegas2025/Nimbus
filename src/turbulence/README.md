@@ -17,8 +17,8 @@ Primary outputs:
 ## Code Layout
 
 ```text
-src/core/turbulence.cpp                    # runtime coordinator, cadence, guards
-src/turbulence/factory.cpp/.hpp            # scheme construction
+src/core/orchestration/physics/turbulence.cpp   # runtime coordinator, cadence, guards
+src/turbulence/factory.cpp/.hpp                 # scheme construction
 src/turbulence/base/eddy_viscosity.cpp/.hpp
 src/turbulence/schemes/smagorinsky/*.cpp
 src/turbulence/schemes/tke/*.cpp
@@ -27,12 +27,12 @@ src/turbulence/schemes/tke/*.cpp
 ## Runtime Coupling
 
 1. `initialize_turbulence(...)` is called from
-   `src/core/tornado_sim.cpp`.
-2. `step_turbulence(...)` is called from `src/core/dynamics.cpp`.
+   `src/core/runtime/tornado_sim.cpp`.
+2. `step_turbulence(...)` is called from `src/core/orchestration/dynamics/dynamics.cpp`.
 3. Chaos perturbations can modify SGS tendencies through
    `apply_chaos_to_turbulence_tendencies(...)`.
 4. SGS tendencies are added to resolved state tendencies in the dynamics step.
-5. For TKE updates, `src/core/dynamics.cpp` applies
+5. For TKE updates, `src/core/orchestration/dynamics/dynamics.cpp` applies
    `dtkedt_sgs + dtke_dt_pbl` to the shared `tke` field.
 
 ## Scheme Notes
@@ -95,7 +95,7 @@ Recommended checks:
 
 ```bash
 make bin/tornado_sim
-./bin/tornado_sim --headless --config=configs/physical_supercell.yaml --duration=1 --write-every=1 --outdir=/tmp/turbulence_smoke --log-profile quiet
+./bin/tornado_sim --headless --config=configs/simulation/physical_supercell.yaml --duration=1 --write-every=1 --outdir=/tmp/turbulence_smoke --log-profile quiet
 ./bin/field_validator --input /tmp/turbulence_smoke --contract cm1 --mode strict --scope exported --json /tmp/turbulence_smoke/offline_validation.json
 make test-guards
 make test-backend-physics
@@ -103,7 +103,7 @@ make test-backend-physics
 
 Runtime safety behavior:
 - non-finite SGS tendency values are sanitized to zero in
-  `src/core/turbulence.cpp`
+  `src/core/orchestration/physics/turbulence.cpp`
 - invalid turbulence config values are clamped/fallbacked at initialization
 
 ## Current Limitations

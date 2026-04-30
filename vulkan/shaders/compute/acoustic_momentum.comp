@@ -90,12 +90,12 @@ void main() {
             v_out[c] =  v_in[src_idx];              // symmetric
             w_out[c] =  w_in[src_idx];              // symmetric
         } else {
-            // z faces: zero-gradient
+            // z faces: rigid lid/floor for w, zero-gradient for u/v
             int k_src = (k == 0) ? 1 : nz - 2;
             uint src_idx = uint((i * nth + j) * nz + k_src);
             u_out[c] = u_in[src_idx];
             v_out[c] = v_in[src_idx];
-            w_out[c] = w_in[src_idx];
+            w_out[c] = 0.0;                         // rigid lid/floor
         }
         return;
     }

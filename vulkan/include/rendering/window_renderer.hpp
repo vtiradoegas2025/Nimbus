@@ -73,6 +73,8 @@ struct WindowRunConfig
     float sun_dir_x = 0.66f;
     float sun_dir_y = 0.34f;
     float sun_dir_z = 0.67f;
+    float capture_interval = 0.0f;
+    std::string capture_dir = "captures";
 };
 
 /**
@@ -171,6 +173,7 @@ private:
 
 #if VKCPP_USE_GLFW
     static void framebuffer_resize_callback(GLFWwindow* window, int width, int height);
+    static void scroll_callback(GLFWwindow* window, double x_offset, double y_offset);
 #endif
 
     /**
@@ -192,6 +195,21 @@ private:
 
     /** @brief Destroy resources bound to the current swapchain. */
     void cleanup_swapchain();
+
+    /** @brief Update window title with frame rate statistics. */
+    void update_title_fps(float delta_seconds);
+
+    /** @brief Print periodic performance summary to stderr. */
+    void log_perf_summary();
+
+    /** @brief Capture the last-rendered swapchain image to a PPM file on disk. */
+    bool capture_frame(uint32_t image_index, std::string& error);
+
+    /** @brief Create or recreate the staging buffer used for screenshot readback. */
+    bool ensure_capture_staging(std::string& error);
+
+    /** @brief Release staging buffer resources used for capture. */
+    void destroy_capture_resources();
 
     VulkanContext* context_ = nullptr;
     WindowRunConfig config_{};
@@ -226,6 +244,28 @@ private:
     std::array<VkFence, kMaxFramesInFlight> in_flight_fences_{};
     std::vector<VkFence> images_in_flight_;
     std::size_t current_frame_ = 0;
+
+    // Performance timing.
+    std::chrono::steady_clock::time_point perf_epoch_{};
+    std::chrono::steady_clock::time_point last_title_update_{};
+    std::chrono::steady_clock::time_point last_perf_log_{};
+    int title_frame_count_ = 0;
+    float title_frame_time_sum_ = 0.0f;
+    int log_frame_count_ = 0;
+    float log_frame_time_sum_ = 0.0f;
+    float log_frame_time_min_ = 0.0f;
+    float log_frame_time_max_ = 0.0f;
+
+    // Screen capture.
+    bool capture_pending_ = false;
+    uint32_t capture_image_index_ = 0;
+    double capture_accumulator_ = 0.0;
+    int capture_count_ = 0;
+    VkBuffer capture_staging_buffer_ = VK_NULL_HANDLE;
+    VkDeviceMemory capture_staging_memory_ = VK_NULL_HANDLE;
+    VkDeviceSize capture_staging_size_ = 0;
+    uint32_t capture_staging_width_ = 0;
+    uint32_t capture_staging_height_ = 0;
 };
 
 }  // namespace vkcpp

@@ -196,6 +196,39 @@ bool dispatch_kessler_sedimentation_backend(
     float a_hail, float b_hail, float Vt_max_hail);
 
 /**
+ * @brief Dispatches Thompson point-wise microphysics via GPU backend.
+ */
+bool dispatch_thompson_pointwise_backend(
+    const float* temperature_data, const float* p_data,
+    const float* qv_data, const float* qc_data, const float* qr_data,
+    const float* qi_data, const float* qs_data,
+    const float* qg_data, const float* qh_data,
+    float* dtheta_dt_data, float* dqv_dt_data,
+    float* dqc_dt_data, float* dqr_dt_data,
+    float* dqi_dt_data, float* dqs_dt_data,
+    float* dqg_dt_data, float* dqh_dt_data,
+    int nr, int nth, int nz,
+    float qc0, float c_auto, float c_evap,
+    float c_dep, float c_subl, float c_melt,
+    float Lv_cp, float Lf_cp, float Ls_cp, float T0,
+    float ccn_conc, float in_conc);
+
+/**
+ * @brief Dispatches Thompson sedimentation via GPU backend (4 species).
+ */
+bool dispatch_thompson_sedimentation_backend(
+    const float* qr_data, const float* qs_data,
+    const float* qg_data, const float* qh_data,
+    float* dqr_dt_data, float* dqs_dt_data,
+    float* dqg_dt_data, float* dqh_dt_data,
+    int nr, int nth, int nz,
+    float dz_val,
+    float a_rain, float b_rain, float Vt_max_rain,
+    float a_snow, float b_snow, float Vt_max_snow,
+    float a_grau, float b_grau, float Vt_max_grau,
+    float a_hail, float b_hail, float Vt_max_hail);
+
+/**
  * @brief Returns true when batched advection dispatch is available.
  */
 bool supports_batched_advection_dispatch();
@@ -259,5 +292,42 @@ bool dispatch_acoustic_momentum_backend(
     int nr, int nth, int nz,
     float dr, float dtheta, float dz,
     float dt_small,
+    float wind_clamp_h, float wind_clamp_v);
+
+/**
+ * @brief Fused acoustic substep: pressure + momentum in one GPU submission.
+ *
+ * Performs both forward (divergence -> rho/p) and backward (pressure gradient
+ * -> u/v/w) phases in a single command buffer with a compute-to-compute
+ * barrier. All 5 fields are updated in-place.
+ *
+ * @return True if GPU dispatch succeeded.
+ */
+bool dispatch_acoustic_substep_fused_backend(
+    float* u, float* v, float* w,
+    float* rho, float* p,
+    int nr, int nth, int nz,
+    float dr, float dtheta, float dz,
+    float gamma_val, float dt_small,
+    float rho_floor, float p_floor,
+    float wind_clamp_h, float wind_clamp_v);
+
+/**
+ * @brief Batched acoustic substeps: all N substeps in one GPU submission.
+ *
+ * Records N iterations of (pressure + barrier + momentum + barrier) in a
+ * single command buffer. Fields stay GPU-resident across all substeps.
+ * GPU shaders handle boundary conditions internally between substeps.
+ *
+ * @param n_substeps Number of acoustic substeps to execute.
+ * @return True if GPU dispatch succeeded.
+ */
+bool dispatch_acoustic_substeps_batched_backend(
+    float* u, float* v, float* w,
+    float* rho, float* p,
+    int nr, int nth, int nz,
+    float dr, float dtheta, float dz,
+    float gamma_val, float dt_small, int n_substeps,
+    float rho_floor, float p_floor,
     float wind_clamp_h, float wind_clamp_v);
 

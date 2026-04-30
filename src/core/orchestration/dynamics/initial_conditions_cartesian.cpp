@@ -51,10 +51,10 @@ void apply_cartesian_wind_initialization()
     // worth doing in the cylindrical path too, but that's a Phase B cleanup.
     std::vector<double> u_x_by_k(static_cast<std::size_t>(NZ));
     std::vector<double> u_y_by_k(static_cast<std::size_t>(NZ));
+    const auto& geo = global_grid_geometry;
     for (int k = 0; k < NZ; ++k)
     {
-        const double z = static_cast<double>(k) * dz;
-        compute_wind_profile(global_wind_profile, z,
+        compute_wind_profile(global_wind_profile, geo.z[k],
                              u_x_by_k[static_cast<std::size_t>(k)],
                              u_y_by_k[static_cast<std::size_t>(k)]);
     }
@@ -91,14 +91,15 @@ void apply_cartesian_bubble_initialization()
     // exp(−(dist * 3 / radius)²). Caching `3 / radius` avoids two divisions
     // per cell in the inner loop.
     const double inv_third_radius = 3.0 / bubble_radius;
+    const auto& geo = global_grid_geometry;
 
     #pragma omp parallel for collapse(2)
     for (int i = 0; i < NR; ++i)
     {
         for (int j = 0; j < NTH; ++j)
         {
-            const double x_dist = static_cast<double>(i) * dr - bubble_center_x;
-            const double y_dist = static_cast<double>(j) * dr - bubble_center_y;
+            const double x_dist = geo.r[i] - bubble_center_x;
+            const double y_dist = geo.theta[j] - bubble_center_y;
             const double xy_sq  = x_dist * x_dist + y_dist * y_dist;
 
             // Cull entire columns whose horizontal distance already exceeds
@@ -111,7 +112,7 @@ void apply_cartesian_bubble_initialization()
 
             for (int k = 0; k < NZ; ++k)
             {
-                const double z_dist = static_cast<double>(k) * dz - bubble_center_z;
+                const double z_dist = geo.z[k] - bubble_center_z;
                 const double dist_sq = xy_sq + z_dist * z_dist;
                 if (dist_sq > bubble_radius_sq)
                 {

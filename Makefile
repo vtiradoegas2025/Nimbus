@@ -1,4 +1,13 @@
-CXX := g++
+# Auto-detect compiler: prefer CXX from environment, then g++, then clang++
+ifeq ($(origin CXX),default)
+  ifneq ($(shell command -v g++ 2>/dev/null),)
+    CXX := g++
+  else ifneq ($(shell command -v clang++ 2>/dev/null),)
+    CXX := clang++
+  else
+    CXX := c++
+  endif
+endif
 CXXFLAGS := -std=c++17 -O3 -march=native -mtune=native -I include -I src -I vulkan/include
 UNAME_S := $(shell uname -s)
 
@@ -10,8 +19,11 @@ ifneq ($(BREW_PREFIX),)
     CXXFLAGS += -I$(VULKAN_HEADERS_PREFIX)/include
   endif
 else ifeq ($(UNAME_S),Linux)
-  # Linux: check standard system paths for Vulkan headers
-  ifneq ($(wildcard /usr/include/vulkan/vulkan.h),)
+  # Linux: check VULKAN_SDK env var (LunarG SDK), then standard system paths
+  ifneq ($(VULKAN_SDK),)
+    CXXFLAGS += -I$(VULKAN_SDK)/include
+    LDFLAGS += -L$(VULKAN_SDK)/lib
+  else ifneq ($(wildcard /usr/include/vulkan/vulkan.h),)
     # System headers already on default include path
   else ifneq ($(wildcard /usr/local/include/vulkan/vulkan.h),)
     CXXFLAGS += -I/usr/local/include
@@ -58,9 +70,10 @@ ifeq ($(LIBOMP_PATH),)
     CXXFLAGS += $(OPENMP_FLAG)
   else
     # -fopenmp doesn't work, OpenMP disabled
-    # Pragmas will be ignored due to #ifdef _OPENMP guards
     OPENMP_FLAG :=
     OPENMP_LIB :=
+    $(warning *** OpenMP not found -- simulation will run SINGLE-THREADED.)
+    $(warning *** Install: macOS: brew install libomp | Ubuntu/Debian: sudo apt install libomp-dev | Fedora: sudo dnf install libomp-devel)
   endif
 endif
 OPENMP_LDLIBS := $(OPENMP_LIB)
@@ -72,22 +85,27 @@ ifeq ($(EXPORT_NPY),1)
   CXXFLAGS += -DEXPORT_NPY
 endif
 # Optional: ZFP scientific compression
-# Searches: brew, ~/.local, /usr/local, or ZFP_PREFIX env var
-ZFP ?= 0
-ifeq ($(ZFP),1)
-  ZFP_PREFIX ?= $(shell brew --prefix zfp 2>/dev/null)
-  ifeq ($(ZFP_PREFIX),)
-    ifneq ($(wildcard $(HOME)/.local/include/zfp.h),)
-      ZFP_PREFIX := $(HOME)/.local
-    else ifneq ($(wildcard /usr/local/include/zfp.h),)
-      ZFP_PREFIX := /usr/local
-    endif
+# Auto-detected from: brew, ~/.local, /usr/local, or ZFP_PREFIX env var.
+# Set ZFP=0 to explicitly disable even when installed.
+#
+# Note: `brew --prefix zfp` returns a path (/opt/homebrew/opt/zfp) even when
+# the package is NOT installed -- the directory simply does not exist on
+# disk. We therefore validate every candidate prefix by checking that
+# <prefix>/include/zfp.h actually exists before accepting it.
+ifeq ($(origin ZFP_PREFIX), undefined)
+  ZFP_BREW_PREFIX := $(shell brew --prefix zfp 2>/dev/null)
+  ifneq ($(wildcard $(ZFP_BREW_PREFIX)/include/zfp.h),)
+    ZFP_PREFIX := $(ZFP_BREW_PREFIX)
+  else ifneq ($(wildcard $(HOME)/.local/include/zfp.h),)
+    ZFP_PREFIX := $(HOME)/.local
+  else ifneq ($(wildcard /usr/local/include/zfp.h),)
+    ZFP_PREFIX := /usr/local
   endif
+endif
+ifneq ($(ZFP),0)
   ifneq ($(ZFP_PREFIX),)
     CXXFLAGS += -DHAVE_ZFP -I$(ZFP_PREFIX)/include
     ZFP_LDLIBS := -L$(ZFP_PREFIX)/lib -Wl,-rpath,$(ZFP_PREFIX)/lib -lzfp
-  else
-    $(warning ZFP=1 but zfp library not found; set ZFP_PREFIX or install to ~/.local)
   endif
 endif
 
@@ -95,7 +113,7 @@ endif
 # Source files
 # ---------------------------------------------------------------------------
 VALIDATION_SRCS := src/diagnostics/field_contract.cpp src/diagnostics/field_validation.cpp
-SRCS := src/core/orchestration/dynamics/equations.cpp src/core/orchestration/dynamics/dynamics.cpp src/core/infra/field_sanitization.cpp src/core/infra/rayleigh_damping.cpp src/boundary_conditions/boundary_conditions_cartesian.cpp src/boundary_conditions/boundary_conditions_cylindrical.cpp src/core/orchestration/physics/diffusion_step.cpp src/core/orchestration/physics/microphysics_step.cpp src/core/orchestration/physics/radar_step.cpp src/core/infra/nested_grid.cpp src/core/orchestration/dynamics/initial_conditions_cartesian.cpp src/core/runtime/tornado_sim.cpp src/core/runtime/headless_runtime.cpp src/core/runtime/runtime_config.cpp src/core/infra/coordinate_system.cpp src/compute/compute_backend.cpp src/compute/compute_kernel_template.cpp src/core/infra/hardware_info.cpp src/core/output/npy_writer.cpp src/core/output/output_config.cpp src/core/output/output_writer.cpp src/core/output/shm_writer.cpp src/core/orchestration/physics/radiation.cpp src/core/orchestration/physics/boundary_layer.cpp src/core/orchestration/physics/turbulence.cpp src/core/orchestration/dynamics/numerics.cpp src/core/infra/simd_utils.cpp \
+SRCS := src/core/orchestration/dynamics/equations.cpp src/core/orchestration/dynamics/dynamics.cpp src/core/infra/field_sanitization.cpp src/core/infra/rayleigh_damping.cpp src/boundary_conditions/boundary_conditions_cartesian.cpp src/boundary_conditions/boundary_conditions_cylindrical.cpp src/boundary_conditions/boundary_conditions_cylindrical_cgrid.cpp src/boundary_conditions/factory.cpp src/core/orchestration/physics/diffusion_step.cpp src/core/orchestration/physics/microphysics_step.cpp src/core/orchestration/physics/radar_step.cpp src/core/infra/nested_grid.cpp src/core/orchestration/dynamics/initial_conditions_cartesian.cpp src/core/orchestration/dynamics/initial_conditions_cylindrical_cgrid.cpp src/core/runtime/tornado_sim.cpp src/core/runtime/headless_runtime.cpp src/core/runtime/runtime_config.cpp src/core/infra/coordinate_system.cpp src/compute/compute_backend.cpp src/compute/compute_kernel_template.cpp src/core/infra/hardware_info.cpp src/core/output/npy_writer.cpp src/core/output/output_config.cpp src/core/output/output_writer.cpp src/core/output/shm_writer.cpp src/core/orchestration/physics/radiation.cpp src/core/orchestration/physics/boundary_layer.cpp src/core/orchestration/physics/turbulence.cpp src/core/orchestration/dynamics/numerics.cpp src/core/infra/simd_utils.cpp \
          src/numerics/advection/advection.cpp \
          src/numerics/advection/advection_cartesian.cpp \
          src/core/orchestration/physics/radar.cpp \
@@ -118,6 +136,7 @@ SRCS := src/core/orchestration/dynamics/equations.cpp src/core/orchestration/dyn
          src/dynamics/schemes/cartesian/cartesian.cpp \
          src/dynamics/schemes/supercell/supercell.cpp \
          src/dynamics/schemes/tornado/tornado.cpp \
+         src/dynamics/schemes/tornado/tornado_cgrid.cpp \
          src/radiation/base/radiative_transfer.cpp \
          src/radiation/factory.cpp \
          src/radiation/schemes/simple_grey/simple_grey.cpp \
@@ -196,8 +215,9 @@ FIELD_VALIDATOR_OBJS := $(patsubst %.cpp,$(BUILDDIR)/%.o,$(FIELD_VALIDATOR_SRCS)
 DEPFLAGS = -MMD -MP
 DEPS := $(OBJS:.o=.d) $(FIELD_VALIDATOR_OBJS:.o=.d)
 
-# Default target must come before -include so .d rules don't hijack it
-.DEFAULT_GOAL := $(BIN)
+# Default target: build simulation + compile compute shaders if glslangValidator is available
+.DEFAULT_GOAL := all
+all: $(BIN) vulkan-compute-shaders
 -include $(DEPS)
 
 # Compile each .cpp to a .o (incremental, parallelizable with -j)
@@ -207,10 +227,10 @@ $(BUILDDIR)/%.o: %.cpp
 
 # Link
 $(BIN): $(OBJS) | bin
-	$(CXX) $(OBJS) $(LDLIBS) -o $(BIN)
+	$(CXX) $(OBJS) $(LDFLAGS) $(LDLIBS) -o $(BIN)
 
 $(FIELD_VALIDATOR): $(FIELD_VALIDATOR_OBJS) | bin
-	$(CXX) $(FIELD_VALIDATOR_OBJS) $(LDLIBS) -o $(FIELD_VALIDATOR)
+	$(CXX) $(FIELD_VALIDATOR_OBJS) $(LDFLAGS) $(LDLIBS) -o $(FIELD_VALIDATOR)
 
 bin:
 	mkdir -p bin
@@ -224,9 +244,17 @@ run: $(BIN)
 vulkan-compute-shaders:
 	@GLSLANG=$$(command -v glslangValidator 2>/dev/null); \
 	if [ -n "$$GLSLANG" ]; then \
+		recompiled=0; \
 		for comp in vulkan/shaders/compute/*.comp; do \
-			[ -f "$$comp" ] && $$GLSLANG -V -S comp "$$comp" -o "$$comp.spv"; \
+			[ -f "$$comp" ] || continue; \
+			spv="$$comp.spv"; \
+			if [ ! -f "$$spv" ] || [ "$$comp" -nt "$$spv" ]; then \
+				$$GLSLANG -V -S comp -Os "$$comp" -o "$$spv" && recompiled=$$((recompiled+1)); \
+			fi; \
 		done; \
+		if [ $$recompiled -gt 0 ]; then \
+			echo "[SHADERS] Compiled $$recompiled compute shader(s)"; \
+		fi; \
 	fi
 
 vulkan:
@@ -237,6 +265,49 @@ run-vulkan: vulkan
 
 validate-fields: $(FIELD_VALIDATOR)
 	./$(FIELD_VALIDATOR) --input data/exports --contract cm1 --mode report --json data/exports/validation_dataset_report.json
+
+# ---------------------------------------------------------------------------
+# Dependency check
+# ---------------------------------------------------------------------------
+.PHONY: check-deps
+check-deps:
+	@echo "=== Nimbus dependency check ==="
+	@printf "C++ compiler:   "; $(CXX) --version 2>&1 | head -1 || echo "NOT FOUND"
+	@printf "GNU Make:       "; make --version 2>&1 | head -1
+	@printf "OpenMP:         "; \
+	  if echo 'int main(){return 0;}' | $(CXX) -x c++ -fopenmp - -o /dev/null 2>/dev/null; then \
+	    echo "available"; \
+	  elif [ -n "$$(brew --prefix libomp 2>/dev/null)" ]; then \
+	    echo "available (Homebrew libomp)"; \
+	  else \
+	    echo "NOT FOUND -- simulation will run single-threaded"; \
+	    echo "  Install: macOS: brew install libomp | Ubuntu: sudo apt install libomp-dev | Fedora: sudo dnf install libomp-devel"; \
+	  fi
+	@printf "Vulkan headers: "; \
+	  if [ -f /usr/include/vulkan/vulkan.h ] || [ -f /usr/local/include/vulkan/vulkan.h ] || \
+	     [ -n "$$(brew --prefix vulkan-headers 2>/dev/null)" ]; then \
+	    echo "found"; \
+	  else \
+	    echo "NOT FOUND (optional -- needed for GPU compute and viewer)"; \
+	    echo "  Install: macOS: brew install vulkan-headers vulkan-loader molten-vk | Ubuntu: sudo apt install libvulkan-dev"; \
+	  fi
+	@printf "glslangValidator: "; \
+	  if command -v glslangValidator >/dev/null 2>&1; then \
+	    glslangValidator --version 2>&1 | head -1; \
+	  else \
+	    echo "NOT FOUND (optional -- needed to compile GPU shaders)"; \
+	    echo "  Install: macOS: brew install glslang | Ubuntu: sudo apt install glslang-tools"; \
+	  fi
+	@printf "GLFW:           "; \
+	  if pkg-config --exists glfw3 2>/dev/null; then \
+	    echo "found (pkg-config)"; \
+	  elif [ -n "$$(brew --prefix glfw 2>/dev/null)" ]; then \
+	    echo "found (Homebrew)"; \
+	  else \
+	    echo "NOT FOUND (optional -- needed for windowed viewer)"; \
+	    echo "  Install: macOS: brew install glfw | Ubuntu: sudo apt install libglfw3-dev"; \
+	  fi
+	@echo "=== Done ==="
 
 # ---------------------------------------------------------------------------
 # Catch2 Test Suite
@@ -289,7 +360,16 @@ bin/test_dynamics_cartesian: $(TEST_INFRA) tests/dynamics/test_cartesian_dynamic
 bin/test_dynamics_cartesian_bcs: $(TEST_INFRA) tests/dynamics/test_cartesian_boundary_conditions.cpp src/dynamics/schemes/cartesian/cartesian.cpp src/boundary_conditions/boundary_conditions_cartesian.cpp | bin
 	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
 
+bin/test_dynamics_cylindrical_cgrid_bcs: $(TEST_INFRA) tests/dynamics/test_cylindrical_cgrid_boundary_conditions.cpp src/boundary_conditions/boundary_conditions_cylindrical_cgrid.cpp src/boundary_conditions/factory.cpp src/boundary_conditions/boundary_conditions_cylindrical.cpp src/boundary_conditions/boundary_conditions_cartesian.cpp | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
+
 bin/test_dynamics_cartesian_ic: $(TEST_INFRA) tests/dynamics/test_cartesian_initial_conditions.cpp src/core/orchestration/dynamics/initial_conditions_cartesian.cpp | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
+
+bin/test_dynamics_cylindrical_cgrid_ic: $(TEST_INFRA) tests/dynamics/test_cylindrical_cgrid_initial_conditions.cpp src/core/orchestration/dynamics/initial_conditions_cylindrical_cgrid.cpp src/core/infra/coordinate_system.cpp | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
+
+bin/test_dynamics_tornado_cgrid: $(TEST_INFRA) tests/dynamics/test_tornado_cgrid_dynamics.cpp src/dynamics/schemes/tornado/tornado_cgrid.cpp src/core/infra/coordinate_system.cpp | bin
 	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
 
 # Numerics tests
@@ -306,6 +386,9 @@ bin/test_numerics_diffusion: $(TEST_INFRA) tests/numerics/test_diffusion.cpp src
 	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
 
 bin/test_numerics_timestepping: $(TEST_INFRA) tests/numerics/test_time_stepping.cpp src/numerics/time_stepping/factory.cpp src/numerics/time_stepping/schemes/rk3/rk3.cpp src/numerics/time_stepping/schemes/rk4/rk4.cpp src/numerics/time_stepping/schemes/split_explicit/split_explicit.cpp | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
+
+bin/test_numerics_staggered_derivatives: $(TEST_INFRA) tests/numerics/test_staggered_derivatives.cpp src/core/infra/coordinate_system.cpp | bin
 	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
 
 # Physics tests
@@ -340,7 +423,8 @@ CATCH2_BINS := bin/test_core_field bin/test_core_output bin/test_core_hardware b
                bin/test_core_output_writer bin/test_core_shm bin/test_core_coordinate_system \
                bin/test_diagnostics_contract bin/test_diagnostics_validation \
                bin/test_dynamics_cartesian bin/test_dynamics_cartesian_bcs bin/test_dynamics_cartesian_ic \
-               bin/test_numerics_advection bin/test_numerics_advection_cartesian bin/test_numerics_diffusion bin/test_numerics_timestepping \
+               bin/test_dynamics_cylindrical_cgrid_bcs bin/test_dynamics_cylindrical_cgrid_ic bin/test_dynamics_tornado_cgrid \
+               bin/test_numerics_advection bin/test_numerics_advection_cartesian bin/test_numerics_diffusion bin/test_numerics_timestepping bin/test_numerics_staggered_derivatives \
                bin/test_physics_microphysics bin/test_physics_radiation bin/test_physics_terrain \
                bin/test_data_soundings bin/test_vulkan_backend bin/test_vulkan_gpu_parity \
                bin/test_integration bin/test_shm_e2e
@@ -348,7 +432,7 @@ CATCH2_BINS := bin/test_core_field bin/test_core_output bin/test_core_hardware b
 # ---------------------------------------------------------------------------
 # Test targets
 # ---------------------------------------------------------------------------
-.PHONY: run clean clean-vulkan vulkan vulkan-compute-shaders run-vulkan validate-fields \
+.PHONY: all run clean clean-vulkan vulkan vulkan-compute-shaders run-vulkan validate-fields \
         test test-all test-core test-diagnostics test-dynamics test-numerics test-physics test-data \
         test-vulkan test-integration test-shm-e2e smoke-test smoke-test-e2e benchmark-point2
 
@@ -366,11 +450,11 @@ test-core: bin/test_core_field bin/test_core_output bin/test_core_hardware bin/t
 test-diagnostics: bin/test_diagnostics_contract bin/test_diagnostics_validation bin/test_diagnostics_logging_ratchet
 	./bin/test_diagnostics_contract && ./bin/test_diagnostics_validation && ./bin/test_diagnostics_logging_ratchet
 
-test-dynamics: bin/test_dynamics_cartesian bin/test_dynamics_cartesian_bcs bin/test_dynamics_cartesian_ic
-	./bin/test_dynamics_cartesian && ./bin/test_dynamics_cartesian_bcs && ./bin/test_dynamics_cartesian_ic
+test-dynamics: bin/test_dynamics_cartesian bin/test_dynamics_cartesian_bcs bin/test_dynamics_cartesian_ic bin/test_dynamics_cylindrical_cgrid_bcs bin/test_dynamics_cylindrical_cgrid_ic bin/test_dynamics_tornado_cgrid
+	./bin/test_dynamics_cartesian && ./bin/test_dynamics_cartesian_bcs && ./bin/test_dynamics_cartesian_ic && ./bin/test_dynamics_cylindrical_cgrid_bcs && ./bin/test_dynamics_cylindrical_cgrid_ic && ./bin/test_dynamics_tornado_cgrid
 
-test-numerics: bin/test_numerics_advection bin/test_numerics_tvd_monotonicity bin/test_numerics_advection_cartesian bin/test_numerics_diffusion bin/test_numerics_timestepping
-	./bin/test_numerics_advection && ./bin/test_numerics_tvd_monotonicity && ./bin/test_numerics_advection_cartesian && ./bin/test_numerics_diffusion && ./bin/test_numerics_timestepping
+test-numerics: bin/test_numerics_advection bin/test_numerics_tvd_monotonicity bin/test_numerics_advection_cartesian bin/test_numerics_diffusion bin/test_numerics_timestepping bin/test_numerics_staggered_derivatives
+	./bin/test_numerics_advection && ./bin/test_numerics_tvd_monotonicity && ./bin/test_numerics_advection_cartesian && ./bin/test_numerics_diffusion && ./bin/test_numerics_timestepping && ./bin/test_numerics_staggered_derivatives
 
 test-physics: bin/test_physics_microphysics bin/test_physics_radiation bin/test_physics_terrain
 	./bin/test_physics_microphysics && ./bin/test_physics_radiation && ./bin/test_physics_terrain
@@ -391,7 +475,7 @@ test: test-core test-diagnostics test-dynamics test-numerics test-physics test-d
 	@echo "=== All tests passed ==="
 
 smoke-test: $(BIN)
-	./$(BIN) --headless --config=configs/student.yaml --duration=5 2>/dev/null && echo "[smoke-test] PASS"
+	./$(BIN) --headless --config=configs/student/student.yaml --duration=5 2>/dev/null && echo "[smoke-test] PASS"
 
 smoke-test-e2e: $(BIN) $(VULKAN_BIN)
 	bash ./tools/smoke_test_e2e.sh

@@ -235,6 +235,18 @@ void CartesianScheme::compute_momentum_tendencies(
                 const double rho0_k = rho0_base[k];
                 const double buoyancy = -dynamics_constants::g * (rho_val - rho0_k) / rho_safe;
 
+                // Virtual temperature buoyancy: moist air is lighter than
+                // dry air at the same theta (Rv/Rd - 1 = 0.608).
+                // Virtual temperature buoyancy: moist air is lighter than
+                // dry air at the same theta (Rv/Rd - 1 = 0.608).
+                double moisture_buoyancy = 0.0;
+                if (!qv.empty() && !qv0_base.empty())
+                {
+                    const double qv_val = static_cast<double>(qv[i][j][k]);
+                    const double qv0_k = qv0_base[k];
+                    moisture_buoyancy = dynamics_constants::g * 0.608 * (qv_val - qv0_k);
+                }
+
                 // Precipitation loading (Klemp & Wilhelmson 1978, Bryan &
                 // Fritsch 2002): hydrometeor mass acts as ballast opposing
                 // the updraft and driving downdrafts.
@@ -247,7 +259,7 @@ void CartesianScheme::compute_momentum_tendencies(
                          static_cast<double>(qg[i][j][k]) + static_cast<double>(qh[i][j][k]));
                 }
 
-                double dw_val = advective_z - dp_prime_dz / rho_safe + buoyancy + loading;
+                double dw_val = advective_z - dp_prime_dz / rho_safe + buoyancy + moisture_buoyancy + loading;
                 if (!std::isfinite(dw_val)) dw_val = 0.0;
                 dw_dt[i][j][k] = static_cast<float>(dw_val);
 
@@ -341,10 +353,19 @@ void CartesianScheme::compute_slow_tendencies(
                 if (!std::isfinite(du_y_val)) du_y_val = 0.0;
                 dv_dt[i][j][k] = static_cast<float>(du_y_val);
 
-                // z-momentum: advection + buoyancy + loading (no pressure gradient)
+                // z-momentum: advection + buoyancy + moisture buoyancy + loading (no pressure gradient)
                 const double advective_z = -ux * dw_dx - uy * dw_dy - wz * dw_dz_local;
                 const double rho0_k = rho0_base[k];
                 const double buoyancy = -dynamics_constants::g * (rho_val - rho0_k) / rho_safe;
+                // Virtual temperature buoyancy: moist air is lighter than
+                // dry air at the same theta (Rv/Rd - 1 = 0.608).
+                double moisture_buoyancy = 0.0;
+                if (!qv.empty() && !qv0_base.empty())
+                {
+                    const double qv_val = static_cast<double>(qv[i][j][k]);
+                    const double qv0_k = qv0_base[k];
+                    moisture_buoyancy = dynamics_constants::g * 0.608 * (qv_val - qv0_k);
+                }
                 double loading = 0.0;
                 if (!qc.empty())
                 {
@@ -353,7 +374,7 @@ void CartesianScheme::compute_slow_tendencies(
                          static_cast<double>(qi[i][j][k]) + static_cast<double>(qs[i][j][k]) +
                          static_cast<double>(qg[i][j][k]) + static_cast<double>(qh[i][j][k]));
                 }
-                double dw_val = advective_z + buoyancy + loading;
+                double dw_val = advective_z + buoyancy + moisture_buoyancy + loading;
                 if (!std::isfinite(dw_val)) dw_val = 0.0;
                 dw_dt[i][j][k] = static_cast<float>(dw_val);
 

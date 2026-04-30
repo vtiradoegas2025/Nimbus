@@ -46,6 +46,8 @@ double dz = 100.0;
 double dt = 0.1;
 double dtheta = 2.0 * 3.14159265358979323846 / NTH;
 
+GridGeometry global_grid_geometry;
+
 double simulation_time = 0.0;
 
 /**
@@ -66,6 +68,10 @@ void update_grid_resolution()
         const double pi = 3.14159265358979323846;
         dtheta = 2.0 * pi / NTH;
     }
+
+    global_grid_geometry.initialize(NR, NTH, NZ, dr, dz, dtheta,
+                                    global_coordinate_system,
+                                    global_stagger_type);
 }
 
 Field3D rho;
@@ -97,6 +103,7 @@ Field3D dtheta_dt_rad;
 
 std::vector<double> rho0_base;
 std::vector<double> p0_base;
+std::vector<double> qv0_base;
 std::vector<double> u0_base;
 std::vector<double> v0_base;
 double coriolis_f = 0.0;
@@ -132,6 +139,7 @@ void resize_fields()
 {
     update_grid_resolution();
 
+    // Prognostic fields — required for initialize() and the integration loop.
     rho.resize(NR, NTH, NZ, 0.0f);
     p.resize(NR, NTH, NZ, 0.0f);
     u.resize(NR, NTH, NZ, 0.0f);
@@ -147,15 +155,10 @@ void resize_fields()
     qh.resize(NR, NTH, NZ, 0.0f);
     qg.resize(NR, NTH, NZ, 0.0f);
     tke.resize(NR, NTH, NZ, 0.0f);
-    radar_reflectivity.resize(NR, NTH, NZ, 0.0f);
 
-    dtheta_dt_pbl.resize(NR, NTH, NZ, 0.0f);
-    dqv_dt_pbl.resize(NR, NTH, NZ, 0.0f);
-    du_dt_pbl.resize(NR, NTH, NZ, 0.0f);
-    dv_dt_pbl.resize(NR, NTH, NZ, 0.0f);
-    dtke_dt_pbl.resize(NR, NTH, NZ, 0.0f);
-
-    dtheta_dt_rad.resize(NR, NTH, NZ, 0.0f);
+    // PBL tendencies, radiation tendency, and radar are allocated by their
+    // respective initialize_*() functions before the first timestep.
+    // Diagnostic fields are allocated on first use in compute_dynamics_diagnostics().
 }
 
 /**
@@ -163,18 +166,19 @@ void resize_fields()
  */
 static void apply_cylindrical_wind_initialization()
 {
+    const auto& geo = global_grid_geometry;
+
     #pragma omp parallel for collapse(2)
     for (int i = 0; i < NR; ++i)
     {
         for (int j = 0; j < NTH; ++j)
         {
-            const double th = j * dtheta;
-            const double cos_th = std::cos(th);
-            const double sin_th = std::sin(th);
+            const double cos_th = geo.cos_theta[j];
+            const double sin_th = geo.sin_theta[j];
 
             for (int k = 0; k < NZ; ++k)
             {
-                const double z = k * dz;
+                const double z = geo.z[k];
                 double wind_u_cart, wind_v_cart;
                 compute_wind_profile(global_wind_profile, z, wind_u_cart, wind_v_cart);
 
@@ -195,15 +199,17 @@ static void apply_cylindrical_bubble_initialization()
     const double bubble_radius   = std::max(100.0, global_bubble_radius_m);
     const double bubble_dtheta   = global_bubble_dtheta_k;
 
+    const auto& geo = global_grid_geometry;
+
     #pragma omp parallel for collapse(2)
     for (int i = 0; i < NR; ++i)
     {
         for (int j = 0; j < NTH; ++j)
         {
-            const double r_dist = i * dr;
+            const double r_dist = geo.r[i];
             for (int k = 0; k < NZ; ++k)
             {
-                const double z_dist = k * dz;
+                const double z_dist = geo.z[k];
                 const double dist = std::sqrt(
                     (r_dist - bubble_center_r) * (r_dist - bubble_center_r) +
                     (z_dist - bubble_center_z) * (z_dist - bubble_center_z));
@@ -330,7 +336,7 @@ void initialize()
 
     for (int k = 1; k < NZ; ++k)
     {
-        const double z_k = k * dz;
+        const double z_k = global_grid_geometry.z[k];
         T_base[k] = T_actual_at(z_k);
         const double T_avg = 0.5 * (T_base[k] + T_base[k - 1]);
         p_base[k] = p_base[k - 1] * std::exp(-g * dz / (R_d * T_avg));
@@ -351,6 +357,37 @@ void initialize()
                   ", rho0_base[", NZ-1, "]=", rho0_base[NZ-1],
                   ", p_base[0]=", p_base[0], "Pa, p_base[", NZ-1, "]=", p_base[NZ-1], "Pa");
 
+    // Base-state moisture profile (1D, height-only). Used for virtual
+    // temperature buoyancy: B_moisture = g * 0.608 * (qv - qv0_base[k]).
+    // Capped at 95% of saturation to prevent supersaturation in the upper
+    // atmosphere (where qvsat is very small and uncapped exponential decay
+    // of qv would exceed it).
+    {
+        const double base_moisture = std::clamp(surface_qv * (0.85 + 0.15 * cape_scaling), 0.004, 0.024);
+        const double moisture_scale_height = std::max(1500.0, 0.30 * tropopause_z);
+        qv0_base.resize(NZ);
+        for (int k = 0; k < NZ; ++k)
+        {
+            const double z = global_grid_geometry.z[k];
+            double qv_val;
+            if (z < 2000.0)
+                qv_val = base_moisture;
+            else
+                qv_val = base_moisture * std::exp(-(z - 2000.0) / moisture_scale_height);
+
+            // Cap at saturation using the base-state T and p at this level
+            const double T_k = T_base[k];
+            const double T_c = T_k - 273.15;
+            double e_sat;
+            if (T_k >= 273.15)
+                e_sat = 611.21 * std::exp((18.678 - T_c / 234.5) * T_c / (257.14 + T_c));
+            else
+                e_sat = 611.15 * std::exp((23.036 - T_c / 333.7) * T_c / (279.82 + T_c));
+            const double qvsat = 0.622 * e_sat / std::max(p_base[k] - e_sat, 1.0);
+            qv0_base[k] = std::min(qv_val, qvsat * 0.95);
+        }
+    }
+
     // ── Shared thermodynamic initialization ──
     //
     // Fills p, rho, theta, moisture, and scalars from the 1D hydrostatic
@@ -364,7 +401,7 @@ void initialize()
         {
             for (int k = 0; k < NZ; ++k)
             {
-                const double z = k * dz;
+                const double z = global_grid_geometry.z[k];
                 const double T_actual = T_base[k];
                 const double p_local = p_base[k];
                 const double rho_local = p_local / (R_d * T_actual);
@@ -387,7 +424,22 @@ void initialize()
                 if (z < 2000.0)
                     qv_base = base_moisture;
                 else
-                    qv_base = base_moisture * exp(-(z - 2000.0) / moisture_scale_height);
+                    qv_base = base_moisture * std::exp(-(z - 2000.0) / moisture_scale_height);
+
+                // Clamp initial moisture to saturation: prevents the upper
+                // atmosphere from being supersaturated, which causes massive
+                // spurious condensation in the first microphysics step.
+                {
+                    const double T_local = theta_potential * std::pow(p_local / p0, R_d / cp);
+                    const double T_c = T_local - 273.15;
+                    double e_sat;
+                    if (T_local >= 273.15)
+                        e_sat = 611.21 * std::exp((18.678 - T_c / 234.5) * T_c / (257.14 + T_c));
+                    else
+                        e_sat = 611.15 * std::exp((23.036 - T_c / 333.7) * T_c / (279.82 + T_c));
+                    const double qvsat = 0.622 * e_sat / std::max(p_local - e_sat, 1.0);
+                    qv_base = std::min(qv_base, qvsat * 0.95); // 95% RH cap
+                }
 
                 qv[i][j][k] = static_cast<float>(qv_base);
                 qc[i][j][k] = 0.0f;
@@ -408,13 +460,21 @@ void initialize()
 
     // ── Coordinate-specific wind initialization ──
     //
-    // Cylindrical: project the Cartesian (u_x, u_y) hodograph onto the
-    // local (r, θ) basis with cos θ / sin θ rotation.
     // Cartesian: store (u_x, u_y) directly — no rotation. This is the
-    // entire reason the Cartesian backend exists (Bug 7).
+    //   entire reason the Cartesian backend exists (Bug 7).
+    // Cylindrical (collocated): project the Cartesian (u_x, u_y) hodograph
+    //   onto the local (r, theta) basis with cos / sin rotation, with both
+    //   u and v at cell-center theta.
+    // Cylindrical (C-grid): same projection but v uses the half-cell-shifted
+    //   theta_{j+1/2} = (j + 0.5) * dtheta because v lives at the theta-face
+    //   on the staggered grid (Phase C.3).
     if (global_coordinate_system == CoordinateSystem::Cartesian)
     {
         apply_cartesian_wind_initialization();
+    }
+    else if (global_stagger_type == StaggerType::CGrid)
+    {
+        apply_cylindrical_cgrid_wind_initialization();
     }
     else
     {
@@ -449,7 +509,7 @@ void initialize()
     v0_base.resize(NZ);
     for (int k = 0; k < NZ; ++k)
     {
-        const double z = k * dz;
+        const double z = global_grid_geometry.z[k];
         double wind_u, wind_v;
         compute_wind_profile(global_wind_profile, z, wind_u, wind_v);
 

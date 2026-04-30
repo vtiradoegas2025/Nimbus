@@ -20,7 +20,6 @@
 #include <algorithm>
 #include <cmath>
 #include <cctype>
-#include <iostream>
 #include <limits>
 #include <string>
 #ifdef _OPENMP
@@ -150,6 +149,7 @@ void refresh_grid_metrics_from_terrain()
     {
         double min_dz = std::numeric_limits<double>::infinity();
 
+        #pragma omp parallel for collapse(2) reduction(min:min_dz)
         for (int i = 0; i < NR; ++i)
         {
             for (int j = 0; j < NTH; ++j)

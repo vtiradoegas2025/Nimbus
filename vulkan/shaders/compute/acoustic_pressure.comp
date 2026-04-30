@@ -47,6 +47,7 @@ layout(push_constant) uniform PushConstants {
 
 const float EPS = 1.0e-8;
 const float RHO_MIN = 1.0e-6;
+const float GRAVITY = 9.81;
 
 float sanitize(float val) {
     return (isnan(val) || isinf(val)) ? 0.0 : val;
@@ -69,12 +70,22 @@ void main() {
     bool is_boundary = (i == 0 || i == nr - 1 || k == 0 || k == nz - 1);
 
     if (is_boundary) {
-        // Zero-gradient BC for rho and p
+        // Zero-gradient rho; hydrostatic p extrapolation at z-faces
         int i_src = clamp(i, 1, nr - 2);
         int k_src = clamp(k, 1, nz - 2);
         uint src_idx = uint((i_src * nth + j) * nz + k_src);
-        rho_out[c] = rho_in[src_idx];
-        p_out[c]   = p_in[src_idx];
+        float rho_src = rho_in[src_idx];
+        rho_out[c] = rho_src;
+
+        bool is_z_boundary = (k == 0 || k == nz - 1);
+        if (is_z_boundary) {
+            // Hydrostatic: p(bottom) = p(k=1) + rho*g*dz, p(top) = p(k=NZ-2) - rho*g*dz
+            float rho_safe = max(rho_src, 1.0e-3);
+            float sign = (k == 0) ? 1.0 : -1.0;
+            p_out[c] = p_in[src_idx] + sign * rho_safe * GRAVITY * dz_val;
+        } else {
+            p_out[c] = p_in[src_idx];
+        }
         return;
     }
 

@@ -1023,6 +1023,68 @@ bool dispatch_kessler_sedimentation_backend(
     return false;
 }
 
+bool dispatch_thompson_pointwise_backend(
+    const float* temperature_data, const float* p_data,
+    const float* qv_data, const float* qc_data, const float* qr_data,
+    const float* qi_data, const float* qs_data,
+    const float* qg_data, const float* qh_data,
+    float* dtheta_dt_data, float* dqv_dt_data,
+    float* dqc_dt_data, float* dqr_dt_data,
+    float* dqi_dt_data, float* dqs_dt_data,
+    float* dqg_dt_data, float* dqh_dt_data,
+    int nr, int nth, int nz,
+    float qc0, float c_auto, float c_evap,
+    float c_dep, float c_subl, float c_melt,
+    float Lv_cp, float Lf_cp, float Ls_cp, float T0,
+    float ccn_conc, float in_conc)
+{
+    ComputeBackend* backend = mutable_compute_backend();
+    if (backend != nullptr && backend->supports_thompson_pointwise_dispatch())
+    {
+        return backend->dispatch_thompson_pointwise(
+            temperature_data, p_data,
+            qv_data, qc_data, qr_data, qi_data, qs_data,
+            qg_data, qh_data,
+            dtheta_dt_data, dqv_dt_data,
+            dqc_dt_data, dqr_dt_data,
+            dqi_dt_data, dqs_dt_data,
+            dqg_dt_data, dqh_dt_data,
+            nr, nth, nz,
+            qc0, c_auto, c_evap,
+            c_dep, c_subl, c_melt,
+            Lv_cp, Lf_cp, Ls_cp, T0,
+            ccn_conc, in_conc);
+    }
+    return false;
+}
+
+bool dispatch_thompson_sedimentation_backend(
+    const float* qr_data, const float* qs_data,
+    const float* qg_data, const float* qh_data,
+    float* dqr_dt_data, float* dqs_dt_data,
+    float* dqg_dt_data, float* dqh_dt_data,
+    int nr, int nth, int nz,
+    float dz_val,
+    float a_rain, float b_rain, float Vt_max_rain,
+    float a_snow, float b_snow, float Vt_max_snow,
+    float a_grau, float b_grau, float Vt_max_grau,
+    float a_hail, float b_hail, float Vt_max_hail)
+{
+    ComputeBackend* backend = mutable_compute_backend();
+    if (backend != nullptr && backend->supports_thompson_sedimentation_dispatch())
+    {
+        return backend->dispatch_thompson_sedimentation(
+            qr_data, qs_data, qg_data, qh_data,
+            dqr_dt_data, dqs_dt_data, dqg_dt_data, dqh_dt_data,
+            nr, nth, nz, dz_val,
+            a_rain, b_rain, Vt_max_rain,
+            a_snow, b_snow, Vt_max_snow,
+            a_grau, b_grau, Vt_max_grau,
+            a_hail, b_hail, Vt_max_hail);
+    }
+    return false;
+}
+
 bool supports_batched_advection_dispatch()
 {
     const ComputeBackend* backend = active_compute_backend();
@@ -1105,6 +1167,46 @@ bool dispatch_acoustic_momentum_backend(
             u_out, v_out, w_out, nr, nth, nz,
             dr, dtheta, dz, dt_small,
             wind_clamp_h, wind_clamp_v);
+    }
+    return false;
+}
+
+bool dispatch_acoustic_substep_fused_backend(
+    float* u, float* v, float* w,
+    float* rho, float* p,
+    int nr, int nth, int nz,
+    float dr, float dtheta, float dz,
+    float gamma_val, float dt_small,
+    float rho_floor, float p_floor,
+    float wind_clamp_h, float wind_clamp_v)
+{
+    ComputeBackend* backend = mutable_compute_backend();
+    if (backend != nullptr && backend->supports_acoustic_substep_fused_dispatch())
+    {
+        return backend->dispatch_acoustic_substep_fused(
+            u, v, w, rho, p, nr, nth, nz,
+            dr, dtheta, dz, gamma_val, dt_small,
+            rho_floor, p_floor, wind_clamp_h, wind_clamp_v);
+    }
+    return false;
+}
+
+bool dispatch_acoustic_substeps_batched_backend(
+    float* u, float* v, float* w,
+    float* rho, float* p,
+    int nr, int nth, int nz,
+    float dr, float dtheta, float dz,
+    float gamma_val, float dt_small, int n_substeps,
+    float rho_floor, float p_floor,
+    float wind_clamp_h, float wind_clamp_v)
+{
+    ComputeBackend* backend = mutable_compute_backend();
+    if (backend != nullptr && backend->supports_acoustic_substeps_batched_dispatch())
+    {
+        return backend->dispatch_acoustic_substeps_batched(
+            u, v, w, rho, p, nr, nth, nz,
+            dr, dtheta, dz, gamma_val, dt_small, n_substeps,
+            rho_floor, p_floor, wind_clamp_h, wind_clamp_v);
     }
     return false;
 }

@@ -22,6 +22,12 @@ else
   endif
 endif
 
+# Linux: LunarG Vulkan SDK via VULKAN_SDK env var
+ifneq ($(VULKAN_SDK),)
+  CPPFLAGS += -I$(VULKAN_SDK)/include
+  LDFLAGS += -L$(VULKAN_SDK)/lib
+endif
+
 CPPFLAGS += $(VULKAN_CFLAGS)
 CPPFLAGS += $(GLFW_CFLAGS)
 
@@ -103,27 +109,35 @@ all: check-deps check-shader-tools $(SHADER_SPVS) $(BIN)
 check-deps:
 	@printf '#include <vulkan/vulkan.h>\nint main(){return 0;}\n' | \
 	$(CXX) -x c++ - $(CPPFLAGS) $(LDFLAGS) $(VULKAN_LIBS) -o /tmp/vulkan_scaffold_check >/dev/null 2>&1 || \
-	{ echo "Vulkan headers/loader not found."; \
-	  echo "Install dependencies first:"; \
-	  echo "  macOS (Homebrew): brew install vulkan-headers vulkan-loader molten-vk"; \
+	{ echo "Error: Vulkan headers/loader not found."; \
+	  echo "Install dependencies:"; \
+	  echo "  macOS:          brew install vulkan-headers vulkan-loader molten-vk"; \
+	  echo "  Ubuntu/Debian:  sudo apt install libvulkan-dev"; \
+	  echo "  Fedora:         sudo dnf install vulkan-headers vulkan-loader-devel"; \
+	  echo "  Arch:           sudo pacman -S vulkan-headers vulkan-icd-loader"; \
+	  echo "Or set VULKAN_SDK to your LunarG SDK path."; \
 	  exit 1; }
 	@rm -f /tmp/vulkan_scaffold_check
 
 check-shader-tools:
 	@if [ -z "$(GLSLANG)" ]; then \
-		echo "glslangValidator not found."; \
-		echo "Install it with Vulkan SDK tools (macOS Homebrew): brew install glslang"; \
+		echo "Error: glslangValidator not found (needed to compile GPU shaders)."; \
+		echo "Install:"; \
+		echo "  macOS:          brew install glslang"; \
+		echo "  Ubuntu/Debian:  sudo apt install glslang-tools"; \
+		echo "  Fedora:         sudo dnf install glslang"; \
+		echo "  Arch:           sudo pacman -S glslang"; \
 		exit 1; \
 	fi
 
 $(SHADER_DIR)/rendering/%.vert.spv: $(SHADER_DIR)/rendering/%.vert
-	$(GLSLANG) -V -S vert $< -o $@
+	$(GLSLANG) -V -S vert -Os $< -o $@
 
 $(SHADER_DIR)/rendering/%.frag.spv: $(SHADER_DIR)/rendering/%.frag
-	$(GLSLANG) -V -S frag $< -o $@
+	$(GLSLANG) -V -S frag -Os $< -o $@
 
 $(SHADER_DIR)/compute/%.comp.spv: $(SHADER_DIR)/compute/%.comp
-	$(GLSLANG) -V -S comp $< -o $@
+	$(GLSLANG) -V -S comp -Os $< -o $@
 
 $(BIN): $(SRCS) | ../bin
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(SRCS) $(LDFLAGS) $(VULKAN_LIBS) $(GLFW_LIBS) $(SFML_LIBS) -o $(BIN)

@@ -19,6 +19,7 @@
 #include <utility>
 #include <vector>
 
+#include "core/runtime_config.hpp"
 #include "core/simulation.hpp"
 
 namespace
@@ -165,6 +166,12 @@ bool initialize_compute_backend_runtime(std::string& error)
             runtime_compute_backend->populate_hardware_info(hw);
         }
         log_hardware_info(hw);
+    }
+
+    // Inform backend of the active coordinate system for shader routing
+    if (runtime_compute_backend)
+    {
+        runtime_compute_backend->set_coordinate_system(global_coordinate_system);
     }
 
     if (log_normal_enabled())
