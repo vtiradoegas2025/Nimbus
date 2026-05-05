@@ -4,7 +4,8 @@
 # environment as research.yaml (CAPE 3000 LP-style hodograph) but at
 # 4x the grid points. Vulkan backend, ZFP-compressed all-fields output
 # every 5 s. Needs 32-96 GB RAM and fast NVMe for ~10-15 GB output.
-# Variant: research.yaml is the same setup at 256^2 (~16-32 GB).
+# Variant: research.yaml is the same setup at 256^2 (~16-32 GB). To
+# swap environment, see the recipes in configs/README.md.
 case_name: production
 grid:
   nx: 512

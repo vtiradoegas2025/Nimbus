@@ -95,7 +95,7 @@ Recommended checks:
 
 ```bash
 make bin/tornado_sim
-./bin/tornado_sim --headless --config=configs/simulation/physical_supercell.yaml --duration=1 --write-every=1 --outdir=/tmp/turbulence_smoke --log-profile quiet
+./bin/tornado_sim --headless --config=configs/test/physics_full_stack.yaml --duration=1 --write-every=1 --outdir=/tmp/turbulence_smoke --log-profile quiet
 ./bin/field_validator --input /tmp/turbulence_smoke --contract cm1 --mode strict --scope exported --json /tmp/turbulence_smoke/offline_validation.json
 make test-guards
 make test-backend-physics

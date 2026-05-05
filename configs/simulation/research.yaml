@@ -4,8 +4,9 @@
 # microphysics, WK2002 hodograph (CAPE 3000, midlevel drying), Vulkan
 # compute backend with CPU fallback. ZFP-compressed presentation
 # output every 30 s. Sized for 16-32 GB machines.
-# Variant: production.yaml scales to 512x256x128 + 0.5 s dt; lp / hp /
-# elevated / classic explore alternative environments at the same grid.
+# Variant: production.yaml scales to 512x256x128 + 0.5 s dt. To swap
+# environment (LP / HP / elevated / hi-res classic) see the recipes
+# in configs/README.md.
 case_name: research
 grid:
   nx: 256

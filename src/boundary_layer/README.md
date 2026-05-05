@@ -157,6 +157,6 @@ boundary_layer:
 
 ```bash
 make bin/tornado_sim
-./bin/tornado_sim --headless --config=configs/simulation/physical_supercell.yaml --duration=1 --write-every=1 --outdir=/tmp/tmv_pbl_smoke --log-profile quiet
+./bin/tornado_sim --headless --config=configs/test/physics_full_stack.yaml --duration=1 --write-every=1 --outdir=/tmp/tmv_pbl_smoke --log-profile quiet
 ```
 
