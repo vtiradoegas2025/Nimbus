@@ -835,6 +835,19 @@ bool dispatch_radial_advection_backend(
     return false;
 }
 
+bool dispatch_radial_advection_cgrid_backend(
+    const float* src, const float* u_data, float* dst,
+    int nr, int nth, int nz,
+    float dr, float dt)
+{
+    ComputeBackend* backend = mutable_compute_backend();
+    if (backend != nullptr && backend->supports_radial_advection_cgrid_dispatch())
+    {
+        return backend->dispatch_radial_advection_cgrid(src, u_data, dst, nr, nth, nz, dr, dt);
+    }
+    return false;
+}
+
 bool dispatch_azimuthal_advection_backend(
     const float* src, const float* v_data, float* dst,
     int nr, int nth, int nz,
@@ -844,6 +857,107 @@ bool dispatch_azimuthal_advection_backend(
     if (backend != nullptr && backend->supports_azimuthal_advection_dispatch())
     {
         return backend->dispatch_azimuthal_advection(src, v_data, dst, nr, nth, nz, dr, dtheta, dt);
+    }
+    return false;
+}
+
+bool dispatch_azimuthal_advection_cgrid_backend(
+    const float* src, const float* v_data, float* dst,
+    int nr, int nth, int nz,
+    float dr, float dtheta, float dt)
+{
+    ComputeBackend* backend = mutable_compute_backend();
+    if (backend != nullptr && backend->supports_azimuthal_advection_cgrid_dispatch())
+    {
+        return backend->dispatch_azimuthal_advection_cgrid(src, v_data, dst, nr, nth, nz, dr, dtheta, dt);
+    }
+    return false;
+}
+
+bool dispatch_vertical_advection_cgrid_backend(
+    const float* src, const float* w_data, float* dst,
+    int nr, int nth, int nz,
+    float dz, float dt)
+{
+    ComputeBackend* backend = mutable_compute_backend();
+    if (backend != nullptr && backend->supports_vertical_advection_cgrid_dispatch())
+    {
+        return backend->dispatch_vertical_advection_cgrid(src, w_data, dst, nr, nth, nz, dz, dt);
+    }
+    return false;
+}
+
+bool dispatch_acoustic_pressure_cgrid_backend(
+    const float* u_data, const float* v_data, const float* w_data,
+    const float* rho_in, const float* p_in,
+    float* rho_out, float* p_out,
+    int nr, int nth, int nz,
+    float dr, float dtheta, float dz,
+    float gamma_val, float dt_small,
+    float rho_floor, float p_floor)
+{
+    ComputeBackend* backend = mutable_compute_backend();
+    if (backend != nullptr && backend->supports_acoustic_pressure_cgrid_dispatch())
+    {
+        return backend->dispatch_acoustic_pressure_cgrid(
+            u_data, v_data, w_data,
+            rho_in, p_in,
+            rho_out, p_out,
+            nr, nth, nz,
+            dr, dtheta, dz,
+            gamma_val, dt_small,
+            rho_floor, p_floor);
+    }
+    return false;
+}
+
+bool dispatch_acoustic_momentum_cgrid_backend(
+    const float* rho_data, const float* p_data,
+    const float* p0_base_data, int p0_base_len,
+    const float* u_in, const float* v_in, const float* w_in,
+    float* u_out, float* v_out, float* w_out,
+    int nr, int nth, int nz,
+    float dr, float dtheta, float dz,
+    float dt_small,
+    float wind_clamp_h, float wind_clamp_v)
+{
+    ComputeBackend* backend = mutable_compute_backend();
+    if (backend != nullptr && backend->supports_acoustic_momentum_cgrid_dispatch())
+    {
+        return backend->dispatch_acoustic_momentum_cgrid(
+            rho_data, p_data,
+            p0_base_data, p0_base_len,
+            u_in, v_in, w_in,
+            u_out, v_out, w_out,
+            nr, nth, nz,
+            dr, dtheta, dz,
+            dt_small,
+            wind_clamp_h, wind_clamp_v);
+    }
+    return false;
+}
+
+bool dispatch_acoustic_substep_fused_cgrid_backend(
+    float* u, float* v, float* w,
+    float* rho, float* p,
+    const float* p0_base_data, int p0_base_len,
+    int nr, int nth, int nz,
+    float dr, float dtheta, float dz,
+    float gamma_val, float dt_small,
+    float rho_floor, float p_floor,
+    float wind_clamp_h, float wind_clamp_v)
+{
+    ComputeBackend* backend = mutable_compute_backend();
+    if (backend != nullptr && backend->supports_acoustic_substep_fused_cgrid_dispatch())
+    {
+        return backend->dispatch_acoustic_substep_fused_cgrid(
+            u, v, w, rho, p,
+            p0_base_data, p0_base_len,
+            nr, nth, nz,
+            dr, dtheta, dz,
+            gamma_val, dt_small,
+            rho_floor, p_floor,
+            wind_clamp_h, wind_clamp_v);
     }
     return false;
 }

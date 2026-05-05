@@ -1,0 +1,133 @@
+// advect_radial_cgrid.comp
+//
+// TVD-MUSCL flux-form radial advection on the cylindrical Arakawa C-grid.
+//
+// GPU equivalent of advect_scalar_1d_r_kernel_cylindrical_cgrid in
+// src/numerics/advection/advection_cylindrical_cgrid.cpp.
+//
+// Field placement (Arakawa C-grid):
+//   q[i][j][k] at cell center r[i]      = i       * dr
+//   u[i][j][k] at right face  r_face[i] = (i+0.5) * dr
+//
+// Flux form with cylindrical control-volume divergence:
+//   div_F_r[i] = (r_face[i]*F_right - r_face[i-1]*F_left) / (r[i] * dr)
+//
+// MUSCL reconstruction with the MC limiter (matching TVDScheme default):
+//   phi(r) = max(0, min((1+r)/2, 2, 2r))
+//   slope[i] = phi(r_i) * (q[i+1] - q[i])
+//   q_face_left  = q[i]   + 0.5 * slope[i]
+//   q_face_right = q[i+1] - 0.5 * slope[i+1]
+//   q_face = u_face >= 0 ? q_face_left : q_face_right
+//   F = u_face * q_face
+//
+// Each invocation processes one interior grid point (i, j, k) where
+// i in [1, NR-2] and k in [1, NZ-2]. Boundary cells (i=0, i=NR-1,
+// k=0, k=NZ-1) are seeded from src on the host via memcpy and not
+// touched by the GPU.
+//
+// Boundary slopes (i=0 and i=NR-1) are forced to zero, which falls
+// back to first-order upwind at those faces -- this matches the CPU
+// kernel's slope_r[0] = slope_r[NR-1] = 0 convention.
+//
+// Data layout is row-major [nr][nth][nz]. Index (i, j, k) =
+// (i * nth + j) * nz + k.
+
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) readonly buffer SrcBuf { float src[]; };
+layout(set = 0, binding = 1) readonly buffer UBuf   { float u_field[]; };
+layout(set = 0, binding = 2) buffer DstBuf          { float dst[]; };
+
+layout(push_constant) uniform PushConstants {
+    int   nr;
+    int   nth;
+    int   nz;
+    float dr;
+    float dt;
+    float padding[3];
+};
+
+float mc_limiter(float r)
+{
+    return max(0.0, min(min(0.5 * (1.0 + r), 2.0), 2.0 * r));
+}
+
+float limited_slope(float q_minus, float q_center, float q_plus)
+{
+    float forward  = q_plus - q_center;
+    float backward = q_center - q_minus;
+    float eps_signed = (forward >= 0.0) ? 1.0e-30 : -1.0e-30;
+    float ratio = backward / (forward + eps_signed);
+    return mc_limiter(ratio) * forward;
+}
+
+void main()
+{
+    uint gid = gl_GlobalInvocationID.x;
+
+    int interior_nr = nr - 2;
+    int interior_nz = nz - 2;
+    uint total = uint(interior_nr) * uint(nth) * uint(interior_nz);
+    if (gid >= total)
+    {
+        return;
+    }
+
+    int k_int = int(gid % uint(interior_nz));
+    uint ij = gid / uint(interior_nz);
+    int j = int(ij % uint(nth));
+    int i_int = int(ij / uint(nth));
+
+    int i = i_int + 1;
+    int k = k_int + 1;
+
+    // Stencil indices. The reads at i-2 and i+2 are clamped so they
+    // stay inside the buffer; the slope using those reads is then
+    // forced to zero by the boundary conditional, so the clamped
+    // values are read but not used.
+    int im2 = max(i - 2, 0);
+    int ip2 = min(i + 2, nr - 1);
+
+    uint cm2 = uint((im2       * nth + j) * nz + k);
+    uint cm  = uint(((i - 1)   * nth + j) * nz + k);
+    uint cc  = uint((i         * nth + j) * nz + k);
+    uint cp  = uint(((i + 1)   * nth + j) * nz + k);
+    uint cp2 = uint((ip2       * nth + j) * nz + k);
+
+    // Slopes at i-1, i, i+1 (matching CPU convention slope_r[0] =
+    // slope_r[NR-1] = 0, interior slopes from the centered triple).
+    float slope_im = (i - 1 >= 1 && i - 1 <= nr - 2)
+        ? limited_slope(src[cm2], src[cm], src[cc])
+        : 0.0;
+    float slope_i = limited_slope(src[cm], src[cc], src[cp]);
+    float slope_ip = (i + 1 >= 1 && i + 1 <= nr - 2)
+        ? limited_slope(src[cc], src[cp], src[cp2])
+        : 0.0;
+
+    // Geometric factors (uniform spacing): r[i] = i*dr, r_face[i] = (i+0.5)*dr.
+    float r_i           = float(i) * dr;
+    float r_face_outer  = (float(i) + 0.5) * dr;
+    float r_face_inner  = (float(i) - 0.5) * dr;
+    float inv_dr        = 1.0 / dr;
+    float r_inv_i       = 1.0 / r_i;
+
+    // Right face at r_face[i]: u[i] is the face velocity.
+    float u_right = u_field[cc];
+    float q_right_from_left  = src[cc] + 0.5 * slope_i;
+    float q_right_from_right = src[cp] - 0.5 * slope_ip;
+    float q_right_face = (u_right >= 0.0) ? q_right_from_left : q_right_from_right;
+    float F_right = u_right * q_right_face;
+
+    // Left face at r_face[i-1]: u[i-1] is the face velocity.
+    float u_left = u_field[cm];
+    float q_left_from_left  = src[cm] + 0.5 * slope_im;
+    float q_left_from_right = src[cc] - 0.5 * slope_i;
+    float q_left_face = (u_left >= 0.0) ? q_left_from_left : q_left_from_right;
+    float F_left = u_left * q_left_face;
+
+    float div_r = (r_face_outer * F_right - r_face_inner * F_left) * inv_dr * r_inv_i;
+
+    dst[cc] = src[cc] - dt * div_r;
+}

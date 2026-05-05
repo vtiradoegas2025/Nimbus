@@ -8,8 +8,6 @@
  */
 
 #include "diagnostics/conservation_budget.hpp"
-#include "core/coordinate_system.hpp"
-#include "core/runtime_config.hpp"
 #include "core/simulation.hpp"
 #include "util/log.hpp"
 
@@ -25,57 +23,36 @@
 namespace
 {
 
-std::vector<double> cell_volume_weights;
-int cached_nr = -1;
-double cached_dr = std::numeric_limits<double>::quiet_NaN();
-double cached_dtheta = std::numeric_limits<double>::quiet_NaN();
-double cached_dz = std::numeric_limits<double>::quiet_NaN();
-CoordinateSystem cached_coord = CoordinateSystem::Cylindrical;
+std::vector<double> radial_cell_volume_weights;
+int radial_volume_nr = -1;
+double radial_volume_dr = std::numeric_limits<double>::quiet_NaN();
+double radial_volume_dtheta = std::numeric_limits<double>::quiet_NaN();
+double radial_volume_dz = std::numeric_limits<double>::quiet_NaN();
 
 /**
- * @brief Recomputes cell-volume weights for conservation diagnostics.
- *
- * Cylindrical: volume of annular cell = r_center * dr * dtheta * dz
- *              (varies with radial index i).
- * Cartesian:   volume = dx * dy * dz (uniform for all cells).
- *              In Cartesian mode dr stores dx and dtheta stores dy.
+ * @brief Recomputes radial cell-volume weights for conservation diagnostics.
  */
-void ensure_cell_volume_weights()
+void ensure_radial_cell_volume_weights()
 {
-    if (cached_nr == NR &&
-        cached_dr == dr &&
-        cached_dtheta == dtheta &&
-        cached_dz == dz &&
-        cached_coord == global_coordinate_system &&
-        cell_volume_weights.size() == static_cast<std::size_t>(NR))
+    if (radial_volume_nr == NR &&
+        radial_volume_dr == dr &&
+        radial_volume_dtheta == dtheta &&
+        radial_volume_dz == dz &&
+        radial_cell_volume_weights.size() == static_cast<std::size_t>(NR))
     {
         return;
     }
 
-    cached_nr = NR;
-    cached_dr = dr;
-    cached_dtheta = dtheta;
-    cached_dz = dz;
-    cached_coord = global_coordinate_system;
-    cell_volume_weights.assign(static_cast<std::size_t>(NR), 0.0);
+    radial_volume_nr = NR;
+    radial_volume_dr = dr;
+    radial_volume_dtheta = dtheta;
+    radial_volume_dz = dz;
+    radial_cell_volume_weights.assign(static_cast<std::size_t>(NR), 0.0);
 
-    if (global_coordinate_system == CoordinateSystem::Cartesian)
+    for (int i = 0; i < NR; ++i)
     {
-        // dx * dy * dz — uniform for every cell.
-        const double cart_vol = dr * dtheta * dz;
-        for (int i = 0; i < NR; ++i)
-        {
-            cell_volume_weights[static_cast<std::size_t>(i)] = cart_vol;
-        }
-    }
-    else
-    {
-        // Cylindrical annular cell: r_center * dr * dtheta * dz.
-        for (int i = 0; i < NR; ++i)
-        {
-            const double r_center = std::max((static_cast<double>(i) + 0.5) * dr, 0.5 * dr);
-            cell_volume_weights[static_cast<std::size_t>(i)] = r_center * dr * dtheta * dz;
-        }
+        const double r_center = std::max((static_cast<double>(i) + 0.5) * dr, 0.5 * dr);
+        radial_cell_volume_weights[static_cast<std::size_t>(i)] = r_center * dr * dtheta * dz;
     }
 }
 
@@ -83,14 +60,14 @@ void ensure_cell_volume_weights()
 
 ConservationBudget compute_conservation_budget()
 {
-    ConservationBudget budget{};
+    ConservationBudget budget{}; 
     if (rho.empty() || p.empty() || theta.empty() || qv.empty() ||
         qc.empty() || qr.empty() || qi.empty() || qs.empty() || qg.empty() || qh.empty())
     {
         return budget;
     }
 
-    ensure_cell_volume_weights();
+    ensure_radial_cell_volume_weights();
     constexpr double kappa = R_d / cp;
     double dry_mass = 0.0;
     double total_water = 0.0;
@@ -101,7 +78,7 @@ ConservationBudget compute_conservation_budget()
     {
         for (int j = 0; j < NTH; ++j)
         {
-            const double cell_volume = cell_volume_weights[static_cast<std::size_t>(i)];
+            const double cell_volume = radial_cell_volume_weights[static_cast<std::size_t>(i)];
             for (int k = 0; k < NZ; ++k)
             {
                 const double rho_val = std::max(0.0, static_cast<double>(rho[i][j][k]));

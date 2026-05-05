@@ -1,0 +1,119 @@
+// advect_azimuthal_cgrid.comp
+//
+// TVD-MUSCL flux-form azimuthal advection on the cylindrical Arakawa C-grid.
+//
+// GPU equivalent of advect_scalar_1d_theta_kernel_cylindrical_cgrid in
+// src/numerics/advection/advection_cylindrical_cgrid.cpp.
+//
+// Field placement (Arakawa C-grid):
+//   q[i][j][k] at cell center r[i] = i*dr, theta[j], z[k]
+//   v[i][j][k] at theta-face   r[i],       theta_{j+1/2}, z[k]
+//
+// Flux form with cylindrical control-volume divergence:
+//   div_F_theta[j] = (F_north - F_south) / (r[i] * dtheta)
+//
+// MUSCL reconstruction with the MC limiter.
+//
+// Theta is fully periodic so every j is an interior point. Each
+// invocation processes one (i, j, k) where i in [1, NR-2], j in
+// [0, NTH-1], k in [1, NZ-2]. Boundary cells in r and z are seeded
+// from src on the host before dispatch; the device only writes the
+// interior.
+//
+// Data layout: row-major [nr][nth][nz]. Index (i, j, k) = (i*nth + j)*nz + k.
+
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) readonly buffer SrcBuf { float src[]; };
+layout(set = 0, binding = 1) readonly buffer VBuf   { float v_field[]; };
+layout(set = 0, binding = 2) buffer DstBuf          { float dst[]; };
+
+layout(push_constant) uniform PushConstants {
+    int   nr;
+    int   nth;
+    int   nz;
+    float dr;
+    float dtheta;
+    float dt;
+    float padding[2];
+};
+
+float mc_limiter(float r)
+{
+    return max(0.0, min(min(0.5 * (1.0 + r), 2.0), 2.0 * r));
+}
+
+float limited_slope(float q_minus, float q_center, float q_plus)
+{
+    float forward  = q_plus - q_center;
+    float backward = q_center - q_minus;
+    float eps_signed = (forward >= 0.0) ? 1.0e-30 : -1.0e-30;
+    float ratio = backward / (forward + eps_signed);
+    return mc_limiter(ratio) * forward;
+}
+
+void main()
+{
+    uint gid = gl_GlobalInvocationID.x;
+
+    int interior_nr = nr - 2;
+    int interior_nz = nz - 2;
+    uint total = uint(interior_nr) * uint(nth) * uint(interior_nz);
+    if (gid >= total)
+    {
+        return;
+    }
+
+    int k_int = int(gid % uint(interior_nz));
+    uint ij = gid / uint(interior_nz);
+    int j = int(ij % uint(nth));
+    int i_int = int(ij / uint(nth));
+
+    int i = i_int + 1;
+    int k = k_int + 1;
+
+    // Periodic theta neighbors (5-point stencil j-2, j-1, j, j+1, j+2).
+    int j_prev2 = (j - 2 + 2 * nth) % nth;
+    int j_prev  = (j - 1 + nth) % nth;
+    int j_next  = (j + 1) % nth;
+    int j_next2 = (j + 2) % nth;
+
+    uint c_jp2 = uint((i * nth + j_next2) * nz + k);
+    uint c_jp  = uint((i * nth + j_next)  * nz + k);
+    uint c_j   = uint((i * nth + j)       * nz + k);
+    uint c_jm  = uint((i * nth + j_prev)  * nz + k);
+    uint c_jm2 = uint((i * nth + j_prev2) * nz + k);
+
+    // Slopes at j_prev, j, j_next (all valid -- theta is periodic, so no
+    // boundary slopes are zeroed, unlike the radial direction).
+    float slope_jm = limited_slope(src[c_jm2], src[c_jm], src[c_j]);
+    float slope_j  = limited_slope(src[c_jm],  src[c_j],  src[c_jp]);
+    float slope_jp = limited_slope(src[c_j],   src[c_jp], src[c_jp2]);
+
+    // Geometric factor: r[i] = i*dr (uniform spacing). Loop range
+    // ensures i >= 1, so r > 0 and r_inv is safe.
+    float r_inv_i = 1.0 / (float(i) * dr);
+    float inv_dtheta = 1.0 / dtheta;
+
+    // North face at theta_{j+1/2}: v[i][j] is the face velocity.
+    // Upwind cell is j (south side, "from below") if v >= 0;
+    // cell j+1 (north side, "from above") otherwise.
+    float v_north = v_field[c_j];
+    float q_north_from_below = src[c_j]  + 0.5 * slope_j;
+    float q_north_from_above = src[c_jp] - 0.5 * slope_jp;
+    float q_north_face = (v_north >= 0.0) ? q_north_from_below : q_north_from_above;
+    float F_north = v_north * q_north_face;
+
+    // South face at theta_{j-1/2}: v[i][j-1] is the face velocity.
+    float v_south = v_field[c_jm];
+    float q_south_from_below = src[c_jm] + 0.5 * slope_jm;
+    float q_south_from_above = src[c_j]  - 0.5 * slope_j;
+    float q_south_face = (v_south >= 0.0) ? q_south_from_below : q_south_from_above;
+    float F_south = v_south * q_south_face;
+
+    float div_th = (F_north - F_south) * inv_dtheta * r_inv_i;
+
+    dst[c_j] = src[c_j] - dt * div_th;
+}

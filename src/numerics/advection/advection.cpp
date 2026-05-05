@@ -10,8 +10,10 @@
 #include "numerics/advection/advection.hpp"
 #include "numerics/advection/advection_base.hpp"
 #include "numerics/advection/advection_cartesian.hpp"
+#include "numerics/advection/advection_cylindrical_cgrid.hpp"
 #include "compute/compute_backend.hpp"
 #include "compute/compute_kernel_template.hpp"
+#include "core/coordinate_system.hpp"
 #include "core/runtime_config.hpp"
 #include "core/simulation.hpp"
 #include <algorithm>
@@ -270,14 +272,30 @@ bool use_numerics_vertical_advection()
 }
 
 /**
+ * @brief Returns true when the active backend is the cylindrical Arakawa C-grid.
+ *
+ * The C-grid path uses face-staggered velocity storage (u at r-face,
+ * v at theta-face, w at z-face) and dispatches to the kernels in
+ * `src/numerics/advection/advection_cylindrical_cgrid.cpp`. All GPU
+ * dispatches in `advect_scalar_3d` assume collocated cylindrical
+ * stencils and would silently corrupt staggered velocity reads, so the
+ * C-grid path is CPU-only until Phase C.9 ships stagger-aware shaders.
+ */
+inline bool active_backend_is_cylindrical_cgrid()
+{
+    return global_coordinate_system == CoordinateSystem::Cylindrical
+        && global_stagger_type      == StaggerType::CGrid;
+}
+
+/**
  * @brief Logs the selected runtime advection path once per execution.
  *
- * The split-axis label depends on `global_coordinate_system`. The
- * cylindrical path runs the historical (r, θ) directional split. The
- * Cartesian path (Phase A.5) runs the parallel (x, y) directional split
- * implemented in `src/advection/advection_cartesian.cpp`. The vertical
- * tendency is identical between the two paths because the TVD vertical
- * scheme is coordinate-agnostic.
+ * The split-axis label depends on the active coordinate system and
+ * stagger type. The cylindrical collocated path runs the historical
+ * (r, θ) directional split. The Cartesian path (Phase A.5) runs the
+ * parallel (x, y) directional split. The cylindrical C-grid path
+ * (Phase C.7) runs the same (r, θ) directional split using face-form
+ * upwind kernels that read the staggered velocity storage directly.
  */
 void log_runtime_advection_path_once()
 {
@@ -285,10 +303,20 @@ void log_runtime_advection_path_once()
     if (logged || !log_normal_enabled()){return;}
     logged = true;
 
+    const bool is_cgrid_cyl = active_backend_is_cylindrical_cgrid();
     const char* split_axes_label =
-        (global_coordinate_system == CoordinateSystem::Cartesian) ? "(x/y)" : "(r/theta)";
+        (global_coordinate_system == CoordinateSystem::Cartesian) ? "(x/y)" :
+        is_cgrid_cyl                                              ? "(r/theta, c-grid)"
+                                                                  : "(r/theta)";
 
-    if (use_numerics_vertical_advection())
+    if (is_cgrid_cyl)
+    {
+        std::cout << "[ADVECTION] Runtime path: src/numerics/advection cylindrical C-grid "
+                  << split_axes_label << " kernels (CPU only; numerics.advection vertical "
+                  << "scheme bypassed -- collocated-only until Phase C.9)."
+                  << std::endl;
+    }
+    else if (use_numerics_vertical_advection())
     {
         std::cout << "[ADVECTION] Runtime path: src/advection directional split " << split_axes_label
                   << " + src/numerics/advection/" << global_advection_config.scheme_id
@@ -680,13 +708,17 @@ void advect_scalar_3d(Field3D& scalar, double dt, double kappa)
     ensure_field_shape(scratch_b);
 
     const double dt_half = dt * 0.5;
-    const bool is_cartesian = (global_coordinate_system == CoordinateSystem::Cartesian);
+    const bool is_cartesian   = (global_coordinate_system == CoordinateSystem::Cartesian);
+    const bool is_cgrid_cyl   = active_backend_is_cylindrical_cgrid();
 
     // ── Select coordinate-appropriate kernels ──
     //
     // Each lambda wraps GPU-try + CPU-fallback for its direction.
     // Cartesian: x/y kernels, no 1/r factor, no periodic wrap.
-    // Cylindrical: r/θ kernels, 1/r factor in θ, periodic θ wrap.
+    // Cylindrical collocated: r/θ kernels, 1/r factor in θ, periodic θ wrap.
+    // Cylindrical C-grid (Phase C.7): r/θ flux-form kernels reading face
+    //   velocities directly. CPU only -- collocated-cylindrical GPU shaders
+    //   would silently corrupt staggered velocity reads.
 
     auto step_h1 = [&](const Field3D& src, Field3D& dst, double dt_step) {
         ensure_field_shape(dst);
@@ -696,6 +728,10 @@ void advect_scalar_3d(Field3D& scalar, double dt, double kappa)
                     src.data(), u.data(), dst.data(),
                     NR, NTH, NZ, static_cast<float>(dr), static_cast<float>(dt_step)))
                 advect_scalar_1d_x_kernel_cartesian(src, dst, dt_step);
+        }
+        else if (is_cgrid_cyl)
+        {
+            advect_scalar_1d_r_kernel_cylindrical_cgrid(src, dst, dt_step);
         }
         else
         {
@@ -712,6 +748,10 @@ void advect_scalar_3d(Field3D& scalar, double dt, double kappa)
                     NR, NTH, NZ, static_cast<float>(dr), static_cast<float>(dt_step)))
                 advect_scalar_1d_y_kernel_cartesian(src, dst, dt_step);
         }
+        else if (is_cgrid_cyl)
+        {
+            advect_scalar_1d_theta_kernel_cylindrical_cgrid(src, dst, dt_step);
+        }
         else
         {
             advect_scalar_1d_theta_kernel(src, dst, dt_step, kappa);
@@ -719,7 +759,9 @@ void advect_scalar_3d(Field3D& scalar, double dt, double kappa)
     };
 
     auto step_z = [&](const Field3D& src, Field3D& dst, double dt_step) {
-        if (use_numerics_vertical_advection())
+        if (is_cgrid_cyl)
+            advect_scalar_1d_z_kernel_cylindrical_cgrid(src, dst, dt_step);
+        else if (use_numerics_vertical_advection())
             advect_scalar_1d_z_numerics_kernel(src, dst, dt_step, kappa);
         else
             advect_scalar_1d_z_kernel(src, dst, dt_step, kappa);
@@ -729,6 +771,10 @@ void advect_scalar_3d(Field3D& scalar, double dt, double kappa)
         if (is_cartesian)
             apply_diffusion_kernel_cartesian(src, dst, dt_step, k);
         else
+            // Cell-center centered Laplacian; cell-center storage is
+            // identical on collocated and C-grid so the same kernel
+            // (and its GPU dispatch, which reads no velocity field)
+            // is correct for both stagger types.
             apply_diffusion_kernel(src, dst, dt_step, k);
     };
 
@@ -739,7 +785,12 @@ void advect_scalar_3d(Field3D& scalar, double dt, double kappa)
     // h1 + h2 steps (pre-vertical batch) or h2 + h1 + diffusion steps
     // (post-vertical batch). Cartesian always runs individual steps.
 
-    const bool batched_available = !is_cartesian && supports_batched_advection_dispatch();
+    // Batched cylindrical GPU dispatch combines h1 + h2 (and h2 + h1 +
+    // diffusion) into one Vulkan submit. The shaders use collocated
+    // cylindrical stencils with cell-center velocity reads, so they are
+    // unsafe for the C-grid stagger (Phase C.9 will replace them).
+    const bool batched_available = !is_cartesian && !is_cgrid_cyl
+                                 && supports_batched_advection_dispatch();
     bool pre_batch_ok = false;
 
     // ── Pre-vertical: h1(dt/2) → h2(dt/2) ──

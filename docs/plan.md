@@ -1,7 +1,9 @@
 # TornadoModel — Road to AMS January 2027
 
-**Deadline:** January 2027 AMS Conference (~10 months)
+**Deadline:** January 2027 AMS Conference (~9 months)
 **Goal:** Complete, efficient simulation on personal hardware with reproducible results
+
+**Architecture as of 2026-04-30:** Dual coordinate backend. Cartesian for storm-scale supercell simulations (matches CM1 discretization). Cylindrical Arakawa C-grid for tornado-vortex modeling (CM1/WRF/MPAS staggering applied to a vortex-native grid). Shared physics modules (microphysics, radiation, PBL, turbulence, terrain) are coordinate-blind and run on either backend. See [docs/CoordinateBackend_Plan.md](CoordinateBackend_Plan.md) for the full Phase A / B / C history.
 
 ---
 
@@ -13,10 +15,32 @@
 
 ---
 
+## Phase CB: Coordinate Backend Architecture (Apr 2026)
+*The work that made the supercell case actually run, and brought the cylindrical grid up to CM1/WRF/MPAS standard.*
+
+This phase was not in the original plan. It emerged from Bug 7: a uniform Cartesian wind on the collocated cylindrical grid produced a false radial gradient at i = 1 (driven by the antisymmetric ghost-cell hack `u[0] = -u[1]`) that drove false divergence, false `dp/dt`, broke hydrostatic balance, and made the supercell hodograph case 17× more unstable than the zero-wind case. The cylindrical grid was the wrong tool for non-axisymmetric base states. The fix was to add a Cartesian backend (right tool for supercells) and stagger the cylindrical grid (right tool for tornadoes). Detailed plan: [docs/CoordinateBackend_Plan.md](CoordinateBackend_Plan.md).
+
+| Phase | Status | Date | Outcome |
+|-------|--------|------|---------|
+| **A — Cartesian backend** | COMPLETE | 2026-04-07 | `coordinate_system: cartesian` runs `student.yaml`-class configs end-to-end on CPU + GPU. 8 sub-tasks (config plumbing, dynamics, BCs, ICs, advection, top-level wiring, GPU shaders, integration). Bug 7 resolved. |
+| **B — Refactor for shared code** | COMPLETE | 2026-04-20 | 7 sub-tasks. `v_theta`→`v` rename (267 sites). `DerivativeOperators` base class with Cartesian/Cylindrical specializations. `BoundaryConditionScheme` factory. Unified Strang split. Shared thermodynamic init. Time stepping delegates through scheme layer. `SplitExplicitDynamics` mixin separated from `DynamicsScheme` base. Every concern has exactly one dispatch point. |
+| **C — Cylindrical Arakawa C-grid** | C.1–C.8 COMPLETE | 2026-04-27 → 2026-04-30 | Velocity components on r/θ/z faces; scalars at cell centers. Axis singularity centralized in `StaggeredCylindricalDerivatives::div_flux()` (control-volume `2·u[0]/dr`, no antisymmetric hack). New schemes `TornadoCGridScheme` and `SupercellCGridScheme` registered alongside existing collocated schemes. Klemp-Wilhelmson split-explicit on staggered grid verified (300 s hydrostatic preservation, acoustic pulse at sound speed, no 2dx checkerboard). TVD-MUSCL flux-form scalar advection (solid-body rotation < 5% L2 per revolution; mass conservation pairwise to float roundoff). Face-to-center output interpolation for downstream consumers. |
+| **C.9 — GPU compute shaders** | PENDING | target 2026-06-06 | 6 stagger-aware shaders (`*_cgrid.comp`) mirroring CPU C-grid kernels. Until they ship, the existing GPU acoustic and advection dispatches are guarded off when `global_stagger_type == StaggerType::CGrid` so production runs silently fall back to the CPU path on C-grid configs. |
+| **C.10 — Integration + validation** | PENDING | target 2026-05-23 | 7 integration tests (hydrostatic equilibrium, uniform-wind equilibrium, Lamb-Oseen vortex, warm bubble supercell, tornado genesis, mass conservation, collocated regression). |
+
+**Aggregate test count** (after C.8): 91,154+ dynamics assertions across 43 test cases plus 6,892 stagger-interpolation assertions. Full suite green. The C-grid acceptance gates from `docs/CoordinateBackend_Plan.md` for C.1 → C.8 are all closed; only C.9 (GPU) and C.10 (validation runs) remain in Phase C.
+
+**Why this matters for everything else:**
+- Bug 7 is no longer an open question. The supercell hodograph case now runs.
+- The cylindrical backend is no longer "the only option, with caveats." It is the right tool for tornado-vortex modeling, with the same gold-standard discretization (C-grid + Klemp-Wilhelmson) that CM1 / WRF / MPAS use.
+- Phase 4 (Physics) and the Scientific Enhancements section (S1, S5 in particular) can now be planned against the right grid for the right problem.
+
+---
+
 ## Phase 2: Performance, Efficiency & Accessibility (Weeks 6–12)
 *Make it fast on high-end hardware. Make it possible on a student's laptop.*
 
-**Design principle:** The same binary should run a meaningful simulation on a base MacBook Air with 8GB RAM *and* saturate an M4 Ultra with 512GB unified memory or a 64-core Threadripper. The user configures the knobs; the software adapts to the hardware.
+**Design principle:** The same binary should run a meaningful simulation on a base MacBook Air with 8GB RAM *and* saturate an M3/M5(Future) Ultra with 512GB unified memory or a 64-core Threadripper. The user configures the knobs; the software adapts to the hardware.
 
 **#1 Priority — Target Machine Floor:**
 - MacBook Air M1 (8GB RAM, 256GB SSD) — must run a meaningful 64×64×32 simulation
@@ -25,11 +49,11 @@
 - Raspberry Pi 5 (8GB) — stretch goal, would be remarkable for outreach
 - **Any post-2018 machine with a C++17 compiler must build and run with zero external dependencies.**
 
-**GPU strategy: Vulkan only.** No CUDA, no Metal.
+**GPU strategy:** Metal support coming once Vulkan is 100% utilized.
 - MoltenVK translates Vulkan → Metal on macOS automatically (~95% native perf)
 - Vulkan covers Windows + Linux natively (NVIDIA/AMD/Intel)
 - CPU-only fallback covers everything else
-- Adding CUDA (NVIDIA-only) or Metal (Apple-only) would triple the compute backend maintenance for marginal gains and add friction to the build process — the opposite of our goal.
+- Metal in certain scenarios can see performance gains once all of Vulkan is realized
 
 ### 2.1 CPU hot-path optimization — ~~COMPLETE~~
 
@@ -50,23 +74,23 @@
 ### 2.2 GPU shader wiring — ~~COMPLETE~~
 All 7 Vulkan compute pipelines dispatched: supercell, tornado, kessler×2, diffusion, advection×3. Kernel-level 4.4× on TVD vertical advection (validated March 2026).
 
-### 2.3 GPU-resident field management — PARTIAL
-Buffer pool + zero-copy path exist for unified memory. Fields still copied back after every dispatch (no cross-timestep residency). **Low priority on Apple Silicon** (zero-copy already eliminates the main bottleneck). Deferred to Phase 2R.
+### 2.3 GPU-resident field management — DEPRIORITIZED with measurement
+Buffer pool + zero-copy path exist for unified memory. Cross-timestep residency *not* implemented and *not* worth implementing on Apple Silicon: zero-copy transfer overhead is ≈ 1–2 µs/dispatch (< 0.1% of step time). `GPUFieldSnapshot` interface exists but has zero call sites. Revisit only for discrete-GPU support.
 
 ### 2.4 Async I/O — ~~COMPLETE~~
-AsyncOutputWriter with background thread, condition variables, backpressure.
+AsyncOutputWriter with background thread, condition variables, backpressure. Enabled in `production.yaml`.
 
-### 2.5 ZFP compression — PARTIAL
-ZFP integrated with 3 modes (accuracy, precision, rate). **Delta encoding + keyframe intervals NOT implemented.** Current compression: 10-50×. Target with delta: 30-150×. Deferred to Phase 2R.
+### 2.5 ZFP compression — ~~COMPLETE~~
+ZFP integrated with 3 modes (accuracy, precision, rate). Delta encoding + keyframe intervals + reader + roundtrip tests all shipped (commit `2cfb4f1`, 2026-04-21). Predictive delta and float16 prefilter active in production / research configs. Per-field tolerance map drives per-field compression. Tier 2b *measurement* validation moved to Phase 3 §3.1.
 
 ### 2.6 Configurable output — ~~COMPLETE~~
-5 field presets, 4 output formats (NPY 2D slices, NPY 3D, CSV, ZFP), disk budget estimation, YAML parsing.
+5 field presets, 4 output formats (NPY 2D slices, NPY 3D, CSV, ZFP), disk budget estimation, YAML parsing, tiered cadence (`WriteCadenceTier` fast/medium/slow).
 
 ### 2.7 Shared memory transport — ~~COMPLETE~~
 POSIX SHM transport, ShmWriter, ShmDataset, Vulkan viewer integration. 1058 assertions passing.
 
-### 2.8 Hardware-aware scaling — MOSTLY COMPLETE
-CPU/RAM/cache/GPU/SIMD detection and logging. Memory-safe grid warnings. Auto-config is suggestions only (not automatic). **Needs: auto-config that actually applies defaults based on detected hardware.** Deferred to Phase 2R.
+### 2.8 Hardware-aware scaling — ~~COMPLETE~~
+CPU/RAM/cache/GPU/SIMD detection and logging. Memory-safe grid warnings. `apply_hardware_defaults()` runs at the 80% RAM threshold *before* field allocation so student-laptop configs no longer OOM between detection and allocation. 6 tests, 31 assertions.
 
 ### 2.9 Accessibility — ~~COMPLETE~~
 Zero-dep CPU build, smoke test, 3 teaching configs, student.yaml, CSV/NPY/ZFP export.
@@ -86,437 +110,94 @@ Zero-dep CPU build, smoke test, 3 teaching configs, student.yaml, CSV/NPY/ZFP ex
 - [x] Configurable output with presets
 - [x] Shared memory in-situ rendering works
 - [x] Hardware detection + memory-safe grid warnings
-- [~] ZFP delta encoding — **Write path COMPLETE** (`output_writer.cpp:327-391`). Keyframe intervals, delta computation, v2 header with delta flag all implemented. **Needs: tests, reader, enable in a shipped config.** Resolved in Cycle 1.
+- [x] ZFP delta encoding — Writer + reader + roundtrip tests all shipped (commit 2cfb4f1, 2026-04-21). Enabled via `zfp_keyframe_interval` in `production.yaml` and `research.yaml`.
 - [~] GPU cross-timestep field residency — **Deprioritized with measurement.** Zero-copy on Apple Silicon (unified memory) means transfer overhead is ~1-2 µs/dispatch (< 0.1% of step time). `GPUFieldSnapshot` interface exists but unwired. Not worth the architectural cost on unified memory. Revisit only for discrete GPU support.
-- [x] Auto-config applies hardware-based defaults — `apply_hardware_defaults()` implemented and wired into `headless_runtime.cpp`. 6 new tests (31 assertions). Auto-scales grid to fit 80% RAM, logs what changed, calls `resize_fields()` and recomputes disk budget.
+- [x] Auto-config applies hardware-based defaults — `apply_hardware_defaults()` implemented and wired into `headless_runtime.cpp`. 6 tests (31 assertions). Auto-scales grid to fit 80% RAM, logs what changed, calls `resize_fields()` and recomputes disk budget. The 80% threshold check now runs *before* field allocation (Cycles 0-2 infrastructure, 2026-04-21) so student-laptop configs can no longer OOM between detection and allocation.
 
-**Overall: ~97% complete. ZFP write path was already done (plan was stale). GPU residency deprioritized with evidence. Hardware auto-config implemented and tested (2026-03-20). Remaining: ZFP needs tests + reader + config enablement.**
-
----
-
-## Phases 2R+3: Audit-Test Cycles (Weeks 12–18)
-*Every finding gets a test. Every test gets a fix. Every fix gets re-audited.*
-
-Phase 1 and Phase 2 are foundational. Every future addition builds on this architecture. If the foundation has cracks, they compound. Phases 2R and 3 are not sequential — they are a single interleaved loop that ensures nothing slips through.
-
-### How the Loop Works
-
-```
-Audit module → find gap or risk
-       ↓
-Write test that exposes it (RED)
-       ↓
-Fix the code (GREEN)
-       ↓
-Test passes — fix is proven
-       ↓
-Re-audit — did the fix introduce anything new?
-       ↓
-(repeat until module is clean)
-```
-
-**Why this matters:** A standalone audit finds issues it can't prove. Standalone tests cover what you *think* the code does, not what it *actually* does. The loop forces contact with reality at every step. If the plan says something isn't done but the code has it (see ZFP delta below), the audit catches the stale assumption and the test proves the real state.
-
-### Test Baseline (as of 2026-03-20)
-
-Catch2 integrated. **29,833 assertions across 148 test cases — all passing.**
-
-| Suite | Tests | Assertions |
-|-------|-------|------------|
-| Core (field, output, hardware, npy, writer, shm) | 64 | 1,397 |
-| Diagnostics (contract, validation) | 19 | 446 |
-| Numerics (advection, diffusion, timestepping) | 16 | 20 |
-| Physics (microphysics, radiation, terrain) | 27 | 8,381 |
-| Data (soundings) | 7 | 41 |
-| Vulkan (backend, gpu_parity) | 11 | 18,844 |
-| Integration (performance) | 12 | 23 |
-| SHM E2E | 3 | 1,058 |
+**Overall: COMPLETE.** The 2026-04-21 infrastructure landing (commit `2cfb4f1`) closed the remaining gaps: ZFP delta reader + roundtrip tests shipped, hardware auto-config moved to pre-allocation, logging ratchet test in place (raw print count ≤ 274), TVD v2 float-precision kernel with 8-column batching, OpenMP on RK3/RK4 + implicit diffusion + radiation columns, `__restrict__` on all 51 simd_utils signatures. The remaining work is *measurement* validation (Phase 3 §3.1) and *coordinate backend* (Phase CB), neither of which belongs in Phase 2 itself.
 
 ---
 
-### Infrastructure Gate (do first — enables all cycles)
+## Phase 3: Validation & Measurement (Weeks 12–14)
+*Phase 2 shipped the infrastructure. Phase 3 measures whether it does what it claims.*
 
-These are prerequisites. They make every subsequent cycle faster and more trustworthy.
+The earlier draft of this plan carried a heavyweight "Phase 2R+3 audit-test cycles" framework (Cycles 0–5, infrastructure gates, per-module audit loops). The actual workflow that has driven the project is much simpler: phase-based execution with sub-tasks (Phase A → B → C, each with verification gates). The cycle framework was retired on 2026-04-30 because the work it described had already happened — Cycles 0–2 infrastructure landed in commit `2cfb4f1` (2026-04-21), Cycles 3–5 audit findings were absorbed into Phase B's refactor and Phase C's verification gates, and the only items that remain are *measurement* validations of the spatial/temporal pipeline.
 
-**CI matrix expansion**
-- Add macOS runner (the actual dev platform)
-- Add clang + gcc matrix
-- Add Vulkan smoke test (at least `--dry-run`)
-- Add performance baseline comparison (flag regressions)
+### Test Baseline (2026-04-30)
 
-**Code quality tooling**
-- `.clang-format` config — format the codebase once
-- `.clang-tidy` config — static analysis
-- CI checks (warnings, not blockers initially)
+Catch2 integrated. **41,000+ assertions across 25+ test suites — all passing.**
 
-**Logging ratchet** (cross-cutting guardrail)
-- Current state: **279 raw `std::cout`/`std::cerr` across 33 files**, despite `log.hpp` existing with `log_info`/`log_warn`/`log_error`/`log_debug` and level gating
-- Worst offenders: `runtime_config.cpp` (61), `headless_runtime.cpp` (49), `tornado_sim.cpp` (35)
-- Write a guardrail test: grep `src/` for raw `std::cout`/`std::cerr`, assert count ≤ threshold
-- Start at threshold = 279 (current), ratchet down as each cycle migrates a module
-- Re-audit after each batch: did we lose any user-facing status messages? Are error paths now capturable?
+| Suite | Tests | Assertions | Notes |
+|-------|-------|------------|-------|
+| Core (field, output, hardware, npy, writer, shm, stagger interp) | 65+ | 8,289+ | + `test_core_stagger_interpolation` (C.8): 6,892 assertions |
+| Dynamics (Cartesian + cylindrical_cgrid + tornado_cgrid + supercell_cgrid) | 43 | 91,154+ | Phase A/B/C dynamics gates |
+| Numerics (advection collocated, advection cartesian, advection cgrid, diffusion, timestepping, staggered derivatives) | 20+ | 18,830+ | + `test_numerics_advection_cylindrical_cgrid` (C.7) |
+| Physics (microphysics, radiation, terrain) | 27 | 8,381 | unchanged |
+| Data (soundings) | 7 | 41 | unchanged |
+| Vulkan (backend, gpu_parity) | 11 | 18,844 | awaiting C.9 cgrid shader parity tests |
+| Integration (performance) | 12 | 23 | unchanged |
+| SHM E2E | 3 | 1,058 | unchanged |
 
----
+### 3.1 Tier 2b Compression Measurement (Phase 4 gate)
 
-### Cycle 0: Spatial & Temporal Optimization (PRIORITY — gates Phase 4)
+The output pipeline already implements:
 
-**This cycle is the architectural bridge between a working simulation and a scientifically useful one.** Without it, production runs produce terabytes of output and take days of wall-clock time. With it, 8–24 hour storm lifecycle studies fit in 100 GB and overnight compute budgets. **Phase 4 (Physics Completeness) does not begin until Cycle 0 acceptance criteria are met** — adding more physics to an unoptimized pipeline just makes the problem worse.
+- **ZFP delta encoding** (writer + reader + roundtrip tests; commit `2cfb4f1`)
+- **Per-field ZFP tolerance map** (`config.zfp_field_tolerances` in `output_config.hpp`)
+- **Tiered write cadence** (`WriteCadenceTier` enum: fast / medium / slow)
+- **Predictive delta + sparse thresholding + float16 prefilter** (production / research configs)
 
-**Two problems, one cycle:**
-1. **Space:** A 2-hour production run currently produces **243 GB** (30x ZFP, uniform 5s cadence, global tolerance). Target: **26 GB** (Tier 2b).
-2. **Time:** A 2-hour production run takes **27 hours** wall-clock on M4 Max. Dynamics is 86% of step time; vertical advection is 93% of that. Reducing per-step cost directly unlocks longer simulations.
+What is *not* yet validated: that this pipeline actually meets the storage targets in §3.3 on a production-grade run. Until that measurement lands, every Phase 4 physics addition risks blowing the storage budget for long-duration runs. Earlier projections (effective compression ratios, GB-per-2h-run, wall-clock breakdowns) were estimates from before the Phase B refactor and the C-grid path landed; they were never verified end-to-end and should not be cited as facts. Phase 3's job is to replace those estimates with measurements.
 
-**The compression tiers from `docs/SpatialBenchmarks.md` are the implementation milestones:**
+**Compression tiers — implementation status (not measurements):**
 
-| Tier | What | Code Change | Eff. Ratio | 2h Production | Gate |
-|------|------|-------------|-----------|---------------|------|
-| **0** | Current state | None | 30x | 243 GB | — |
-| **1** | Enable delta + relax tolerance | Config only | 50-70x | 104-146 GB | Validated 30x assumption |
-| **2** | Per-field ZFP tolerance map | ~200 LOC | 80x | 91 GB | Field contract bounds used |
-| **2b** | + Tiered write cadence | ~300 LOC | 80x + cadence | **26 GB** | **Phase 4 gate** |
-| **3** | Sparse + predictive delta | ~750 LOC | 150x + cadence | **14 GB** | 24h diurnal cycle feasible |
+| Tier | What | Status |
+|------|------|--------|
+| **0** | Default ZFP, uniform tolerance, uniform cadence | shipped |
+| **1** | Delta encoding enabled in shipped configs | shipped (commit `2cfb4f1`, 2026-04-21) |
+| **2** | Per-field ZFP tolerance map (field contract bounds drive tolerance) | shipped |
+| **2b** | + Tiered write cadence (`WriteCadenceTier` fast / medium / slow) | shipped — **measurement pending (Phase 4 gate)** |
+| **3** | Sparse + predictive delta | predictive shipped; sparse pending |
 
-**What each tier unlocks (100 GB budget, production grid):**
-- Tier 1: **4-hour** supercell lifecycle at 13s cadence
-- Tier 2b: **8-hour** storm lifecycle at 10s core cadence (82 GB), **12-hour** at 15s core (100 GB)
-- Tier 3: **24-hour** full diurnal cycle at 15s core (70 GB)
+**Measurement steps:**
+1. Run a 120 s production simulation with the shipped configs (`production.yaml`, Tier 2b active).
+2. Measure GB per export, per tier, per field type. Record per-field compression ratios.
+3. Extrapolate to a 2 h run and compare against the §3.3 acceptance criteria.
+4. If §3.3 cleared: Phase 4 unblocked.
+5. If not: tighten per-field tolerances or cadence and re-measure before adding new physics.
 
-**Wall-clock reduction targets (companion to space optimization):**
+### 3.2 Wall-clock baseline
 
-The spatial benchmarks show dynamics dominates (86% of step time). Vertical advection alone is 93% of advection time. Two paths to improve wall-clock:
+Phase B's refactor and the C-grid path both touched the dynamics hot loop and the advection batching, so a fresh wall-clock baseline is part of Phase 3 (no prior numbers carry forward as facts):
 
-| Optimization | Target | Expected Speedup | Where |
-|-------------|--------|------------------|-------|
-| GPU-accelerated vertical advection | Move z-sweep to Vulkan compute | 2-4x on step time | `src/advection/`, Vulkan shaders |
-| Reduced field count mode | Export subset during compute, full set at cadence | Eliminates I/O contention | `headless_runtime.cpp` |
-| 2D axisymmetric for parameter sweeps | `grid.ny=1` already works | 50-250x faster per sim-second | Config only |
-| Adaptive output cadence | Write more during active tornadogenesis, less during spinup | Reduces total exports 30-50% | `output_config.hpp` |
+- Profile the production grid with Instruments on macOS. Identify the dominant hotspot in the current code; in particular, confirm whether vertical advection (now batched in TVD v2) is still the leading contributor or has been displaced.
+- Document ms/step for student / research / production tiers, on both Cartesian and cylindrical-cgrid backends.
+- Decide whether GPU vertical-advection dispatch is worth wiring for the cgrid path now or after Phase C.9 ships.
 
-**Combined impact:** Tier 2b compression + GPU vertical advection could bring a 2-hour production run from 27h/243GB down to ~10h/26GB — making overnight runs practical and 8-hour storm lifecycle studies achievable over a weekend.
+### 3.3 Phase 3 Acceptance Criteria
 
-**Audit targets:** `output_writer.cpp`, `output_config.cpp`, `output_config.hpp`, `headless_runtime.cpp`, `npy_writer.cpp`, `field_contract.cpp`
+- [ ] Tier 2b measurement: 2 h production run ≤ 30 GB **(Phase 4 gate)**
+- [ ] 8 h run extrapolation: ≤ 100 GB at Tier 2b with 10 s core cadence
+- [ ] Student config (64×64×32): ≤ 60 MB output, runs in < 6 minutes wall-clock
+- [ ] ms/step baseline documented for student / research / production tiers, on both backends
+- [ ] Measured per-field compression ratios captured in a freshly-written benchmark doc
 
-#### Step 0.1: Validate the 30x assumption (benchmark, not code)
-- Run a 60s production simulation with ZFP+delta enabled
-- Measure actual compression ratio per field type (dynamics, moisture, diagnostics)
-- Compare against the assumed 30x in `output_config.cpp:234`
-- Document results in `docs/SpatialBenchmarks.md`
-- **Test:** Assert measured ratio matches estimate within 2x (if not, update estimate)
+### 3.4 Carry-forward items (low priority, opportunistic)
 
-#### Step 0.2: Enable delta encoding in shipped configs (config only, zero code)
-- Add `zfp_keyframe_interval: 10` to `production.yaml` and `research.yaml`
-- **Test:** Run production config, verify delta frames are written (header flag = 0x01)
-- **Test:** Verify keyframe at frame 0, delta at frames 1-9, keyframe at frame 10
-- **Test:** Verify delta files are smaller than keyframe files for slowly-varying fields
-- **Re-audit:** Does enabling delta break any existing test?
-
-#### Step 0.3: Per-field ZFP tolerance map (~200 LOC)
-The field contract already has `min`/`max` bounds for every field. Use them.
-
-**New code:**
-- Add `std::unordered_map<std::string, double> field_tolerances` to `OutputConfig`
-- Add `output.zfp_field_tolerances` YAML section (optional, overrides global)
-- Add built-in tolerance tiers using field contract bounds:
-
-| Tier | Fields | Tolerance | Why |
-|------|--------|-----------|-----|
-| Tight (1e-4) | u, v, w, rho, p, theta, vorticity_{r,th,z} | Must preserve dynamics | Core science fields |
-| Moderate (1e-3) | temperature, moisture species, derived thermo, TKE | Sub-millikelvin, sub-ppm precision | More than adequate for analysis |
-| Loose (1e-2) | diagnostics, visualization, indices, radar synth | Bounded fields with known ranges | Visual/statistical use only |
-
-**Implementation in `output_writer.cpp`:** Before calling `write_zfp_3d`, look up `field_tolerances[entry.name]` and pass it instead of the global `config_.zfp_tolerance`.
-
-**Tests:**
-- Tight field compressed at 1e-4 → verify error < 1e-4 on known input
-- Moderate field compressed at 1e-3 → verify error < 1e-3
-- Loose field achieves higher compression ratio than tight field on same data
-- Roundtrip: write 3 fields at 3 tolerances, read back, verify each meets its bound
-- Per-field map overrides global tolerance
-
-**Re-audit:** Does per-field tolerance change disk budget estimates? (Yes — update `estimate_disk_budget` to use weighted average.)
-
-#### Step 0.4: Tiered write cadence (~300 LOC)
-Not all fields need the same temporal resolution.
-
-**New code:**
-- Add `FieldCadence` struct to `OutputConfig`: `{fast_interval_s, medium_interval_s, slow_interval_s}`
-- Add `output.cadence.fast`, `output.cadence.medium`, `output.cadence.slow` YAML keys
-- Classify fields into tiers (hardcoded, matching SpatialBenchmarks analysis):
-  - **Fast** (15): u, v, w, rho, p, theta, qv, qc, qr, qi, qs, qh, qg, tke, tracer
-  - **Medium** (32): vorticity, stretching/tilting/baroclinic, pressures, derived thermo, radar pol.
-  - **Slow** (34): surface, column, cross-section, radar synthetic, trajectories, indices
-- In `headless_runtime.cpp` export loop: check if current time matches each tier's cadence
-
-**Tests:**
-- Fast fields written every 5s, medium every 30s, slow every 60s (verify file existence)
-- Fields in each tier are correct (no field dropped, no field duplicated)
-- Total output size matches `docs/SpatialBenchmarks.md` Tier 2b estimate (within 10%)
-- Uniform cadence mode still works (all tiers set to same interval)
-
-**Re-audit:** Does tiered cadence break SHM transport? (SHM writes all fields every export — need to handle partial exports.) Does it break the Vulkan viewer? (Viewer reads from SHM, not files — should be unaffected.)
-
-#### Step 0.5: ZFP roundtrip reader (~200 LOC)
-Delta-compressed output cannot be verified without a reader. This is a test infrastructure gap.
-
-**New code:**
-- `read_zfp_3d()` function: reads v2 header, decompresses payload, handles delta flag
-- Delta reconstruction state machine: track last keyframe per field, `reconstructed = keyframe + delta`
-- Add to `npy_reader.hpp` or new `zfp_reader.hpp`
-
-**Tests:**
-- Write keyframe → read back → values match within tolerance
-- Write keyframe + 3 deltas → reconstruct all 4 frames → verify each matches original
-- Corrupted header → graceful error (not crash)
-- Wrong version → clear error message
-- Reader handles missing keyframe before delta → error
-
-#### Step 0.6: Eliminate per-frame delta allocation
-- `output_writer.cpp:375`: `std::vector<float> delta(n)` allocates on every non-keyframe export
-- Replace with persistent `delta_buffer_` member, resize only when field size changes
-- **Test:** Run 100 exports, verify no allocation spikes (measure with custom allocator or timing)
-
-#### Step 0.7: Real compression benchmark
-After Steps 0.2-0.4 are implemented:
-- Run full 120s production simulation with Tier 2b configuration
-- Measure actual GB per export, per tier, per field type
-- Compare against `docs/SpatialBenchmarks.md` projections
-- Update the document with measured (not estimated) ratios
-- **This is the gate for Phase 4.** If measured ratios are worse than projected, iterate on tolerance tuning before adding new physics.
-
-#### Step 0.8: Wall-clock profiling and vertical advection optimization
-After compression pipeline is validated:
-- Profile production grid (512x256x128) with Instruments — confirm dynamics is 86%+ and vertical advection dominates
-- Identify whether GPU vertical advection dispatch is feasible (shader already exists for horizontal advection)
-- If vertical advection shader yields ≥ 2x speedup on z-sweep: wire it into the main loop
-- If not: document why and identify next-best optimization target
-- **Test:** Benchmark before/after — measure ms/step improvement
-- **Test:** GPU vertical advection produces identical results to CPU path (add to `test_vulkan_gpu_parity`)
-
-#### Cycle 0 Acceptance Criteria
-
-**Space (Tier progression — each must be validated before moving to next):**
-- [ ] **Tier 0 validated:** Measured actual compression ratio with current ZFP settings. Document baseline.
-- [ ] **Tier 1 achieved:** Delta enabled in production.yaml + research.yaml. Measured ratio ≥ 50x.
-- [ ] **Tier 2 achieved:** Per-field ZFP tolerance map using field contract bounds. Measured weighted ratio ≥ 80x.
-- [ ] **Tier 2b achieved:** Tiered write cadence (5s/30s/60s). 2-hour production run ≤ 30 GB (target: 26 GB). **This is the Phase 4 gate.**
-- [ ] ZFP reader with delta reconstruction — roundtrip verified
-- [ ] Per-frame delta allocation eliminated (persistent buffer)
-- [ ] `docs/SpatialBenchmarks.md` updated with measured (not assumed) ratios at each tier
-
-**Time (wall-clock reduction):**
-- [ ] Production grid profiled — dynamics/advection breakdown documented
-- [ ] Vertical advection GPU shader evaluated (≥ 2x speedup or documented why not)
-- [ ] 2D axisymmetric mode (ny=1) validated for parameter sweeps
-- [ ] ms/step baseline established for each config tier (student, research, production)
-
-**Combined gate for Phase 4:**
-- [ ] 2-hour production run: ≤ 30 GB storage AND measured wall-clock documented
-- [ ] 8-hour run feasibility confirmed: ≤ 100 GB at Tier 2b with 10s core cadence
-- [ ] Student config (64x64x32): ≤ 60 MB output, runs in < 6 minutes wall-clock
+- **Logging ratchet:** guardrail test asserts raw print count ≤ 274. Migrate to `tmv::log_*` opportunistically when touching a file; no scheduled cycle.
+- **GPU field residency:** deprioritized with measurement. Zero-copy on unified memory ≈ 1–2 µs/dispatch (< 0.1% of step time). `GPUFieldSnapshot` interface exists but has zero call sites. Revisit only for discrete-GPU support.
+- **Double-precision SIMD overloads:** TVD v2 float-batched path is the new baseline; double overloads gated on measurement justification.
+- **CI matrix expansion** (macOS runner, clang + gcc, Vulkan smoke test) and **`.clang-format` / `.clang-tidy`** configs: Phase 5 polish.
+- **Microphysics init duplication, `RadiationColumnStateView` field validation, radiation silent lapse-rate fallback, turbulence factory inline lambda:** small Phase 4 prerequisites. Bundle them into the radiation/microphysics work in 4.1 and 4.4 rather than scheduling a standalone audit.
 
 ---
 
-### Cycle 1: Core Infrastructure (output, hardware, config)
+## Phase 4: Physics Completeness (Weeks 14–20)
+*Fill the science gaps for a credible AMS presentation. Begins after Phase 3 §3.1 validates the output pipeline (Tier 2b ≤ 30 GB for 2 h) and §3.2 documents wall-clock for the current dynamics + advection paths. Adding more physics without that confirmation risks blowing the storage / compute budget for long-duration runs.*
 
-**Audit targets:** `output_writer.cpp`, `hardware_info.cpp`, `runtime_config.cpp`, `output_config.cpp`
-
-**Known findings (from 2026-03-20 audit):**
-
-| Finding | Source | Status |
-|---------|--------|--------|
-| ZFP delta encoding | Plan says "NOT implemented" | **Actually COMPLETE** — `output_writer.cpp:327-391` has keyframe intervals, delta computation, previous-field storage. Plan was stale. |
-| Delta per-frame allocation | `output_writer.cpp:375` | `std::vector<float> delta(n)` allocates every non-keyframe. Should use FieldPool or a persistent buffer. |
-| Hardware auto-config doesn't apply | `hardware_info.cpp` | `check_grid_memory_safety()` warns but never adjusts. Student on 8GB MacBook Air gets a log warning, then OOMs. |
-| Logging: `runtime_config.cpp` | 61 raw `std::cout`/`std::cerr` | Migrate to `log.hpp`. Ratchet threshold down. |
-
-**Tests to write:**
-
-- ZFP delta: delta frame produces smaller output than keyframe for slowly-varying data
-- ZFP delta: keyframe interval=5 produces a keyframe every 5th frame
-- ZFP delta: empty `previous_fields_` on non-keyframe falls back to keyframe (line 360 guard)
-- Hardware auto-config: given 8GB RAM + 256³ config → system downsizes to safe grid
-- Hardware auto-config: given 48GB RAM + 256³ config → grid unchanged
-- Hardware auto-config: suggested grid has positive dims and preserves aspect ratio
-- Hardware auto-config: downscale is logged (student needs to know what happened)
-
-**Fixes to apply:**
-- Mark ZFP delta encoding COMPLETE in deferred items
-- Implement `apply_hardware_defaults()` that modifies `RuntimeConfig&`
-- Replace delta per-frame allocation with persistent buffer
-- Migrate `runtime_config.cpp` logging (61 → 0)
-
-**Re-audit checkpoint:** Tests pass. Delta allocation eliminated. Auto-config proven on simulated hardware. Logging ratchet threshold reduced.
-
----
-
-### Cycle 2: Numerics (advection, diffusion, time-stepping, SIMD)
-
-**Audit targets:** `src/numerics/`, `src/advection/`, `include/util/simd_utils.hpp`
-
-**Audit questions:**
-- Are TVD limiters (MC, van Leer, superbee, universal) producing monotone results?
-- Does implicit diffusion preserve positivity of density, moisture fields?
-- Is RK3/RK4 order of accuracy correct? (Richardson extrapolation test)
-- Double-precision SIMD: only float overloads exist — TVD advection operates on doubles and misses SIMD entirely
-- Are there stability violations at CFL > 0.5 for explicit schemes?
-
-**Tests to write:**
-- Advection: top-hat profile advected one full domain — verify monotonicity for each limiter
-- Advection: smooth Gaussian — measure L2 error, verify convergence rate matches scheme order
-- Diffusion: constant field → zero tendency; linear gradient → uniform tendency
-- Diffusion: positivity test — field with small positive values stays positive after diffusion step
-- Time-stepping: integrate `dy/dt = -y` — verify RK3 is 3rd order, RK4 is 4th order via Richardson extrapolation
-- SIMD: double-precision overloads — parity with scalar path for add, multiply, fma, reduce_sum
-- SIMD: NaN input → NaN output (no silent corruption)
-- SIMD: count < SIMD width → correct scalar tail handling
-
-**Deferred Phase 2 item to resolve:**
-
-| Item | Action |
-|------|--------|
-| Double-precision SIMD | Implement `double*` overloads for NEON/AVX/SSE/scalar. Wire into TVD advection + dynamics intermediates. Test proves parity. |
-
-**Re-audit checkpoint:** All limiters proven monotone. Order of accuracy verified. Double-precision SIMD wired and tested. No stability violations in edge cases.
-
----
-
-### Cycle 3: Physics (microphysics, boundary layer, turbulence, radiation, dynamics)
-
-**Audit targets:** `src/microphysics/`, `src/boundary_layer/`, `src/turbulence/`, `src/radiation/`, `src/dynamics/`
-
-**Audit questions:**
-- Are microphysics tendencies physically bounded? (no negative mixing ratios, no runaway temperatures)
-- Do 4 microphysics schemes agree on sign and order-of-magnitude for identical inputs?
-- Does the radiation silent fallback (`radiation.cpp` substituting default lapse rate without warning) still exist?
-- Does `RadiationColumnStateView` validate required fields before `compute_column()`?
-- Are boundary layer surface fluxes sensible for extreme stability (very stable, very unstable)?
-- Does TKE stay non-negative?
-- Are dynamics vorticity budget terms (stretching, tilting, baroclinic) internally consistent?
-
-**Known findings:**
-- Microphysics init duplication: 4 schemes repeat identical resize+convert → factor to base class helper
-- `RadiationColumnStateView` allows nullptr for fields without documenting which are required
-- Turbulence factory inline lambda in `factory.hpp` → use `tmv::strutil::trim_and_lower()`
-
-**Tests to write:**
-- Each microphysics scheme: known-input/known-output (warm rain: autoconversion rate from Kessler formula, etc.)
-- Each microphysics scheme: conservation test — total water mass before = after tendency application
-- Microphysics edge cases: zero mixing ratios → zero tendencies, saturated column, extreme temperatures
-- Radiation: column with known optical depth → verify heating rate against analytical Beer-Lambert solution
-- Radiation: nullptr field in `RadiationColumnStateView` → test that guard rejects/throws (after fix)
-- Boundary layer: neutral profile → flux matches surface layer theory
-- Turbulence: TKE non-negativity after 100 timesteps of decaying turbulence
-- Dynamics: solid body rotation → zero stretching/tilting terms
-
-**Fixes to apply:**
-- Factor microphysics init to base class helper
-- Add `RadiationColumnStateView` field validation with clear error messages
-- Fix radiation silent lapse rate fallback → `log_warn` at minimum
-- Turbulence factory: replace inline lambda
-
-**Re-audit checkpoint:** All schemes produce bounded, conserving results. Edge cases handled. Radiation guards in place. Init duplication eliminated.
-
----
-
-### Cycle 4: Data & Diagnostics (soundings, field contract, chaos)
-
-**Audit targets:** `src/soundings/`, `src/validation/`, `src/chaos/`
-
-**Audit questions:**
-- Does sounding QC handle malformed input gracefully? (missing levels, non-monotonic pressure, NaN values)
-- Are all field contract fields either Implemented or explicitly NotImplemented with justification?
-- Do chaos perturbation modes produce reproducible results given the same seed?
-- Is the random generator thread-safe?
-
-**Tests to write:**
-- Soundings: malformed input (missing levels, duplicate pressures, NaN temperature) → graceful rejection
-- Soundings: interpolated profile matches analytical atmosphere (isothermal, constant lapse rate)
-- Field contract: roundtrip — every Implemented field can be computed and validated without error
-- Chaos: same seed → identical perturbation field (reproducibility)
-- Chaos: different seeds → different fields (non-degeneracy)
-- Chaos: perturbation magnitudes within configured bounds
-
-**Re-audit checkpoint:** Sounding QC robust. Field contract inventory current. Chaos reproducibility proven.
-
----
-
-### Cycle 5: Compute & I/O (Vulkan, SHM, async output)
-
-**Audit targets:** `src/core/compute_backend.cpp`, `src/core/shm_writer.cpp`, `vulkan/`
-
-**Audit questions:**
-- Is GPU dispatch overhead net-positive at every call site? (profile, don't assume)
-- Does SHM transport handle reader disconnect gracefully?
-- Does async output writer handle backpressure without data loss?
-- Are Vulkan buffer lifetimes correct? (no use-after-free on swapchain recreate)
-
-**Deferred Phase 2 item:**
-
-| Item | Action |
-|------|--------|
-| GPU field residency | Profile cross-timestep copy overhead. On Apple Silicon (unified memory), verify zero-copy path means this is a non-issue. On discrete GPU, measure copy cost vs. residency benefit. Deprioritize if < 2% of step time. |
-
-**Tests to write:**
-- Vulkan: dispatch + readback matches CPU reference (existing `test_vulkan_gpu_parity` — 18,835 assertions, already strong)
-- SHM: writer closes → reader detects disconnect without crash
-- SHM: reader attaches after writer starts → gets current data (late-join)
-- Async output: submit faster than write speed → backpressure blocks without data loss
-- GPU residency: benchmark cross-timestep copy cost (measurement, not assertion)
-
-**Re-audit checkpoint:** GPU dispatch proven net-positive or removed. SHM lifecycle robust. Async output handles all pressure scenarios.
-
----
-
-### Cross-Cutting: Performance Profiling
-
-Runs **after each cycle**, not as a separate phase. Catches regressions introduced by fixes.
-
-- Profile benchmark config (256×256×64, 60s) with Instruments on macOS
-- Track top 10 hottest functions
-- Compare against previous cycle's baseline
-- Flag any function that moved into the top 10 after a fix
-- Verify FieldPool and buffer reuse are working (allocation profile)
-- Verify OpenMP thread balance (no false sharing)
-
----
-
-### Deferred Phase 2 Items — Resolved Status (audited 2026-03-20)
-
-| Item | Original Status | Resolved By | Actual State |
-|------|----------------|-------------|--------------|
-| ZFP delta encoding | Plan said "NOT implemented" | Cycle 1 audit | **Write path COMPLETE** — `output_writer.cpp:327-391` has v2 header, keyframe intervals, delta computation, previous-field state tracking. Plan was stale. **Gaps:** zero tests, no reader, disabled in all configs, per-frame `vector<float>` alloc at line 375. |
-| Double-precision SIMD | Not started | Cycle 2 | Implement + test + wire into TVD advection + dynamics intermediates |
-| Hardware auto-config | Detection only | Cycle 1 audit | `check_grid_memory_safety()` warns at 80% RAM threshold and suggests safe grid, but **suggestion is discarded**. Grid allocates regardless. Student laptop OOMs. **Fix:** implement `apply_hardware_defaults()`, respect explicit config overrides, add `--no-auto-scale` flag. |
-| GPU field residency | Not measured | Cycle 5 audit | **Deprioritized with measurement.** Zero-copy on unified memory (Apple Silicon) = ~1-2 µs/dispatch transfer overhead (< 0.1% of step time). `GPUFieldSnapshot` interface exists (buffer pool, dirty bits, upload/download) but has **zero call sites**. Not worth wiring for < 0.1% gain. Revisit for discrete GPU support only. |
-| Factory duplication | 12 files | N/A | **Already largely solved** by `SchemeRegistry<Base>` template. Each factory is a thin wrapper (create + available). Further reduction is micro-optimization — deprioritized. |
-| Logging inconsistency | Plan said ~75 sites | Infrastructure gate | **Actually 279 across 33 files.** Worst: `runtime_config.cpp` (61), `headless_runtime.cpp` (49), `tornado_sim.cpp` (35). `log.hpp` exists with full API. Ratchet down via guardrail test. |
-
----
-
-### Phase 2R+3 Acceptance Criteria
-
-- [ ] **Cycle 0 complete (Phase 4 gate):** Tier 2b compression validated. 2h production ≤ 30 GB. 8h run ≤ 100 GB. Wall-clock profiled. Vertical advection GPU path evaluated.
-- [ ] Every module audited with findings documented per cycle
-- [ ] Every finding has a corresponding test
-- [ ] Every test passes after fix
-- [ ] Every fix re-audited for collateral damage
-- [ ] Profiling data captured after each cycle — no performance regressions
-- [ ] All deferred Phase 2 items resolved or explicitly deprioritized with measurement
-- [ ] Logging ratchet: 279 → < 50 raw `std::cout`/`std::cerr` calls
-- [ ] CI runs on macOS + Linux with clang + gcc
-- [ ] `.clang-format` and `.clang-tidy` configs in place
-- [ ] Build + all tests pass on macOS (ARM) and Linux (x86)
-
----
-
-## Phase 4: Physics Completeness (Weeks 18–24)
-*Fill the science gaps for a credible AMS presentation. Only begins after Cycle 0 proves the output pipeline can handle the load (Tier 2b: ≤ 30 GB for 2h, ≤ 100 GB for 8h) and wall-clock times are documented. Adding more physics without optimized I/O just compounds the storage/compute problem.*
-
-**Prerequisites (from Cycle 0):**
-- Tier 2b compression validated and enabled in production/research configs
-- Per-field tolerance map active (field contract bounds drive ZFP)
-- Tiered cadence operational (fast/medium/slow field groups)
-- Wall-clock baseline established for each grid tier
+**Prerequisites (from Phase 3):**
+- Tier 2b compression measurement validated on a 2 h production run
+- Wall-clock baseline established per backend per grid tier
 - Every new physics field added in Phase 4 must be classified into a compression tier and cadence group before it ships
 
 ### 4.1 Radiation: Beyond grey-body
@@ -586,26 +267,40 @@ No CUDA toolkit installation. No Vulkan SDK setup. No OpenMP library hunting. Th
 |-------|-------|-------|--------|
 | ~~**0: Foundation**~~ | ~~1–3~~ | ~~Gitignore, dedup, globals, chaos cleanup~~ | ~~COMPLETE~~ |
 | ~~**1: Vulkan Compute**~~ | ~~3–10~~ | ~~Real GPU dispatch pipeline~~ | ~~COMPLETE~~ |
-| **2: Performance** | 6–12 | SIMD, memory pools, cache blocking, output pipeline, GPU shaders, hardware scaling | **~92% COMPLETE** |
-| **2R+3: Audit-Test Cycles** | 12–18 | **Cycle 0 (spatial/temporal optimization) gates Phase 4.** Tier 2b: 26 GB/2h, 82 GB/8h. Wall-clock profiled. Then Cycles 1-5 audit each module. | Foundation proven bulletproof with evidence |
-| **4: Physics** | 18–24 | Radiation, field contract, validation. **Blocked until Cycle 0 Tier 2b validated.** Every new field gets a compression tier + cadence group. | Scientific credibility for AMS |
-| **5: Polish** | 22–26 | Refactoring, docs, demo script, first-run experience | Presentation readiness |
+| ~~**2: Performance, Efficiency & Accessibility**~~ | ~~6–12~~ | ~~SIMD library, OpenMP, FieldPool, cache blocking, ZFP delta + reader, async I/O, configurable output, SHM transport, hardware auto-config, TVD v2 batched kernel, logging ratchet~~ | ~~COMPLETE — see Phase 3 for the measurement validation that confirms it~~ |
+| ~~**CB-A: Cartesian backend**~~ | — (2026-04-07) | ~~Second coordinate backend; resolves Bug 7 for non-axisymmetric base states~~ | ~~COMPLETE — supercell case runs~~ |
+| ~~**CB-B: Refactor**~~ | — (2026-04-20) | ~~Consolidate dual-backend code; one dispatch point per concern~~ | ~~COMPLETE — `v_theta`→`v`, derivative operators, BC factory, time stepping unified~~ |
+| **CB-C: Cylindrical Arakawa C-grid** | Apr 28 – Jun 6 | Bring cylindrical grid to CM1/WRF/MPAS standard staggering. C.1–C.8 done; C.9 GPU shaders + C.10 integration tests remaining | Tornado-vortex modeling on the right discrete grid |
+| **3: Validation & Measurement** | 12–14 | Tier 2b compression measurement on a real 2 h production run. Wall-clock baseline per backend × grid tier. Replaces the retired Phase 2R+3 audit-test cycle framework. | Output pipeline proven before more physics lands |
+| **4: Physics** | 14–20 | Radiation, field contract, validation. **Blocked until Phase 3 §3.1 measurement clears AND Phase CB-C complete.** Every new field gets a compression tier + cadence group AND a coordinate backend classification. | Scientific credibility for AMS |
+| **5: Polish** | 20–26 | Refactoring, docs, demo script, first-run experience, CI matrix, clang-format/tidy | Presentation readiness |
 
 ---
 
 
 ## Scientific Enhancements — What This Architecture Can Uniquely Do
 
-Your cylindrical-coordinate, modular-physics architecture on personal hardware opens research avenues that CM1 either doesn't prioritize or makes inconvenient. These are scientifically motivated extensions that play to your model's strengths.
+*Maintained section: every architectural milestone should propagate into this list. If a Phase X completion adds a new uniquely-enabled capability or strengthens an existing one, add or update an entry here. The point of this section is to articulate — for AMS reviewers, for collaborators, and for future Victor — what the model can do that nothing else can.*
 
-### S1. Vortex-Centric Analysis (Natural Fit for Cylindrical Grid)
+**The dual-backend architecture (as of 2026-04-30):** Cartesian backend (Phase A) for storm-scale supercell simulations on the same discretization CM1 uses. Cylindrical Arakawa C-grid backend (Phase C, in progress) for tornado-vortex modeling on a vortex-native grid with CM1/WRF/MPAS-standard staggering and Klemp-Wilhelmson split-explicit time stepping. Shared physics modules (microphysics, radiation, PBL, turbulence, terrain) are coordinate-blind and run on either backend. Each problem class gets the right discretization for the right physics, without duplicating the physics.
 
-CM1 uses Cartesian coordinates and requires post-hoc coordinate transforms for vortex analysis. Your native (r, θ, z) grid makes the following **first-class operations** instead of post-processing hacks:
+**What that combination uniquely enables on personal hardware:**
+
+- *For storm-scale studies:* a working CM1-class Cartesian model (no false body forces from antisymmetric axis hacks; no centrifugal artifacts from non-axisymmetric base states) running unattended on a MacBook Air through a Threadripper.
+- *For tornado-vortex studies:* the same staggered, split-explicit, conservative compressible NWP discretization that CM1/WRF/MPAS use, applied to a cylindrical grid where the singular axis is treated rigorously by control-volume divergence (`2·u[0]/dr` at i = 0, no antisymmetric ghost) instead of avoided. Discrete cyclostrophic balance is a fixed point of the dynamics, not a goal you drift away from.
+- *For coupled studies:* the same trigger bubble, sounding, microphysics scheme, radiation scheme, PBL parameterization, and turbulence closure can be flipped between backends to isolate which features come from the physics and which come from the coordinate system.
+
+These are scientifically motivated extensions that play to the model's strengths.
+
+### S1. Vortex-Centric Analysis (Natural Fit for Cylindrical C-Grid)
+
+CM1 uses Cartesian coordinates and requires post-hoc coordinate transforms for vortex analysis. Your native (r, θ, z) **Arakawa C-grid** makes the following **first-class operations** instead of post-processing hacks:
 
 - **Azimuthal decomposition of vortex structure** — Decompose any field into wavenumber-0 (axisymmetric mean) and wavenumber-1,2,...,n (asymmetric perturbations) directly on the native grid. This is trivial in cylindrical coords and expensive/lossy in Cartesian.
-- **Angular momentum budgets** — Track absolute angular momentum flux through cylindrical surfaces natively. No interpolation artifacts.
+- **Angular momentum budgets** — Track absolute angular momentum flux through cylindrical surfaces natively. No interpolation artifacts. Mass conservation on the C-grid is **pairwise to machine precision** (the same face flux is debited from one cell and credited to its neighbor in floating point), so circulation budgets close exactly within the discretization.
 - **Vortex Rossby wave dynamics** — Diagnose VRW propagation, reflection, and wave-mean flow interaction using azimuthal wavenumber decomposition. Literature: Montgomery & Kallenbach (1997), Nolan & Montgomery (2002).
 - **Secondary circulation diagnostics** — Compute transverse (r,z) streamfunction for the axisymmetric overturning circulation directly.
+- **Discrete cyclostrophic balance is a fixed point.** The Phase C.4 verification: a Lamb-Oseen vortex with `v(r) = (Γ/(2πr))(1 − exp(−r²/r_c²))` and analytically-balanced `p(r,z)` produces tendencies bit-exactly zero (`dv/dt`, `drho/dt`, `dp/dt` = 0) on the C-grid; over 60 simulated seconds of Forward-Euler-on-momentum the v profile drifts < 0.1% of v_max. The collocated cylindrical grid could not pass this test because the antisymmetric axis ghost `u[0] = −u[1]` produces a structural false-divergence floor that corrupts cyclostrophic balance over any meaningful integration time. **The C-grid backend is what finally makes cylindrical vortex modeling on personal hardware numerically rigorous.**
 
 **What to build:** An `azimuthal_decomposition` diagnostic module that performs real-time FFT decomposition in θ and exports wavenumber-resolved fields. This is a unique selling point vs. CM1.
 
@@ -642,10 +337,10 @@ Your radar module already computes Z, V_r, Z_DR. Extensions that are scientifica
 
 ### S5. Tornadogenesis Process Diagnostics
 
-Your dynamics module computes vorticity components and stretching/tilting/baroclinic terms. Extensions for tornadogenesis research:
+Your dynamics module computes vorticity components and stretching/tilting/baroclinic terms. Extensions for tornadogenesis research, *now with the conservation properties to do them quantitatively*:
 
-- **Circulation budget analysis** — Compute material circulation tendencies around circuits in (r,z) plane. Track how circulation concentrates from mesocyclone to tornado scale. Literature: Rotunno & Klemp (1985), Markowski & Richardson (2014).
-- **Dynamic pressure decomposition** — Separate perturbation pressure into linear and nonlinear dynamic components plus buoyancy pressure. Diagnose which drives the low-level updraft. Literature: Klemp & Rotunno (1983).
+- **Circulation budget analysis** — Compute material circulation tendencies around circuits in (r,z) plane. Track how circulation concentrates from mesocyclone to tornado scale. The C-grid pairwise mass-conservation property means that circulation budgets close at the discretization floor, not at the "did we lose mass to the axis hack?" floor. Literature: Rotunno & Klemp (1985), Markowski & Richardson (2014).
+- **Dynamic pressure decomposition** — Separate perturbation pressure into linear and nonlinear dynamic components plus buoyancy pressure. Diagnose which drives the low-level updraft. The Klemp-Wilhelmson split-explicit pressure equation on the C-grid (`dp/dt = −γp · div_flux − u·grad p` with one-sided face gradients) gives the same partition CM1 uses, with no checkerboard pressure modes contaminating the diagnosis. Literature: Klemp & Rotunno (1983).
 - **Downdraft provenance tracking** — Tag air parcels in the RFD/FFD and track their thermodynamic history (origin height, θ_e deficit, angular momentum). Directly addresses the "RFD surge" hypothesis. Literature: Markowski et al. (2002, 2003).
 - **Critical angle diagnostics** — Compute the angle between storm-relative inflow and low-level shear vector in real time. Literature: Esterheld & Giuliano (2008).
 
@@ -867,20 +562,50 @@ S7.1 is independent. S7.2 enables S7.3 and S7.4 (which are independent of each o
 
 ---
 
+### S8. Multi-Scale Storm-to-Tornado Workflow (Dual-Backend Capability)
+
+The dual-backend architecture, combined with shared coordinate-blind physics modules from Phase B, opens a workflow that no single-coordinate model makes convenient:
+
+1. Run a **Cartesian supercell** simulation (Phase A backend) with the full WK2002 hodograph, microphysics, PBL, radiation. Identify the mesocyclone region (e.g., low-level rotation maximum, tornadic vortex signature in the synthetic radar field).
+2. Re-run the inner subdomain in **cylindrical C-grid** (Phase C backend) centered on the mesocyclone, with the same physics modules and the same trigger / sounding. The cylindrical grid resolves the vortex-scale dynamics (cyclostrophic balance, axisymmetric secondary circulation, axis-region surface friction) at the discretization the physics actually wants.
+3. Compare features that are stable across the coordinate change (mass flux, vorticity magnitude, thermodynamic profile) vs. features that change (azimuthal asymmetry, axis-region wind structure). Anything stable across the change is a real feature of the physics. Anything that changes is partly numerical and worth flagging.
+
+This is the inverse of the standard nested-grid approach — instead of refining resolution, you **change the discretization to match the local geometry of the flow**. Cartesian for the storm scale where the inflow is rectilinear; cylindrical C-grid for the tornado scale where the flow is locally rotational and the grid singularity coincides with a physical feature.
+
+**What to build:** A subdomain extraction utility that reads a Cartesian output snapshot, identifies the rotation center, samples onto a cylindrical C-grid, and writes a re-runnable initial-condition file. Shared physics modules already work on either backend (no code change needed).
+
+**Why this is unique:** CM1 only has Cartesian. WRF only has Cartesian (with optional curvilinear maps that aren't vortex-native). Cylindrical-only research codes (e.g., axisymmetric tornado-vortex chambers in the Lewellen / Nolan tradition) cannot ingest a non-axisymmetric storm-scale supercell as IC. The dual-backend architecture bridges that gap.
+
+### S9. Tornado-Native Compressible NWP-Class Discretization
+
+This is a *capability claim* about what the architecture itself enables, not a future build. Document it carefully because it is what most distinguishes the project at AMS:
+
+- **Arakawa C-grid staggering on a cylindrical grid.** Velocity components on r-faces (u), θ-faces (v), z-faces (w); scalars at cell centers. The standard for compressible NWP — what CM1, WRF, and MPAS all use — applied for the first time (to the author's knowledge, in a personal-hardware code) to a cylindrical mesh with the singular axis treated rigorously.
+- **Klemp-Wilhelmson split-explicit time stepping.** Slow tendencies (advection, buoyancy, centrifugal/curvature) advanced with the large dt; fast acoustic tendencies (pressure, mass-divergence-driven momentum) substepped at small dt within each large step. The slow + fast = total identity is asserted bit-exactly to float roundoff in the test suite (Phase C.5 Gate 5). Equilibrium states (hydrostatic, cyclostrophic) are fixed points of the discrete operator over hundreds of large steps.
+- **Axis singularity by construction, not by patching.** The 0/0 of `(1/r)·d(ru)/dr` at i = 0 is replaced by the control-volume derivation `2·u[0]/dr`, computed inside `StaggeredCylindricalDerivatives::div_flux()`. Dynamics scheme loops never see the special case. The collocated antisymmetric ghost `u[0] = −u[1]` (which created Bug 7's false-divergence drive) is gone.
+- **Pairwise machine-precision mass conservation.** Same face flux value on both sides of every interior face, in floating point, debited from one cell and credited to the adjacent one. Total scalar mass drifts only at the per-step double→float storage cast level (~1e-7 relative per thousand steps in the C.7 tests).
+- **Bug 7 is structurally impossible on this discretization.** Verified directly: a hydrostatic state plus uniform Cartesian wind on the C-grid produces dp/dt < 5 Pa/s on a 32-cell-θ grid (the only residual is the inherent O(dθ²) cylindrical-from-Cartesian projection error), versus ~2800 Pa/s on the collocated grid that the same hodograph collapses.
+
+**What to build:** A *validation document* that captures this in one place — Lamb-Oseen preservation gate, hydrostatic-300s gate, acoustic pulse propagation gate, mass conservation gate, Bug-7 negative test gate — with the actual measured numbers from `tests/dynamics/test_*_cgrid_*.cpp`. This becomes part of the AMS submission as evidence that the model is doing the right thing on the right grid for the right physics.
+
+---
+
 ### Priority for AMS 2027
 
 | Enhancement | Effort | Impact | Priority |
 |-------------|--------|--------|----------|
-| **S1: Azimuthal decomposition** | Medium | High — unique capability | Do first |
-| **S5: Tornadogenesis diagnostics** | Medium | High — core science | Do first |
+| **S9: Document tornado-native compressible NWP discretization** | Low (writing, not coding) | Very High — central AMS credibility claim | Do first (alongside C.10 integration tests) |
+| **S1: Azimuthal decomposition** | Medium | High — unique capability, now numerically rigorous on C-grid | Do first |
+| **S5: Tornadogenesis diagnostics** | Medium | High — core science, conservation properties now exact | Do first |
 | **S7.1: Reflectivity floor + colormaps** | Low | High — immediate visual upgrade | Do first |
 | **S7.4: Streamline / vortex tubes** | Medium | Very High — the "wow" feature | Do first |
+| **S8: Storm-to-tornado workflow** | Medium | High — uniquely enabled by dual-backend | Do second (after C.9 + C.10 ship) |
 | **S4: Radar operator enhancement** | Low-Medium | Medium — validates output | Do second |
 | **S7.2: Composite + terrain mesh** | Medium | High — enables S7.3/S7.4 | Do second |
 | **S7.3: Isosurfaces** | Medium | High — vorticity structure | Do second |
 | **S7.5: Overlays + self-shadowing** | Medium | High — photorealism + polish | Do second |
 | **S2: Ensemble sensitivity** | Medium | High — research utility | Do third |
 | **S6: Near-surface resolution** | Low | Medium — publication quality | Do third |
-| **S3: GPU parameter sweeps** | High | Medium — requires Phase 1 | After Vulkan compute works |
+| **S3: GPU parameter sweeps** | High | Medium — requires Phase C.9 GPU shaders for cgrid | After C.9 ships |
 
 Literature references are placeholders — provide your specific citations when ready and I'll integrate them into the implementation.

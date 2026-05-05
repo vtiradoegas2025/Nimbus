@@ -1,0 +1,176 @@
+// acoustic_pressure_cgrid.comp
+//
+// Fused acoustic pressure substep on the cylindrical Arakawa C-grid:
+// flux-form divergence -> rho/p integration with NaN sanitization and
+// floor clamping. GPU equivalent of the chain
+//   SupercellCGridScheme::compute_fast_pressure_tendencies + the
+//   apply_fast_pressure integration loop in
+//   src/core/orchestration/dynamics/dynamics.cpp:178.
+//
+// Field placement (Arakawa C-grid):
+//   q[i][j][k]   at cell center (rho, p, theta, ...)
+//   u[i][j][k]   at r-face     (between cells i and i+1)
+//   v[i][j][k]   at theta-face (between cells j and j+1; periodic)
+//   w[i][j][k]   at z-face     (between cells k and k+1)
+//
+// Cell-centered flux-form divergence (matching
+// StaggeredCylindricalDerivatives::div_flux for the interior i >= 1):
+//
+//   div_F_r   = ((i + 0.5) u[i] - (i - 0.5) u[i-1]) / (i dr)
+//   div_F_th  = (v[j] - v[j-1]) / (i dr dtheta)        [j_prev periodic]
+//   div_F_z   = (w[k] - w[k-1]) / dz
+//   div       = div_F_r + div_F_th + div_F_z
+//
+//   drho/dt = -rho_safe * div
+//   dp/dt   = -gamma     * p   * div
+//
+// Boundary cells (i=0, i=NR-1, k=0, k=NZ-1) are PASSED THROUGH with
+// drho/dt = dp/dt = 0. The CPU kernel
+// SupercellCGridScheme::compute_fast_pressure_tendencies pre-zeros the
+// tendency arrays for ALL cells and only writes interior values; the
+// integration in apply_fast_pressure then runs over ALL cells,
+// applying rho_new = rho_old + 0 * dt = rho_old at boundaries. This
+// passthrough behavior is intentional and DIFFERENT from the
+// collocated acoustic_pressure.comp, which performs zero-gradient /
+// hydrostatic extrapolation at the boundary.
+//
+// NaN/Inf handling:
+//   - Tendency:  drho or dp non-finite -> tendency forced to 0
+//                (matches CPU `if (!std::isfinite(...)) ... = 0.0`).
+//   - Integrated rho/p non-finite or non-positive -> floor (rho_floor /
+//     p_floor) (matches the collocated shader; the CPU uses a slightly
+//     richer fallback `max(0.1, rho0_base[k])` but rho0_base is not
+//     available on the GPU, so the floor is used as a safe lower bound).
+//
+// Data layout: row-major [nr][nth][nz]. Index (i, j, k) =
+// (i*nth + j)*nz + k.
+
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+// Input state (read-only).
+layout(set = 0, binding = 0) readonly buffer UInBuf   { float u_in[];   };
+layout(set = 0, binding = 1) readonly buffer VInBuf   { float v_in[];   };
+layout(set = 0, binding = 2) readonly buffer WInBuf   { float w_in[];   };
+layout(set = 0, binding = 3) readonly buffer RhoInBuf { float rho_in[]; };
+layout(set = 0, binding = 4) readonly buffer PInBuf   { float p_in[];   };
+
+// Output state (rho and p after the substep).
+layout(set = 0, binding = 5) writeonly buffer RhoOutBuf { float rho_out[]; };
+layout(set = 0, binding = 6) writeonly buffer POutBuf   { float p_out[];   };
+
+// Push constants (40 bytes; layout matches AcousticPressurePushConstants
+// so the C-grid pipeline reuses the existing struct).
+layout(push_constant) uniform PushConstants {
+    int   nr;
+    int   nth;
+    int   nz;
+    float dr;
+    float dtheta;
+    float dz_val;
+    float gamma_val;
+    float dt_small;
+    float rho_floor;
+    float p_floor;
+};
+
+const float SAFE_RHO_MIN = 1.0e-6;
+const float SAFE_RHO_FALLBACK = 1.0;
+
+// Returns rho if it is finite and above SAFE_RHO_MIN, else 1.0.
+// Matches the CPU helper safe_rho() in
+// src/dynamics/schemes/supercell/supercell_cgrid.cpp.
+float safe_rho(float rho_val)
+{
+    return (!isnan(rho_val) && !isinf(rho_val) && rho_val > SAFE_RHO_MIN)
+        ? rho_val : SAFE_RHO_FALLBACK;
+}
+
+float sanitize_tendency(float t)
+{
+    return (isnan(t) || isinf(t)) ? 0.0 : t;
+}
+
+void main()
+{
+    uint gid = gl_GlobalInvocationID.x;
+    uint total = uint(nr) * uint(nth) * uint(nz);
+    if (gid >= total)
+    {
+        return;
+    }
+
+    int k = int(gid % uint(nz));
+    uint ij = gid / uint(nz);
+    int j = int(ij % uint(nth));
+    int i = int(ij / uint(nth));
+
+    uint c = gid;
+    float rho_val = rho_in[c];
+    float p_val   = p_in[c];
+
+    // Boundary cells: passthrough (zero tendency on CPU C-grid).
+    bool is_boundary = (i == 0 || i == nr - 1 || k == 0 || k == nz - 1);
+
+    float drho = 0.0;
+    float dp   = 0.0;
+
+    if (!is_boundary)
+    {
+        // C-grid div_flux at cell center (i, j, k), interior i >= 1.
+        // Periodic theta neighbor via modulo arithmetic.
+        int j_prev = (j - 1 + nth) % nth;
+
+        uint c_im = uint(((i - 1) * nth + j) * nz + k);
+        uint c_jm = uint((i * nth + j_prev) * nz + k);
+        uint c_km = uint((i * nth + j) * nz + (k - 1));
+
+        // Radial flux divergence at cell center i (i >= 1):
+        //   (r_face[i] u[i] - r_face[i-1] u[i-1]) / (r[i] * dr)
+        // Matches the un-simplified CPU formula in
+        // StaggeredCylindricalDerivatives::div_flux_r so the discrete
+        // bookkeeping is identical.
+        float r_face_outer = (float(i) + 0.5) * dr;
+        float r_face_inner = (float(i) - 0.5) * dr;
+        float r_inv_i = 1.0 / (float(i) * dr);
+        float u_outer = u_in[c];
+        float u_inner = u_in[c_im];
+        float div_r = (r_face_outer * u_outer - r_face_inner * u_inner)
+                    * (1.0 / dr) * r_inv_i;
+
+        // Azimuthal: (v[j] - v[j-1]) / (i * dr * dtheta).
+        float v_north = v_in[c];
+        float v_south = v_in[c_jm];
+        float div_th = (v_north - v_south) * (1.0 / dtheta) * r_inv_i;
+
+        // Vertical: (w[k] - w[k-1]) / dz.
+        float w_top = w_in[c];
+        float w_bot = w_in[c_km];
+        float div_z = (w_top - w_bot) * (1.0 / dz_val);
+
+        float div = div_r + div_th + div_z;
+
+        float rho_safe = safe_rho(rho_val);
+        drho = sanitize_tendency(-rho_safe * div);
+        dp   = sanitize_tendency(-gamma_val * p_val * div);
+    }
+
+    // Forward-Euler integrate, sanitize, floor-clamp.
+    float rho_new = rho_val + drho * dt_small;
+    if (isnan(rho_new) || isinf(rho_new) || rho_new <= 0.0)
+    {
+        rho_new = rho_floor;
+    }
+    rho_new = max(rho_new, rho_floor);
+
+    float p_new = p_val + dp * dt_small;
+    if (isnan(p_new) || isinf(p_new) || p_new <= 0.0)
+    {
+        p_new = p_floor;
+    }
+    p_new = max(p_new, p_floor);
+
+    rho_out[c] = rho_new;
+    p_out[c]   = p_new;
+}

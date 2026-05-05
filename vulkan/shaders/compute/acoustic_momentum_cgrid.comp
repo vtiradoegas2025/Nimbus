@@ -1,0 +1,195 @@
+// acoustic_momentum_cgrid.comp
+//
+// Fused acoustic momentum substep on the cylindrical Arakawa C-grid:
+// per-face pressure gradient (with vertical reference-state subtraction)
+// -> u/v/w Forward-Euler integration with NaN sanitization and
+// magnitude clamps. GPU equivalent of
+//   SupercellCGridScheme::compute_fast_momentum_tendencies + the
+//   apply_fast_momentum integration loop in
+//   src/core/orchestration/dynamics/dynamics.cpp.
+//
+// Field placement (Arakawa C-grid):
+//   q[i][j][k]  at cell center (rho, p, p0_base, ...)
+//   u[i][j][k]  at r-face     (between cells i and i+1)
+//   v[i][j][k]  at theta-face (between cells j and j+1; periodic)
+//   w[i][j][k]  at z-face     (between cells k and k+1)
+//
+// Per-face tendency formulas (matching
+// StaggeredCylindricalDerivatives::grad_r / grad_theta / grad_z):
+//
+//   du/dt at r-face[i], i in [0, NR-2], j periodic, k in [1, NZ-2]:
+//     dp_dr   = (p[i+1] - p[i]) / dr
+//     rho_f   = 0.5 * (rho[i] + rho[i+1])
+//     du/dt   = -dp_dr / safe(rho_f)
+//
+//   dv/dt at theta-face[j], i in [1, NR-2], j periodic, k in [1, NZ-2]:
+//     dp_dth  = (p[j+1] - p[j]) / dtheta * (1 / (i*dr))
+//     rho_f   = 0.5 * (rho[j] + rho[j+1])
+//     dv/dt   = -dp_dth / safe(rho_f)
+//
+//   dw/dt at z-face[k], i in [1, NR-2], j periodic, k in [0, NZ-2]:
+//     dp_dz       = (p[k+1] - p[k]) / dz
+//     dp0_dz      = (p0_base[k+1] - p0_base[k]) / dz   (reference state)
+//     dp_prime_dz = dp_dz - dp0_dz
+//     rho_f       = 0.5 * (rho[k] + rho[k+1])
+//     dw/dt       = -dp_prime_dz / safe(rho_f)
+//
+// Reference-state subtraction in dw/dt is what makes this C-grid path
+// preserve hydrostatic balance; without it a hydrostatic state generates
+// O(g) spurious vertical accelerations. This is the entire point of
+// split-explicit on a C-grid.
+//
+// The CPU C-grid kernel pre-zeros ALL tendencies and only writes the
+// per-face valid range; the integration runs over ALL cells. We mirror
+// that here: each cell decides per-component whether it is in the valid
+// range for that face, sets the tendency to zero otherwise, then
+// integrates and clamps every cell. Boundary cells thus take a
+// passthrough through integration (u_cur + 0*dt = u_cur), with the
+// magnitude clamp re-applied uniformly.
+//
+// p0_base is logically a 1D profile of length NZ but is uploaded as a
+// full NR*NTH*NZ buffer broadcast across (i, j) so it fits the
+// dispatch_multi_field_kernel uniform-size requirement (the same trick
+// used by dispatch_cartesian_tendencies for its 1D base-state profiles).
+// The shader only reads p0_base_b at index (i*NTH+j)*NZ+k for the cell
+// of interest; the redundant copies across (i, j) are correct because
+// p0_base is by construction independent of (i, j).
+//
+// Data layout: row-major [nr][nth][nz]. Index (i, j, k) =
+// (i*nth + j)*nz + k.
+
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+// Inputs: cell-centered scalar fields (rho_in, p_in, p0_base broadcast).
+layout(set = 0, binding = 0) readonly buffer RhoInBuf  { float rho_in[];   };
+layout(set = 0, binding = 1) readonly buffer PInBuf    { float p_in[];     };
+layout(set = 0, binding = 2) readonly buffer P0BaseBuf { float p0_base_b[]; };
+
+// Inputs: face-staggered velocities (current substep state).
+layout(set = 0, binding = 3) readonly buffer UInBuf { float u_in[]; };
+layout(set = 0, binding = 4) readonly buffer VInBuf { float v_in[]; };
+layout(set = 0, binding = 5) readonly buffer WInBuf { float w_in[]; };
+
+// Outputs: face-staggered velocities after integration.
+layout(set = 0, binding = 6) writeonly buffer UOutBuf { float u_out[]; };
+layout(set = 0, binding = 7) writeonly buffer VOutBuf { float v_out[]; };
+layout(set = 0, binding = 8) writeonly buffer WOutBuf { float w_out[]; };
+
+// Push constants (40 bytes; reuses AcousticMomentumPushConstants).
+layout(push_constant) uniform PushConstants {
+    int   nr;
+    int   nth;
+    int   nz;
+    float dr;
+    float dtheta;
+    float dz_val;
+    float dt_small;
+    float wind_clamp_h;
+    float wind_clamp_v;
+    float padding;
+};
+
+const float SAFE_RHO_MIN      = 1.0e-6;
+const float SAFE_RHO_FALLBACK = 1.0;
+
+// Mirrors safe_rho() in src/dynamics/schemes/supercell/supercell_cgrid.cpp.
+float safe_rho(float rho_val)
+{
+    return (!isnan(rho_val) && !isinf(rho_val) && rho_val > SAFE_RHO_MIN)
+        ? rho_val : SAFE_RHO_FALLBACK;
+}
+
+float sanitize_tendency(float t)
+{
+    return (isnan(t) || isinf(t)) ? 0.0 : t;
+}
+
+// Mirror clamp_wind_horizontal_ms / clamp_wind_vertical_ms in
+// include/core/simulation.hpp: NaN/Inf -> 0, then magnitude clamp.
+float clamp_h(float val)
+{
+    if (isnan(val) || isinf(val)) return 0.0;
+    return clamp(val, -wind_clamp_h, wind_clamp_h);
+}
+
+float clamp_v(float val)
+{
+    if (isnan(val) || isinf(val)) return 0.0;
+    return clamp(val, -wind_clamp_v, wind_clamp_v);
+}
+
+void main()
+{
+    uint gid = gl_GlobalInvocationID.x;
+    uint total = uint(nr) * uint(nth) * uint(nz);
+    if (gid >= total)
+    {
+        return;
+    }
+
+    int k = int(gid % uint(nz));
+    uint ij = gid / uint(nz);
+    int j = int(ij % uint(nth));
+    int i = int(ij / uint(nth));
+
+    uint c = gid;
+
+    // Per-face validity (inclusive), matching the CPU per-face loops:
+    //   du: i in [0, NR-2],  j periodic,  k in [1, NZ-2]
+    //   dv: i in [1, NR-2],  j periodic,  k in [1, NZ-2]
+    //   dw: i in [1, NR-2],  j periodic,  k in [0, NZ-2]
+    bool u_face_active = (i >= 0) && (i <= nr - 2) && (k >= 1) && (k <= nz - 2);
+    bool v_face_active = (i >= 1) && (i <= nr - 2) && (k >= 1) && (k <= nz - 2);
+    bool w_face_active = (i >= 1) && (i <= nr - 2) && (k >= 0) && (k <= nz - 2);
+
+    float du = 0.0;
+    float dv = 0.0;
+    float dw = 0.0;
+
+    if (u_face_active)
+    {
+        // r-face[i] sits between cell centers i and i+1.
+        uint c_ip = uint(((i + 1) * nth + j) * nz + k);
+        float dp_dr  = (p_in[c_ip] - p_in[c]) * (1.0 / dr);
+        float rho_f  = 0.5 * (rho_in[c] + rho_in[c_ip]);
+        float rho_safe = safe_rho(rho_f);
+        du = sanitize_tendency(-dp_dr / rho_safe);
+    }
+
+    if (v_face_active)
+    {
+        // theta-face[j] sits between cell centers j and j+1 (periodic).
+        // r at cell-center radius i*dr (the C-grid convention used by
+        // StaggeredCylindricalDerivatives::grad_theta).
+        int j_next = (j + 1) % nth;
+        uint c_jn = uint((i * nth + j_next) * nz + k);
+        float r_inv_i = 1.0 / (float(i) * dr);
+        float dp_dth_over_r = (p_in[c_jn] - p_in[c])
+                              * (1.0 / dtheta) * r_inv_i;
+        float rho_f = 0.5 * (rho_in[c] + rho_in[c_jn]);
+        float rho_safe = safe_rho(rho_f);
+        dv = sanitize_tendency(-dp_dth_over_r / rho_safe);
+    }
+
+    if (w_face_active)
+    {
+        // z-face[k] sits between cell centers k and k+1.
+        uint c_kp = uint((i * nth + j) * nz + (k + 1));
+        float dp_dz       = (p_in[c_kp]      - p_in[c])      * (1.0 / dz_val);
+        float dp0_dz      = (p0_base_b[c_kp] - p0_base_b[c]) * (1.0 / dz_val);
+        float dp_prime_dz = dp_dz - dp0_dz;
+        float rho_f = 0.5 * (rho_in[c] + rho_in[c_kp]);
+        float rho_safe = safe_rho(rho_f);
+        dw = sanitize_tendency(-dp_prime_dz / rho_safe);
+    }
+
+    // Forward-Euler integrate every cell, mirroring the CPU integration
+    // loop in dynamics.cpp:apply_fast_momentum which runs over ALL (i,j,k).
+    // For boundary cells the tendency is zero, so this becomes a
+    // passthrough modulo the magnitude clamp.
+    u_out[c] = clamp_h(u_in[c] + du * dt_small);
+    v_out[c] = clamp_h(v_in[c] + dv * dt_small);
+    w_out[c] = clamp_v(w_in[c] + dw * dt_small);
+}

@@ -1,0 +1,119 @@
+// advect_vertical_cgrid.comp
+//
+// TVD-MUSCL flux-form vertical advection on the cylindrical Arakawa C-grid.
+//
+// GPU equivalent of advect_scalar_1d_z_kernel_cylindrical_cgrid in
+// src/numerics/advection/advection_cylindrical_cgrid.cpp.
+//
+// Field placement (Arakawa C-grid):
+//   q[i][j][k] at cell center r[i], theta[j], z[k] = k*dz
+//   w[i][j][k] at z-face       r[i], theta[j], z_face[k] = (k+0.5)*dz
+//
+// Flux form with vertical control-volume divergence (no curvature):
+//   div_F_z[k] = (F_top - F_bot) / dz
+//
+// MUSCL reconstruction with the MC limiter. Boundary slopes (k=0 and
+// k=NZ-1) are forced to zero, which falls back to first-order upwind
+// at those faces -- matching the CPU kernel's slope_z[0] = slope_z[NZ-1]
+// = 0 convention.
+//
+// Each invocation processes one interior grid point (i, j, k) where
+// i in [1, NR-2], j in [0, NTH-1], k in [1, NZ-2]. Boundary cells in
+// r and z (i=0, i=NR-1, k=0, k=NZ-1) are seeded from src on the host
+// before dispatch; the device only writes the interior.
+//
+// Data layout: row-major [nr][nth][nz]. Index (i, j, k) = (i*nth + j)*nz + k.
+
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) readonly buffer SrcBuf { float src[]; };
+layout(set = 0, binding = 1) readonly buffer WBuf   { float w_field[]; };
+layout(set = 0, binding = 2) buffer DstBuf          { float dst[]; };
+
+layout(push_constant) uniform PushConstants {
+    int   nr;
+    int   nth;
+    int   nz;
+    float dz_val;
+    float dt;
+    float padding[3];
+};
+
+float mc_limiter(float r)
+{
+    return max(0.0, min(min(0.5 * (1.0 + r), 2.0), 2.0 * r));
+}
+
+float limited_slope(float q_minus, float q_center, float q_plus)
+{
+    float forward  = q_plus - q_center;
+    float backward = q_center - q_minus;
+    float eps_signed = (forward >= 0.0) ? 1.0e-30 : -1.0e-30;
+    float ratio = backward / (forward + eps_signed);
+    return mc_limiter(ratio) * forward;
+}
+
+void main()
+{
+    uint gid = gl_GlobalInvocationID.x;
+
+    int interior_nr = nr - 2;
+    int interior_nz = nz - 2;
+    uint total = uint(interior_nr) * uint(nth) * uint(interior_nz);
+    if (gid >= total)
+    {
+        return;
+    }
+
+    int k_int = int(gid % uint(interior_nz));
+    uint ij = gid / uint(interior_nz);
+    int j = int(ij % uint(nth));
+    int i_int = int(ij / uint(nth));
+
+    int i = i_int + 1;
+    int k = k_int + 1;
+
+    // 5-point z stencil. Reads at k-2 and k+2 are clamped so the
+    // index stays inside the buffer; the slope using those reads is
+    // then forced to zero by the boundary conditional.
+    int km2 = max(k - 2, 0);
+    int kp2 = min(k + 2, nz - 1);
+
+    uint c_km2 = uint((i * nth + j) * nz + km2);
+    uint c_km  = uint((i * nth + j) * nz + (k - 1));
+    uint c_k   = uint((i * nth + j) * nz + k);
+    uint c_kp  = uint((i * nth + j) * nz + (k + 1));
+    uint c_kp2 = uint((i * nth + j) * nz + kp2);
+
+    // Slopes at k-1, k, k+1 (matching CPU convention slope_z[0] =
+    // slope_z[NZ-1] = 0, interior slopes from the centered triple).
+    float slope_km = (k - 1 >= 1 && k - 1 <= nz - 2)
+        ? limited_slope(src[c_km2], src[c_km], src[c_k])
+        : 0.0;
+    float slope_k = limited_slope(src[c_km], src[c_k], src[c_kp]);
+    float slope_kp = (k + 1 >= 1 && k + 1 <= nz - 2)
+        ? limited_slope(src[c_k], src[c_kp], src[c_kp2])
+        : 0.0;
+
+    float inv_dz = 1.0 / dz_val;
+
+    // Top face at z_face[k]: w[i][j][k].
+    float w_top = w_field[c_k];
+    float q_top_from_below = src[c_k]  + 0.5 * slope_k;
+    float q_top_from_above = src[c_kp] - 0.5 * slope_kp;
+    float q_top_face = (w_top >= 0.0) ? q_top_from_below : q_top_from_above;
+    float F_top = w_top * q_top_face;
+
+    // Bottom face at z_face[k-1]: w[i][j][k-1].
+    float w_bot = w_field[c_km];
+    float q_bot_from_below = src[c_km] + 0.5 * slope_km;
+    float q_bot_from_above = src[c_k]  - 0.5 * slope_k;
+    float q_bot_face = (w_bot >= 0.0) ? q_bot_from_below : q_bot_from_above;
+    float F_bot = w_bot * q_bot_face;
+
+    float div_z = (F_top - F_bot) * inv_dz;
+
+    dst[c_k] = src[c_k] - dt * div_z;
+}

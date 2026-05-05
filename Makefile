@@ -113,9 +113,10 @@ endif
 # Source files
 # ---------------------------------------------------------------------------
 VALIDATION_SRCS := src/diagnostics/field_contract.cpp src/diagnostics/field_validation.cpp
-SRCS := src/core/orchestration/dynamics/equations.cpp src/core/orchestration/dynamics/dynamics.cpp src/core/infra/field_sanitization.cpp src/core/infra/rayleigh_damping.cpp src/boundary_conditions/boundary_conditions_cartesian.cpp src/boundary_conditions/boundary_conditions_cylindrical.cpp src/boundary_conditions/boundary_conditions_cylindrical_cgrid.cpp src/boundary_conditions/factory.cpp src/core/orchestration/physics/diffusion_step.cpp src/core/orchestration/physics/microphysics_step.cpp src/core/orchestration/physics/radar_step.cpp src/core/infra/nested_grid.cpp src/core/orchestration/dynamics/initial_conditions_cartesian.cpp src/core/orchestration/dynamics/initial_conditions_cylindrical_cgrid.cpp src/core/runtime/tornado_sim.cpp src/core/runtime/headless_runtime.cpp src/core/runtime/runtime_config.cpp src/core/infra/coordinate_system.cpp src/compute/compute_backend.cpp src/compute/compute_kernel_template.cpp src/core/infra/hardware_info.cpp src/core/output/npy_writer.cpp src/core/output/output_config.cpp src/core/output/output_writer.cpp src/core/output/shm_writer.cpp src/core/orchestration/physics/radiation.cpp src/core/orchestration/physics/boundary_layer.cpp src/core/orchestration/physics/turbulence.cpp src/core/orchestration/dynamics/numerics.cpp src/core/infra/simd_utils.cpp \
+SRCS := src/core/orchestration/dynamics/equations.cpp src/core/orchestration/dynamics/dynamics.cpp src/core/infra/field_sanitization.cpp src/core/infra/rayleigh_damping.cpp src/boundary_conditions/boundary_conditions_cartesian.cpp src/boundary_conditions/boundary_conditions_cylindrical.cpp src/boundary_conditions/boundary_conditions_cylindrical_cgrid.cpp src/boundary_conditions/factory.cpp src/core/orchestration/physics/diffusion_step.cpp src/core/orchestration/physics/microphysics_step.cpp src/core/orchestration/physics/radar_step.cpp src/core/infra/nested_grid.cpp src/core/orchestration/dynamics/initial_conditions_cartesian.cpp src/core/orchestration/dynamics/initial_conditions_cylindrical_cgrid.cpp src/core/runtime/tornado_sim.cpp src/core/runtime/headless_runtime.cpp src/core/runtime/runtime_config.cpp src/core/infra/coordinate_system.cpp src/compute/compute_backend.cpp src/compute/compute_kernel_template.cpp src/core/infra/hardware_info.cpp src/core/output/npy_writer.cpp src/core/output/output_config.cpp src/core/output/output_writer.cpp src/core/output/shm_writer.cpp src/core/output/stagger_interpolation.cpp src/core/orchestration/physics/radiation.cpp src/core/orchestration/physics/boundary_layer.cpp src/core/orchestration/physics/turbulence.cpp src/core/orchestration/dynamics/numerics.cpp src/core/infra/simd_utils.cpp \
          src/numerics/advection/advection.cpp \
          src/numerics/advection/advection_cartesian.cpp \
+         src/numerics/advection/advection_cylindrical_cgrid.cpp \
          src/core/orchestration/physics/radar.cpp \
          src/radar/base/radar_base.cpp \
          src/radar/factory.cpp \
@@ -135,6 +136,7 @@ SRCS := src/core/orchestration/dynamics/equations.cpp src/core/orchestration/dyn
          src/dynamics/factory.cpp \
          src/dynamics/schemes/cartesian/cartesian.cpp \
          src/dynamics/schemes/supercell/supercell.cpp \
+         src/dynamics/schemes/supercell/supercell_cgrid.cpp \
          src/dynamics/schemes/tornado/tornado.cpp \
          src/dynamics/schemes/tornado/tornado_cgrid.cpp \
          src/radiation/base/radiative_transfer.cpp \
@@ -343,6 +345,9 @@ bin/test_core_shm: $(TEST_INFRA) tests/core/test_shm_transport.cpp src/core/outp
 bin/test_core_coordinate_system: $(TEST_INFRA) tests/core/test_coordinate_system.cpp src/core/infra/coordinate_system.cpp | bin
 	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
 
+bin/test_core_stagger_interpolation: $(TEST_INFRA) tests/core/test_stagger_interpolation.cpp src/core/output/stagger_interpolation.cpp | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
+
 # Diagnostics tests
 bin/test_diagnostics_contract: $(TEST_INFRA) tests/diagnostics/test_field_contract.cpp src/diagnostics/field_contract.cpp | bin
 	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
@@ -372,14 +377,41 @@ bin/test_dynamics_cylindrical_cgrid_ic: $(TEST_INFRA) tests/dynamics/test_cylind
 bin/test_dynamics_tornado_cgrid: $(TEST_INFRA) tests/dynamics/test_tornado_cgrid_dynamics.cpp src/dynamics/schemes/tornado/tornado_cgrid.cpp src/core/infra/coordinate_system.cpp | bin
 	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
 
+bin/test_dynamics_supercell_cgrid: $(TEST_INFRA) tests/dynamics/test_supercell_cgrid_dynamics.cpp src/dynamics/schemes/supercell/supercell_cgrid.cpp src/core/infra/coordinate_system.cpp | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
+
+bin/test_dynamics_supercell_cgrid_acoustic: $(TEST_INFRA) tests/dynamics/test_supercell_cgrid_acoustic.cpp src/dynamics/schemes/supercell/supercell_cgrid.cpp src/core/infra/coordinate_system.cpp | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
+
+bin/test_dynamics_acoustic_pressure_cgrid_gpu_parity: $(TEST_INFRA) tests/dynamics/test_acoustic_pressure_cgrid_gpu_parity.cpp src/core/infra/coordinate_system.cpp $(BACKEND_COMMON_SRCS) | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
+
+bin/test_dynamics_acoustic_momentum_cgrid_gpu_parity: $(TEST_INFRA) tests/dynamics/test_acoustic_momentum_cgrid_gpu_parity.cpp src/core/infra/coordinate_system.cpp $(BACKEND_COMMON_SRCS) | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
+
+bin/test_dynamics_acoustic_substep_fused_cgrid_gpu_parity: $(TEST_INFRA) tests/dynamics/test_acoustic_substep_fused_cgrid_gpu_parity.cpp src/core/infra/coordinate_system.cpp $(BACKEND_COMMON_SRCS) | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
+
 # Numerics tests
-bin/test_numerics_advection: $(TEST_INFRA) tests/numerics/test_advection_tvd.cpp src/numerics/advection/factory.cpp src/numerics/advection/schemes/tvd/tvd.cpp src/numerics/advection/schemes/weno5/weno5.cpp src/numerics/advection/advection.cpp src/numerics/advection/advection_cartesian.cpp $(BACKEND_COMMON_SRCS) | bin
+bin/test_numerics_advection: $(TEST_INFRA) tests/numerics/test_advection_tvd.cpp src/numerics/advection/factory.cpp src/numerics/advection/schemes/tvd/tvd.cpp src/numerics/advection/schemes/weno5/weno5.cpp src/numerics/advection/advection.cpp src/numerics/advection/advection_cartesian.cpp src/numerics/advection/advection_cylindrical_cgrid.cpp $(BACKEND_COMMON_SRCS) | bin
 	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
 
 bin/test_numerics_tvd_monotonicity: $(TEST_INFRA) tests/numerics/test_tvd_monotonicity.cpp src/numerics/advection/factory.cpp src/numerics/advection/schemes/tvd/tvd.cpp src/numerics/advection/schemes/weno5/weno5.cpp $(BACKEND_COMMON_SRCS) | bin
 	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
 
-bin/test_numerics_advection_cartesian: $(TEST_INFRA) tests/numerics/test_advection_cartesian.cpp src/numerics/advection/factory.cpp src/numerics/advection/schemes/tvd/tvd.cpp src/numerics/advection/schemes/weno5/weno5.cpp src/numerics/advection/advection.cpp src/numerics/advection/advection_cartesian.cpp $(BACKEND_COMMON_SRCS) | bin
+bin/test_numerics_advection_cartesian: $(TEST_INFRA) tests/numerics/test_advection_cartesian.cpp src/numerics/advection/factory.cpp src/numerics/advection/schemes/tvd/tvd.cpp src/numerics/advection/schemes/weno5/weno5.cpp src/numerics/advection/advection.cpp src/numerics/advection/advection_cartesian.cpp src/numerics/advection/advection_cylindrical_cgrid.cpp $(BACKEND_COMMON_SRCS) | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
+
+bin/test_numerics_advection_cylindrical_cgrid: $(TEST_INFRA) tests/numerics/test_advection_cylindrical_cgrid.cpp src/numerics/advection/factory.cpp src/numerics/advection/schemes/tvd/tvd.cpp src/numerics/advection/schemes/weno5/weno5.cpp src/numerics/advection/advection.cpp src/numerics/advection/advection_cartesian.cpp src/numerics/advection/advection_cylindrical_cgrid.cpp src/core/infra/coordinate_system.cpp $(BACKEND_COMMON_SRCS) | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
+
+bin/test_numerics_advect_radial_cgrid_gpu_parity: $(TEST_INFRA) tests/numerics/test_advect_radial_cgrid_gpu_parity.cpp src/numerics/advection/advection_cylindrical_cgrid.cpp src/core/infra/coordinate_system.cpp $(BACKEND_COMMON_SRCS) | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
+
+bin/test_numerics_advect_azimuthal_cgrid_gpu_parity: $(TEST_INFRA) tests/numerics/test_advect_azimuthal_cgrid_gpu_parity.cpp src/numerics/advection/advection_cylindrical_cgrid.cpp src/core/infra/coordinate_system.cpp $(BACKEND_COMMON_SRCS) | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
+
+bin/test_numerics_advect_vertical_cgrid_gpu_parity: $(TEST_INFRA) tests/numerics/test_advect_vertical_cgrid_gpu_parity.cpp src/numerics/advection/advection_cylindrical_cgrid.cpp src/core/infra/coordinate_system.cpp $(BACKEND_COMMON_SRCS) | bin
 	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
 
 bin/test_numerics_diffusion: $(TEST_INFRA) tests/numerics/test_diffusion.cpp src/numerics/diffusion/factory.cpp src/numerics/diffusion/schemes/explicit/explicit.cpp src/numerics/diffusion/schemes/implicit/implicit.cpp $(BACKEND_COMMON_SRCS) | bin
@@ -420,11 +452,11 @@ bin/test_shm_e2e: $(TEST_INFRA) tests/integration/test_shm_e2e.cpp src/core/outp
 	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
 
 CATCH2_BINS := bin/test_core_field bin/test_core_output bin/test_core_hardware bin/test_core_npy \
-               bin/test_core_output_writer bin/test_core_shm bin/test_core_coordinate_system \
+               bin/test_core_output_writer bin/test_core_shm bin/test_core_coordinate_system bin/test_core_stagger_interpolation \
                bin/test_diagnostics_contract bin/test_diagnostics_validation \
                bin/test_dynamics_cartesian bin/test_dynamics_cartesian_bcs bin/test_dynamics_cartesian_ic \
-               bin/test_dynamics_cylindrical_cgrid_bcs bin/test_dynamics_cylindrical_cgrid_ic bin/test_dynamics_tornado_cgrid \
-               bin/test_numerics_advection bin/test_numerics_advection_cartesian bin/test_numerics_diffusion bin/test_numerics_timestepping bin/test_numerics_staggered_derivatives \
+               bin/test_dynamics_cylindrical_cgrid_bcs bin/test_dynamics_cylindrical_cgrid_ic bin/test_dynamics_tornado_cgrid bin/test_dynamics_supercell_cgrid bin/test_dynamics_supercell_cgrid_acoustic bin/test_dynamics_acoustic_pressure_cgrid_gpu_parity bin/test_dynamics_acoustic_momentum_cgrid_gpu_parity bin/test_dynamics_acoustic_substep_fused_cgrid_gpu_parity \
+               bin/test_numerics_advection bin/test_numerics_advection_cartesian bin/test_numerics_advection_cylindrical_cgrid bin/test_numerics_advect_radial_cgrid_gpu_parity bin/test_numerics_advect_azimuthal_cgrid_gpu_parity bin/test_numerics_advect_vertical_cgrid_gpu_parity bin/test_numerics_diffusion bin/test_numerics_timestepping bin/test_numerics_staggered_derivatives \
                bin/test_physics_microphysics bin/test_physics_radiation bin/test_physics_terrain \
                bin/test_data_soundings bin/test_vulkan_backend bin/test_vulkan_gpu_parity \
                bin/test_integration bin/test_shm_e2e
@@ -444,17 +476,17 @@ else
   CORE_ZFP_RUN :=
 endif
 
-test-core: bin/test_core_field bin/test_core_output bin/test_core_hardware bin/test_core_npy bin/test_core_output_writer bin/test_core_shm bin/test_core_coordinate_system $(CORE_ZFP_TESTS)
-	./bin/test_core_field && ./bin/test_core_output && ./bin/test_core_hardware && ./bin/test_core_npy && ./bin/test_core_output_writer && ./bin/test_core_shm && ./bin/test_core_coordinate_system $(CORE_ZFP_RUN)
+test-core: bin/test_core_field bin/test_core_output bin/test_core_hardware bin/test_core_npy bin/test_core_output_writer bin/test_core_shm bin/test_core_coordinate_system bin/test_core_stagger_interpolation $(CORE_ZFP_TESTS)
+	./bin/test_core_field && ./bin/test_core_output && ./bin/test_core_hardware && ./bin/test_core_npy && ./bin/test_core_output_writer && ./bin/test_core_shm && ./bin/test_core_coordinate_system && ./bin/test_core_stagger_interpolation $(CORE_ZFP_RUN)
 
 test-diagnostics: bin/test_diagnostics_contract bin/test_diagnostics_validation bin/test_diagnostics_logging_ratchet
 	./bin/test_diagnostics_contract && ./bin/test_diagnostics_validation && ./bin/test_diagnostics_logging_ratchet
 
-test-dynamics: bin/test_dynamics_cartesian bin/test_dynamics_cartesian_bcs bin/test_dynamics_cartesian_ic bin/test_dynamics_cylindrical_cgrid_bcs bin/test_dynamics_cylindrical_cgrid_ic bin/test_dynamics_tornado_cgrid
-	./bin/test_dynamics_cartesian && ./bin/test_dynamics_cartesian_bcs && ./bin/test_dynamics_cartesian_ic && ./bin/test_dynamics_cylindrical_cgrid_bcs && ./bin/test_dynamics_cylindrical_cgrid_ic && ./bin/test_dynamics_tornado_cgrid
+test-dynamics: bin/test_dynamics_cartesian bin/test_dynamics_cartesian_bcs bin/test_dynamics_cartesian_ic bin/test_dynamics_cylindrical_cgrid_bcs bin/test_dynamics_cylindrical_cgrid_ic bin/test_dynamics_tornado_cgrid bin/test_dynamics_supercell_cgrid bin/test_dynamics_supercell_cgrid_acoustic bin/test_dynamics_acoustic_pressure_cgrid_gpu_parity bin/test_dynamics_acoustic_momentum_cgrid_gpu_parity bin/test_dynamics_acoustic_substep_fused_cgrid_gpu_parity
+	./bin/test_dynamics_cartesian && ./bin/test_dynamics_cartesian_bcs && ./bin/test_dynamics_cartesian_ic && ./bin/test_dynamics_cylindrical_cgrid_bcs && ./bin/test_dynamics_cylindrical_cgrid_ic && ./bin/test_dynamics_tornado_cgrid && ./bin/test_dynamics_supercell_cgrid && ./bin/test_dynamics_supercell_cgrid_acoustic && ./bin/test_dynamics_acoustic_pressure_cgrid_gpu_parity && ./bin/test_dynamics_acoustic_momentum_cgrid_gpu_parity && ./bin/test_dynamics_acoustic_substep_fused_cgrid_gpu_parity
 
-test-numerics: bin/test_numerics_advection bin/test_numerics_tvd_monotonicity bin/test_numerics_advection_cartesian bin/test_numerics_diffusion bin/test_numerics_timestepping bin/test_numerics_staggered_derivatives
-	./bin/test_numerics_advection && ./bin/test_numerics_tvd_monotonicity && ./bin/test_numerics_advection_cartesian && ./bin/test_numerics_diffusion && ./bin/test_numerics_timestepping && ./bin/test_numerics_staggered_derivatives
+test-numerics: bin/test_numerics_advection bin/test_numerics_tvd_monotonicity bin/test_numerics_advection_cartesian bin/test_numerics_advection_cylindrical_cgrid bin/test_numerics_advect_radial_cgrid_gpu_parity bin/test_numerics_advect_azimuthal_cgrid_gpu_parity bin/test_numerics_advect_vertical_cgrid_gpu_parity bin/test_numerics_diffusion bin/test_numerics_timestepping bin/test_numerics_staggered_derivatives
+	./bin/test_numerics_advection && ./bin/test_numerics_tvd_monotonicity && ./bin/test_numerics_advection_cartesian && ./bin/test_numerics_advection_cylindrical_cgrid && ./bin/test_numerics_advect_radial_cgrid_gpu_parity && ./bin/test_numerics_advect_azimuthal_cgrid_gpu_parity && ./bin/test_numerics_advect_vertical_cgrid_gpu_parity && ./bin/test_numerics_diffusion && ./bin/test_numerics_timestepping && ./bin/test_numerics_staggered_derivatives
 
 test-physics: bin/test_physics_microphysics bin/test_physics_radiation bin/test_physics_terrain
 	./bin/test_physics_microphysics && ./bin/test_physics_radiation && ./bin/test_physics_terrain

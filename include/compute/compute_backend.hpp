@@ -151,6 +151,37 @@ public:
         return false;
     }
 
+    // ── Radial advection on cylindrical Arakawa C-grid (Phase C.9) ────
+
+    virtual bool supports_radial_advection_cgrid_dispatch() const { return false; }
+
+    /**
+     * @brief Execute TVD-MUSCL flux-form radial advection on the
+     *        cylindrical Arakawa C-grid on device.
+     *
+     * Equivalent to advect_scalar_1d_r_kernel_cylindrical_cgrid in
+     * src/numerics/advection/advection_cylindrical_cgrid.cpp. The face
+     * velocity u_data is read from the cell-indexed buffer with the
+     * understanding that u[i][j][k] is the right-face value at
+     * r_face[i] = (i + 0.5) * dr.
+     *
+     * Boundary cells (i=0, i=NR-1, k=0, k=NZ-1) must be seeded from
+     * src by the host before dispatch; the device only writes the
+     * interior cells.
+     *
+     * @return True if dispatch succeeded.
+     */
+    virtual bool dispatch_radial_advection_cgrid(
+        const float* src, const float* u_data, float* dst,
+        int nr, int nth, int nz,
+        float dr, float dt)
+    {
+        (void)src; (void)u_data; (void)dst;
+        (void)nr; (void)nth; (void)nz;
+        (void)dr; (void)dt;
+        return false;
+    }
+
     // ── Azimuthal advection dispatch ─────────────────────────────────
 
     virtual bool supports_azimuthal_advection_dispatch() const { return false; }
@@ -177,6 +208,206 @@ public:
         (void)src; (void)v_data; (void)dst;
         (void)nr; (void)nth; (void)nz;
         (void)dr; (void)dtheta; (void)dt;
+        return false;
+    }
+
+    // ── Azimuthal advection on cylindrical Arakawa C-grid (Phase C.9) ──
+
+    virtual bool supports_azimuthal_advection_cgrid_dispatch() const { return false; }
+
+    /**
+     * @brief Execute TVD-MUSCL flux-form azimuthal advection on the
+     *        cylindrical Arakawa C-grid on device.
+     *
+     * Equivalent to advect_scalar_1d_theta_kernel_cylindrical_cgrid in
+     * src/numerics/advection/advection_cylindrical_cgrid.cpp. The face
+     * velocity v_data is read with the convention that v[i][j][k] is
+     * the value at theta-face (between cells j and j+1). Theta is
+     * periodic so every j is an interior point.
+     *
+     * Boundary cells in r and z (i=0, i=NR-1, k=0, k=NZ-1) must be
+     * seeded from src by the host before dispatch; the device only
+     * writes the interior cells.
+     *
+     * @return True if dispatch succeeded.
+     */
+    virtual bool dispatch_azimuthal_advection_cgrid(
+        const float* src, const float* v_data, float* dst,
+        int nr, int nth, int nz,
+        float dr, float dtheta, float dt)
+    {
+        (void)src; (void)v_data; (void)dst;
+        (void)nr; (void)nth; (void)nz;
+        (void)dr; (void)dtheta; (void)dt;
+        return false;
+    }
+
+    // ── Vertical advection on cylindrical Arakawa C-grid (Phase C.9) ──
+
+    virtual bool supports_vertical_advection_cgrid_dispatch() const { return false; }
+
+    /**
+     * @brief Execute TVD-MUSCL flux-form vertical advection on the
+     *        cylindrical Arakawa C-grid on device.
+     *
+     * Equivalent to advect_scalar_1d_z_kernel_cylindrical_cgrid in
+     * src/numerics/advection/advection_cylindrical_cgrid.cpp. The face
+     * velocity w_data is read with the convention that w[i][j][k] is
+     * the value at z-face (between cells k and k+1).
+     *
+     * Boundary cells (i=0, i=NR-1, k=0, k=NZ-1) must be seeded from
+     * src by the host before dispatch; the device only writes the
+     * interior cells.
+     *
+     * @return True if dispatch succeeded.
+     */
+    virtual bool dispatch_vertical_advection_cgrid(
+        const float* src, const float* w_data, float* dst,
+        int nr, int nth, int nz,
+        float dz, float dt)
+    {
+        (void)src; (void)w_data; (void)dst;
+        (void)nr; (void)nth; (void)nz;
+        (void)dz; (void)dt;
+        return false;
+    }
+
+    // ── Acoustic pressure substep on cylindrical Arakawa C-grid (Phase C.9) ──
+
+    virtual bool supports_acoustic_pressure_cgrid_dispatch() const { return false; }
+
+    /**
+     * @brief Execute fused acoustic pressure substep on the cylindrical
+     *        Arakawa C-grid: flux-form divergence -> rho/p Forward-Euler
+     *        integration with NaN sanitization and floor clamping.
+     *
+     * Equivalent to the chain
+     *   SupercellCGridScheme::compute_fast_pressure_tendencies + the
+     *   apply_fast_pressure integration loop in dynamics.cpp.
+     *
+     * Boundary cells (i=0, i=NR-1, k=0, k=NZ-1) are passed through with
+     * zero tendency, matching the CPU C-grid semantics; this differs
+     * from the collocated dispatch which extrapolates boundaries
+     * hydrostatically.
+     *
+     * @return True if dispatch succeeded.
+     */
+    virtual bool dispatch_acoustic_pressure_cgrid(
+        const float* u_data, const float* v_data, const float* w_data,
+        const float* rho_in, const float* p_in,
+        float* rho_out, float* p_out,
+        int nr, int nth, int nz,
+        float dr, float dtheta, float dz,
+        float gamma_val, float dt_small,
+        float rho_floor, float p_floor)
+    {
+        (void)u_data; (void)v_data; (void)w_data;
+        (void)rho_in; (void)p_in; (void)rho_out; (void)p_out;
+        (void)nr; (void)nth; (void)nz;
+        (void)dr; (void)dtheta; (void)dz;
+        (void)gamma_val; (void)dt_small;
+        (void)rho_floor; (void)p_floor;
+        return false;
+    }
+
+    // ── Acoustic momentum substep on cylindrical Arakawa C-grid (Phase C.9) ──
+
+    virtual bool supports_acoustic_momentum_cgrid_dispatch() const { return false; }
+
+    /**
+     * @brief Execute fused acoustic momentum substep on the cylindrical
+     *        Arakawa C-grid: per-face pressure gradient (with vertical
+     *        reference-state subtraction) -> u/v/w Forward-Euler
+     *        integration with NaN sanitization and magnitude clamps.
+     *
+     * Equivalent to the chain
+     *   SupercellCGridScheme::compute_fast_momentum_tendencies + the
+     *   apply_fast_momentum integration loop in dynamics.cpp.
+     *
+     * The vertical pressure gradient is computed in perturbation form
+     * (dp/dz - dp0/dz) using the global hydrostatic reference profile
+     * p0_base, so a hydrostatic state generates zero dw/dt up to float
+     * roundoff. The collocated dispatch_acoustic_momentum has no
+     * reference-state subtraction and would generate spurious g-scale
+     * vertical accelerations on a hydrostatic state, which is why a
+     * dedicated C-grid shader is required.
+     *
+     * Per-face valid index ranges (boundary cells get tendency = 0,
+     * matching the CPU pre-zero + selective-write pattern):
+     *   du: i in [0, NR-2],  j periodic,  k in [1, NZ-2]
+     *   dv: i in [1, NR-2],  j periodic,  k in [1, NZ-2]
+     *   dw: i in [1, NR-2],  j periodic,  k in [0, NZ-2]
+     *
+     * @param p0_base_data Reference pressure profile, 1D, length p0_base_len.
+     * @param p0_base_len  Number of entries in p0_base_data; must equal nz.
+     *
+     * @return True if dispatch succeeded.
+     */
+    virtual bool dispatch_acoustic_momentum_cgrid(
+        const float* rho_data, const float* p_data,
+        const float* p0_base_data, int p0_base_len,
+        const float* u_in, const float* v_in, const float* w_in,
+        float* u_out, float* v_out, float* w_out,
+        int nr, int nth, int nz,
+        float dr, float dtheta, float dz,
+        float dt_small,
+        float wind_clamp_h, float wind_clamp_v)
+    {
+        (void)rho_data; (void)p_data;
+        (void)p0_base_data; (void)p0_base_len;
+        (void)u_in; (void)v_in; (void)w_in;
+        (void)u_out; (void)v_out; (void)w_out;
+        (void)nr; (void)nth; (void)nz;
+        (void)dr; (void)dtheta; (void)dz;
+        (void)dt_small;
+        (void)wind_clamp_h; (void)wind_clamp_v;
+        return false;
+    }
+
+    // ── Fused acoustic substep on cylindrical Arakawa C-grid (Phase C.9) ──
+
+    virtual bool supports_acoustic_substep_fused_cgrid_dispatch() const { return false; }
+
+    /**
+     * @brief Execute the fused C-grid acoustic substep on device:
+     *        pressure-substep + compute-to-compute barrier +
+     *        momentum-substep, all 5 state fields in-place, in one
+     *        command-buffer submission.
+     *
+     * Equivalent to calling dispatch_acoustic_pressure_cgrid followed
+     * by dispatch_acoustic_momentum_cgrid back-to-back, but with a
+     * single submit and a GPU-side barrier between the two compute
+     * passes (no host round-trip). This halves the GPU dispatch
+     * overhead per acoustic substep, which matters for
+     * Klemp-Wilhelmson which does ~16 substeps per dynamics step.
+     *
+     * Reference-state subtraction in the vertical momentum equation
+     * uses the global hydrostatic profile p0_base (broadcast 1D->3D
+     * inside the dispatch); same constraints as
+     * dispatch_acoustic_momentum_cgrid.
+     *
+     * @param p0_base_data Reference pressure profile, 1D, length p0_base_len.
+     * @param p0_base_len  Number of entries; must equal nz.
+     *
+     * @return True if dispatch succeeded.
+     */
+    virtual bool dispatch_acoustic_substep_fused_cgrid(
+        float* u, float* v, float* w,
+        float* rho, float* p,
+        const float* p0_base_data, int p0_base_len,
+        int nr, int nth, int nz,
+        float dr, float dtheta, float dz,
+        float gamma_val, float dt_small,
+        float rho_floor, float p_floor,
+        float wind_clamp_h, float wind_clamp_v)
+    {
+        (void)u; (void)v; (void)w; (void)rho; (void)p;
+        (void)p0_base_data; (void)p0_base_len;
+        (void)nr; (void)nth; (void)nz;
+        (void)dr; (void)dtheta; (void)dz;
+        (void)gamma_val; (void)dt_small;
+        (void)rho_floor; (void)p_floor;
+        (void)wind_clamp_h; (void)wind_clamp_v;
         return false;
     }
 

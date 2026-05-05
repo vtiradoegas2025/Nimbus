@@ -48,12 +48,14 @@ info() { printf "${BOLD}==> %s${RESET}\n" "$1"; }
 MISSING_CORE=()
 MISSING_VIEWER=()
 
-check_cmd() {
+check_cmd() 
+{
     command -v "$1" &>/dev/null
 }
 
 # ── Detect platform ──────────────────────────────────────────────────
-detect_platform() {
+detect_platform() 
+{
     local uname_s
     uname_s="$(uname -s)"
 
@@ -88,7 +90,8 @@ detect_platform() {
 }
 
 # ── Check functions ──────────────────────────────────────────────────
-check_compiler() {
+check_compiler() 
+{
     if check_cmd g++ || check_cmd clang++; then
         local cxx
         cxx="$(command -v c++ 2>/dev/null || command -v g++ 2>/dev/null || command -v clang++ 2>/dev/null)"
@@ -101,7 +104,8 @@ check_compiler() {
     fi
 }
 
-check_make() {
+check_make() 
+{
     if check_cmd make; then
         ok "GNU Make: $(make --version 2>&1 | head -1)"
     else
@@ -110,7 +114,8 @@ check_make() {
     fi
 }
 
-check_openmp() {
+check_openmp() 
+{
     local cxx
     cxx="$(command -v c++ 2>/dev/null || command -v g++ 2>/dev/null || command -v clang++ 2>/dev/null || echo "")"
     if [[ -z "$cxx" ]]; then
@@ -151,7 +156,8 @@ CPP
     fi
 }
 
-check_zfp() {
+check_zfp() 
+{
     local found=false
 
     if [[ -f "$HOME/.local/include/zfp.h" ]]; then
@@ -171,7 +177,8 @@ check_zfp() {
     fi
 }
 
-check_pkg_config() {
+check_pkg_config() 
+{
     if check_cmd pkg-config; then
         ok "pkg-config: $(pkg-config --version)"
     elif [[ "$PLATFORM" != "macos" ]]; then
@@ -183,7 +190,9 @@ check_pkg_config() {
     fi
 }
 
-check_vulkan() {
+check_vulkan() 
+{
+
     local found=false
 
     # Check for vulkan.h header
@@ -211,7 +220,8 @@ check_vulkan() {
     fi
 }
 
-check_glslang() {
+check_glslang() 
+{
     if check_cmd glslangValidator; then
         ok "glslangValidator: $(glslangValidator --version 2>&1 | head -1)"
     else
@@ -220,7 +230,8 @@ check_glslang() {
     fi
 }
 
-check_glfw() {
+check_glfw() 
+{
     local found=false
 
     if [[ "$PLATFORM" == "macos" ]]; then
@@ -246,45 +257,8 @@ check_glfw() {
 }
 
 # ── Install functions ────────────────────────────────────────────────
-install_zfp_from_source() {
-    local zfp_version="1.0.1"
-    local zfp_url="https://github.com/LLNL/zfp/releases/download/${zfp_version}/zfp-${zfp_version}.tar.gz"
-    local build_dir
-    build_dir="$(mktemp -d)"
-
-    info "Building ZFP ${zfp_version} from source into ~/.local ..."
-
-    # cmake is required for ZFP build
-    if ! check_cmd cmake; then
-        case "$PLATFORM" in
-            macos)  brew install cmake ;;
-            debian) sudo apt-get install -y cmake ;;
-            fedora) sudo dnf install -y cmake ;;
-            arch)   sudo pacman -S --noconfirm cmake ;;
-        esac
-    fi
-
-    curl -sL "$zfp_url" | tar xz -C "$build_dir"
-    cmake -S "$build_dir/zfp-${zfp_version}" -B "$build_dir/build" \
-        -DCMAKE_INSTALL_PREFIX="$HOME/.local" \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DBUILD_SHARED_LIBS=ON \
-        -DBUILD_TESTING=OFF \
-        -DBUILD_UTILITIES=OFF \
-        -DZFP_WITH_OPENMP=ON \
-        > /dev/null 2>&1
-    cmake --build "$build_dir/build" -j"$(nproc 2>/dev/null || sysctl -n hw.ncpu)" > /dev/null 2>&1
-    cmake --install "$build_dir/build" > /dev/null 2>&1
-    rm -rf "$build_dir"
-
-    if [[ -f "$HOME/.local/include/zfp.h" ]]; then
-        ok "ZFP ${zfp_version} installed to ~/.local"
-    else
-        fail "ZFP build failed"
-    fi
-}
-
-install_macos() {
+install_macos() 
+{
     local pkgs=()
 
     for dep in "${MISSING_CORE[@]}"; do
@@ -292,7 +266,6 @@ install_macos() {
             compiler) ;; # Xcode CLT handled separately
             make)     ;; # Comes with Xcode CLT
             openmp)   pkgs+=(libomp) ;;
-            zfp)      install_zfp_from_source ;;
         esac
     done
 
@@ -323,7 +296,8 @@ install_macos() {
     fi
 }
 
-install_debian() {
+install_debian() 
+{
     local pkgs=()
 
     for dep in "${MISSING_CORE[@]}"; do
@@ -331,7 +305,6 @@ install_debian() {
             compiler) pkgs+=(g++) ;;
             make)     pkgs+=(make) ;;
             openmp)   pkgs+=(libomp-dev) ;;
-            zfp)      install_zfp_from_source ;;
         esac
     done
 
@@ -353,7 +326,8 @@ install_debian() {
     fi
 }
 
-install_fedora() {
+install_fedora() 
+{
     local pkgs=()
 
     for dep in "${MISSING_CORE[@]}"; do
@@ -361,7 +335,6 @@ install_fedora() {
             compiler) pkgs+=(gcc-c++) ;;
             make)     pkgs+=(make) ;;
             openmp)   pkgs+=(libomp-devel) ;;
-            zfp)      install_zfp_from_source ;;
         esac
     done
 
@@ -382,7 +355,8 @@ install_fedora() {
     fi
 }
 
-install_arch() {
+install_arch() 
+{
     local pkgs=()
 
     for dep in "${MISSING_CORE[@]}"; do
@@ -390,7 +364,6 @@ install_arch() {
             compiler) pkgs+=(gcc) ;;
             make)     pkgs+=(make) ;;
             openmp)   pkgs+=(openmp) ;;
-            zfp)      install_zfp_from_source ;;
         esac
     done
 
@@ -412,7 +385,8 @@ install_arch() {
 }
 
 # ── Main ─────────────────────────────────────────────────────────────
-main() {
+main() 
+{
     echo ""
     info "Nimbus dependency setup"
     echo ""

@@ -65,6 +65,21 @@ bool dispatch_radial_advection_backend(
     float dr, float dt);
 
 /**
+ * @brief Dispatches TVD-MUSCL radial advection on the cylindrical C-grid
+ *        via GPU backend if available (Phase C.9).
+ *
+ * Mirrors advect_scalar_1d_r_kernel_cylindrical_cgrid. Boundary cells
+ * (i=0, i=NR-1, k=0, k=NZ-1) must be seeded from src by the caller
+ * before invocation; the device only writes the interior cells.
+ *
+ * @return True if GPU dispatch succeeded. False means caller should use CPU path.
+ */
+bool dispatch_radial_advection_cgrid_backend(
+    const float* src, const float* u_data, float* dst,
+    int nr, int nth, int nz,
+    float dr, float dt);
+
+/**
  * @brief Dispatches azimuthal advection via GPU backend if available.
  *
  * @return True if GPU dispatch succeeded. False means caller should use CPU path.
@@ -73,6 +88,105 @@ bool dispatch_azimuthal_advection_backend(
     const float* src, const float* v_data, float* dst,
     int nr, int nth, int nz,
     float dr, float dtheta, float dt);
+
+/**
+ * @brief Dispatches TVD-MUSCL azimuthal advection on the cylindrical
+ *        C-grid via GPU backend if available (Phase C.9).
+ *
+ * Mirrors advect_scalar_1d_theta_kernel_cylindrical_cgrid. Boundary
+ * cells in r and z (i=0, i=NR-1, k=0, k=NZ-1) must be seeded from
+ * src by the caller before invocation; the device only writes the
+ * interior cells. Theta is periodic so every j is an interior point.
+ *
+ * @return True if GPU dispatch succeeded. False means caller should use CPU path.
+ */
+bool dispatch_azimuthal_advection_cgrid_backend(
+    const float* src, const float* v_data, float* dst,
+    int nr, int nth, int nz,
+    float dr, float dtheta, float dt);
+
+/**
+ * @brief Dispatches TVD-MUSCL vertical advection on the cylindrical
+ *        C-grid via GPU backend if available (Phase C.9).
+ *
+ * Mirrors advect_scalar_1d_z_kernel_cylindrical_cgrid. Boundary cells
+ * (i=0, i=NR-1, k=0, k=NZ-1) must be seeded from src by the caller
+ * before invocation; the device only writes the interior cells.
+ *
+ * @return True if GPU dispatch succeeded. False means caller should use CPU path.
+ */
+bool dispatch_vertical_advection_cgrid_backend(
+    const float* src, const float* w_data, float* dst,
+    int nr, int nth, int nz,
+    float dz, float dt);
+
+/**
+ * @brief Dispatches the fused acoustic pressure substep on the
+ *        cylindrical C-grid via GPU backend if available (Phase C.9).
+ *
+ * Mirrors SupercellCGridScheme::compute_fast_pressure_tendencies +
+ * the apply_fast_pressure integration. Boundary cells (i=0, i=NR-1,
+ * k=0, k=NZ-1) pass through with zero tendency; this differs from the
+ * collocated path which extrapolates boundaries hydrostatically.
+ *
+ * @return True if GPU dispatch succeeded. False means caller should use CPU path.
+ */
+bool dispatch_acoustic_pressure_cgrid_backend(
+    const float* u_data, const float* v_data, const float* w_data,
+    const float* rho_in, const float* p_in,
+    float* rho_out, float* p_out,
+    int nr, int nth, int nz,
+    float dr, float dtheta, float dz,
+    float gamma_val, float dt_small,
+    float rho_floor, float p_floor);
+
+/**
+ * @brief Dispatches the fused acoustic momentum substep on the
+ *        cylindrical C-grid via GPU backend if available (Phase C.9).
+ *
+ * Mirrors SupercellCGridScheme::compute_fast_momentum_tendencies +
+ * the apply_fast_momentum integration. Vertical momentum uses
+ * reference-state subtraction (dp/dz - dp0/dz) so a hydrostatic state
+ * generates zero dw/dt up to float roundoff; this is why the
+ * collocated dispatch_acoustic_momentum_backend cannot stand in for
+ * it on a C-grid path.
+ *
+ * @param p0_base_data Reference pressure profile, 1D, length p0_base_len.
+ * @param p0_base_len  Number of entries; must equal nz.
+ *
+ * @return True if GPU dispatch succeeded. False means caller should use CPU path.
+ */
+bool dispatch_acoustic_momentum_cgrid_backend(
+    const float* rho_data, const float* p_data,
+    const float* p0_base_data, int p0_base_len,
+    const float* u_in, const float* v_in, const float* w_in,
+    float* u_out, float* v_out, float* w_out,
+    int nr, int nth, int nz,
+    float dr, float dtheta, float dz,
+    float dt_small,
+    float wind_clamp_h, float wind_clamp_v);
+
+/**
+ * @brief Dispatches the fused C-grid acoustic substep
+ *        (pressure + barrier + momentum) in one GPU submission.
+ *
+ * In-place on the 5 state fields. p0_base is broadcast 1D->3D inside
+ * the backend; caller passes a 1D float profile of length nz. Result
+ * is identical (up to float precision) to calling
+ * dispatch_acoustic_pressure_cgrid_backend followed by
+ * dispatch_acoustic_momentum_cgrid_backend back-to-back.
+ *
+ * @return True if GPU dispatch succeeded.
+ */
+bool dispatch_acoustic_substep_fused_cgrid_backend(
+    float* u, float* v, float* w,
+    float* rho, float* p,
+    const float* p0_base_data, int p0_base_len,
+    int nr, int nth, int nz,
+    float dr, float dtheta, float dz,
+    float gamma_val, float dt_small,
+    float rho_floor, float p_floor,
+    float wind_clamp_h, float wind_clamp_v);
 
 /**
  * @brief Dispatches cylindrical diffusion via GPU backend if available.

@@ -31,6 +31,7 @@
 #include "core/field/field_snapshot.hpp"
 #include "core/output/npy_writer.hpp"
 #include "core/output/output_writer.hpp"
+#include "core/output/stagger_interpolation.hpp"
 // hardware_info.hpp: auto-scale now handled in load_config() before field allocation
 #include "core/runtime_config.hpp"
 #include "core/output/shm_writer.hpp"
@@ -1750,12 +1751,33 @@ int run_headless_simulation(const HeadlessRunOptions& options)
             snapshot.step_dir = step_path;
         }
 
+        // C-grid output interpolation (Phase C.8): the prognostic u, v, w
+        // live at faces on the C-grid (u at r-face, v at theta-face,
+        // w at z-face). Output consumers (npy writer, slice writer, the
+        // SHM live channel) expect cell-center velocities so all fields
+        // share the same coordinate convention. Build cell-center
+        // buffers once per export step and dispatch core_bindings to
+        // them when on C-grid.
+        Field3D u_center_buf, v_center_buf, w_center_buf;
+        const Field3D* u_for_output = &u;
+        const Field3D* v_for_output = &v;
+        const Field3D* w_for_output = &w;
+        if (global_stagger_type == StaggerType::CGrid)
+        {
+            interpolate_u_face_to_center(u, u_center_buf);
+            interpolate_v_face_to_center(v, v_center_buf);
+            interpolate_w_face_to_center(w, w_center_buf);
+            u_for_output = &u_center_buf;
+            v_for_output = &v_center_buf;
+            w_for_output = &w_center_buf;
+        }
+
         // --- 3D mode: write core fields as full volumes directly from Field3D ---
         if (use_3d)
         {
             struct CoreBinding { const char* name; const Field3D* field; };
             const CoreBinding core_bindings[] = {
-                {"u", &u}, {"v", &v}, {"w", &w},
+                {"u", u_for_output}, {"v", v_for_output}, {"w", w_for_output},
                 {"rho", &rho}, {"p", &p}, {"theta", &theta},
                 {"qv", &qv}, {"qc", &qc}, {"qr", &qr},
                 {"qi", &qi}, {"qs", &qs}, {"qh", &qh}, {"qg", &qg},
@@ -1863,9 +1885,9 @@ int run_headless_simulation(const HeadlessRunOptions& options)
             if (!use_3d)
             {
                 std::string base_path = step_str + "/th" + std::to_string(th);
-                if (rf.count("u")) save_field_slice_npy(u, th, base_path + "_u.npy");
-                if (rf.count("v")) save_field_slice_npy(v, th, base_path + "_v.npy");
-                if (rf.count("w")) save_field_slice_npy(w, th, base_path + "_w.npy");
+                if (rf.count("u")) save_field_slice_npy(*u_for_output, th, base_path + "_u.npy");
+                if (rf.count("v")) save_field_slice_npy(*v_for_output, th, base_path + "_v.npy");
+                if (rf.count("w")) save_field_slice_npy(*w_for_output, th, base_path + "_w.npy");
                 if (rf.count("rho")) save_field_slice_npy(rho, th, base_path + "_rho.npy");
                 if (rf.count("p")) save_field_slice_npy(p, th, base_path + "_p.npy");
                 if (rf.count("theta")) save_field_slice_npy(theta, th, base_path + "_theta.npy");
@@ -2727,9 +2749,29 @@ int run_headless_simulation(const HeadlessRunOptions& options)
             return;
         }
         const auto& shm_fields = options.live_shm_fields;
+
+        // C-grid output interpolation (Phase C.8): on the C-grid the
+        // prognostic u, v, w live at faces; the live SHM viewer expects
+        // cell-center velocities so all streamed fields share the same
+        // coordinate convention. Build cell-center buffers once per SHM
+        // tick and dispatch to them when on C-grid.
+        Field3D u_center_buf, v_center_buf, w_center_buf;
+        const Field3D* u_shm = &u;
+        const Field3D* v_shm = &v;
+        const Field3D* w_shm = &w;
+        if (global_stagger_type == StaggerType::CGrid)
+        {
+            interpolate_u_face_to_center(u, u_center_buf);
+            interpolate_v_face_to_center(v, v_center_buf);
+            interpolate_w_face_to_center(w, w_center_buf);
+            u_shm = &u_center_buf;
+            v_shm = &v_center_buf;
+            w_shm = &w_center_buf;
+        }
+
         // Map of field name → Field3D pointer for core fields
         const std::pair<const char*, const Field3D*> core_map[] = {
-            {"u", &u}, {"v", &v}, {"w", &w},
+            {"u", u_shm}, {"v", v_shm}, {"w", w_shm},
             {"rho", &rho}, {"p", &p}, {"theta", &theta},
             {"qv", &qv}, {"qc", &qc}, {"qr", &qr},
             {"radar", &radar_reflectivity}, {"reflectivity_dbz", &radar_reflectivity},

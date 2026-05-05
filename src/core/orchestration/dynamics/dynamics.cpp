@@ -164,16 +164,37 @@ void step_dynamics_split_explicit(
     // Fast-tendency buffers: allocated once inside the scheme.
     // We re-use the same drho_dt / dp_dt buffers since slow step is done.
     const bool flat_terrain = (global_terrain_config.scheme_id == "none");
+    // Existing GPU acoustic kernels (dispatch_acoustic_*_backend) all use
+    // collocated cylindrical stencils. A C-grid scheme expects staggered
+    // face placements with one-sided pressure gradients and flux-form
+    // divergence; running the collocated kernels on a C-grid state
+    // would silently corrupt both p/rho and u/v/w. Phase C.9 ships
+    // C-grid-specific shaders; the per-callback dispatch picks the
+    // right one based on global_stagger_type.
+    const bool is_cgrid = (global_stagger_type == StaggerType::CGrid);
+    const bool gpu_acoustic_ok = !is_cgrid;
     const float dr_f = static_cast<float>(dr);
     const float dtheta_f = static_cast<float>(dtheta);
     const float dz_f = static_cast<float>(dz);
 
-    callbacks.apply_fast_pressure = [&, flat_terrain, dr_f, dtheta_f, dz_f](double dt_small)
+    callbacks.apply_fast_pressure = [&, flat_terrain, gpu_acoustic_ok, is_cgrid, dr_f, dtheta_f, dz_f](double dt_small)
     {
         const float dt_s = static_cast<float>(dt_small);
 
-        // GPU path: fused divergence + integration
-        if (flat_terrain && dispatch_acoustic_pressure_backend(
+        // GPU path: fused divergence + integration. C-grid uses the
+        // C.9 shader (axis-aware div_flux, boundary passthrough);
+        // collocated uses the existing shader.
+        if (is_cgrid && flat_terrain && dispatch_acoustic_pressure_cgrid_backend(
+                u.data(), v.data(), w.data(),
+                rho.data(), p.data(),
+                rho.data(), p.data(),
+                NR, NTH, NZ, dr_f, dtheta_f, dz_f,
+                static_cast<float>(dynamics_constants::gamma), dt_s,
+                density_min_kgm3, pressure_min_pa))
+        {
+            return;
+        }
+        if (gpu_acoustic_ok && flat_terrain && dispatch_acoustic_pressure_backend(
                 u.data(), v.data(), w.data(),
                 rho.data(), p.data(),
                 rho.data(), p.data(),
@@ -210,12 +231,34 @@ void step_dynamics_split_explicit(
                 }
     };
 
-    callbacks.apply_fast_momentum = [&, flat_terrain, dr_f, dtheta_f, dz_f](double dt_small)
+    callbacks.apply_fast_momentum = [&, flat_terrain, gpu_acoustic_ok, is_cgrid, dr_f, dtheta_f, dz_f](double dt_small)
     {
         const float dt_s = static_cast<float>(dt_small);
 
-        // GPU path: fused pressure gradient + integration
-        if (flat_terrain && dispatch_acoustic_momentum_backend(
+        // GPU path: C-grid uses the C.9.5 shader (per-face placement,
+        // p0_base reference-state subtraction in dw/dt); collocated uses
+        // the existing fused shader.
+        if (is_cgrid && flat_terrain && !p0_base.empty()
+            && static_cast<int>(p0_base.size()) >= NZ)
+        {
+            std::vector<float> p0_base_f(static_cast<std::size_t>(NZ));
+            for (int k = 0; k < NZ; ++k)
+            {
+                p0_base_f[static_cast<std::size_t>(k)] =
+                    static_cast<float>(p0_base[static_cast<std::size_t>(k)]);
+            }
+            if (dispatch_acoustic_momentum_cgrid_backend(
+                    rho.data(), p.data(),
+                    p0_base_f.data(), NZ,
+                    u.data(), v.data(), w.data(),
+                    u.data(), v.data(), w.data(),
+                    NR, NTH, NZ, dr_f, dtheta_f, dz_f,
+                    dt_s, wind_horizontal_abs_max_ms, wind_vertical_abs_max_ms))
+            {
+                return;
+            }
+        }
+        if (gpu_acoustic_ok && flat_terrain && dispatch_acoustic_momentum_backend(
                 rho.data(), p.data(),
                 u.data(), v.data(), w.data(),
                 u.data(), v.data(), w.data(),
@@ -248,10 +291,38 @@ void step_dynamics_split_explicit(
                 }
     };
 
-    callbacks.apply_fast_fused = [&, flat_terrain, dr_f, dtheta_f, dz_f](double dt_small) -> bool
+    // Fused path: pressure substep + barrier + momentum substep in
+    // ONE GPU submission. C-grid uses the C.9.6 fused dispatch
+    // (records the C.9.4 + C.9.5 pipelines back-to-back with a
+    // compute-to-compute barrier); collocated uses the existing
+    // single-shader fused path.
+    callbacks.apply_fast_fused = [&, flat_terrain, gpu_acoustic_ok, is_cgrid, dr_f, dtheta_f, dz_f](double dt_small) -> bool
     {
-        if (!flat_terrain) return false;
         const float dt_s = static_cast<float>(dt_small);
+
+        if (is_cgrid && flat_terrain && !p0_base.empty()
+            && static_cast<int>(p0_base.size()) >= NZ)
+        {
+            std::vector<float> p0_base_f(static_cast<std::size_t>(NZ));
+            for (int k = 0; k < NZ; ++k)
+            {
+                p0_base_f[static_cast<std::size_t>(k)] =
+                    static_cast<float>(p0_base[static_cast<std::size_t>(k)]);
+            }
+            if (dispatch_acoustic_substep_fused_cgrid_backend(
+                    u.data(), v.data(), w.data(),
+                    rho.data(), p.data(),
+                    p0_base_f.data(), NZ,
+                    NR, NTH, NZ, dr_f, dtheta_f, dz_f,
+                    static_cast<float>(dynamics_constants::gamma), dt_s,
+                    density_min_kgm3, pressure_min_pa,
+                    wind_horizontal_abs_max_ms, wind_vertical_abs_max_ms))
+            {
+                return true;
+            }
+        }
+
+        if (!gpu_acoustic_ok || !flat_terrain) return false;
         return dispatch_acoustic_substep_fused_backend(
             u.data(), v.data(), w.data(),
             rho.data(), p.data(),
@@ -261,9 +332,10 @@ void step_dynamics_split_explicit(
             wind_horizontal_abs_max_ms, wind_vertical_abs_max_ms);
     };
 
-    callbacks.apply_fast_batched = [&, flat_terrain, dr_f, dtheta_f, dz_f](double dt_small, int n_substeps) -> bool
+    // Batched path: all N substeps in one submission
+    callbacks.apply_fast_batched = [&, flat_terrain, gpu_acoustic_ok, dr_f, dtheta_f, dz_f](double dt_small, int n_substeps) -> bool
     {
-        if (!flat_terrain) return false;
+        if (!gpu_acoustic_ok || !flat_terrain) return false;
         const float dt_s = static_cast<float>(dt_small);
         return dispatch_acoustic_substeps_batched_backend(
             u.data(), v.data(), w.data(),
