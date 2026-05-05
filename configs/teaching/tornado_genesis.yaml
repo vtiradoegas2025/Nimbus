@@ -15,6 +15,9 @@
 #
 # Expected output: ~800 MB in data/exports/
 # Expected runtime: 2-4 hours on a modern laptop (8+ GB RAM recommended)
+#
+# Variant: switch dynamics.scheme to tornado_cgrid (and add
+# grid.staggering: c_grid) to run on the cylindrical Arakawa C-grid.
 
 case_name: tornado_genesis
 grid:

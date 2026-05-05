@@ -1,3 +1,11 @@
+# High-Precipitation (HP) supercell variant.
+#
+# Moister column (moist_column: true), stronger low-level shear and
+# winds (u_sfc 6 m/s, shear_0_6km 40 m/s). HP storms are precipitation-
+# shrouded with heavy rain wrapping the mesocyclone; hail / graupel
+# microphysics enabled. 256x256x64 grid, same resolution as lp.yaml.
+# Variant: lp.yaml is the Low-Precip counterpart with weaker low-level
+# winds and a drier midlevel.
 case_name: hp
 grid:
   nx: 256

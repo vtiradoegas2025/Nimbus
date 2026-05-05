@@ -1,3 +1,11 @@
+# Storm-tuned variant of physical_supercell.yaml.
+#
+# Same numerics (Thompson + WENO5 + RK3 + TKE + YSU + grey radiation)
+# as the baseline, but adds stochastic initial-condition perturbations
+# (chaos.scheme: initial_conditions, seed 17) plus slightly higher
+# surface humidity (qv 0.017 vs 0.016). The IC perturbations break
+# symmetry early, leading to a more vigorous final storm.
+# Variant: physical_supercell.yaml is the deterministic baseline.
 case_name: physical_supercell_storm_tuned
 
 grid:

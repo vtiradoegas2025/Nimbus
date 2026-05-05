@@ -14,6 +14,9 @@
 #
 # Expected output: ~50 MB in data/exports/
 # Expected runtime: ~2 minutes on a laptop
+#
+# Variant: bump dtheta_k for a stronger thermal, or set sfc_qv_kgkg
+# higher to add condensation / cloud development.
 
 case_name: thermal_bubble
 grid:

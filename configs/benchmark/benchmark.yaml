@@ -1,5 +1,11 @@
-# Benchmark preset: no output, maximum speed.
-# For timing comparisons and performance profiling.
+# Benchmark preset: no output, maximum speed, kernel-path timing.
+#
+# 256x256x64 grid, 1 km horizontal / 250 m vertical, 1 s dt. Same
+# environment as research.yaml (CAPE 3000 LP-style hodograph) but
+# write_every_s: 0 and performance.timing: true so the run measures
+# pure dynamics + microphysics cost. 60 s duration.
+# Variant: zfp_benchmark.yaml writes all fields with ZFP compression
+# enabled (intentionally heavier I/O) to measure compression ratios.
 case_name: benchmark
 grid:
   nx: 256

@@ -1,3 +1,11 @@
+# Physically-rich supercell: Thompson microphysics + WENO5 + RK3 + TKE.
+#
+# 256x128x128 at 100 m vertical / 0.1 s dt. Full mixed-phase Thompson
+# microphysics, WENO5 advection, RK3 time stepping, TKE turbulence,
+# YSU PBL with surface fluxes, grey-radiation. Heavier than lp / hp /
+# classic; intended for paper-quality physical fidelity, not throughput.
+# Variant: physical_supercell_storm_tuned.yaml adds stochastic initial-
+# condition perturbations to break symmetry early.
 case_name: physical_supercell
 
 grid:

@@ -1,5 +1,11 @@
-# Research preset: standard grid, presentation fields, moderate output cadence.
-# The default for serious simulation work on 16-32GB machines.
+# Research preset: cylindrical supercell, default for serious work.
+#
+# 256x256x64 grid, 1 km horizontal / 250 m vertical, 1 s dt. Kessler
+# microphysics, WK2002 hodograph (CAPE 3000, midlevel drying), Vulkan
+# compute backend with CPU fallback. ZFP-compressed presentation
+# output every 30 s. Sized for 16-32 GB machines.
+# Variant: production.yaml scales to 512x256x128 + 0.5 s dt; lp / hp /
+# elevated / classic explore alternative environments at the same grid.
 case_name: research
 grid:
   nx: 256

@@ -15,6 +15,9 @@
 #
 # Or with live viewer:
 #   ./scripts/demo.sh --preset supercell
+#
+# Variant: drop coordinate_system: cartesian (and switch dynamics.scheme
+# to supercell or supercell_cgrid) to run the cylindrical equivalent.
 
 case_name: supercell_30min
 coordinate_system: cartesian

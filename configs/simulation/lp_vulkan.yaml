@@ -1,3 +1,11 @@
+# lp.yaml mirrored onto the Vulkan compute backend with live SHM.
+#
+# Identical environment to lp.yaml (LP supercell, CAPE 3000, midlevel
+# drying), but with numerics.compute.backend: vulkan and live SHM
+# streaming enabled for the viewer. Falls back to CPU automatically
+# if Vulkan is unavailable (allow_fallback: true).
+# Variant: lp.yaml is the CPU-only equivalent; drop numerics.compute
+# and output.live_shm to switch.
 case_name: lp_vulkan
 grid:
   nx: 256

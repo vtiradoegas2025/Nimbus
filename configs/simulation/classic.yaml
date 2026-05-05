@@ -1,3 +1,11 @@
+# Classic supercell with high vertical resolution and nested grid.
+#
+# 256x128x128 grid at 100 m vertical, 0.1 s dt -- much finer than the
+# lp / hp variants. CAPE 2500, moderate shear (40 m/s over 0-6 km).
+# Includes a nested refinement region (refinement: 3.0, 32^3 inner
+# grid) and grey-radiation longwave + shortwave. Computationally
+# expensive but resolves updraft cores cleanly.
+# Variant: lp.yaml or hp.yaml for cheaper, coarser supercell runs.
 case_name: classic
 grid:
   nx: 256

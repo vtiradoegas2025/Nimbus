@@ -1,3 +1,11 @@
+# Elevated convection above a low-level inversion.
+#
+# CAPE 1500, shear 35, inversion_base_m 1000 -- surface parcels are
+# capped, so lifting must originate from above the inversion. Mirrors
+# the nocturnal severe-weather pattern where elevated convection
+# dominates after surface cooling stabilises the boundary layer.
+# Variant: remove inversion_base_m to recover surface-based convection
+# at the same CAPE.
 case_name: elevated
 grid:
   nx: 256

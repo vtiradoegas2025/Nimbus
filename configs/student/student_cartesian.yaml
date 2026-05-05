@@ -1,6 +1,10 @@
 # Student Cartesian preset: small grid, Cartesian coordinate backend.
-# Full supercell integration config — WK2002 hodograph, Lin microphysics,
-# off-center trigger bubble, all physics modules.
+#
+# 64x64x32 grid, 2 km horizontal / 500 m vertical, 2 s dt. WK2002
+# hodograph, Lin microphysics, off-center trigger bubble, full physics
+# stack (YSU PBL, Smagorinsky turbulence, grey radiation). Vulkan
+# backend with CPU fallback.
+# Variant: student.yaml is the cylindrical equivalent on the same grid.
 case_name: student_cartesian
 coordinate_system: cartesian
 grid:

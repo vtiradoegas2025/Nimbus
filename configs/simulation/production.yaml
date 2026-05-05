@@ -1,5 +1,10 @@
-# Production preset: large grid, all fields, full output cadence.
-# For high-end workstations (32-96GB RAM, fast NVMe storage).
+# Production preset: cylindrical supercell on a workstation-scale grid.
+#
+# 512x256x128 grid, 500 m horizontal / 200 m vertical, 0.5 s dt. Same
+# environment as research.yaml (CAPE 3000 LP-style hodograph) but at
+# 4x the grid points. Vulkan backend, ZFP-compressed all-fields output
+# every 5 s. Needs 32-96 GB RAM and fast NVMe for ~10-15 GB output.
+# Variant: research.yaml is the same setup at 256^2 (~16-32 GB).
 case_name: production
 grid:
   nx: 512

@@ -1,3 +1,10 @@
+# Larger 320^2 supercell run with strong shear and long duration.
+#
+# 320x320x72 grid (largest in simulation/), CAPE 2500, shear 45 m/s
+# (the strongest in this set), 9000 s (2.5 h) duration. Despite the
+# name, no special boundary conditions -- just bigger and longer
+# than lp / hp for capturing storm motion and downstream structures.
+# Variant: lp.yaml or hp.yaml for shorter shear-driven runs at 256^2.
 case_name: cyclic
 grid:
   nx: 320

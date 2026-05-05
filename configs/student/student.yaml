@@ -1,6 +1,11 @@
-# Student preset: small grid, minimal fields, infrequent output.
-# Runs in <1GB RAM, produces <500MB output for a 2-hour simulation.
-# Suitable for laptops with 8GB RAM or Chromebooks.
+# Student preset: cylindrical supercell on a small grid for laptops.
+#
+# 64x64x32 grid, 2 km horizontal / 500 m vertical, 2 s dt. Lin
+# microphysics, WK2002 hodograph, off-center trigger bubble. Fits in
+# ~1 GB RAM and produces <500 MB output for a 2-hour run -- intended
+# for 8 GB laptops or Chromebooks.
+# Variant: student_cartesian.yaml uses the Cartesian backend; for
+# C-grid, set grid.staggering: c_grid and dynamics.scheme: supercell_cgrid.
 case_name: student
 grid:
   nx: 64

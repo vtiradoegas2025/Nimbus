@@ -1,3 +1,11 @@
+# Low-Precipitation (LP) supercell variant.
+#
+# Drier midlevel (midlevel_drying: true), weaker low-level winds
+# (u_sfc 4 m/s, v_sfc 1 m/s). LP storms have visible updrafts with
+# sparse precipitation -- classical taxonomy from Bluestein & Parks
+# (1983). 256x256x64 grid, 1 km horizontal / 250 m vertical, 1 s dt.
+# Variant: hp.yaml is the High-Precip counterpart; classic.yaml uses
+# a finer 0.1 s timestep at higher vertical resolution.
 case_name: lp
 grid:
   nx: 256
