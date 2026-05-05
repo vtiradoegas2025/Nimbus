@@ -466,7 +466,8 @@ CATCH2_BINS := bin/test_core_field bin/test_core_output bin/test_core_hardware b
 # ---------------------------------------------------------------------------
 .PHONY: all run clean clean-vulkan vulkan vulkan-compute-shaders run-vulkan validate-fields \
         test test-all test-core test-diagnostics test-dynamics test-numerics test-physics test-data \
-        test-vulkan test-integration test-shm-e2e smoke-test smoke-test-e2e benchmark-point2
+        test-vulkan test-integration test-cgrid-integration test-shm-e2e \
+        smoke-test smoke-test-e2e benchmark-point2
 
 ifeq ($(ZFP),1)
   CORE_ZFP_TESTS := bin/test_core_zfp_roundtrip bin/test_core_zfp_benchmark
@@ -502,6 +503,13 @@ test-integration: bin/test_integration
 
 test-shm-e2e: bin/test_shm_e2e
 	./bin/test_shm_e2e
+
+# Phase C.10 c_grid integration tests: drives bin/tornado_sim against
+# c_grid YAML configs end-to-end. Opt-in target -- not part of the
+# default `test` chain because each scenario takes a few seconds wallclock
+# (vs sub-second for the unit tests).
+test-cgrid-integration: $(BIN)
+	bash ./scripts/test_cgrid_integration.sh
 
 test: test-core test-diagnostics test-dynamics test-numerics test-physics test-data test-vulkan test-integration test-shm-e2e
 	@echo "=== All tests passed ==="

@@ -1,0 +1,59 @@
+# C.10 Test 6: Mass conservation on the cylindrical Arakawa C-grid.
+#
+# Standard supercell config WITH trigger bubble so the dynamics are actively
+# moving -- this is the case mass conservation matters. Flux-form scalar
+# advection (C.7) combined with the C-grid split-explicit acoustics (C.5)
+# should conserve total dry mass to the precision the integration scheme
+# allows (per-step drift < 1e-12 relative is the plan's target; first-pass
+# harness only checks exit code + no GUARD / FATAL events).
+#
+# This scenario doubles as the mass-conservation gate AND a non-trivial
+# moving-state smoke test for the C-grid runtime path.
+case_name: cgrid_mass_conservation
+grid:
+  nx: 32
+  ny: 32
+  nz: 24
+  dx: 2000.0
+  dy: 2000.0
+  dz: 500.0
+  dt: 2.0
+  staggering: c_grid
+environment:
+  cape_target_jkg: 3000
+  shear_0_6km_ms: 35
+  sfc_theta_k: 301.0
+  sfc_qv_kgkg: 0.012
+  tropopause_z_m: 12000
+  midlevel_drying: true
+  hodograph:
+    type: wk_param
+    u_sfc_ms: 4
+    v_sfc_ms: 1
+    u_1km_ms: 14
+    v_1km_ms: 6
+    u_6km_ms: 28
+    v_6km_ms: 22
+trigger:
+  bubble:
+    center_x_km: 50
+    center_y_km: 50
+    center_z_km: 1.5
+    radius_km: 10
+    dtheta_k: 2.0
+dynamics:
+  scheme: supercell_cgrid
+microphysics:
+  scheme: kessler
+numerics:
+  time_stepping:
+    scheme: split_explicit
+    split_acoustic: true
+    n_acoustic_substeps: 6
+  compute:
+    backend: cpu
+output:
+  write_every_s: 0
+  fields: minimal
+  format: npy_3d
+duration_s: 30
