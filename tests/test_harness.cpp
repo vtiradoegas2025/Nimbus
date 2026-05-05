@@ -246,3 +246,19 @@ bool dispatch_advection_y_backend(
     const float*, const float*, float*,
     int, int, int, float, float)
 { return false; }
+
+// Bubble-trigger weak stubs. The real implementations live in
+// src/core/orchestration/dynamics/initial_conditions_cartesian.cpp and
+// src/core/orchestration/dynamics/equations.cpp. Tests that link those
+// TUs override these weak symbols; tests that only need the trigger
+// factory + classes (e.g. test_init_scheme_profile_validator) get the
+// no-op stubs and don't need to drag in the full equations.cpp closure.
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((weak))
+#endif
+void apply_cartesian_bubble_initialization() {}
+
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((weak))
+#endif
+void apply_cylindrical_bubble_initialization() {}

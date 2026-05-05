@@ -127,6 +127,21 @@ SRCS := src/core/orchestration/dynamics/equations.cpp src/core/orchestration/dyn
          src/soundings/factory.cpp \
          src/soundings/base/soundings_base.cpp \
          src/soundings/schemes/sharpy/sharpy_sounding.cpp \
+         src/init/sounding/sounding_source.cpp \
+         src/init/sounding/factory.cpp \
+         src/init/sounding/diagnostics.cpp \
+         src/init/sounding/sources/parametric_cape.cpp \
+         src/init/sounding/sources/file_sounding.cpp \
+         src/init/sounding/sources/parametric_targets.cpp \
+         src/init/sounding/sources/fallback_source.cpp \
+         src/init/hodograph/factory.cpp \
+         src/init/hodograph/sources/wk_param.cpp \
+         src/init/hodograph/sources/zero.cpp \
+         src/init/trigger/factory.cpp \
+         src/init/trigger/sources/warm_bubble.cpp \
+         src/init/trigger/sources/none.cpp \
+         src/init/trigger/sources/vortex_seed.cpp \
+         src/init/scheme_profile.cpp \
          src/microphysics/base/thermodynamics.cpp \
          src/microphysics/factory.cpp \
          src/microphysics/schemes/kessler/kessler.cpp \
@@ -437,6 +452,28 @@ bin/test_physics_terrain: $(TEST_INFRA) tests/physics/test_terrain.cpp src/terra
 bin/test_data_soundings: $(TEST_INFRA) tests/data/test_soundings.cpp src/soundings/factory.cpp src/soundings/base/soundings_base.cpp src/soundings/schemes/sharpy/sharpy_sounding.cpp | bin
 	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
 
+# Init tests (sounding sources, hodograph sources, trigger sources)
+bin/test_init_parametric_cape_sounding: $(TEST_INFRA) tests/init/test_parametric_cape_sounding.cpp src/init/sounding/sources/parametric_cape.cpp src/init/sounding/sounding_source.cpp | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
+
+bin/test_init_parametric_targets_sounding: $(TEST_INFRA) tests/init/test_parametric_targets_sounding.cpp src/init/sounding/sources/parametric_targets.cpp src/init/sounding/sources/parametric_cape.cpp src/init/sounding/sounding_source.cpp | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
+
+bin/test_init_sounding_diagnostics: $(TEST_INFRA) tests/init/test_sounding_diagnostics.cpp src/init/sounding/diagnostics.cpp src/init/sounding/sounding_source.cpp | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
+
+bin/test_init_file_sounding: $(TEST_INFRA) tests/init/test_file_sounding.cpp src/init/sounding/sources/file_sounding.cpp src/init/sounding/sounding_source.cpp src/soundings/soundings.cpp src/soundings/factory.cpp src/soundings/base/soundings_base.cpp src/soundings/schemes/sharpy/sharpy_sounding.cpp | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
+
+bin/test_init_hodograph_sources: $(TEST_INFRA) tests/init/test_hodograph_sources.cpp src/init/hodograph/factory.cpp src/init/hodograph/sources/wk_param.cpp src/init/hodograph/sources/zero.cpp | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
+
+bin/test_init_vortex_seed_trigger: $(TEST_INFRA) tests/init/test_vortex_seed_trigger.cpp src/init/trigger/sources/vortex_seed.cpp src/core/infra/coordinate_system.cpp | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
+
+bin/test_init_scheme_profile_validator: $(TEST_INFRA) tests/init/test_scheme_profile_validator.cpp src/init/scheme_profile.cpp src/init/sounding/factory.cpp src/init/sounding/sources/parametric_cape.cpp src/init/sounding/sources/parametric_targets.cpp src/init/sounding/sources/file_sounding.cpp src/init/sounding/sources/fallback_source.cpp src/init/sounding/sounding_source.cpp src/init/hodograph/factory.cpp src/init/hodograph/sources/wk_param.cpp src/init/hodograph/sources/zero.cpp src/init/trigger/factory.cpp src/init/trigger/sources/warm_bubble.cpp src/init/trigger/sources/none.cpp src/init/trigger/sources/vortex_seed.cpp src/soundings/soundings.cpp src/soundings/factory.cpp src/soundings/base/soundings_base.cpp src/soundings/schemes/sharpy/sharpy_sounding.cpp src/core/infra/coordinate_system.cpp | bin
+	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
+
 # Vulkan/compute tests
 bin/test_vulkan_backend: $(TEST_INFRA) tests/vulkan/test_compute_backend.cpp $(BACKEND_COMMON_SRCS) | bin
 	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
@@ -465,7 +502,7 @@ CATCH2_BINS := bin/test_core_field bin/test_core_output bin/test_core_hardware b
 # Test targets
 # ---------------------------------------------------------------------------
 .PHONY: all run clean clean-vulkan vulkan vulkan-compute-shaders run-vulkan validate-fields \
-        test test-all test-core test-diagnostics test-dynamics test-numerics test-physics test-data \
+        test test-all test-core test-diagnostics test-dynamics test-numerics test-physics test-data test-init \
         test-vulkan test-integration test-cgrid-integration test-shm-e2e \
         smoke-test smoke-test-e2e benchmark-point2
 
@@ -494,6 +531,9 @@ test-physics: bin/test_physics_microphysics bin/test_physics_radiation bin/test_
 
 test-data: bin/test_data_soundings
 	./bin/test_data_soundings
+
+test-init: bin/test_init_parametric_cape_sounding bin/test_init_parametric_targets_sounding bin/test_init_file_sounding bin/test_init_hodograph_sources bin/test_init_vortex_seed_trigger bin/test_init_scheme_profile_validator bin/test_init_sounding_diagnostics
+	./bin/test_init_parametric_cape_sounding && ./bin/test_init_parametric_targets_sounding && ./bin/test_init_file_sounding && ./bin/test_init_hodograph_sources && ./bin/test_init_vortex_seed_trigger && ./bin/test_init_scheme_profile_validator && ./bin/test_init_sounding_diagnostics
 
 test-vulkan: bin/test_vulkan_backend bin/test_vulkan_gpu_parity
 	./bin/test_vulkan_backend && ./bin/test_vulkan_gpu_parity

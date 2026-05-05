@@ -7,6 +7,9 @@
 #include "core/coordinate_system.hpp"
 #include "diagnostics/field_validation.hpp"
 #include "data/soundings.hpp"
+#include "init/hodograph/factory.hpp"
+#include "init/sounding/factory.hpp"
+#include "init/trigger/factory.hpp"
 
 enum class LogProfile : int;
 
@@ -22,6 +25,37 @@ enum class LogProfile : int;
 extern bool global_sounding_enabled;
 extern bool global_sounding_allow_placeholder_profiles;
 extern SoundingConfig global_runtime_sounding_config;
+
+/**
+ * @brief Configured initial-condition sounding source.
+ *
+ * Populated from `environment.sounding.*` YAML keys in load_config().
+ * Read by `equations.cpp::initialize()` to construct the SoundingSource
+ * that builds the base-state column. Defaults to ParametricCAPE so YAML
+ * configs that omit `environment.sounding.type` get the historical
+ * procedural base state.
+ */
+extern tmv::init::SoundingSourceConfig global_sounding_source_config;
+
+/**
+ * @brief Configured initial-condition hodograph source.
+ *
+ * Populated from `environment.hodograph.*` YAML keys. Default Type::Auto
+ * means "use sounding winds when the SoundingSource provides them, fall
+ * back to WK 3-point parametric otherwise" — preserves today's behavior
+ * for both legacy parametric configs and SHARPY file overlays.
+ */
+extern tmv::init::HodographSourceConfig global_hodograph_source_config;
+
+/**
+ * @brief Configured initial-condition trigger source.
+ *
+ * Populated from `trigger.type` (and the legacy trigger.bubble.* knobs
+ * when type=warm_bubble). Default Type::WarmBubble preserves today's
+ * behavior; type=none replaces the legacy `dtheta_k = 0` workaround.
+ */
+extern tmv::init::TriggerSourceConfig global_trigger_source_config;
+
 extern std::string global_microphysics_scheme;
 extern std::string global_dynamics_scheme_name;
 extern tmv::ValidationPolicy global_validation_policy;

@@ -74,6 +74,18 @@ private:
     SoundingData read_sharpy_netcdf(const std::string& file_path);
 
     /**
+     * @brief Read SHARPY data from a TMV_SHARPY_PROFILE_V1 text file.
+     *
+     * The text format is what `sharpy_extract.py` produces and is the
+     * fixture format used by integration tests. Header line is the magic
+     * "TMV_SHARPY_PROFILE_V1", followed by tab-separated metadata lines
+     * (station_id, timestamp_utc, latitude_deg, longitude_deg,
+     * elevation_m, levels), then `levels` rows of
+     *   z\tp_hpa\tT_k\tTd_k\twspd_ms\twdir_deg
+     */
+    SoundingData read_sharpy_text(const std::string& file_path);
+
+    /**
      * @brief Parse SHARPY profile data structure
      * @param profile_data Raw profile data from file
      * @return Parsed SoundingData

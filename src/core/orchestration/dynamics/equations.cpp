@@ -11,9 +11,18 @@
 #include <cmath>
 #include <exception>
 #include <memory>
+#include <sstream>
+#include <string>
 #include "core/simulation.hpp"
 #include "core/runtime_config.hpp"
 #include "core/initial_conditions.hpp"
+#include "init/hodograph/factory.hpp"
+#include "init/hodograph/hodograph_source.hpp"
+#include "init/sounding/diagnostics.hpp"
+#include "init/sounding/factory.hpp"
+#include "init/sounding/sounding_source.hpp"
+#include "init/trigger/factory.hpp"
+#include "init/trigger/trigger_source.hpp"
 #include "util/simd_utils.hpp"
 #include "util/log.hpp"
 #include "numerics/advection/advection.hpp"
@@ -162,6 +171,99 @@ void resize_fields()
 }
 
 /**
+ * @brief Coordinate-aware wind initialization from explicit (u_x, u_y) columns.
+ *
+ * Used when the active SoundingSource carries its own hodograph (e.g.
+ * FileSoundingSource extracting winds from a SHARPY column). Mirrors the
+ * coordinate / stagger dispatch that the parametric apply_*_wind_*()
+ * helpers use, but reads from a per-level Cartesian column rather than
+ * sampling compute_wind_profile.
+ */
+static void apply_wind_initialization_from_column(
+    const std::vector<double>& u_x_column,
+    const std::vector<double>& u_y_column)
+{
+    const auto& geo = global_grid_geometry;
+
+    if (global_coordinate_system == CoordinateSystem::Cartesian)
+    {
+        #pragma omp parallel for collapse(2)
+        for (int i = 0; i < NR; ++i)
+        {
+            for (int j = 0; j < NTH; ++j)
+            {
+                for (int k = 0; k < NZ; ++k)
+                {
+                    const std::size_t kz = static_cast<std::size_t>(k);
+                    u[i][j][k] = static_cast<float>(u_x_column[kz]);
+                    v[i][j][k] = static_cast<float>(u_y_column[kz]);
+                    w[i][j][k] = 0.0f;
+                }
+            }
+        }
+        return;
+    }
+
+    if (global_stagger_type == StaggerType::CGrid)
+    {
+        // C-grid: u (radial) lives on r-faces at theta[j]; v (azimuthal)
+        // lives on theta-faces at theta_{j+1/2}. Project at the
+        // appropriate angle for each face. Same identity-based half-cell
+        // trig step as apply_cylindrical_cgrid_wind_initialization().
+        const double half_dtheta = 0.5 * dtheta;
+        const double cos_half = std::cos(half_dtheta);
+        const double sin_half = std::sin(half_dtheta);
+
+        #pragma omp parallel for collapse(2)
+        for (int i = 0; i < NR; ++i)
+        {
+            for (int j = 0; j < NTH; ++j)
+            {
+                const double cos_th_center = geo.cos_theta[j];
+                const double sin_th_center = geo.sin_theta[j];
+                const double cos_th_face = cos_th_center * cos_half
+                                         - sin_th_center * sin_half;
+                const double sin_th_face = sin_th_center * cos_half
+                                         + cos_th_center * sin_half;
+
+                for (int k = 0; k < NZ; ++k)
+                {
+                    const std::size_t kz = static_cast<std::size_t>(k);
+                    const double u_x = u_x_column[kz];
+                    const double u_y = u_y_column[kz];
+                    u[i][j][k] = static_cast<float>( u_x * cos_th_center
+                                                    + u_y * sin_th_center);
+                    v[i][j][k] = static_cast<float>(-u_x * sin_th_face
+                                                    + u_y * cos_th_face);
+                    w[i][j][k] = 0.0f;
+                }
+            }
+        }
+        return;
+    }
+
+    // Cylindrical collocated: both u and v at cell-center theta.
+    #pragma omp parallel for collapse(2)
+    for (int i = 0; i < NR; ++i)
+    {
+        for (int j = 0; j < NTH; ++j)
+        {
+            const double cos_th = geo.cos_theta[j];
+            const double sin_th = geo.sin_theta[j];
+            for (int k = 0; k < NZ; ++k)
+            {
+                const std::size_t kz = static_cast<std::size_t>(k);
+                const double u_x = u_x_column[kz];
+                const double u_y = u_y_column[kz];
+                u[i][j][k] = static_cast<float>( u_x * cos_th + u_y * sin_th);
+                v[i][j][k] = static_cast<float>(-u_x * sin_th + u_y * cos_th);
+                w[i][j][k] = 0.0f;
+            }
+        }
+    }
+}
+
+/**
  * @brief Cylindrical wind initialization: project Cartesian hodograph onto (r, θ).
  */
 static void apply_cylindrical_wind_initialization()
@@ -191,8 +293,11 @@ static void apply_cylindrical_wind_initialization()
 
 /**
  * @brief Cylindrical bubble: 2D ring in the (r, z) plane, uniform around all θ.
+ *
+ * External-linkage so the trigger module's WarmBubbleTrigger can call it.
+ * Declaration in `include/core/initial_conditions.hpp`.
  */
-static void apply_cylindrical_bubble_initialization()
+void apply_cylindrical_bubble_initialization()
 {
     const double bubble_center_r = std::max(0.0, global_bubble_center_x_m);
     const double bubble_center_z = std::max(0.0, global_bubble_center_z_m);
@@ -248,152 +353,51 @@ static void apply_cylindrical_bubble_initialization()
  */
 void initialize()
 {
-    const double cape_scaling = global_cape_target / 2500.0;
-    const double surface_theta = std::max(250.0, global_sfc_theta_k);
-    const double surface_qv = std::max(1.0e-5, global_sfc_qv_kgkg);
-    const double tropopause_z = std::max(8000.0, global_tropopause_z_m);
-    const double unstable_top_z = std::max(2500.0, std::min(7000.0, 0.5 * tropopause_z));
-    const double unstable_lapse_rate = 0.004 + 0.002 * cape_scaling;
-    const double kappa = R_d / cp;
-
-    // Multi-layer T_actual(z) profile — the single source of truth for
-    // base-state temperature. Used both for the 1D hydrostatic integration
-    // below and the 3D field initialization in the nested loop.
+    // ── Build base-state column from configured SoundingSource ──
     //
-    // Layer structure (Weisman & Klemp 1982 style):
-    //   1. Mixed layer     (0 to 1 km):        well-mixed, constant T
-    //   2. Unstable layer  (1 km to unstable_top): steep lapse rate (CAPE-driven)
-    //   3. Upper troposphere (unstable_top to tropopause): standard 6.5 K/km
-    //   4. Tropopause      (tropopause to tropo+1 km):   isothermal lid
-    //   5. Stratosphere    (above tropo+1 km):            warming +2 K/km
-    //
-    // The isothermal tropopause provides the "lid" that caps CAPE and
-    // prevents unbounded convective growth. The stratospheric warming
-    // creates strong static stability that stops any overshooting top.
-    // Previous profile used only 3 K/km above the unstable layer with
-    // no tropopause, producing theta of 302-315K over 16km (~0.8 K/km).
-    // The new profile produces ~302-370K in the troposphere with a sharp
-    // jump to ~450K+ in the stratosphere, matching real soundings.
-    const double std_lapse_rate = 0.005;   // 5.0 K/km — stable upper troposphere (less than MALR at those temps)
-    const double strat_warming  = 0.002;   // +2 K/km — standard stratospheric warming
-    const double tropopause_depth = 1000.0; // 1 km isothermal tropopause layer
-
-    auto T_actual_at = [&](double z) -> double
-    {
-        // Layer 1: Mixed layer — warm, well-mixed boundary layer.
-        if (z < 1000.0)
-        {
-            return surface_theta + 1.0;
-        }
-
-        // Layer 2: Conditionally unstable — lapse rate driven by CAPE target.
-        // Steeper than the moist adiabat to produce environmental instability.
-        if (z < unstable_top_z)
-        {
-            return surface_theta + 1.0 - unstable_lapse_rate * (z - 1000.0);
-        }
-
-        const double T_at_unstable_top =
-            surface_theta + 1.0 - unstable_lapse_rate * (unstable_top_z - 1000.0);
-
-        // Layer 3: Upper troposphere — standard environmental lapse rate.
-        // Less steep than the unstable layer, reducing CAPE accumulation.
-        if (z < tropopause_z)
-        {
-            return T_at_unstable_top - std_lapse_rate * (z - unstable_top_z);
-        }
-
-        const double T_at_tropopause =
-            T_at_unstable_top - std_lapse_rate * (tropopause_z - unstable_top_z);
-
-        // Layer 4: Tropopause — isothermal. This is the lid that stops
-        // convection. An ascending parcel cools along the moist adiabat
-        // while the environment stays constant, so buoyancy goes sharply
-        // negative and CAPE terminates.
-        const double strat_base_z = tropopause_z + tropopause_depth;
-        if (z < strat_base_z)
-        {
-            return T_at_tropopause;
-        }
-
-        // Layer 5: Stratosphere — temperature increases with height.
-        // Strong static stability prevents any overshooting updraft from
-        // penetrating far above the tropopause.
-        return T_at_tropopause + strat_warming * (z - strat_base_z);
-    };
-
-    // 1D hydrostatic profile: integrate p upward from p0 using T_actual.
-    // The exponential form is exact for an isothermal layer; using T_avg
-    // between adjacent levels gives second-order accuracy for arbitrary T(z).
-    std::vector<double> p_base(NZ);
-    std::vector<double> T_base(NZ);
-    rho0_base.resize(NZ);
-    p0_base.resize(NZ);
-
-    T_base[0] = T_actual_at(0.0);
-    p_base[0] = p0;
-    rho0_base[0] = std::max(p_base[0] / (R_d * T_base[0]), 0.1);
-
-    for (int k = 1; k < NZ; ++k)
-    {
-        const double z_k = global_grid_geometry.z[k];
-        T_base[k] = T_actual_at(z_k);
-        const double T_avg = 0.5 * (T_base[k] + T_base[k - 1]);
-        p_base[k] = p_base[k - 1] * std::exp(-g * dz / (R_d * T_avg));
-        rho0_base[k] = std::max(p_base[k] / (R_d * T_base[k]), 0.1);
-    }
-
-    // Store base-state pressure globally for reference-state subtraction in
-    // the dynamics schemes. The centered ∂p₀/∂z stencil does not exactly
-    // equal -ρ₀g on a collocated grid, so subtracting the discrete reference
-    // from the full pressure gradient removes the O(Δz²) hydrostatic
-    // imbalance that otherwise seeds spurious vertical velocity.
+    // The runtime populates global_sounding_source_config from YAML in
+    // load_config(); equations.cpp reads it here and dispatches via the
+    // factory. Default is ParametricCAPE so configs with no explicit
+    // `environment.sounding.type` get the historical procedural base
+    // state. type=file routes to FileSoundingSource (SHARPY/HDF5/NetCDF).
+    // The returned column is self-consistent: hydrostatic p, theta from
+    // p+T, rho from EOS, qv capped at 95% saturation, and (for sources
+    // that carry winds) Cartesian (u, v) per level.
+    std::vector<double> z_m(static_cast<std::size_t>(NZ));
     for (int k = 0; k < NZ; ++k)
     {
-        p0_base[k] = p_base[k];
+        z_m[static_cast<std::size_t>(k)] = global_grid_geometry.z[k];
     }
 
-    tmv::log_info("Base state initialized (hydrostatic): rho0_base[0]=", rho0_base[0],
-                  ", rho0_base[", NZ-1, "]=", rho0_base[NZ-1],
-                  ", p_base[0]=", p_base[0], "Pa, p_base[", NZ-1, "]=", p_base[NZ-1], "Pa");
+    auto sounding_source = tmv::init::make_sounding_source(global_sounding_source_config);
+    const tmv::init::Sounding sounding = sounding_source->build(z_m, dz);
+    sounding.verify_self_consistent();
 
-    // Base-state moisture profile (1D, height-only). Used for virtual
-    // temperature buoyancy: B_moisture = g * 0.608 * (qv - qv0_base[k]).
-    // Capped at 95% of saturation to prevent supersaturation in the upper
-    // atmosphere (where qvsat is very small and uncapped exponential decay
-    // of qv would exceed it).
+    // Base-state vectors are read elsewhere (perturbation Coriolis, GPU
+    // reference-state subtraction, virtual-T buoyancy). Keep the global
+    // names and shapes the same so consumers don't move.
+    rho0_base.assign(sounding.rho_kgm3.begin(), sounding.rho_kgm3.end());
+    p0_base.assign(sounding.p_pa.begin(), sounding.p_pa.end());
+    qv0_base.assign(sounding.qv_kgkg.begin(), sounding.qv_kgkg.end());
+
+    tmv::log_info("Base state initialized via ", sounding_source->describe(),
+                  ": rho0_base[0]=", rho0_base[0],
+                  ", rho0_base[", NZ - 1, "]=", rho0_base[NZ - 1],
+                  ", p0_base[0]=", p0_base[0], "Pa",
+                  ", p0_base[", NZ - 1, "]=", p0_base[NZ - 1], "Pa");
+
+    for (std::size_t k = 0; k < std::min<std::size_t>(5, sounding.size()); ++k)
     {
-        const double base_moisture = std::clamp(surface_qv * (0.85 + 0.15 * cape_scaling), 0.004, 0.024);
-        const double moisture_scale_height = std::max(1500.0, 0.30 * tropopause_z);
-        qv0_base.resize(NZ);
-        for (int k = 0; k < NZ; ++k)
-        {
-            const double z = global_grid_geometry.z[k];
-            double qv_val;
-            if (z < 2000.0)
-                qv_val = base_moisture;
-            else
-                qv_val = base_moisture * std::exp(-(z - 2000.0) / moisture_scale_height);
-
-            // Cap at saturation using the base-state T and p at this level
-            const double T_k = T_base[k];
-            const double T_c = T_k - 273.15;
-            double e_sat;
-            if (T_k >= 273.15)
-                e_sat = 611.21 * std::exp((18.678 - T_c / 234.5) * T_c / (257.14 + T_c));
-            else
-                e_sat = 611.15 * std::exp((23.036 - T_c / 333.7) * T_c / (279.82 + T_c));
-            const double qvsat = 0.622 * e_sat / std::max(p_base[k] - e_sat, 1.0);
-            qv0_base[k] = std::min(qv_val, qvsat * 0.95);
-        }
+        tmv::log_debug("[INIT DEBUG] k=", k,
+                       ", z=", sounding.z_m[k], "m: T=", sounding.T_k[k],
+                       "K, p=", sounding.p_pa[k], "Pa, theta=", sounding.theta_k[k], "K");
     }
 
-    // ── Shared thermodynamic initialization ──
+    // ── Shared thermodynamic broadcast ──
     //
-    // Fills p, rho, theta, moisture, and scalars from the 1D hydrostatic
-    // profile. Wind is zeroed here and set by the coordinate-specific
-    // wind initializer below.
-
+    // Fills p, rho, theta, qv, and scalars from the sounding column. Wind
+    // is zeroed here and set by the coordinate-specific wind initializer
+    // below.
     #pragma omp parallel for collapse(2)
     for (int i = 0; i < NR; ++i)
     {
@@ -401,47 +405,11 @@ void initialize()
         {
             for (int k = 0; k < NZ; ++k)
             {
-                const double z = global_grid_geometry.z[k];
-                const double T_actual = T_base[k];
-                const double p_local = p_base[k];
-                const double rho_local = p_local / (R_d * T_actual);
-                const double theta_potential = T_actual * std::pow(p0 / p_local, kappa);
-
-                p[i][j][k] = static_cast<float>(p_local);
-                rho[i][j][k] = static_cast<float>(std::max(rho_local, 0.1));
-                theta[i][j][k] = static_cast<float>(theta_potential);
-
-                if (i == 0 && j == 0 && k < 5) {
-                    tmv::log_debug("[INIT DEBUG] i=", i, ", j=", j, ", k=", k,
-                                   ", z=", z, "m: T_actual=", T_actual,
-                                   "K, p_local=", p_local, "Pa, theta=", theta_potential, "K");
-                }
-
-                double base_moisture = std::clamp(surface_qv * (0.85 + 0.15 * cape_scaling), 0.004, 0.024);
-                const double moisture_scale_height = std::max(1500.0, 0.30 * tropopause_z);
-                double qv_base;
-
-                if (z < 2000.0)
-                    qv_base = base_moisture;
-                else
-                    qv_base = base_moisture * std::exp(-(z - 2000.0) / moisture_scale_height);
-
-                // Clamp initial moisture to saturation: prevents the upper
-                // atmosphere from being supersaturated, which causes massive
-                // spurious condensation in the first microphysics step.
-                {
-                    const double T_local = theta_potential * std::pow(p_local / p0, R_d / cp);
-                    const double T_c = T_local - 273.15;
-                    double e_sat;
-                    if (T_local >= 273.15)
-                        e_sat = 611.21 * std::exp((18.678 - T_c / 234.5) * T_c / (257.14 + T_c));
-                    else
-                        e_sat = 611.15 * std::exp((23.036 - T_c / 333.7) * T_c / (279.82 + T_c));
-                    const double qvsat = 0.622 * e_sat / std::max(p_local - e_sat, 1.0);
-                    qv_base = std::min(qv_base, qvsat * 0.95); // 95% RH cap
-                }
-
-                qv[i][j][k] = static_cast<float>(qv_base);
+                const std::size_t kz = static_cast<std::size_t>(k);
+                p[i][j][k] = static_cast<float>(sounding.p_pa[kz]);
+                rho[i][j][k] = static_cast<float>(sounding.rho_kgm3[kz]);
+                theta[i][j][k] = static_cast<float>(sounding.theta_k[kz]);
+                qv[i][j][k] = static_cast<float>(sounding.qv_kgkg[kz]);
                 qc[i][j][k] = 0.0f;
                 qr[i][j][k] = 0.0f;
                 qi[i][j][k] = 0.0f;
@@ -458,41 +426,110 @@ void initialize()
         }
     }
 
-    // ── Coordinate-specific wind initialization ──
+    // ── Wind initialization via HodographSource ──
     //
-    // Cartesian: store (u_x, u_y) directly — no rotation. This is the
-    //   entire reason the Cartesian backend exists (Bug 7).
-    // Cylindrical (collocated): project the Cartesian (u_x, u_y) hodograph
-    //   onto the local (r, theta) basis with cos / sin rotation, with both
-    //   u and v at cell-center theta.
-    // Cylindrical (C-grid): same projection but v uses the half-cell-shifted
-    //   theta_{j+1/2} = (j + 0.5) * dtheta because v lives at the theta-face
-    //   on the staggered grid (Phase C.3).
-    if (global_coordinate_system == CoordinateSystem::Cartesian)
+    // Precedence:
+    //   1. Explicit hodograph type (zero, wk_param) ALWAYS wins, even when
+    //      the active SoundingSource supplied winds. This lets a user run
+    //      a SHARPY thermo column with `hodograph: { type: zero }` to test
+    //      pressure-driven flow on a real-world atmosphere.
+    //   2. type=Auto + sounding has winds: use sounding's winds.
+    //   3. type=Auto + sounding has no winds: build the WK 3-point default
+    //      from environment.hodograph.* anchors (today's behavior).
+    //
+    // apply_wind_initialization_from_column applies coordinate / stagger
+    // aware projection (cartesian: store directly; cylindrical collocated:
+    // project at theta[j]; cylindrical c-grid: project at theta_{j+1/2}
+    // for v). Same math the legacy apply_*_wind_initialization() helpers
+    // use; those helpers are now unreachable from initialize() but kept in
+    // place for the dynamics tests that link them directly.
+    auto hodograph_source = tmv::init::make_hodograph_source(global_hodograph_source_config);
+    tmv::init::WindColumn wind;
+    const bool explicit_hodograph =
+        (global_hodograph_source_config.type
+            != tmv::init::HodographSourceConfig::Type::Auto);
+    if (explicit_hodograph)
     {
-        apply_cartesian_wind_initialization();
+        wind = hodograph_source->build(z_m);
     }
-    else if (global_stagger_type == StaggerType::CGrid)
+    else if (sounding.has_winds())
     {
-        apply_cylindrical_cgrid_wind_initialization();
+        wind.u_ms = sounding.u_ms;
+        wind.v_ms = sounding.v_ms;
     }
     else
     {
-        apply_cylindrical_wind_initialization();
+        wind = hodograph_source->build(z_m);
+    }
+    apply_wind_initialization_from_column(wind.u_ms, wind.v_ms);
+
+    // ── Sounding diagnostics ──
+    //
+    // Surface-parcel lift over the final column produces CAPE, CIN, LCL,
+    // LFC, EL, precipitable water, and (with the resolved hodograph) the
+    // 0-6 km bulk shear. Logged once at INFO so the user can see what
+    // their config actually built before the time loop starts. Marginal-
+    // environment warnings fire at well-known thresholds — useful when a
+    // file-based or parametric_targets sounding produces less convection
+    // than the user expected.
+    {
+        const auto diags = tmv::init::compute_sounding_diagnostics(sounding, wind);
+        const auto fmt_optional = [](double x) -> std::string {
+            if (!std::isfinite(x))
+            {
+                return std::string("(none)");
+            }
+            std::ostringstream os;
+            os.setf(std::ios::fixed);
+            os.precision(0);
+            os << x << "m";
+            return os.str();
+        };
+        tmv::log_info("Sounding diagnostics: CAPE=", static_cast<int>(diags.cape_jkg),
+                      " J/kg, CIN=", static_cast<int>(diags.cin_jkg),
+                      " J/kg, LCL=", static_cast<int>(diags.lcl_m), "m",
+                      ", LFC=", fmt_optional(diags.lfc_m),
+                      ", EL=", fmt_optional(diags.el_m),
+                      ", PWAT=", static_cast<int>(diags.pwat_mm), "mm",
+                      ", shear_0_6km=",
+                      diags.has_kinematic
+                          ? std::to_string(static_cast<int>(diags.bulk_shear_0_6km_ms))
+                          : std::string("(n/a)"),
+                      diags.has_kinematic ? " m/s" : "");
+
+        if (!std::isfinite(diags.lfc_m))
+        {
+            tmv::log_warn("[SOUNDING] No LFC found: surface parcel never becomes "
+                          "positively buoyant. No deep convection will develop.");
+        }
+        else if (diags.cape_jkg < 500.0)
+        {
+            tmv::log_warn("[SOUNDING] Marginal CAPE (", static_cast<int>(diags.cape_jkg),
+                          " J/kg). Storm development unlikely.");
+        }
+        if (diags.cin_jkg > 200.0)
+        {
+            tmv::log_warn("[SOUNDING] Strong cap (CIN=",
+                          static_cast<int>(diags.cin_jkg),
+                          " J/kg). The trigger may not break through.");
+        }
+        if (diags.has_kinematic && diags.bulk_shear_0_6km_ms < 15.0)
+        {
+            tmv::log_warn("[SOUNDING] Weak 0-6 km shear (",
+                          static_cast<int>(diags.bulk_shear_0_6km_ms),
+                          " m/s). Storm-mode organization unlikely.");
+        }
     }
 
-    // ── Coordinate-specific trigger bubble ──
+    // ── Trigger via TriggerSource ──
     //
-    // Cylindrical: 2D ring in the (r, z) plane, uniform around all θ.
-    // Cartesian: 3D sphere at literal (x, y, z) center.
-    if (global_coordinate_system == CoordinateSystem::Cartesian)
-    {
-        apply_cartesian_bubble_initialization();
-    }
-    else
-    {
-        apply_cylindrical_bubble_initialization();
-    }
+    // Default WarmBubbleTrigger dispatches to the same Cartesian / cylindrical
+    // bubble helpers the legacy code called inline; NoOpTrigger is the
+    // explicit no-op for hydrostatic / equilibrium tests, replacing the
+    // legacy `trigger.bubble.dtheta_k = 0` workaround.
+    auto trigger_source = tmv::init::make_trigger_source(global_trigger_source_config);
+    trigger_source->apply();
+    tmv::log_info("Trigger source: ", trigger_source->describe());
 
     // ── Base-state wind profiles for perturbation Coriolis ──
     //
@@ -507,11 +544,14 @@ void initialize()
     // hodograph used to initialize the domain, stored as 1D profiles.
     u0_base.resize(NZ);
     v0_base.resize(NZ);
+    // u0_base / v0_base come from the same resolved hodograph the wind
+    // initialization just used, so the base-state perturbation Coriolis
+    // sees the same reference flow that's actually in the field.
     for (int k = 0; k < NZ; ++k)
     {
-        const double z = global_grid_geometry.z[k];
-        double wind_u, wind_v;
-        compute_wind_profile(global_wind_profile, z, wind_u, wind_v);
+        const std::size_t kz = static_cast<std::size_t>(k);
+        const double wind_u = wind.u_ms[kz];
+        const double wind_v = wind.v_ms[kz];
 
         if (global_coordinate_system == CoordinateSystem::Cartesian)
         {

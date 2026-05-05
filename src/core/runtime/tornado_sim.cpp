@@ -27,6 +27,8 @@
 #include "boundary_layer/boundary_layer_base.hpp"
 #include "chaos/chaos_base.hpp"
 #include "compute/compute_backend.hpp"
+#include "init/scheme_profile.hpp"
+#include "util/log.hpp"
 #include "radiation/radiation_base.hpp"
 #include "terrain/terrain_base.hpp"
 #include "turbulence/turbulence_base.hpp"
@@ -73,256 +75,6 @@ void compute_wind_profile(const WindProfile& profile, double z, double& u, doubl
     }
 }
 
-namespace
-{
-constexpr double kPi = 3.14159265358979323846;
-}
-
-/**
- * @brief Applies sounding-derived thermodynamic and wind profiles to state fields.
- * @return True when sounding data was successfully applied.
- */
-bool apply_soundings_to_initial_state()
-{
-    if (!global_sounding_enabled)
-    {
-        return false;
-    }
-
-    SoundingConfig runtime_cfg = global_runtime_sounding_config;
-    runtime_cfg.scheme_id = to_lower_copy(runtime_cfg.scheme_id);
-
-    if (runtime_cfg.scheme_id.empty())
-    {
-        runtime_cfg.scheme_id = "sharpy";
-    }
-    if (runtime_cfg.scheme_id == "none")
-    {
-        if (log_normal_enabled())
-        {
-            std::cout << "[SOUNDINGS] environment.sounding.enabled=true but scheme is 'none'; skipping sounding initialization."
-                      << std::endl;
-        }
-        return false;
-    }
-
-    try
-    {
-        initialize_soundings(runtime_cfg);
-    }
-    catch (const std::exception& e)
-    {
-        std::cerr << "[SOUNDINGS] Failed to initialize sounding scheme: " << e.what()
-                  << ". Keeping procedural initialization." << std::endl;
-        return false;
-    }
-
-    try
-    {
-        SoundingData source = load_sounding_data();
-        if (!source.is_valid())
-        {
-            std::cerr << "[SOUNDINGS] No valid sounding profile loaded; keeping procedural initialization." << std::endl;
-            reset_soundings();
-            return false;
-        }
-
-        const bool placeholder_profile = (source.station_id == "KSAMPLE");
-        if (placeholder_profile && !global_sounding_allow_placeholder_profiles)
-        {
-            std::cerr << "[SOUNDINGS] Placeholder sample sounding detected (station_id=KSAMPLE). "
-                      << "Set environment.sounding.allow_placeholder_profiles=true to apply it. "
-                      << "Keeping procedural initialization." << std::endl;
-            reset_soundings();
-            return false;
-        }
-
-        std::vector<double> model_heights(static_cast<std::size_t>(NZ), 0.0);
-        for (int k = 0; k < NZ; ++k)
-        {
-            model_heights[static_cast<std::size_t>(k)] = static_cast<double>(k) * dz;
-        }
-
-        SoundingData interp = interpolate_sounding_to_grid(source, model_heights);
-        if (!interp.is_valid())
-        {
-            std::cerr << "[SOUNDINGS] Interpolated sounding profile is invalid; keeping procedural initialization."
-                      << std::endl;
-            reset_soundings();
-            return false;
-        }
-
-        std::vector<float> theta_baseline(static_cast<std::size_t>(NZ), std::numeric_limits<float>::max());
-        std::vector<float> qv_baseline(static_cast<std::size_t>(NZ), std::numeric_limits<float>::max());
-
-        for (int i = 0; i < NR; ++i)
-        {
-            for (int j = 0; j < NTH; ++j)
-            {
-                for (int k = 0; k < NZ; ++k)
-                {
-                    const std::size_t kz = static_cast<std::size_t>(k);
-                    theta_baseline[kz] = std::min(theta_baseline[kz], static_cast<float>(theta[i][j][k]));
-                    qv_baseline[kz] = std::min(qv_baseline[kz], static_cast<float>(qv[i][j][k]));
-                }
-            }
-        }
-
-        for (int k = 0; k < NZ; ++k)
-        {
-            const std::size_t kz = static_cast<std::size_t>(k);
-            if (!std::isfinite(theta_baseline[kz]) || theta_baseline[kz] == std::numeric_limits<float>::max())
-            {
-                theta_baseline[kz] = static_cast<float>(theta[0][0][k]);
-            }
-            if (!std::isfinite(qv_baseline[kz]) || qv_baseline[kz] == std::numeric_limits<float>::max())
-            {
-                qv_baseline[kz] = static_cast<float>(qv[0][0][k]);
-            }
-        }
-
-        std::vector<float> theta_profile(static_cast<std::size_t>(NZ), 0.0f);
-        std::vector<float> qv_profile(static_cast<std::size_t>(NZ), 0.0f);
-        std::vector<double> u_cart_profile(static_cast<std::size_t>(NZ), 0.0);
-        std::vector<double> v_cart_profile(static_cast<std::size_t>(NZ), 0.0);
-
-        const bool has_theta_profile = (interp.potential_temperature_k.size() == model_heights.size());
-        const bool has_qv_profile = (interp.mixing_ratio_kgkg.size() == model_heights.size());
-        const bool has_wind_profile =
-            (interp.wind_speed_ms.size() == model_heights.size() &&
-             interp.wind_direction_deg.size() == model_heights.size());
-
-        int theta_levels_from_sounding = 0;
-        int qv_levels_from_sounding = 0;
-        int wind_levels_from_sounding = 0;
-
-        for (int k = 0; k < NZ; ++k)
-        {
-            const std::size_t kz = static_cast<std::size_t>(k);
-
-            double theta_target = std::numeric_limits<double>::quiet_NaN();
-            if (has_theta_profile && std::isfinite(interp.potential_temperature_k[kz]))
-            {
-                theta_target = interp.potential_temperature_k[kz];
-            }
-            else if (interp.temperature_k.size() == model_heights.size() &&
-                     interp.pressure_hpa.size() == model_heights.size())
-            {
-                theta_target = potential_temperature_from_temperature_pressure(
-                    interp.temperature_k[kz], interp.pressure_hpa[kz]);
-            }
-
-            if (std::isfinite(theta_target))
-            {
-                theta_profile[kz] = clamp_theta_k(static_cast<float>(theta_target));
-                ++theta_levels_from_sounding;
-            }
-            else
-            {
-                theta_profile[kz] = theta_baseline[kz];
-            }
-
-            if (has_qv_profile && std::isfinite(interp.mixing_ratio_kgkg[kz]))
-            {
-                qv_profile[kz] = clamp_qv_kgkg(static_cast<float>(interp.mixing_ratio_kgkg[kz]));
-                ++qv_levels_from_sounding;
-            }
-            else
-            {
-                qv_profile[kz] = qv_baseline[kz];
-            }
-
-            double fallback_u_cart = 0.0;
-            double fallback_v_cart = 0.0;
-            compute_wind_profile(global_wind_profile, model_heights[kz], fallback_u_cart, fallback_v_cart);
-            u_cart_profile[kz] = fallback_u_cart;
-            v_cart_profile[kz] = fallback_v_cart;
-
-            if (has_wind_profile &&
-                std::isfinite(interp.wind_speed_ms[kz]) &&
-                std::isfinite(interp.wind_direction_deg[kz]))
-            {
-                const double speed = interp.wind_speed_ms[kz];
-                const double direction_rad = interp.wind_direction_deg[kz] * kPi / 180.0;
-
-                u_cart_profile[kz] = -speed * std::sin(direction_rad);
-                v_cart_profile[kz] = -speed * std::cos(direction_rad);
-                ++wind_levels_from_sounding;
-            }
-        }
-
-        // Coordinate-system branch (Phase A.4 of the Coordinate Backend Plan).
-        // The cylindrical path projects the Cartesian sounding hodograph onto
-        // (u_r, u_θ); the Cartesian path stores u_x / u_y directly. Same
-        // logic as `equations.cpp::initialize` — see that function for the
-        // full rationale and the Bug 7 reference. Both branches still apply
-        // the horizontal-wind clamp for sounding-injected NaN protection.
-        const bool use_cartesian_wind =
-            (global_coordinate_system == CoordinateSystem::Cartesian);
-
-        #pragma omp parallel for collapse(2)
-        for (int i = 0; i < NR; ++i)
-        {
-            for (int j = 0; j < NTH; ++j)
-            {
-                const double th = static_cast<double>(j) * dtheta;
-                const double cos_th = std::cos(th);
-                const double sin_th = std::sin(th);
-
-                for (int k = 0; k < NZ; ++k)
-                {
-                    const std::size_t kz = static_cast<std::size_t>(k);
-
-                    const float theta_anomaly = static_cast<float>(theta[i][j][k]) - theta_baseline[kz];
-                    theta[i][j][k] = clamp_theta_k(theta_profile[kz] + theta_anomaly);
-
-                    const float qv_anomaly = static_cast<float>(qv[i][j][k]) - qv_baseline[kz];
-                    qv[i][j][k] = clamp_qv_kgkg(qv_profile[kz] + qv_anomaly);
-
-                    if (use_cartesian_wind)
-                    {
-                        u[i][j][k]       = clamp_wind_horizontal_ms(static_cast<float>(u_cart_profile[kz]));
-                        v[i][j][k] = clamp_wind_horizontal_ms(static_cast<float>(v_cart_profile[kz]));
-                    }
-                    else
-                    {
-                        const double u_rad =  u_cart_profile[kz] * cos_th + v_cart_profile[kz] * sin_th;
-                        const double v_azi = -u_cart_profile[kz] * sin_th + v_cart_profile[kz] * cos_th;
-                        u[i][j][k]       = clamp_wind_horizontal_ms(static_cast<float>(u_rad));
-                        v[i][j][k] = clamp_wind_horizontal_ms(static_cast<float>(v_azi));
-                    }
-                }
-            }
-        }
-
-        initialize_nested_grid();
-
-        if (log_normal_enabled())
-        {
-            std::cout << "[SOUNDINGS] Applied sounding initialization from scheme='" << runtime_cfg.scheme_id
-                      << "', levels=" << interp.num_levels()
-                      << ", theta_levels=" << theta_levels_from_sounding
-                      << ", qv_levels=" << qv_levels_from_sounding
-                      << ", wind_levels=" << wind_levels_from_sounding;
-            if (placeholder_profile)
-            {
-                std::cout << " (placeholder profile)";
-            }
-            std::cout << std::endl;
-        }
-
-        reset_soundings();
-        return true;
-    }
-    catch (const std::exception& e)
-    {
-        std::cerr << "[SOUNDINGS] Failed to apply sounding profile: " << e.what()
-                  << ". Keeping procedural initialization." << std::endl;
-        reset_soundings();
-        return false;
-    }
-}
-
 /**
  * @brief Program entry point for GUI and headless execution modes.
  * @param argc CLI argument count.
@@ -360,6 +112,8 @@ int main(int argc, char** argv)
     std::vector<std::string> cli_live_shm_fields;
     std::string outdir = "data/exports";
     std::string config_path = "";
+    std::string cli_sounding_path;
+    bool sounding_path_from_cli = false;
 
     if (const char* env_log_profile = std::getenv("TORNADO_LOG_PROFILE"))
     {
@@ -462,6 +216,16 @@ int main(int argc, char** argv)
         else if (arg == "--config" && i + 1 < argc)
         {
             config_path = argv[++i];
+        }
+        else if (arg.rfind("--sounding=", 0) == 0)
+        {
+            cli_sounding_path = arg.substr(11);
+            sounding_path_from_cli = true;
+        }
+        else if (arg == "--sounding" && i + 1 < argc)
+        {
+            cli_sounding_path = argv[++i];
+            sounding_path_from_cli = true;
         }
         else if (arg.rfind("--log-profile=", 0) == 0)
         {
@@ -649,6 +413,17 @@ int main(int argc, char** argv)
     bool live_shm = false;
     std::vector<std::string> live_shm_fields = {"w", "reflectivity_dbz", "vorticity_z"};
     OutputConfig output_config;
+
+    // --sounding without --config: load the drag-and-drop preset (sensible
+    // supercell defaults) so the user gets a runnable scenario from one
+    // CLI flag. Explicit --config wins as usual.
+    if (sounding_path_from_cli && config_path.empty())
+    {
+        config_path = "configs/dragdrop.yaml";
+        std::cout << "[CLI] --sounding given without --config; using "
+                  << config_path << " as the base preset." << std::endl;
+    }
+
     try
     {
         load_config(config_path, duration_s, write_every_s, outdir, &output_config,
@@ -658,6 +433,27 @@ int main(int argc, char** argv)
     {
         std::cerr << "[CONFIG] " << e.what() << std::endl;
         return 1;
+    }
+
+    // --sounding override: applied AFTER load_config so it wins over any
+    // environment.sounding.* key in the YAML. Switch the sounding source
+    // to File with the supplied path; require_winds=true so a malformed
+    // file fails loudly rather than silently falling back to parametric.
+    if (sounding_path_from_cli)
+    {
+        global_sounding_source_config.type =
+            tmv::init::SoundingSourceConfig::Type::File;
+        global_sounding_source_config.file.path = cli_sounding_path;
+        if (global_sounding_source_config.file.scheme_id.empty()
+            || global_sounding_source_config.file.scheme_id == "none")
+        {
+            global_sounding_source_config.file.scheme_id = "sharpy";
+        }
+        global_sounding_source_config.file.require_winds = true;
+        global_sounding_source_config.file.use_fallback_profiles = false;
+        global_sounding_enabled = false;  // disable any legacy overlay path
+        std::cout << "[CLI] sounding override: type=file, path="
+                  << cli_sounding_path << std::endl;
     }
     if (duration_from_cli)
     {
@@ -752,9 +548,26 @@ int main(int argc, char** argv)
 
     initialize_radar("reflectivity");
 
-    initialize();
-
-    apply_soundings_to_initial_state();
+    // initialize() now performs the full IC build via the SoundingSource +
+    // HodographSource + TriggerSource factories: the file-based path that
+    // used to live as a post-init overlay (apply_soundings_to_initial_state)
+    // runs inside initialize() through FileSoundingSource. Legacy YAML that
+    // sets only environment.sounding.scheme_id is auto-promoted to
+    // type=file in load_config(), so existing configs keep working.
+    //
+    // Wrap in a catch so a malformed sounding file (or any other config
+    // problem the IC pipeline detects on first build) produces a clean
+    // [CONFIG ERROR] message + exit 1 rather than a libc++abi terminate.
+    try
+    {
+        initialize();
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "[CONFIG ERROR] Initial-condition build failed: "
+                  << e.what() << std::endl;
+        return 1;
+    }
 
     initialize_numerics();
 
@@ -772,35 +585,31 @@ int main(int argc, char** argv)
         dynamics_scheme_name = global_dynamics_scheme_name;
     }
 
-    // Validate that coordinate_system and dynamics scheme are consistent.
-    // Cartesian coordinates require the cartesian dynamics scheme (no 1/r terms),
-    // and the cartesian scheme assumes Cartesian indexing that is wrong on a
-    // cylindrical grid. A mismatch is always a config error.
+    // Validate the parsed config against the active scheme's IC profile.
+    // This replaces the previously-hardcoded cartesian-vs-cylindrical
+    // check; the registry in src/init/scheme_profile.cpp now owns all
+    // per-scheme requirements (coordinate, stagger, allowed sounding /
+    // hodograph / trigger types, recommended trigger, shear sanity).
     {
-        const bool coord_is_cartesian =
-            (global_coordinate_system == CoordinateSystem::Cartesian);
-        const bool scheme_is_cartesian =
-            (dynamics_scheme_name == "cartesian" ||
-             dynamics_scheme_name == "cart" ||
-             dynamics_scheme_name == "cartesian_cpu");
+        tmv::init::ValidationInputs vi;
+        vi.scheme_id = dynamics_scheme_name;
+        vi.coordinate = global_coordinate_system;
+        vi.stagger = global_stagger_type;
+        vi.sounding = global_sounding_source_config;
+        vi.hodograph = global_hodograph_source_config;
+        vi.trigger = global_trigger_source_config;
 
-        if (coord_is_cartesian && !scheme_is_cartesian)
+        const auto report = tmv::init::validate_initial_condition_config(vi);
+        for (const auto& w : report.warnings)
         {
-            std::cerr << "[CONFIG ERROR] coordinate_system=cartesian requires "
-                      << "dynamics.scheme=cartesian, but got '"
-                      << dynamics_scheme_name << "'. The cylindrical dynamics "
-                      << "scheme uses 1/r terms that are invalid on a Cartesian "
-                      << "grid. Aborting." << std::endl;
-            return 1;
+            tmv::log_warn(w);
         }
-        if (!coord_is_cartesian && scheme_is_cartesian)
+        if (!report.ok)
         {
-            std::cerr << "[CONFIG ERROR] dynamics.scheme=cartesian requires "
-                      << "coordinate_system=cartesian, but got '"
-                      << coordinate_system_name(global_coordinate_system)
-                      << "'. The Cartesian dynamics scheme assumes straight "
-                      << "indexing that is wrong on a cylindrical grid. "
-                      << "Aborting." << std::endl;
+            for (const auto& e : report.errors)
+            {
+                std::cerr << e << std::endl;
+            }
             return 1;
         }
     }

@@ -31,6 +31,7 @@ SCENARIOS=(
     "cgrid_hydrostatic       configs/test/cgrid_hydrostatic.yaml"
     "cgrid_uniform_wind      configs/test/cgrid_uniform_wind.yaml"
     "cgrid_mass_conservation configs/test/cgrid_mass_conservation.yaml"
+    "file_sounding_e2e       configs/test/file_sounding_e2e.yaml"
 )
 
 # Patterns whose presence in the simulation log indicates a real failure

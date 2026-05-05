@@ -2558,16 +2558,19 @@ SoundingData SharpySoundingScheme::load_sounding(const std::string& file_path)
 
     try 
     {
-        if (format == "hdf5") 
+        if (format == "hdf5")
         {
             data = read_sharpy_hdf5(file_path);
         }
-
-         else if (format == "netcdf") 
+        else if (format == "netcdf")
         {
             data = read_sharpy_netcdf(file_path);
-        } 
-        else 
+        }
+        else if (format == "tmv_text")
+        {
+            data = read_sharpy_text(file_path);
+        }
+        else
         {
             throw std::runtime_error("Unsupported file format: " + format);
         }
@@ -2643,29 +2646,45 @@ SoundingData SharpySoundingScheme::interpolate_to_heights(
 /**
  * @brief Detects the file format of the SHARPY sounding.
  */
-std::string SharpySoundingScheme::detect_file_format(const std::string& file_path) 
+std::string SharpySoundingScheme::detect_file_format(const std::string& file_path)
 {
     std::string extension = std::filesystem::path(file_path).extension().string();
     std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
 
-    if (extension == ".h5" || extension == ".hdf5") 
+    if (extension == ".h5" || extension == ".hdf5")
     {
         return "hdf5";
     } else if (extension == ".nc" || extension == ".nc4" || extension == ".netcdf") {
         return "netcdf";
+    } else if (extension == ".tmv" || extension == ".txt") {
+        // Text-format hint; confirm via magic string below.
     }
 
     std::ifstream file(file_path, std::ios::binary);
 
-    if (!file.is_open()) 
+    if (!file.is_open())
     {
         return "unknown";
     }
 
+    // Magic strings for text-based TMV sounding fixtures occupy the start of
+    // the file. Read the first 22 chars (length of "TMV_SHARPY_PROFILE_V1")
+    // and only fall back to the binary-format checks if the magic is absent.
+    char text_magic[22];
+    file.read(text_magic, 21);
+    text_magic[21] = '\0';
+    if (file.gcount() >= 21
+        && std::string(text_magic) == "TMV_SHARPY_PROFILE_V1")
+    {
+        return "tmv_text";
+    }
+    file.clear();
+    file.seekg(0);
+
     char buffer[8];
     file.read(buffer, 8);
 
-    if (file.gcount() >= 8) 
+    if (file.gcount() >= 8)
     {
         if (buffer[0] == '\211' && buffer[1] == 'H' && buffer[2] == 'D' &&
             buffer[3] == 'F' && buffer[4] == '\r' && buffer[5] == '\n' &&
@@ -2787,6 +2806,156 @@ SoundingData SharpySoundingScheme::read_sharpy_netcdf(const std::string& file_pa
     }
 
     throw_native_ingest_failure(file_path, attempts);
+}
+
+/**
+ * @brief Parses a TMV_SHARPY_PROFILE_V1 text file.
+ *
+ * The format is what `sharpy_extract.py` produces: a magic header line,
+ * tab-separated metadata key/value lines (station_id, timestamp_utc,
+ * latitude_deg, longitude_deg, elevation_m, levels) followed by `levels`
+ * data rows of (z, p_hpa, T_k, Td_k, wspd_ms, wdir_deg). Comment lines
+ * starting with '#' and blank lines are tolerated.
+ *
+ * Used as the canonical fixture format for end-to-end integration tests.
+ */
+SoundingData SharpySoundingScheme::read_sharpy_text(const std::string& file_path)
+{
+    std::ifstream in(file_path);
+    if (!in.is_open())
+    {
+        throw std::runtime_error("Failed to open TMV sounding text file: " + file_path);
+    }
+
+    auto trim = [](std::string s) {
+        const auto first = s.find_first_not_of(" \t\r\n");
+        if (first == std::string::npos) return std::string{};
+        const auto last = s.find_last_not_of(" \t\r\n");
+        return s.substr(first, last - first + 1);
+    };
+
+    std::string line;
+    if (!std::getline(in, line) || trim(line) != "TMV_SHARPY_PROFILE_V1")
+    {
+        throw std::runtime_error("File is not TMV_SHARPY_PROFILE_V1: " + file_path);
+    }
+
+    SoundingData data;
+    std::size_t expected_levels = 0;
+    bool levels_seen = false;
+    std::vector<std::vector<double>> rows;
+
+    auto split_tab = [](const std::string& s) {
+        std::vector<std::string> parts;
+        std::string token;
+        for (char c : s)
+        {
+            if (c == '\t')
+            {
+                parts.push_back(token);
+                token.clear();
+            }
+            else
+            {
+                token.push_back(c);
+            }
+        }
+        parts.push_back(token);
+        return parts;
+    };
+
+    while (std::getline(in, line))
+    {
+        const std::string trimmed = trim(line);
+        if (trimmed.empty() || trimmed.front() == '#')
+        {
+            continue;
+        }
+        const auto parts = split_tab(line);
+        if (parts.size() < 2)
+        {
+            throw std::runtime_error(
+                "Malformed TMV sounding line: '" + line + "' in " + file_path);
+        }
+        const std::string& key = parts[0];
+        const std::string& value = parts[1];
+
+        if (key == "station_id")        { data.station_id = value; }
+        else if (key == "timestamp_utc"){ data.timestamp_utc = value; }
+        else if (key == "latitude_deg") { data.latitude_deg = std::stod(value); }
+        else if (key == "longitude_deg"){ data.longitude_deg = std::stod(value); }
+        else if (key == "elevation_m")  { data.elevation_m = std::stod(value); }
+        else if (key == "levels")
+        {
+            expected_levels = static_cast<std::size_t>(std::stoul(value));
+            levels_seen = true;
+            rows.reserve(expected_levels);
+            // Skip the column-header row "h\tp\tt\ttd\twspd\twdir".
+            if (std::getline(in, line))
+            {
+                const std::string header = trim(line);
+                const bool is_header = (!header.empty()
+                    && (header.find("\th") != std::string::npos
+                        || header.front() == 'h' || header.front() == '#'));
+                if (!is_header)
+                {
+                    // Treat the line as a data row instead.
+                    const auto vals = split_tab(line);
+                    if (vals.size() >= 3)
+                    {
+                        std::vector<double> row;
+                        row.reserve(vals.size());
+                        for (const auto& v : vals)
+                        {
+                            row.push_back(v.empty() ? std::numeric_limits<double>::quiet_NaN()
+                                                    : std::stod(v));
+                        }
+                        rows.push_back(std::move(row));
+                    }
+                }
+            }
+        }
+        else
+        {
+            // Unknown keys before the data table are ignored. Once levels
+            // is seen, any further line should be a data row, but we
+            // already advanced past the header above; the rest is handled
+            // below.
+            if (!levels_seen)
+            {
+                continue;
+            }
+            std::vector<double> row;
+            row.reserve(parts.size());
+            for (const auto& v : parts)
+            {
+                row.push_back(v.empty() ? std::numeric_limits<double>::quiet_NaN()
+                                        : std::stod(v));
+            }
+            rows.push_back(std::move(row));
+        }
+    }
+
+    if (!levels_seen)
+    {
+        throw std::runtime_error(
+            "TMV sounding text file lacks 'levels' header: " + file_path);
+    }
+    if (rows.size() != expected_levels)
+    {
+        throw std::runtime_error(
+            "TMV sounding row count " + std::to_string(rows.size())
+            + " does not match declared levels " + std::to_string(expected_levels)
+            + " in " + file_path);
+    }
+
+    SoundingData parsed = parse_sharpy_profile(rows);
+    parsed.station_id = data.station_id;
+    parsed.timestamp_utc = data.timestamp_utc;
+    parsed.latitude_deg = data.latitude_deg;
+    parsed.longitude_deg = data.longitude_deg;
+    parsed.elevation_m = data.elevation_m;
+    return parsed;
 }
 
 

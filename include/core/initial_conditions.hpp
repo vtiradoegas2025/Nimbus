@@ -119,3 +119,18 @@ void apply_cylindrical_cgrid_wind_initialization();
  *   - `global_bubble_radius_m > 0` (the helper enforces a 100 m floor).
  */
 void apply_cartesian_bubble_initialization();
+
+/**
+ * @brief Adds the configured trigger-bubble Δθ patch on a cylindrical grid.
+ *
+ * 2D Gaussian ring in the (r, z) plane, uniform around all θ. Body lives in
+ * `src/core/orchestration/dynamics/equations.cpp`; this declaration exists
+ * so the trigger module can call into it.
+ *
+ * Same Gaussian falloff as the Cartesian variant:
+ *   factor(dist) = exp(−(dist / (radius / 3))²)   for dist <= radius
+ *   factor       = 0                              otherwise
+ *
+ * Preconditions match apply_cartesian_bubble_initialization.
+ */
+void apply_cylindrical_bubble_initialization();

@@ -665,6 +665,9 @@ double global_bubble_dtheta_k = 2.0;
 bool global_sounding_enabled = false;
 bool global_sounding_allow_placeholder_profiles = false;
 SoundingConfig global_runtime_sounding_config{};
+tmv::init::SoundingSourceConfig global_sounding_source_config{};
+tmv::init::HodographSourceConfig global_hodograph_source_config{};
+tmv::init::TriggerSourceConfig global_trigger_source_config{};
 
 std::string global_microphysics_scheme = "kessler";
 
@@ -1045,6 +1048,168 @@ void load_config(const std::string& config_path, int& duration_s, int& write_eve
         global_runtime_sounding_config.scheme_id = "sharpy";
     }
 
+    // ── New SoundingSourceConfig surface ───────────────────────────────
+    //
+    // The legacy globals above (cape_target_jkg, sfc_*, tropopause_z_m,
+    // sounding.scheme_id, sounding.file_path) drive both the legacy
+    // SHARPY overlay path AND the new SoundingSource factory. This block
+    // composes a SoundingSourceConfig from those globals plus the new
+    // `environment.sounding.type` selector and stores it in
+    // global_sounding_source_config for equations.cpp::initialize() to
+    // consume. Defaults to ParametricCAPE so configs with no explicit
+    // `type` get the historical procedural base state.
+    global_sounding_source_config = tmv::init::SoundingSourceConfig{};
+    global_sounding_source_config.parametric.cape_target_jkg = global_cape_target;
+    global_sounding_source_config.parametric.surface_theta_k = global_sfc_theta_k;
+    global_sounding_source_config.parametric.surface_qv_kgkg = global_sfc_qv_kgkg;
+    global_sounding_source_config.parametric.tropopause_z_m = global_tropopause_z_m;
+    global_sounding_source_config.file.path = global_runtime_sounding_config.file_path;
+    if (!global_runtime_sounding_config.scheme_id.empty()
+        && global_runtime_sounding_config.scheme_id != "none")
+    {
+        global_sounding_source_config.file.scheme_id =
+            global_runtime_sounding_config.scheme_id;
+    }
+    if (config.count("environment.sounding.require_winds"))
+    {
+        global_sounding_source_config.file.require_winds =
+            parse_bool_value(config["environment.sounding.require_winds"]);
+    }
+    bool sounding_type_explicit = false;
+    if (config.count("environment.sounding.type"))
+    {
+        const std::string raw = config["environment.sounding.type"];
+        tmv::init::SoundingSourceConfig::Type parsed_type{};
+        if (tmv::init::parse_sounding_source_type(raw, parsed_type))
+        {
+            global_sounding_source_config.type = parsed_type;
+            sounding_type_explicit = true;
+            if (parsed_type == tmv::init::SoundingSourceConfig::Type::File
+                && global_sounding_source_config.file.path.empty())
+            {
+                tmv::log_warn(
+                    "environment.sounding.type=file but no file_path given. "
+                    "Set environment.sounding.file_path to the sounding file.");
+            }
+        }
+        else
+        {
+            tmv::log_warn("Unknown environment.sounding.type '", raw,
+                          "'. Recognized: parametric_cape, file, parametric_targets. ",
+                          "Falling back to parametric_cape.");
+        }
+    }
+
+    // Legacy translation: a YAML that pre-dates `environment.sounding.type`
+    // can still ask for a file-based sounding by setting just
+    //   environment.sounding.scheme_id: sharpy
+    //   environment.sounding.file_path: ...
+    // We detect that pattern here and promote it to the new File source
+    // path. Without this promotion, deleting the legacy SHARPY overlay
+    // (apply_soundings_to_initial_state) would silently turn those configs
+    // into parametric_cape runs.
+    //
+    // We also propagate the legacy `use_fallback_profiles` semantics so a
+    // missing file silently reverts to the procedural base state, matching
+    // historical behavior. Users who explicitly set type=file in the new
+    // YAML get hard errors on load failures (no fallback) by default.
+    if (!sounding_type_explicit
+        && !global_sounding_source_config.file.path.empty()
+        && !global_sounding_source_config.file.scheme_id.empty()
+        && global_sounding_source_config.file.scheme_id != "none")
+    {
+        global_sounding_source_config.type =
+            tmv::init::SoundingSourceConfig::Type::File;
+        global_sounding_source_config.file.use_fallback_profiles =
+            global_runtime_sounding_config.use_fallback_profiles;
+    }
+    else if (sounding_type_explicit
+             && global_sounding_source_config.type
+                    == tmv::init::SoundingSourceConfig::Type::File
+             && config.count("environment.sounding.use_fallback_profiles"))
+    {
+        // Honor an explicit use_fallback_profiles when type=file is set.
+        global_sounding_source_config.file.use_fallback_profiles =
+            global_runtime_sounding_config.use_fallback_profiles;
+    }
+
+    // The legacy SHARPY overlay path (apply_soundings_to_initial_state in
+    // tornado_sim.cpp) has been retired. Whenever a file-based source is
+    // active, ensure the overlay flag stays off so no future re-introduction
+    // double-applies.
+    if (global_sounding_source_config.type == tmv::init::SoundingSourceConfig::Type::File)
+    {
+        global_sounding_enabled = false;
+    }
+
+    // environment.sounding.targets.* — diagnostic-table inputs for the
+    // ParametricTargets source. Read regardless of the active type so a
+    // user can flip between parametric_cape and parametric_targets without
+    // losing their values. Surface-anchor defaults fall back to the
+    // existing environment.* knobs if not specified separately.
+    {
+        auto& tg = global_sounding_source_config.targets;
+        tg.surface_theta_k = global_sfc_theta_k;
+        tg.target_el_m = global_tropopause_z_m;
+        tg.target_cape_jkg = global_cape_target;
+        if (config.count("environment.sounding.targets.cape_jkg"))
+        {
+            double parsed = 0.0;
+            if (try_parse_double_value(config["environment.sounding.targets.cape_jkg"], parsed))
+            {
+                tg.target_cape_jkg = parsed;
+            }
+        }
+        if (config.count("environment.sounding.targets.cin_jkg"))
+        {
+            double parsed = 0.0;
+            if (try_parse_double_value(config["environment.sounding.targets.cin_jkg"], parsed))
+            {
+                tg.target_cin_jkg = parsed;
+            }
+        }
+        if (config.count("environment.sounding.targets.lcl_m"))
+        {
+            double parsed = 0.0;
+            if (try_parse_double_value(config["environment.sounding.targets.lcl_m"], parsed))
+            {
+                tg.target_lcl_m = parsed;
+            }
+        }
+        if (config.count("environment.sounding.targets.lfc_m"))
+        {
+            double parsed = 0.0;
+            if (try_parse_double_value(config["environment.sounding.targets.lfc_m"], parsed))
+            {
+                tg.target_lfc_m = parsed;
+            }
+        }
+        if (config.count("environment.sounding.targets.el_m"))
+        {
+            double parsed = 0.0;
+            if (try_parse_double_value(config["environment.sounding.targets.el_m"], parsed))
+            {
+                tg.target_el_m = parsed;
+            }
+        }
+        if (config.count("environment.sounding.targets.surface_theta_k"))
+        {
+            double parsed = 0.0;
+            if (try_parse_double_value(config["environment.sounding.targets.surface_theta_k"], parsed))
+            {
+                tg.surface_theta_k = parsed;
+            }
+        }
+        if (config.count("environment.sounding.targets.moisture_qv_kgkg"))
+        {
+            double parsed = 0.0;
+            if (try_parse_double_value(config["environment.sounding.targets.moisture_qv_kgkg"], parsed))
+            {
+                tg.moisture_qv_kgkg_override = parsed;
+            }
+        }
+    }
+
     if (config.count("trigger.bubble.center_x_km"))
     {
         double parsed = 0.0;
@@ -1105,6 +1270,80 @@ void load_config(const std::string& config_path, int& duration_s, int& write_eve
                 "a finite number");
         }
     }
+    // trigger.type — selects which TriggerSource the runtime applies after
+    // the sounding column is broadcast. Default is warm_bubble (today's
+    // behavior); type=none disables the trigger explicitly; type=vortex_seed
+    // imposes a Rankine vortex (used by tornado / tornado_cgrid schemes).
+    // Legacy YAML that just sets trigger.bubble.dtheta_k = 0 keeps working
+    // as a no-op since WarmBubbleTrigger reads global_bubble_dtheta_k.
+    if (config.count("trigger.type"))
+    {
+        const std::string raw = config["trigger.type"];
+        tmv::init::TriggerSourceConfig::Type parsed_type{};
+        if (tmv::init::parse_trigger_source_type(raw, parsed_type))
+        {
+            global_trigger_source_config.type = parsed_type;
+        }
+        else
+        {
+            tmv::log_warn("Unknown trigger.type '", raw,
+                          "'. Recognized: warm_bubble, none, vortex_seed. ",
+                          "Falling back to warm_bubble.");
+        }
+    }
+
+    // trigger.vortex_seed.* — Rankine vortex parameters. Read regardless
+    // of the active trigger.type so a user can flip between warm_bubble
+    // and vortex_seed without losing their seed knobs.
+    if (config.count("trigger.vortex_seed.r_max_m"))
+    {
+        double parsed = 0.0;
+        if (try_parse_double_value(config["trigger.vortex_seed.r_max_m"], parsed))
+        {
+            global_trigger_source_config.vortex_seed.r_max_m = parsed;
+        }
+    }
+    if (config.count("trigger.vortex_seed.v_max_ms"))
+    {
+        double parsed = 0.0;
+        if (try_parse_double_value(config["trigger.vortex_seed.v_max_ms"], parsed))
+        {
+            global_trigger_source_config.vortex_seed.v_max_ms = parsed;
+        }
+    }
+    if (config.count("trigger.vortex_seed.z_top_m"))
+    {
+        double parsed = 0.0;
+        if (try_parse_double_value(config["trigger.vortex_seed.z_top_m"], parsed))
+        {
+            global_trigger_source_config.vortex_seed.z_top_m = parsed;
+        }
+    }
+    if (config.count("trigger.vortex_seed.center_x_km"))
+    {
+        double parsed = 0.0;
+        if (try_parse_double_value(config["trigger.vortex_seed.center_x_km"], parsed))
+        {
+            global_trigger_source_config.vortex_seed.center_x_m = parsed * 1000.0;
+        }
+    }
+    if (config.count("trigger.vortex_seed.center_y_km"))
+    {
+        double parsed = 0.0;
+        if (try_parse_double_value(config["trigger.vortex_seed.center_y_km"], parsed))
+        {
+            global_trigger_source_config.vortex_seed.center_y_m = parsed * 1000.0;
+        }
+    }
+    if (config.count("trigger.vortex_seed.center_z_km"))
+    {
+        double parsed = 0.0;
+        if (try_parse_double_value(config["trigger.vortex_seed.center_z_km"], parsed))
+        {
+            global_trigger_source_config.vortex_seed.center_z_m = parsed * 1000.0;
+        }
+    }
+
     if (config.count("trigger.bubble.dtheta_k"))
     {
         double parsed = 0.0;
@@ -1399,6 +1638,37 @@ void load_config(const std::string& config_path, int& duration_s, int& write_eve
                 "environment.hodograph.v_6km_ms",
                 config["environment.hodograph.v_6km_ms"],
                 "a finite number");
+        }
+    }
+
+    // ── HodographSourceConfig surface ─────────────────────────────────
+    //
+    // Composed from the WK 3-point anchors above (always populated) plus
+    // the new `environment.hodograph.type` selector. Default Type::Auto
+    // means "use sounding winds when the SoundingSource provides them
+    // (file path), fall back to WK 3-point parametric otherwise" — which
+    // is exactly today's behavior. Explicit type=zero|wk_param overrides
+    // any sounding-supplied winds.
+    global_hodograph_source_config = tmv::init::HodographSourceConfig{};
+    global_hodograph_source_config.wk_anchors.u_sfc_ms = global_wind_profile.u_sfc;
+    global_hodograph_source_config.wk_anchors.v_sfc_ms = global_wind_profile.v_sfc;
+    global_hodograph_source_config.wk_anchors.u_1km_ms = global_wind_profile.u_1km;
+    global_hodograph_source_config.wk_anchors.v_1km_ms = global_wind_profile.v_1km;
+    global_hodograph_source_config.wk_anchors.u_6km_ms = global_wind_profile.u_6km;
+    global_hodograph_source_config.wk_anchors.v_6km_ms = global_wind_profile.v_6km;
+    if (config.count("environment.hodograph.type"))
+    {
+        const std::string raw = config["environment.hodograph.type"];
+        tmv::init::HodographSourceConfig::Type parsed_type{};
+        if (tmv::init::parse_hodograph_source_type(raw, parsed_type))
+        {
+            global_hodograph_source_config.type = parsed_type;
+        }
+        else
+        {
+            tmv::log_warn("Unknown environment.hodograph.type '", raw,
+                          "'. Recognized: auto, wk_param, zero. ",
+                          "Falling back to auto.");
         }
     }
 

@@ -1,0 +1,52 @@
+# End-to-end test for the file-based SoundingSource path.
+#
+# Loads tests/init/fixtures/test_supercell.tmv (TMV_SHARPY_PROFILE_V1
+# fixture) and runs supercell_cgrid for a short integration. This is the
+# regression for the full file -> column -> broadcast -> sim chain that
+# replaces the legacy SHARPY post-init overlay (apply_soundings_to_initial_state).
+#
+# Pass criterion: clean exit, no FATAL / GUARD events. The harness just
+# checks exit code + log clean-ness for now.
+#
+# Grid + scheme intentionally match cgrid_uniform_wind.yaml (a known-good
+# integration baseline) to keep the test focused on the sounding path.
+case_name: file_sounding_e2e
+grid:
+  nx: 32
+  ny: 32
+  nz: 24
+  dx: 2000.0
+  dy: 2000.0
+  dz: 500.0
+  dt: 2.0
+  staggering: c_grid
+environment:
+  sounding:
+    type: file
+    file_path: tests/init/fixtures/test_supercell.tmv
+    require_winds: true
+  hodograph:
+    type: auto              # use the file's wind columns
+trigger:
+  bubble:
+    center_x_km: 30
+    center_y_km: 30
+    center_z_km: 1.5
+    radius_km: 8
+    dtheta_k: 2.0
+dynamics:
+  scheme: supercell_cgrid
+microphysics:
+  scheme: kessler
+numerics:
+  time_stepping:
+    scheme: split_explicit
+    split_acoustic: true
+    n_acoustic_substeps: 6
+  compute:
+    backend: cpu
+output:
+  write_every_s: 0
+  fields: minimal
+  format: npy_3d
+duration_s: 30
