@@ -246,7 +246,7 @@ vulkan-compute-shaders:
 	@GLSLANG=$$(command -v glslangValidator 2>/dev/null); \
 	if [ -n "$$GLSLANG" ]; then \
 		recompiled=0; \
-		for comp in vulkan/shaders/compute/*.comp; do \
+		for comp in $$(find vulkan/shaders/compute -name '*.comp'); do \
 			[ -f "$$comp" ] || continue; \
 			spv="$$comp.spv"; \
 			if [ ! -f "$$spv" ] || [ "$$comp" -nt "$$spv" ]; then \

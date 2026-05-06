@@ -4759,7 +4759,7 @@ private:
         init_buffer_pool();
 
         // TVD vertical flux (required — if this fails, no GPU dispatch at all)
-        if (!create_pipeline_state("tvd_vertical_flux.comp.spv", 4,
+        if (!create_pipeline_state("advection/tvd_vertical_flux.comp.spv", 4,
                                    sizeof(TvdPushConstants), tvd_pipeline_, error))
         {
             return false;
@@ -4769,7 +4769,7 @@ private:
         // Radial advection (optional — missing shader is non-fatal)
         {
             std::string radial_error;
-            if (create_pipeline_state("advect_radial.comp.spv", 3,
+            if (create_pipeline_state("advection/advect_radial.comp.spv", 3,
                                       sizeof(RadialAdvectionPushConstants),
                                       radial_pipeline_, radial_error))
             {
@@ -4784,7 +4784,7 @@ private:
         // Radial advection on cylindrical Arakawa C-grid (Phase C.9; optional)
         {
             std::string radial_cgrid_error;
-            if (create_pipeline_state("advect_radial_cgrid.comp.spv", 3,
+            if (create_pipeline_state("advection/advect_radial_cgrid.comp.spv", 3,
                                       sizeof(RadialAdvectionPushConstants),
                                       radial_cgrid_pipeline_, radial_cgrid_error))
             {
@@ -4800,7 +4800,7 @@ private:
         // Azimuthal advection (optional)
         {
             std::string azimuthal_error;
-            if (create_pipeline_state("advect_azimuthal.comp.spv", 3,
+            if (create_pipeline_state("advection/advect_azimuthal.comp.spv", 3,
                                       sizeof(AzimuthalAdvectionPushConstants),
                                       azimuthal_pipeline_, azimuthal_error))
             {
@@ -4815,7 +4815,7 @@ private:
         // Azimuthal advection on cylindrical Arakawa C-grid (Phase C.9; optional)
         {
             std::string azimuthal_cgrid_error;
-            if (create_pipeline_state("advect_azimuthal_cgrid.comp.spv", 3,
+            if (create_pipeline_state("advection/advect_azimuthal_cgrid.comp.spv", 3,
                                       sizeof(AzimuthalAdvectionPushConstants),
                                       azimuthal_cgrid_pipeline_, azimuthal_cgrid_error))
             {
@@ -4831,7 +4831,7 @@ private:
         // Vertical advection on cylindrical Arakawa C-grid (Phase C.9; optional)
         {
             std::string vertical_cgrid_error;
-            if (create_pipeline_state("advect_vertical_cgrid.comp.spv", 3,
+            if (create_pipeline_state("advection/advect_vertical_cgrid.comp.spv", 3,
                                       sizeof(VerticalAdvectionCgridPushConstants),
                                       vertical_cgrid_pipeline_, vertical_cgrid_error))
             {
@@ -4847,7 +4847,7 @@ private:
         // Acoustic pressure substep on cylindrical Arakawa C-grid (Phase C.9; optional)
         {
             std::string acoustic_pressure_cgrid_error;
-            if (create_pipeline_state("acoustic_pressure_cgrid.comp.spv", 7,
+            if (create_pipeline_state("acoustic/acoustic_pressure_cgrid.comp.spv", 7,
                                       sizeof(AcousticPressurePushConstants),
                                       acoustic_pressure_cgrid_pipeline_,
                                       acoustic_pressure_cgrid_error))
@@ -4866,7 +4866,7 @@ private:
         // u_out, v_out, w_out. Push constants reuse AcousticMomentumPushConstants.
         {
             std::string acoustic_momentum_cgrid_error;
-            if (create_pipeline_state("acoustic_momentum_cgrid.comp.spv", 9,
+            if (create_pipeline_state("acoustic/acoustic_momentum_cgrid.comp.spv", 9,
                                       sizeof(AcousticMomentumPushConstants),
                                       acoustic_momentum_cgrid_pipeline_,
                                       acoustic_momentum_cgrid_error))
@@ -4883,7 +4883,7 @@ private:
         // Diffusion (optional)
         {
             std::string diffusion_error;
-            if (create_pipeline_state("diffusion.comp.spv", 2,
+            if (create_pipeline_state("diffusion/diffusion.comp.spv", 2,
                                       sizeof(DiffusionPushConstants),
                                       diffusion_pipeline_, diffusion_error))
             {
@@ -4898,7 +4898,7 @@ private:
         // Supercell tendencies (optional — 12 SSBOs: 7 input + 5 output)
         {
             std::string supercell_error;
-            if (create_pipeline_state("supercell_tendencies.comp.spv", 12,
+            if (create_pipeline_state("dynamics/supercell_tendencies.comp.spv", 12,
                                       sizeof(SupercellTendenciesPushConstants),
                                       supercell_pipeline_, supercell_error))
             {
@@ -4913,7 +4913,7 @@ private:
         // Cartesian tendencies (optional — 16 SSBOs: 11 input + 5 output)
         {
             std::string cartesian_error;
-            if (create_pipeline_state("cartesian_tendencies.comp.spv", 16,
+            if (create_pipeline_state("dynamics/cartesian_tendencies.comp.spv", 16,
                                       sizeof(CartesianTendenciesPushConstants),
                                       cartesian_pipeline_, cartesian_error))
             {
@@ -4928,7 +4928,7 @@ private:
         // Cartesian x-advection (optional — 3 SSBOs: 2 input + 1 output)
         {
             std::string advx_error;
-            if (create_pipeline_state("advect_x.comp.spv", 3,
+            if (create_pipeline_state("advection/advect_x.comp.spv", 3,
                                       sizeof(AdvectionXPushConstants),
                                       advection_x_pipeline_, advx_error))
             {
@@ -4943,7 +4943,7 @@ private:
         // Cartesian y-advection (optional — 3 SSBOs: 2 input + 1 output)
         {
             std::string advy_error;
-            if (create_pipeline_state("advect_y.comp.spv", 3,
+            if (create_pipeline_state("advection/advect_y.comp.spv", 3,
                                       sizeof(AdvectionYPushConstants),
                                       advection_y_pipeline_, advy_error))
             {
@@ -4958,7 +4958,7 @@ private:
         // Tornado tendencies (optional — 12 SSBOs: 7 input + 5 output)
         {
             std::string tornado_error;
-            if (create_pipeline_state("tornado_tendencies.comp.spv", 12,
+            if (create_pipeline_state("dynamics/tornado_tendencies.comp.spv", 12,
                                       sizeof(TornadoTendenciesPushConstants),
                                       tornado_pipeline_, tornado_error))
             {
@@ -4973,7 +4973,7 @@ private:
         /// Kessler point-wise microphysics (optional — 13 SSBOs: 7 input + 6 output)
         {
             std::string kessler_pw_error;
-            if (create_pipeline_state("kessler_pointwise.comp.spv", 13,
+            if (create_pipeline_state("microphysics/kessler_pointwise.comp.spv", 13,
                                       sizeof(KesslerPointwisePushConstants),
                                       kessler_pointwise_pipeline_, kessler_pw_error))
             {
@@ -4988,7 +4988,7 @@ private:
         // Kessler sedimentation (optional — 6 SSBOs: 3 input + 3 read-write)
         {
             std::string kessler_sed_error;
-            if (create_pipeline_state("kessler_sedimentation.comp.spv", 6,
+            if (create_pipeline_state("microphysics/kessler_sedimentation.comp.spv", 6,
                                       sizeof(KesslerSedimentationPushConstants),
                                       kessler_sedimentation_pipeline_, kessler_sed_error))
             {
@@ -5003,7 +5003,7 @@ private:
         // Acoustic pressure substep (optional — 7 SSBOs: 5 input + 2 output)
         {
             std::string acoustic_p_error;
-            if (create_pipeline_state("acoustic_pressure.comp.spv", 7,
+            if (create_pipeline_state("acoustic/acoustic_pressure.comp.spv", 7,
                                       sizeof(AcousticPressurePushConstants),
                                       acoustic_pressure_pipeline_, acoustic_p_error))
             {
@@ -5018,7 +5018,7 @@ private:
         // Acoustic momentum substep (optional — 8 SSBOs: 5 input + 3 output)
         {
             std::string acoustic_m_error;
-            if (create_pipeline_state("acoustic_momentum.comp.spv", 8,
+            if (create_pipeline_state("acoustic/acoustic_momentum.comp.spv", 8,
                                       sizeof(AcousticMomentumPushConstants),
                                       acoustic_momentum_pipeline_, acoustic_m_error))
             {
@@ -5033,7 +5033,7 @@ private:
         // Cartesian acoustic pressure substep (same layout as cylindrical: 7 SSBOs)
         {
             std::string err;
-            if (create_pipeline_state("acoustic_pressure_cartesian.comp.spv", 7,
+            if (create_pipeline_state("acoustic/acoustic_pressure_cartesian.comp.spv", 7,
                                       sizeof(AcousticPressurePushConstants),
                                       acoustic_pressure_cartesian_pipeline_, err))
             {
@@ -5048,7 +5048,7 @@ private:
         // Cartesian acoustic momentum substep (same layout as cylindrical: 8 SSBOs)
         {
             std::string err;
-            if (create_pipeline_state("acoustic_momentum_cartesian.comp.spv", 8,
+            if (create_pipeline_state("acoustic/acoustic_momentum_cartesian.comp.spv", 8,
                                       sizeof(AcousticMomentumPushConstants),
                                       acoustic_momentum_cartesian_pipeline_, err))
             {
