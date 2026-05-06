@@ -4,8 +4,8 @@
 #include <string>
 #include <vector>
 
-#include "core/field3d.hpp"
-#include "core/physical_constants.hpp"
+#include "core/field/field3d.hpp"
+#include "core/infra/physical_constants.hpp"
 
 /**
  * @file turbulence_base.hpp

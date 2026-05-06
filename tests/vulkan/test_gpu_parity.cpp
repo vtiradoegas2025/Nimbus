@@ -15,9 +15,9 @@
 #include "catch2/catch.hpp"
 #include "compute/compute_backend.hpp"
 #include "microphysics/microphysics_base.hpp"
-#include "core/hardware_info.hpp"
-#include "core/field3d.hpp"
-#include "core/simulation.hpp"
+#include "core/infra/hardware_info.hpp"
+#include "core/field/field3d.hpp"
+#include "core/runtime/simulation.hpp"
 
 #include <cmath>
 #include <vector>

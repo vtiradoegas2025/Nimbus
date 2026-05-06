@@ -25,9 +25,9 @@
  *   p     -> p0_base[k]
  */
 
-#include "core/simulation.hpp"
-#include "core/coordinate_system.hpp"
-#include "core/runtime_config.hpp"
+#include "core/runtime/simulation.hpp"
+#include "core/infra/coordinate_system.hpp"
+#include "core/runtime/runtime_config.hpp"
 #include "util/log.hpp"
 
 #include <algorithm>

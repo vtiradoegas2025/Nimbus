@@ -8,7 +8,7 @@
  */
 
 #include "init/sounding/parametric_cape.hpp"
-#include "core/physical_constants.hpp"
+#include "core/infra/physical_constants.hpp"
 
 #include <algorithm>
 #include <cmath>

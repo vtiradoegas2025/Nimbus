@@ -14,7 +14,7 @@
 #include "catch2/catch.hpp"
 #include "terrain/terrain_base.hpp"
 #include "terrain/base/topography.hpp"
-#include "core/simulation.hpp"
+#include "core/runtime/simulation.hpp"
 
 #include <cmath>
 

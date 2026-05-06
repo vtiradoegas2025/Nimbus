@@ -9,7 +9,7 @@
  * for test binaries) — *not* here.
  */
 
-#include "core/coordinate_system.hpp"
+#include "core/infra/coordinate_system.hpp"
 
 #include <cctype>
 #include <string>

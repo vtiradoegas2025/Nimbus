@@ -7,7 +7,7 @@
  * This file belongs to the primary src/core execution layer.
  */
 
-#include "core/simulation.hpp"
+#include "core/runtime/simulation.hpp"
 #include "numerics/advection/advection_base.hpp"
 #include "numerics/diffusion/diffusion_base.hpp"
 #include "numerics/advection/factory.hpp"

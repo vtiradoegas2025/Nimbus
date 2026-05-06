@@ -16,7 +16,7 @@
 #pragma once
 
 #include "boundary_conditions/boundary_conditions_base.hpp"
-#include "core/coordinate_system.hpp"
+#include "core/infra/coordinate_system.hpp"
 #include <memory>
 
 /// Create a Cartesian boundary condition scheme.

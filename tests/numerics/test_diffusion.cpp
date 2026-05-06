@@ -8,8 +8,8 @@
  * Tests verify actual computed values match this discrete Laplacian formula.
  */
 #include "catch2/catch.hpp"
-#include "core/field3d.hpp"
-#include "core/simulation.hpp"
+#include "core/field/field3d.hpp"
+#include "core/runtime/simulation.hpp"
 #include "numerics/diffusion/diffusion_base.hpp"
 
 #include <cmath>

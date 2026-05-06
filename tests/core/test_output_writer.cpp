@@ -12,7 +12,7 @@
 #include "core/output/output_writer.hpp"
 #include "core/output/output_config.hpp"
 #include "core/field/field_snapshot.hpp"
-#include "core/field3d.hpp"
+#include "core/field/field3d.hpp"
 
 #include <cmath>
 #include <filesystem>

@@ -6,10 +6,10 @@
 #include <string>
 #include <vector>
 
-#include "core/coordinate_system.hpp"
-#include "core/field3d.hpp"
-#include "core/grid_geometry.hpp"
-#include "core/physical_constants.hpp"
+#include "core/infra/coordinate_system.hpp"
+#include "core/field/field3d.hpp"
+#include "core/infra/grid_geometry.hpp"
+#include "core/infra/physical_constants.hpp"
 
 /**
  * @file simulation.hpp

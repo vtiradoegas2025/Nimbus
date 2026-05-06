@@ -7,7 +7,7 @@
  */
 #include "catch2/catch.hpp"
 #include "core/output/npy_writer.hpp"
-#include "core/field3d.hpp"
+#include "core/field/field3d.hpp"
 
 #include <cstdio>
 #include <filesystem>

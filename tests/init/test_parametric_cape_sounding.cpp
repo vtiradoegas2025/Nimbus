@@ -16,7 +16,7 @@
  */
 
 #include "catch2/catch.hpp"
-#include "core/physical_constants.hpp"
+#include "core/infra/physical_constants.hpp"
 #include "init/sounding/parametric_cape.hpp"
 
 #include <cmath>

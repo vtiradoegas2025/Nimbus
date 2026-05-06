@@ -9,7 +9,7 @@
  */
 
 #include "catch2/catch.hpp"
-#include "core/coordinate_system.hpp"
+#include "core/infra/coordinate_system.hpp"
 
 #include <string>
 

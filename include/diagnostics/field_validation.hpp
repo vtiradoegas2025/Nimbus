@@ -6,7 +6,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "core/field3d.hpp"
+#include "core/field/field3d.hpp"
 #include "diagnostics/field_contract.hpp"
 
 /**

@@ -20,7 +20,7 @@
  */
 
 #include "core/output/stagger_interpolation.hpp"
-#include "core/simulation.hpp"
+#include "core/runtime/simulation.hpp"
 
 
 namespace

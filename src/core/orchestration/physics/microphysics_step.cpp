@@ -9,7 +9,7 @@
  * Extracted from src/core/equations.cpp.
  */
 
-#include "core/simulation.hpp"
+#include "core/runtime/simulation.hpp"
 #include "util/simd_utils.hpp"
 #include "util/log.hpp"
 #include "microphysics/factory.hpp"

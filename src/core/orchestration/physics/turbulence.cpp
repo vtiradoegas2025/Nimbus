@@ -7,7 +7,7 @@
  * This file belongs to the primary src/core execution layer.
  */
 
-#include "core/simulation.hpp"
+#include "core/runtime/simulation.hpp"
 #include "turbulence/factory.hpp"
 #include "turbulence/base/eddy_viscosity.hpp"
 #include "util/simd_utils.hpp"

@@ -11,7 +11,7 @@
 #include "catch2/catch.hpp"
 #include "microphysics/microphysics_base.hpp"
 #include "microphysics/base/thermodynamics.hpp"
-#include "core/simulation.hpp"
+#include "core/runtime/simulation.hpp"
 
 #include <cmath>
 #include <numeric>

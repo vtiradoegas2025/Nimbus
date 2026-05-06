@@ -3,8 +3,8 @@
  * @brief Unit tests for TVD advection scheme factory and basic behavior.
  */
 #include "catch2/catch.hpp"
-#include "core/field3d.hpp"
-#include "core/simulation.hpp"
+#include "core/field/field3d.hpp"
+#include "core/runtime/simulation.hpp"
 #include "numerics/advection/advection_base.hpp"
 
 #include <cmath>

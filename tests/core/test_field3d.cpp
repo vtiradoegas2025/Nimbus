@@ -3,7 +3,7 @@
  * @brief Unit tests for Field3D container.
  */
 #include "catch2/catch.hpp"
-#include "core/field3d.hpp"
+#include "core/field/field3d.hpp"
 
 #include <cmath>
 #include <limits>

@@ -8,9 +8,9 @@
 
 #include "init/trigger/vortex_seed.hpp"
 
-#include "core/coordinate_system.hpp"
-#include "core/field3d.hpp"
-#include "core/grid_geometry.hpp"
+#include "core/infra/coordinate_system.hpp"
+#include "core/field/field3d.hpp"
+#include "core/infra/grid_geometry.hpp"
 
 #include <algorithm>
 #include <cmath>

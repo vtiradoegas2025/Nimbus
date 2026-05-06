@@ -12,7 +12,7 @@
 #include <cstdint>
 #include <vector>
 #include <string>
-#include "core/field3d.hpp"
+#include "core/field/field3d.hpp"
 
 namespace chaos
 {

@@ -7,7 +7,7 @@
  * This file belongs to the primary src/core execution layer.
  */
 
-#include "core/runtime_config.hpp"
+#include "core/runtime/runtime_config.hpp"
 
 #include "core/output/output_config.hpp"
 
@@ -30,8 +30,8 @@
 #include "compute/compute_kernel_template.hpp"
 #include "numerics/diffusion/diffusion_base.hpp"
 #include "radiation/radiation_base.hpp"
-#include "core/simulation.hpp"
-#include "core/hardware_info.hpp"
+#include "core/runtime/simulation.hpp"
+#include "core/infra/hardware_info.hpp"
 #include "util/log.hpp"
 #include "util/string_utils.hpp"
 #include "terrain/terrain_base.hpp"

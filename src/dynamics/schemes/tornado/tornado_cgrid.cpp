@@ -23,7 +23,7 @@
  */
 
 #include "tornado_cgrid.hpp"
-#include "core/simulation.hpp"
+#include "core/runtime/simulation.hpp"
 #include <cmath>
 
 #ifdef _OPENMP

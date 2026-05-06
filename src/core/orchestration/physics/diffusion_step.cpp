@@ -8,8 +8,8 @@
  * Extracted from src/core/dynamics.cpp.
  */
 
-#include "core/diffusion_step.hpp"
-#include "core/simulation.hpp"
+#include "core/orchestration/physics/diffusion_step.hpp"
+#include "core/runtime/simulation.hpp"
 #include "numerics/diffusion/diffusion_base.hpp"
 #include "util/log.hpp"
 

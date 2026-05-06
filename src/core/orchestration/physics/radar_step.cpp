@@ -8,7 +8,7 @@
  * Extracted from src/core/equations.cpp.
  */
 
-#include "core/simulation.hpp"
+#include "core/runtime/simulation.hpp"
 #include "microphysics/microphysics_base.hpp"
 #include "radar/radar_base.hpp"
 #include "radar/factory.hpp"

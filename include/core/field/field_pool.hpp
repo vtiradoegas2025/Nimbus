@@ -22,7 +22,7 @@
  *   // ... buf is released when guard goes out of scope ...
  */
 
-#include "core/field3d.hpp"
+#include "core/field/field3d.hpp"
 
 #include <mutex>
 #include <vector>

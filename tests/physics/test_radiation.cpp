@@ -10,7 +10,7 @@
  */
 #include "catch2/catch.hpp"
 #include "radiation/radiation_base.hpp"
-#include "core/simulation.hpp"
+#include "core/runtime/simulation.hpp"
 
 #include <cmath>
 #include <vector>

@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-#include "core/field3d.hpp"
+#include "core/field/field3d.hpp"
 #include "numerics/numerics_base.hpp"
 
 /**

@@ -22,8 +22,8 @@
  * microphysics, radiation, etc. via the rest of `equations.cpp`.
  */
 
-#include "core/initial_conditions.hpp"
-#include "core/simulation.hpp"
+#include "core/orchestration/dynamics/initial_conditions.hpp"
+#include "core/runtime/simulation.hpp"
 
 #include <cmath>
 #include <cstddef>

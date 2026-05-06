@@ -7,7 +7,7 @@
  * This file belongs to the primary src/core execution layer.
  */
 
-#include "core/simulation.hpp"
+#include "core/runtime/simulation.hpp"
 #include "boundary_layer/boundary_layer_base.hpp"
 #include "radiation/radiation_base.hpp"
 #include "radiation/factory.hpp"

@@ -21,7 +21,7 @@
  */
 
 #include "catch2/catch.hpp"
-#include "core/physical_constants.hpp"
+#include "core/infra/physical_constants.hpp"
 #include "init/sounding/file_sounding.hpp"
 
 #include <cmath>

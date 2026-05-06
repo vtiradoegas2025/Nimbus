@@ -11,7 +11,7 @@
 
 #pragma once
 #include "random_generator.hpp"
-#include "core/field3d.hpp"
+#include "core/field/field3d.hpp"
 #include <string>
 #include <tuple>
 

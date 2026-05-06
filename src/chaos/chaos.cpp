@@ -7,7 +7,7 @@
  * This file is part of the src/chaos subsystem.
  */
 
-#include "core/simulation.hpp"
+#include "core/runtime/simulation.hpp"
 #include "boundary_layer/boundary_layer_base.hpp"
 #include "factory.hpp"
 #include "turbulence/turbulence_base.hpp"

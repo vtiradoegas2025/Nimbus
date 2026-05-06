@@ -70,8 +70,8 @@
 
 #include "numerics/advection/advection_cylindrical_cgrid.hpp"
 #include "compute/compute_kernel_template.hpp"
-#include "core/grid_geometry.hpp"
-#include "core/simulation.hpp"
+#include "core/infra/grid_geometry.hpp"
+#include "core/runtime/simulation.hpp"
 
 #include <algorithm>
 #include <cstddef>

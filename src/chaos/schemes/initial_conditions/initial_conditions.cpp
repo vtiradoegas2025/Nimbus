@@ -10,7 +10,7 @@
 #include "initial_conditions.hpp"
 #include "chaos/base/perturbation_field.hpp"
 #include "chaos/base/correlation_filter.hpp"
-#include "core/simulation.hpp"
+#include "core/runtime/simulation.hpp"
 #include "turbulence/turbulence_base.hpp"
 #include <iostream>
 #include <chrono>

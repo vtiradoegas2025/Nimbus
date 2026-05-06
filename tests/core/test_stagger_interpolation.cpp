@@ -15,9 +15,9 @@
 
 #include "catch2/catch.hpp"
 
-#include "core/field3d.hpp"
+#include "core/field/field3d.hpp"
 #include "core/output/stagger_interpolation.hpp"
-#include "core/simulation.hpp"
+#include "core/runtime/simulation.hpp"
 
 #include <cmath>
 

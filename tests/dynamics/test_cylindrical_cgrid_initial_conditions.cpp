@@ -45,12 +45,12 @@
  */
 
 #include "catch2/catch.hpp"
-#include "core/coordinate_system.hpp"
-#include "core/field3d.hpp"
-#include "core/grid_geometry.hpp"
-#include "core/initial_conditions.hpp"
-#include "core/runtime_config.hpp"
-#include "core/simulation.hpp"
+#include "core/infra/coordinate_system.hpp"
+#include "core/field/field3d.hpp"
+#include "core/infra/grid_geometry.hpp"
+#include "core/orchestration/dynamics/initial_conditions.hpp"
+#include "core/runtime/runtime_config.hpp"
+#include "core/runtime/simulation.hpp"
 #include "numerics/derivatives/derivative_operators.hpp"
 
 #include <algorithm>

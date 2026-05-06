@@ -3,7 +3,7 @@
 #include <cmath>
 #include <vector>
 
-#include "core/coordinate_system.hpp"
+#include "core/infra/coordinate_system.hpp"
 
 /**
  * @file grid_geometry.hpp

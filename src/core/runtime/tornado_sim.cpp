@@ -23,7 +23,7 @@
 #include <cctype>
 #include <limits>
 #include <cmath>
-#include "core/simulation.hpp"
+#include "core/runtime/simulation.hpp"
 #include "boundary_layer/boundary_layer_base.hpp"
 #include "chaos/chaos_base.hpp"
 #include "compute/compute_backend.hpp"
@@ -32,8 +32,8 @@
 #include "radiation/radiation_base.hpp"
 #include "terrain/terrain_base.hpp"
 #include "turbulence/turbulence_base.hpp"
-#include "core/headless_runtime.hpp"
-#include "core/runtime_config.hpp"
+#include "core/runtime/headless_runtime.hpp"
+#include "core/runtime/runtime_config.hpp"
 #include "numerics/advection/advection.hpp"
 #include "diagnostics/field_contract.hpp"
 #include "diagnostics/field_validation.hpp"

@@ -7,7 +7,7 @@
  * This file belongs to the primary src/core execution layer.
  */
 
-#include "core/simulation.hpp"
+#include "core/runtime/simulation.hpp"
 #include "terrain/factory.hpp"
 #include "terrain/base/topography.hpp"
 #include "util/string_utils.hpp"

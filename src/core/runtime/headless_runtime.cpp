@@ -7,7 +7,7 @@
  * This file belongs to the primary src/core execution layer.
  */
 
-#include "core/headless_runtime.hpp"
+#include "core/runtime/headless_runtime.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -33,9 +33,9 @@
 #include "core/output/output_writer.hpp"
 #include "core/output/stagger_interpolation.hpp"
 // hardware_info.hpp: auto-scale now handled in load_config() before field allocation
-#include "core/runtime_config.hpp"
+#include "core/runtime/runtime_config.hpp"
 #include "core/output/shm_writer.hpp"
-#include "core/simulation.hpp"
+#include "core/runtime/simulation.hpp"
 
 /**
  * @brief Executes the simulation loop in headless mode with periodic exports.

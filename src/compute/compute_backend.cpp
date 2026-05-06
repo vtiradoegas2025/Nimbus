@@ -9,7 +9,7 @@
 
 #include "compute/compute_backend.hpp"
 #include "compute/compute_backend_factory.hpp"
-#include "core/hardware_info.hpp"
+#include "core/infra/hardware_info.hpp"
 
 #include "util/string_utils.hpp"
 
@@ -19,8 +19,8 @@
 #include <utility>
 #include <vector>
 
-#include "core/runtime_config.hpp"
-#include "core/simulation.hpp"
+#include "core/runtime/runtime_config.hpp"
+#include "core/runtime/simulation.hpp"
 
 namespace
 {

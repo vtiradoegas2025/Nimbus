@@ -11,12 +11,12 @@
  * Run with: ./bin/test_integration -c "[performance]" for just these tests.
  */
 #include "catch2/catch.hpp"
-#include "core/field3d.hpp"
+#include "core/field/field3d.hpp"
 #include "core/field/field_pool.hpp"
 #include "core/output/output_config.hpp"
 #include "core/output/npy_writer.hpp"
-#include "core/hardware_info.hpp"
-#include "core/simulation.hpp"
+#include "core/infra/hardware_info.hpp"
+#include "core/runtime/simulation.hpp"
 
 #include <chrono>
 #include <cstdio>

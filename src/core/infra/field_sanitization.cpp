@@ -9,7 +9,7 @@
  */
 
 #include "core/field/field_sanitization.hpp"
-#include "core/simulation.hpp"
+#include "core/runtime/simulation.hpp"
 #include "diagnostics/field_contract.hpp"
 #include "util/log.hpp"
 

@@ -3,7 +3,7 @@
  * @brief Unit tests for hardware detection and memory estimation.
  */
 #include "catch2/catch.hpp"
-#include "core/hardware_info.hpp"
+#include "core/infra/hardware_info.hpp"
 
 TEST_CASE("detect_hardware returns valid CPU info", "[core][hardware]")
 {

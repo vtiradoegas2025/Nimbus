@@ -53,7 +53,7 @@
 
 #pragma once
 
-#include "core/field3d.hpp"
+#include "core/field/field3d.hpp"
 
 /**
  * @brief TVD-MUSCL flux-form scalar advection in the radial direction

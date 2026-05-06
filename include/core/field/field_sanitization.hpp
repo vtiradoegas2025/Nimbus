@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "core/field3d.hpp"
+#include "core/field/field3d.hpp"
 
 /**
  * @brief Replaces non-finite values with zero and clamps to [min_value, max_value].

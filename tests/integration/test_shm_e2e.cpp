@@ -16,7 +16,7 @@
 #include "catch2/catch.hpp"
 #include "core/output/shm_writer.hpp"
 #include "core/output/shm_transport.hpp"
-#include "core/field3d.hpp"
+#include "core/field/field3d.hpp"
 #include "data/shm_dataset.hpp"
 
 static constexpr int kNX = 8;

@@ -29,7 +29,7 @@
 #include <string>
 #include <vector>
 
-#include "core/simulation.hpp"
+#include "core/runtime/simulation.hpp"
 #include "compute/gpu_buffer_pool.hpp"
 
 #if defined(__has_include)

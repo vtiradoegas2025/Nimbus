@@ -11,8 +11,8 @@
  * Order verification: halving dt should reduce error by 2^order.
  */
 #include "catch2/catch.hpp"
-#include "core/field3d.hpp"
-#include "core/simulation.hpp"
+#include "core/field/field3d.hpp"
+#include "core/runtime/simulation.hpp"
 #include "numerics/time_stepping/time_stepping_base.hpp"
 #include "numerics/numerics_base.hpp"
 

@@ -13,9 +13,9 @@
 #include "numerics/advection/advection_cylindrical_cgrid.hpp"
 #include "compute/compute_backend.hpp"
 #include "compute/compute_kernel_template.hpp"
-#include "core/coordinate_system.hpp"
-#include "core/runtime_config.hpp"
-#include "core/simulation.hpp"
+#include "core/infra/coordinate_system.hpp"
+#include "core/runtime/runtime_config.hpp"
+#include "core/runtime/simulation.hpp"
 #include <algorithm>
 #include <chrono>
 #include <cctype>

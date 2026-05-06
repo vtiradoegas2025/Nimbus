@@ -9,7 +9,7 @@
 
 #include "kessler.hpp"
 #include "core/field/field_pool.hpp"
-#include "core/simulation.hpp"
+#include "core/runtime/simulation.hpp"
 #include "compute/compute_kernel_template.hpp"
 #include <algorithm>
 #include <cmath>

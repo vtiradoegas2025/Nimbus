@@ -10,9 +10,12 @@ include/
   boundary_layer/        PBL parameterization base class
   chaos/                 Stochastic perturbation base class
   compute/               GPU compute backend interface and kernel dispatch
-  core/                  Simulation state, Field3D, runtime config, constants
-    field/               Field3D utilities (pool, snapshot, sanitization)
-    output/              Output writers (NPY, SHM, config)
+  core/                  Simulation engine public API
+    field/               Field3D, field pools, snapshots, sanitization
+    infra/               Coordinate system, grid geometry, hardware info, physical constants
+    orchestration/       Module wiring (initial conditions, diffusion step)
+    output/              Output writers (NPY, SHM, config, stagger interpolation)
+    runtime/             Simulation umbrella header, headless runtime, runtime config
   data/                  Sounding data structures and ingestion
   diagnostics/           Conservation budget, field contract, field validation
   dynamics/              Dynamics scheme base class
@@ -33,7 +36,7 @@ include/
 
 - Each physics/numerics module defines a base class here as `<module>/<module>_base.hpp`. Implementations live in `src/<module>/schemes/`.
 - Schemes are registered via `util/scheme_factory.hpp` and created through factory functions in `src/<module>/factory.cpp`.
-- `core/simulation.hpp` declares all global state (Field3D arrays, grid dimensions, config globals).
+- `core/runtime/simulation.hpp` declares all global state (Field3D arrays, grid dimensions, config globals).
 - `core/field/field3d.hpp` provides the contiguous 3D storage used by every module.
 - Infrastructure modules (boundary_conditions, compute, diagnostics) define their interfaces here but do not use the factory pattern. See `src/README.md` for why.
 

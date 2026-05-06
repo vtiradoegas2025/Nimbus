@@ -8,7 +8,7 @@
  */
 
 #include "diagnostics/conservation_budget.hpp"
-#include "core/simulation.hpp"
+#include "core/runtime/simulation.hpp"
 #include "util/log.hpp"
 
 #include <algorithm>

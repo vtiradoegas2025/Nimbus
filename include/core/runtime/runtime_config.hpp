@@ -4,7 +4,7 @@
 #include <string>
 #include <unordered_map>
 
-#include "core/coordinate_system.hpp"
+#include "core/infra/coordinate_system.hpp"
 #include "diagnostics/field_validation.hpp"
 #include "data/soundings.hpp"
 #include "init/hodograph/factory.hpp"

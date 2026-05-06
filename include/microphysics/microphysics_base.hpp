@@ -3,8 +3,8 @@
 #include <memory>
 #include <string>
 
-#include "core/field3d.hpp"
-#include "core/physical_constants.hpp"
+#include "core/field/field3d.hpp"
+#include "core/infra/physical_constants.hpp"
 
 /**
  * @file microphysics_base.hpp

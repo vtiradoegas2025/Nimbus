@@ -12,7 +12,7 @@
 #include "catch2/catch.hpp"
 #include "core/output/shm_transport.hpp"
 #include "core/output/shm_writer.hpp"
-#include "core/field3d.hpp"
+#include "core/field/field3d.hpp"
 
 #include <cstring>
 #include <vector>

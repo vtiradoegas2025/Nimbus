@@ -48,7 +48,7 @@
  */
 
 #include "numerics/advection/advection_cartesian.hpp"
-#include "core/simulation.hpp"
+#include "core/runtime/simulation.hpp"
 
 #include <algorithm>
 #include <cmath>

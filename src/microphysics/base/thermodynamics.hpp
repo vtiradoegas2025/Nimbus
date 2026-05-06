@@ -12,7 +12,7 @@
 #include <algorithm>
 #include <cmath>
 #include "microphysics/microphysics_base.hpp"
-#include "core/field3d.hpp"
+#include "core/field/field3d.hpp"
 
 /**
  * @brief Thermodynamic conversions and moist-air utility functions.

@@ -13,8 +13,8 @@
  * These are scientific correctness tests for AMS 2027 credibility.
  */
 #include "catch2/catch.hpp"
-#include "core/field3d.hpp"
-#include "core/simulation.hpp"
+#include "core/field/field3d.hpp"
+#include "core/runtime/simulation.hpp"
 #include "turbulence/turbulence_base.hpp"
 #include "numerics/advection/advection_base.hpp"
 

@@ -13,9 +13,9 @@
 #include <memory>
 #include <sstream>
 #include <string>
-#include "core/simulation.hpp"
-#include "core/runtime_config.hpp"
-#include "core/initial_conditions.hpp"
+#include "core/runtime/simulation.hpp"
+#include "core/runtime/runtime_config.hpp"
+#include "core/orchestration/dynamics/initial_conditions.hpp"
 #include "init/hodograph/factory.hpp"
 #include "init/hodograph/hodograph_source.hpp"
 #include "init/sounding/diagnostics.hpp"

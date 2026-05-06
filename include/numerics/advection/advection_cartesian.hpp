@@ -47,7 +47,7 @@
 
 #pragma once
 
-#include "core/field3d.hpp"
+#include "core/field/field3d.hpp"
 
 /**
  * @brief First-order upwind scalar advection in the x direction.

@@ -8,7 +8,7 @@
  * Extracted from src/core/equations.cpp.
  */
 
-#include "core/simulation.hpp"
+#include "core/runtime/simulation.hpp"
 
 #include <algorithm>
 #include <cmath>

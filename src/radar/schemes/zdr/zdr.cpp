@@ -8,7 +8,7 @@
  */
 
 #include "zdr.hpp"
-#include "core/field3d.hpp"
+#include "core/field/field3d.hpp"
 #include <algorithm>
 #include <cmath>
 #include <iostream>

@@ -9,7 +9,7 @@
 
 #include "milbrandt.hpp"
 #include "microphysics/base/thermodynamics.hpp"
-#include "core/simulation.hpp"
+#include "core/runtime/simulation.hpp"
 #include <algorithm>
 #include <cmath>
 #ifdef _OPENMP

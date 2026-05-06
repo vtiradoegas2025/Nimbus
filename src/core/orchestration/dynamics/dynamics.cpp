@@ -7,11 +7,11 @@
  * This file belongs to the primary src/core execution layer.
  */
 
-#include "core/simulation.hpp"
+#include "core/runtime/simulation.hpp"
 #include "boundary_conditions/boundary_conditions.hpp"
-#include "core/diffusion_step.hpp"
+#include "core/orchestration/physics/diffusion_step.hpp"
 #include "core/field/field_sanitization.hpp"
-#include "core/runtime_config.hpp"
+#include "core/runtime/runtime_config.hpp"
 #include "diagnostics/conservation_budget.hpp"
 #include "numerics/diffusion/diffusion_base.hpp"
 #include "numerics/time_stepping/time_stepping_base.hpp"

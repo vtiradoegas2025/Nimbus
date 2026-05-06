@@ -8,9 +8,9 @@
  */
 
 #include "catch2/catch.hpp"
-#include "core/coordinate_system.hpp"
-#include "core/grid_geometry.hpp"
-#include "core/simulation.hpp"
+#include "core/infra/coordinate_system.hpp"
+#include "core/infra/grid_geometry.hpp"
+#include "core/runtime/simulation.hpp"
 #include "numerics/derivatives/derivative_operators.hpp"
 
 #include <cmath>

@@ -6,8 +6,8 @@
 
 #include "init/trigger/warm_bubble.hpp"
 
-#include "core/coordinate_system.hpp"
-#include "core/initial_conditions.hpp"
+#include "core/infra/coordinate_system.hpp"
+#include "core/orchestration/dynamics/initial_conditions.hpp"
 
 extern CoordinateSystem global_coordinate_system;
 

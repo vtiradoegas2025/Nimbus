@@ -3,8 +3,8 @@
 #include <algorithm>
 #include <cmath>
 
-#include "core/simulation.hpp"
-#include "core/grid_geometry.hpp"
+#include "core/runtime/simulation.hpp"
+#include "core/infra/grid_geometry.hpp"
 #include "util/grid_metric_utils.hpp"
 
 /**

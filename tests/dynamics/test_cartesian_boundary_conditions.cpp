@@ -39,9 +39,9 @@
 
 #include "catch2/catch.hpp"
 #include "boundary_conditions/boundary_conditions.hpp"
-#include "core/field3d.hpp"
-#include "core/runtime_config.hpp"
-#include "core/simulation.hpp"
+#include "core/field/field3d.hpp"
+#include "core/runtime/runtime_config.hpp"
+#include "core/runtime/simulation.hpp"
 #include "dynamics/schemes/cartesian/cartesian.hpp"
 #include "dynamics/dynamics_base.hpp"
 

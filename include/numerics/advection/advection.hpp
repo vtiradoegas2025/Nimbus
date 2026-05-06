@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-#include "core/field3d.hpp"
+#include "core/field/field3d.hpp"
 
 /**
  * @file advection.hpp

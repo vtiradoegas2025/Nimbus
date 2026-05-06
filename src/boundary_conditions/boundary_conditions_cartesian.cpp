@@ -8,7 +8,7 @@
  */
 
 #include "boundary_conditions/boundary_conditions_base.hpp"
-#include "core/simulation.hpp"
+#include "core/runtime/simulation.hpp"
 #include "dynamics/dynamics_base.hpp"
 
 #include <algorithm>

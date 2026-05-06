@@ -9,7 +9,7 @@
 #include "catch2/catch.hpp"
 #include "diagnostics/field_validation.hpp"
 #include "diagnostics/field_contract.hpp"
-#include "core/field3d.hpp"
+#include "core/field/field3d.hpp"
 
 #include <cmath>
 #include <limits>

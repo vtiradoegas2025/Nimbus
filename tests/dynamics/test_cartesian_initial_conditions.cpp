@@ -40,10 +40,10 @@
  */
 
 #include "catch2/catch.hpp"
-#include "core/field3d.hpp"
-#include "core/initial_conditions.hpp"
-#include "core/runtime_config.hpp"
-#include "core/simulation.hpp"
+#include "core/field/field3d.hpp"
+#include "core/orchestration/dynamics/initial_conditions.hpp"
+#include "core/runtime/runtime_config.hpp"
+#include "core/runtime/simulation.hpp"
 
 #include <algorithm>
 #include <cmath>

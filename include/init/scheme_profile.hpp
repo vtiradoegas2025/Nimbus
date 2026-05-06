@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/coordinate_system.hpp"
+#include "core/infra/coordinate_system.hpp"
 #include "init/hodograph/factory.hpp"
 #include "init/sounding/factory.hpp"
 #include "init/trigger/factory.hpp"

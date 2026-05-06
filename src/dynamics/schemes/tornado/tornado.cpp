@@ -8,7 +8,7 @@
  */
 
 #include "tornado.hpp"
-#include "core/simulation.hpp"
+#include "core/runtime/simulation.hpp"
 #include "compute/compute_kernel_template.hpp"
 #include "util/grid_metric_utils.hpp"
 #include <cmath>

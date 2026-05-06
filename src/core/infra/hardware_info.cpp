@@ -6,8 +6,8 @@
  * Falls back gracefully when platform APIs are unavailable.
  */
 
-#include "core/hardware_info.hpp"
-#include "core/simulation.hpp"
+#include "core/infra/hardware_info.hpp"
+#include "core/runtime/simulation.hpp"
 #include "util/log.hpp"
 #include "util/simd_utils.hpp"
 

@@ -29,8 +29,8 @@
 #include "diagnostics/field_validation.hpp"
 #include "radar/radar_base.hpp"
 
-#include "core/simulation.hpp"
-#include "core/runtime_config.hpp"
+#include "core/runtime/simulation.hpp"
+#include "core/runtime/runtime_config.hpp"
 
 // ---------------------------------------------------------------------------
 // Grid dimensions and spacing (simulation.hpp)

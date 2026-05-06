@@ -25,7 +25,7 @@
 // Import log-level gating functions from simulation.hpp.
 // simulation.hpp defines LogProfile, global_log_profile, and the
 // log_normal_enabled() / log_debug_enabled() inline functions.
-#include "core/simulation.hpp"
+#include "core/runtime/simulation.hpp"
 
 namespace tmv
 {

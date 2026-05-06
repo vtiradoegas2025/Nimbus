@@ -12,7 +12,7 @@
  *   - Sequence number bumping for reader synchronization
  */
 
-#include "core/field3d.hpp"
+#include "core/field/field3d.hpp"
 #include "core/output/shm_transport.hpp"
 
 #include <string>

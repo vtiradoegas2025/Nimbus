@@ -28,8 +28,8 @@
  * `global_coordinate_system == CoordinateSystem::Cartesian`.
  */
 
-#include "core/initial_conditions.hpp"
-#include "core/simulation.hpp"
+#include "core/orchestration/dynamics/initial_conditions.hpp"
+#include "core/runtime/simulation.hpp"
 
 #include <algorithm>
 #include <cmath>
