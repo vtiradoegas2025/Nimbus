@@ -31,6 +31,18 @@
 #endif
 
 
+namespace
+{
+
+// Returns rho_safe = rho if finite and positive enough, else 1.0.
+inline double safe_rho(double rho)
+{
+    return (std::isfinite(rho) && rho > 1.0e-6) ? rho : 1.0;
+}
+
+}  // namespace
+
+
 TornadoCGridScheme::TornadoCGridScheme()
     : NR_(NR), NTH_(NTH), NZ_(NZ),
       dr_(dr), dtheta_(dtheta), dz_(dz),
@@ -289,6 +301,298 @@ void TornadoCGridScheme::compute_momentum_tendencies(
                 drho_dt[i][jj][k] = drho_dt[i][j][k];
                 dp_dt[i][jj][k]   = dp_dt[i][j][k];
             }
+        }
+    }
+}
+
+
+// =====================================================================
+// Slow tendencies: advection + buoyancy + centrifugal/curvature.
+// Pressure gradient on velocities is dropped; -gamma*p*div on pressure is
+// dropped; drho/dt = 0. The split-explicit time stepper sums these once
+// per big step with the N fast contributions accumulated each substep.
+// =====================================================================
+void TornadoCGridScheme::compute_slow_tendencies(
+    const Field3D& u, const Field3D& v, const Field3D& w,
+    const Field3D& rho, const Field3D& p, const Field3D& theta, double /*dt*/,
+    Field3D& du_dt, Field3D& dv_dt, Field3D& dw_dt,
+    Field3D& drho_dt, Field3D& dp_dt)
+{
+    (void)theta;
+
+    #pragma omp parallel for collapse(2)
+    for (int i = 0; i < NR_; ++i)
+        for (int j = 0; j < NTH_; ++j)
+            for (int k = 0; k < NZ_; ++k)
+            {
+                du_dt[i][j][k]   = 0.0f;
+                dv_dt[i][j][k]   = 0.0f;
+                dw_dt[i][j][k]   = 0.0f;
+                drho_dt[i][j][k] = 0.0f;
+                dp_dt[i][j][k]   = 0.0f;
+            }
+
+    const int j          = 0;
+    const double inv_2dr = geo_.inv_2dr;
+    const double inv_2dz = geo_.inv_2dz;
+    const double g_local = dynamics_constants::g;
+
+    // ===== du/dt at r-face: advection + centrifugal (NO pressure) =====
+    #pragma omp parallel for
+    for (int i = 0; i < NR_ - 1; ++i)
+    {
+        const double r_face = geo_.r_face[i];
+        for (int k = 1; k < NZ_ - 1; ++k)
+        {
+            const double u_face     = static_cast<double>(u[i][j][k]);
+            const double v_at_uface = 0.5 * (static_cast<double>(v[i    ][j][k])
+                                           + static_cast<double>(v[i + 1][j][k]));
+            const double w_center_left  = 0.5 * (static_cast<double>(w[i    ][j][k])
+                                               + static_cast<double>(w[i    ][j][k - 1]));
+            const double w_center_right = 0.5 * (static_cast<double>(w[i + 1][j][k])
+                                               + static_cast<double>(w[i + 1][j][k - 1]));
+            const double w_at_uface     = 0.5 * (w_center_left + w_center_right);
+
+            const double u_left  = (i == 0) ? -u_face
+                                            :  static_cast<double>(u[i - 1][j][k]);
+            const double u_right =                static_cast<double>(u[i + 1][j][k]);
+            const double dur_dr  = (u_right - u_left) * inv_2dr;
+            const double dur_dz  = (static_cast<double>(u[i][j][k + 1])
+                                  - static_cast<double>(u[i][j][k - 1])) * inv_2dz;
+
+            double du_r = -u_face * dur_dr
+                        - w_at_uface * dur_dz
+                        + (v_at_uface * v_at_uface) / r_face;
+            if (!std::isfinite(du_r)) du_r = 0.0;
+            du_dt[i][j][k] = static_cast<float>(du_r);
+            for (int jj = 1; jj < NTH_; ++jj)
+                du_dt[i][jj][k] = du_dt[i][j][k];
+        }
+    }
+
+    // ===== dv/dt at theta-face: advection + curvature (NO pressure) =====
+    #pragma omp parallel for
+    for (int i = 1; i < NR_ - 1; ++i)
+    {
+        const double r_inv = geo_.r_inv[i];
+        for (int k = 1; k < NZ_ - 1; ++k)
+        {
+            const double v_face     = static_cast<double>(v[i][j][k]);
+            const double u_at_vface = 0.5 * (static_cast<double>(u[i    ][j][k])
+                                           + static_cast<double>(u[i - 1][j][k]));
+            const double w_at_vface = 0.5 * (static_cast<double>(w[i][j][k    ])
+                                           + static_cast<double>(w[i][j][k - 1]));
+
+            const double dv_dr = (static_cast<double>(v[i + 1][j][k])
+                                - static_cast<double>(v[i - 1][j][k])) * inv_2dr;
+            const double dv_dz = (static_cast<double>(v[i][j][k + 1])
+                                - static_cast<double>(v[i][j][k - 1])) * inv_2dz;
+
+            double dv_t = -u_at_vface * dv_dr
+                        - w_at_vface * dv_dz
+                        - u_at_vface * v_face * r_inv;
+            if (!std::isfinite(dv_t)) dv_t = 0.0;
+            dv_dt[i][j][k] = static_cast<float>(dv_t);
+            for (int jj = 1; jj < NTH_; ++jj)
+                dv_dt[i][jj][k] = dv_dt[i][j][k];
+        }
+    }
+
+    // ===== dw/dt at z-face: advection + buoyancy (NO pressure gradient) =====
+    #pragma omp parallel for
+    for (int i = 1; i < NR_ - 1; ++i)
+    {
+        for (int k = 0; k < NZ_ - 1; ++k)
+        {
+            const double w_face = static_cast<double>(w[i][j][k]);
+
+            const double u_center_below = 0.5 * (static_cast<double>(u[i    ][j][k    ])
+                                               + static_cast<double>(u[i - 1][j][k    ]));
+            const double u_center_above = 0.5 * (static_cast<double>(u[i    ][j][k + 1])
+                                               + static_cast<double>(u[i - 1][j][k + 1]));
+            const double u_at_wface     = 0.5 * (u_center_below + u_center_above);
+
+            const double dw_dr = (static_cast<double>(w[i + 1][j][k])
+                                - static_cast<double>(w[i - 1][j][k])) * inv_2dr;
+            const double w_below = (k == 0) ? 0.0 : static_cast<double>(w[i][j][k - 1]);
+            const double w_above =                  static_cast<double>(w[i][j][k + 1]);
+            const double dw_dz   = (w_above - w_below) * inv_2dz;
+
+            const double rho_face  = 0.5 * (static_cast<double>(rho[i][j][k])
+                                          + static_cast<double>(rho[i][j][k + 1]));
+            const double rho_safe  = safe_rho(rho_face);
+            const double rho0_face = 0.5 * (rho0_base[k] + rho0_base[k + 1]);
+
+            const double buoyancy = -g_local * (rho_face - rho0_face) / rho_safe;
+
+            double moisture_buoyancy = 0.0;
+            if (!qv.empty() && !qv0_base.empty())
+            {
+                const double qv_face  = 0.5 * (static_cast<double>(qv[i][j][k])
+                                             + static_cast<double>(qv[i][j][k + 1]));
+                const double qv0_face = 0.5 * (qv0_base[k] + qv0_base[k + 1]);
+                moisture_buoyancy = g_local * 0.608 * (qv_face - qv0_face);
+            }
+
+            double loading = 0.0;
+            if (!qc.empty())
+            {
+                const double q_below = static_cast<double>(qc[i][j][k]) + static_cast<double>(qr[i][j][k])
+                                     + static_cast<double>(qi[i][j][k]) + static_cast<double>(qs[i][j][k])
+                                     + static_cast<double>(qg[i][j][k]) + static_cast<double>(qh[i][j][k]);
+                const double q_above = static_cast<double>(qc[i][j][k + 1]) + static_cast<double>(qr[i][j][k + 1])
+                                     + static_cast<double>(qi[i][j][k + 1]) + static_cast<double>(qs[i][j][k + 1])
+                                     + static_cast<double>(qg[i][j][k + 1]) + static_cast<double>(qh[i][j][k + 1]);
+                loading = -g_local * 0.5 * (q_below + q_above);
+            }
+
+            double dw_t = -u_at_wface * dw_dr
+                        - w_face * dw_dz
+                        + buoyancy + moisture_buoyancy + loading;
+            if (!std::isfinite(dw_t)) dw_t = 0.0;
+            dw_dt[i][j][k] = static_cast<float>(dw_t);
+            for (int jj = 1; jj < NTH_; ++jj)
+                dw_dt[i][jj][k] = dw_dt[i][j][k];
+        }
+    }
+
+    // ===== dp/dt at cell-center: advection only (-u . grad p) =====
+    // drho/dt is 0 in the slow path (mass continuity is fast).
+    #pragma omp parallel for
+    for (int i = 1; i < NR_ - 1; ++i)
+    {
+        for (int k = 1; k < NZ_ - 1; ++k)
+        {
+            const double u_center = 0.5 * (static_cast<double>(u[i    ][j][k])
+                                         + static_cast<double>(u[i - 1][j][k]));
+            const double w_center = 0.5 * (static_cast<double>(w[i][j][k    ])
+                                         + static_cast<double>(w[i][j][k - 1]));
+            const double dp_dr_c  = (static_cast<double>(p[i + 1][j][k])
+                                   - static_cast<double>(p[i - 1][j][k])) * inv_2dr;
+            const double dp_dz_c  = (static_cast<double>(p[i][j][k + 1])
+                                   - static_cast<double>(p[i][j][k - 1])) * inv_2dz;
+
+            double dp_t = -u_center * dp_dr_c - w_center * dp_dz_c;
+            if (!std::isfinite(dp_t)) dp_t = 0.0;
+            dp_dt[i][j][k] = static_cast<float>(dp_t);
+            for (int jj = 1; jj < NTH_; ++jj)
+                dp_dt[i][jj][k] = dp_dt[i][j][k];
+        }
+    }
+}
+
+
+// =====================================================================
+// Fast pressure tendencies: -gamma*p*div_flux, -rho*div_flux at cell-center.
+// =====================================================================
+void TornadoCGridScheme::compute_fast_pressure_tendencies(
+    const Field3D& u, const Field3D& v, const Field3D& w,
+    const Field3D& rho, const Field3D& p,
+    Field3D& drho_dt, Field3D& dp_dt)
+{
+    #pragma omp parallel for collapse(2)
+    for (int i = 0; i < NR_; ++i)
+        for (int j = 0; j < NTH_; ++j)
+            for (int k = 0; k < NZ_; ++k)
+            {
+                drho_dt[i][j][k] = 0.0f;
+                dp_dt  [i][j][k] = 0.0f;
+            }
+
+    const int j              = 0;
+    const double gamma_local = dynamics_constants::gamma;
+
+    #pragma omp parallel for
+    for (int i = 1; i < NR_ - 1; ++i)
+    {
+        for (int k = 1; k < NZ_ - 1; ++k)
+        {
+            const double rho_val  = static_cast<double>(rho[i][j][k]);
+            const double p_val    = static_cast<double>(p  [i][j][k]);
+            const double rho_safe = safe_rho(rho_val);
+
+            const double div = deriv_.div_flux(u, v, w, i, j, k);
+
+            double drho = -rho_safe * div;
+            if (!std::isfinite(drho)) drho = 0.0;
+            drho_dt[i][j][k] = static_cast<float>(drho);
+
+            double dp_t = -gamma_local * p_val * div;
+            if (!std::isfinite(dp_t)) dp_t = 0.0;
+            dp_dt[i][j][k] = static_cast<float>(dp_t);
+
+            for (int jj = 1; jj < NTH_; ++jj)
+            {
+                drho_dt[i][jj][k] = drho_dt[i][j][k];
+                dp_dt  [i][jj][k] = dp_dt  [i][j][k];
+            }
+        }
+    }
+}
+
+
+// =====================================================================
+// Fast momentum tendencies: -grad(p)/rho on velocity faces.
+//   du/dt at r-face: -dp/dr / rho_face_r
+//   dv/dt at theta-face: 0   (axisymmetric pressure: dp/dtheta = 0)
+//   dw/dt at z-face: -(dp/dz - dp0/dz) / rho_face_z
+// =====================================================================
+void TornadoCGridScheme::compute_fast_momentum_tendencies(
+    const Field3D& /*u*/, const Field3D& /*v*/, const Field3D& /*w*/,
+    const Field3D& rho, const Field3D& p,
+    Field3D& du_dt, Field3D& dv_dt, Field3D& dw_dt)
+{
+    #pragma omp parallel for collapse(2)
+    for (int i = 0; i < NR_; ++i)
+        for (int j = 0; j < NTH_; ++j)
+            for (int k = 0; k < NZ_; ++k)
+            {
+                du_dt[i][j][k] = 0.0f;
+                dv_dt[i][j][k] = 0.0f;
+                dw_dt[i][j][k] = 0.0f;
+            }
+
+    const int j               = 0;
+    const double inv_dz_local = geo_.inv_dz;
+
+    // du/dt at r-face: -grad_r(p) / rho_face
+    #pragma omp parallel for
+    for (int i = 0; i < NR_ - 1; ++i)
+    {
+        for (int k = 1; k < NZ_ - 1; ++k)
+        {
+            const double dp_dr    = deriv_.grad_r(p, i, j, k);
+            const double rho_face = 0.5 * (static_cast<double>(rho[i    ][j][k])
+                                         + static_cast<double>(rho[i + 1][j][k]));
+            const double rho_safe = safe_rho(rho_face);
+            double du_r = -dp_dr / rho_safe;
+            if (!std::isfinite(du_r)) du_r = 0.0;
+            du_dt[i][j][k] = static_cast<float>(du_r);
+            for (int jj = 1; jj < NTH_; ++jj)
+                du_dt[i][jj][k] = du_dt[i][j][k];
+        }
+    }
+
+    // dv/dt at theta-face: 0 in axisymmetric (no theta pressure gradient).
+    // The output array was already zeroed above.
+
+    // dw/dt at z-face: -(dp/dz - dp0/dz) / rho_face_z
+    #pragma omp parallel for
+    for (int i = 1; i < NR_ - 1; ++i)
+    {
+        for (int k = 0; k < NZ_ - 1; ++k)
+        {
+            const double dp_dz       = deriv_.grad_z(p, i, j, k);
+            const double dp0_dz      = (p0_base[k + 1] - p0_base[k]) * inv_dz_local;
+            const double dp_prime_dz = dp_dz - dp0_dz;
+            const double rho_face    = 0.5 * (static_cast<double>(rho[i][j][k])
+                                            + static_cast<double>(rho[i][j][k + 1]));
+            const double rho_safe    = safe_rho(rho_face);
+            double dw_t = -dp_prime_dz / rho_safe;
+            if (!std::isfinite(dw_t)) dw_t = 0.0;
+            dw_dt[i][j][k] = static_cast<float>(dw_t);
+            for (int jj = 1; jj < NTH_; ++jj)
+                dw_dt[i][jj][k] = dw_dt[i][j][k];
         }
     }
 }

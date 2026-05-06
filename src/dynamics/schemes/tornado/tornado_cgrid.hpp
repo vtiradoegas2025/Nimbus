@@ -32,11 +32,27 @@
 
 /**
  * @brief Axisymmetric tornado dynamics scheme on the cylindrical C-grid.
+ *
+ * Implements both DynamicsScheme (unsplit / single-sweep path used by
+ * Forward Euler, RK, and direct tests) AND SplitExplicitDynamics
+ * (Klemp-Wilhelmson slow / fast acoustic decomposition).
+ *
+ * Slow / fast decomposition follows the SupercellCGridScheme convention,
+ * adapted for axisymmetric:
+ *   slow: advection + centrifugal/curvature + buoyancy on velocities;
+ *         dp/dt = -u . grad(p); drho/dt = 0.
+ *   fast pressure: dp/dt = -gamma*p*div_flux, drho/dt = -rho*div_flux.
+ *   fast momentum: -grad(p)/rho on u (r-face);
+ *                  dv/dt fast == 0 (axisymmetric: dp/dtheta = 0);
+ *                  -(dp/dz - dp0/dz)/rho on w (z-face).
+ * Sum (slow + fast) reproduces the unsplit tendencies bit-exactly.
  */
-class TornadoCGridScheme : public DynamicsScheme
+class TornadoCGridScheme : public DynamicsScheme, public SplitExplicitDynamics
 {
 public:
     TornadoCGridScheme();
+
+    // --- DynamicsScheme interface (unsplit / single-step path) -----------
 
     void compute_momentum_tendencies(
         const Field3D& u,
@@ -73,6 +89,26 @@ public:
         Field3D& tilting_term,
         Field3D& baroclinic_term
     ) override;
+
+    // --- SplitExplicitDynamics interface ---------------------------------
+
+    void compute_slow_tendencies(
+        const Field3D& u, const Field3D& v, const Field3D& w,
+        const Field3D& rho, const Field3D& p, const Field3D& theta, double dt,
+        Field3D& du_dt, Field3D& dv_dt, Field3D& dw_dt,
+        Field3D& drho_dt, Field3D& dp_dt) override;
+
+    void compute_fast_pressure_tendencies(
+        const Field3D& u, const Field3D& v, const Field3D& w,
+        const Field3D& rho, const Field3D& p,
+        Field3D& drho_dt, Field3D& dp_dt) override;
+
+    void compute_fast_momentum_tendencies(
+        const Field3D& u, const Field3D& v, const Field3D& w,
+        const Field3D& rho, const Field3D& p,
+        Field3D& du_dt, Field3D& dv_dt, Field3D& dw_dt) override;
+
+    // --- Scheme identity -------------------------------------------------
 
     std::string get_scheme_name() const override { return "tornado_cgrid"; }
     std::string get_coordinate_system() const override { return "cylindrical_cgrid"; }
