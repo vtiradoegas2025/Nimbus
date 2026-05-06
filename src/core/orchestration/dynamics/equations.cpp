@@ -113,6 +113,7 @@ Field3D dtheta_dt_rad;
 std::vector<double> rho0_base;
 std::vector<double> p0_base;
 std::vector<double> qv0_base;
+std::vector<double> theta0_base;
 std::vector<double> u0_base;
 std::vector<double> v0_base;
 double coriolis_f = 0.0;
@@ -379,6 +380,7 @@ void initialize()
     rho0_base.assign(sounding.rho_kgm3.begin(), sounding.rho_kgm3.end());
     p0_base.assign(sounding.p_pa.begin(), sounding.p_pa.end());
     qv0_base.assign(sounding.qv_kgkg.begin(), sounding.qv_kgkg.end());
+    theta0_base.assign(sounding.theta_k.begin(), sounding.theta_k.end());
 
     tmv::log_info("Base state initialized via ", sounding_source->describe(),
                   ": rho0_base[0]=", rho0_base[0],

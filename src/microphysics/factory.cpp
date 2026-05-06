@@ -12,6 +12,7 @@
 #include "schemes/lin/lin.hpp"
 #include "schemes/thompson/thompson.hpp"
 #include "schemes/milbrandt/milbrandt.hpp"
+#include "schemes/none/none.hpp"
 #include "util/scheme_factory.hpp"
 
 namespace
@@ -21,6 +22,7 @@ const tmv::SchemeRegistry<MicrophysicsScheme> registry({
     {"lin",       [] { return std::make_unique<LinScheme>(); }},
     {"thompson",  [] { return std::make_unique<ThompsonScheme>(); }},
     {"milbrandt", [] { return std::make_unique<MilbrandtScheme>(); }},
+    {"none",      [] { return std::make_unique<microphysics::NoneScheme>(); }},
 });
 }
 

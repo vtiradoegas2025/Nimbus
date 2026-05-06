@@ -11,6 +11,7 @@
 # supercell_cgrid is the right scheme here because the WK2002 hodograph is
 # the standard supercell environment.
 case_name: cgrid_uniform_wind
+coordinate_system: cylindrical
 grid:
   nx: 32
   ny: 32
@@ -57,4 +58,4 @@ output:
   write_every_s: 0
   fields: minimal
   format: npy_3d
-duration_s: 30
+duration_s: 60

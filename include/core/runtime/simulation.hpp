@@ -205,6 +205,7 @@ inline float clamp_hydrometeor_kgkg(float value)
 extern std::vector<double> rho0_base;
 extern std::vector<double> p0_base;
 extern std::vector<double> qv0_base;
+extern std::vector<double> theta0_base;
 
 // Base-state wind profiles for perturbation Coriolis (Rotunno & Klemp 1982).
 // Stored at initialization so Coriolis is applied to (u-u0, v-v0) rather than

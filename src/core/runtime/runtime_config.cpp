@@ -1675,7 +1675,7 @@ void load_config(const std::string& config_path, int& duration_s, int& write_eve
     if (config.count("microphysics.scheme"))
     {
         std::string requested_scheme = config["microphysics.scheme"];
-        std::vector<std::string> valid_schemes = {"kessler", "lin", "thompson", "milbrandt"};
+        std::vector<std::string> valid_schemes = {"kessler", "lin", "thompson", "milbrandt", "none"};
         bool valid = false;
 
         for (const auto& scheme : valid_schemes)

@@ -614,31 +614,43 @@ int main(int argc, char** argv)
         }
     }
 
-    initialize_dynamics(dynamics_scheme_name);
-
-    if (global_radiation_config.scheme_id.empty()) 
+    // Module init can throw runtime_error from validators (e.g. dynamics
+    // scheme that doesn't implement SplitExplicitDynamics when split_acoustic
+    // is on). Catch and exit cleanly rather than libc++abi terminate.
+    try
     {
-        global_radiation_config.scheme_id = "simple_grey";
-    }
-    initialize_radiation(global_radiation_config.scheme_id, global_radiation_config);
+        initialize_dynamics(dynamics_scheme_name);
 
-    if (global_boundary_layer_config.scheme_id.empty()) 
-    {
-        global_boundary_layer_config.scheme_id = "slab";
-    }
-    initialize_boundary_layer(global_boundary_layer_config.scheme_id, global_boundary_layer_config, global_surface_config);
+        if (global_radiation_config.scheme_id.empty())
+        {
+            global_radiation_config.scheme_id = "simple_grey";
+        }
+        initialize_radiation(global_radiation_config.scheme_id, global_radiation_config);
 
-    if (global_turbulence_config.scheme_id.empty()) 
-    {
-        global_turbulence_config.scheme_id = "smagorinsky";
-    }
-    initialize_turbulence(global_turbulence_config.scheme_id, global_turbulence_config);
+        if (global_boundary_layer_config.scheme_id.empty())
+        {
+            global_boundary_layer_config.scheme_id = "slab";
+        }
+        initialize_boundary_layer(global_boundary_layer_config.scheme_id, global_boundary_layer_config, global_surface_config);
 
-    if (global_terrain_config.scheme_id.empty()) 
-    {
-        global_terrain_config.scheme_id = "none";
+        if (global_turbulence_config.scheme_id.empty())
+        {
+            global_turbulence_config.scheme_id = "smagorinsky";
+        }
+        initialize_turbulence(global_turbulence_config.scheme_id, global_turbulence_config);
+
+        if (global_terrain_config.scheme_id.empty())
+        {
+            global_terrain_config.scheme_id = "none";
+        }
+        initialize_terrain(global_terrain_config.scheme_id, global_terrain_config);
     }
-    initialize_terrain(global_terrain_config.scheme_id, global_terrain_config);
+    catch (const std::exception& e)
+    {
+        std::cerr << "[CONFIG ERROR] Module initialization failed: "
+                  << e.what() << std::endl;
+        return 1;
+    }
 
     int run_status = 0;
     if (headless)

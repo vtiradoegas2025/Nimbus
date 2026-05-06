@@ -92,7 +92,7 @@ void ensure_dynamics_tendency_buffers()
  */
 void initialize_dynamics(const std::string& scheme_name) 
 {
-    try 
+    try
     {
         dynamics_scheme = create_dynamics_scheme(scheme_name);
         const std::string active_scheme_name = dynamics_scheme ? dynamics_scheme->get_scheme_name() : scheme_name;
@@ -104,12 +104,36 @@ void initialize_dynamics(const std::string& scheme_name)
             global_coordinate_system, global_stagger_type);
         tmv::log_info("Initialized BC scheme: ", bc_scheme->get_scheme_name());
 
+        // Validate split-explicit compatibility BEFORE any time stepping.
+        // The orchestrator's step_dynamics() used to silently fall back to
+        // unsplit Forward Euler when split_acoustic=true and the scheme
+        // didn't implement SplitExplicitDynamics. Forward Euler is
+        // unconditionally unstable for hyperbolic acoustic equations, so
+        // that fallback ran broken physics with no diagnostic. Detect the
+        // mismatch here and abort with a clear message.
+        if (global_time_stepping_config.split_acoustic && dynamics_scheme)
+        {
+            auto* split = dynamic_cast<SplitExplicitDynamics*>(dynamics_scheme.get());
+            if (split == nullptr)
+            {
+                throw std::runtime_error(
+                    "dynamics.scheme=" + active_scheme_name +
+                    " does not implement SplitExplicitDynamics, but "
+                    "numerics.time_stepping.split_acoustic=true. The previous "
+                    "behavior silently ran unsplit Forward Euler, which is "
+                    "unconditionally unstable for acoustic waves. "
+                    "Either set numerics.time_stepping.split_acoustic=false, "
+                    "or pick a scheme that supports split-explicit acoustics "
+                    "(e.g. supercell_cgrid, supercell, cartesian).");
+            }
+        }
+
         // Diagnostic fields (vorticity, angular momentum, pressure decomposition)
         // are allocated on first use in compute_dynamics_diagnostics().
         ensure_dynamics_tendency_buffers();
 
-    } 
-    catch (const std::runtime_error& e) 
+    }
+    catch (const std::runtime_error& e)
     {
         tmv::log_error("Error initializing dynamics scheme: ", e.what());
         throw;
@@ -373,6 +397,10 @@ void step_dynamics_new(double dt_dynamics, double current_time)
     Field3D& dp_dt = dp_dt_buf;
     const ConservationBudget budget_start = compute_conservation_budget();
 
+    // initialize_dynamics() validates that split_acoustic implies the scheme
+    // implements SplitExplicitDynamics, so when split_acoustic=true the cast
+    // is guaranteed non-null. The cast is still needed to obtain the typed
+    // pointer used by the split path below.
     auto* split_dynamics = dynamic_cast<SplitExplicitDynamics*>(dynamics_scheme.get());
     const bool use_split = global_time_stepping_config.split_acoustic
                            && split_dynamics != nullptr;

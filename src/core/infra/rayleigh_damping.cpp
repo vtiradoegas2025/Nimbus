@@ -159,6 +159,16 @@ void apply_rayleigh_damping(double dt_damp)
                                            ? rho0_base[static_cast<size_t>(k)] : 1.0;
                 const double p_ref = (static_cast<size_t>(k) < p0_base.size())
                                          ? p0_base[static_cast<size_t>(k)] : p0;
+                // Relax theta toward the per-level base-state profile, not the
+                // scalar reference theta0. Using theta0 was a latent bug: at any
+                // height where the IC theta differs from 300 K (e.g. the upper
+                // troposphere ~370 K), the sponge dragged theta toward 300 K
+                // every step, producing a cold anomaly that drove negative
+                // buoyancy, vertical motion, and ultimately a runaway 2dz mode
+                // that saturated against the [200,700] theta clamps.
+                const double theta_ref = (static_cast<size_t>(k) < theta0_base.size())
+                                             ? theta0_base[static_cast<size_t>(k)]
+                                             : theta0;
 
                 u[i][j][k] += static_cast<float>(factor * (u_ref - static_cast<double>(u[i][j][k])));
                 v[i][j][k] += static_cast<float>(factor * (v_ref - static_cast<double>(v[i][j][k])));
@@ -166,7 +176,7 @@ void apply_rayleigh_damping(double dt_damp)
 
                 // Relax thermodynamic fields toward base state
                 theta[i][j][k] += static_cast<float>(
-                    factor * (theta0 - static_cast<double>(theta[i][j][k])));
+                    factor * (theta_ref - static_cast<double>(theta[i][j][k])));
                 rho[i][j][k] += static_cast<float>(
                     factor * (rho_ref - static_cast<double>(rho[i][j][k])));
                 p[i][j][k] += static_cast<float>(

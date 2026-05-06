@@ -10,6 +10,7 @@
 # This scenario doubles as the mass-conservation gate AND a non-trivial
 # moving-state smoke test for the C-grid runtime path.
 case_name: cgrid_mass_conservation
+coordinate_system: cylindrical
 grid:
   nx: 32
   ny: 32
@@ -56,4 +57,4 @@ output:
   write_every_s: 0
   fields: minimal
   format: npy_3d
-duration_s: 30
+duration_s: 120

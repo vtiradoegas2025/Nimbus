@@ -14,6 +14,7 @@
 # perturbation Coriolis or supercell-style microphysics and exposes the
 # hydrostatic gate cleanly.
 case_name: cgrid_hydrostatic
+coordinate_system: cylindrical
 grid:
   nx: 32
   ny: 32
@@ -48,7 +49,7 @@ trigger:
 dynamics:
   scheme: tornado_cgrid
 microphysics:
-  scheme: kessler
+  scheme: none      # hydrostatic-of-dynamics test; microphysics out of the loop
 numerics:
   time_stepping:
     scheme: split_explicit
@@ -60,4 +61,4 @@ output:
   write_every_s: 0
   fields: minimal
   format: npy_3d
-duration_s: 30
+duration_s: 300

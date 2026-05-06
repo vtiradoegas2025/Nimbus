@@ -146,6 +146,7 @@ SRCS := src/core/orchestration/dynamics/equations.cpp src/core/orchestration/dyn
          src/microphysics/schemes/lin/lin.cpp \
          src/microphysics/schemes/thompson/thompson.cpp \
          src/microphysics/schemes/milbrandt/milbrandt.cpp \
+         src/microphysics/schemes/none/none.cpp \
          src/dynamics/factory.cpp \
          src/dynamics/schemes/cartesian/cartesian.cpp \
          src/dynamics/schemes/supercell/supercell.cpp \
@@ -423,7 +424,7 @@ bin/test_numerics_staggered_derivatives: $(TEST_INFRA) tests/numerics/test_stagg
 	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
 
 # Physics tests
-bin/test_physics_microphysics: $(TEST_INFRA) tests/physics/test_microphysics.cpp src/microphysics/factory.cpp src/microphysics/schemes/kessler/kessler.cpp src/microphysics/schemes/lin/lin.cpp src/microphysics/schemes/thompson/thompson.cpp src/microphysics/schemes/milbrandt/milbrandt.cpp src/microphysics/base/thermodynamics.cpp $(BACKEND_COMMON_SRCS) | bin
+bin/test_physics_microphysics: $(TEST_INFRA) tests/physics/test_microphysics.cpp src/microphysics/factory.cpp src/microphysics/schemes/kessler/kessler.cpp src/microphysics/schemes/lin/lin.cpp src/microphysics/schemes/thompson/thompson.cpp src/microphysics/schemes/milbrandt/milbrandt.cpp src/microphysics/schemes/none/none.cpp src/microphysics/base/thermodynamics.cpp $(BACKEND_COMMON_SRCS) | bin
 	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
 
 bin/test_physics_radiation: $(TEST_INFRA) tests/physics/test_radiation.cpp src/radiation/factory.cpp src/radiation/base/radiative_transfer.cpp src/radiation/schemes/simple_grey/simple_grey.cpp | bin
@@ -462,7 +463,7 @@ bin/test_init_scheme_profile_validator: $(TEST_INFRA) tests/init/test_scheme_pro
 bin/test_vulkan_backend: $(TEST_INFRA) tests/vulkan/test_compute_backend.cpp $(BACKEND_COMMON_SRCS) | bin
 	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
 
-bin/test_vulkan_gpu_parity: $(TEST_INFRA) tests/vulkan/test_gpu_parity.cpp $(BACKEND_COMMON_SRCS) src/microphysics/factory.cpp src/microphysics/schemes/kessler/kessler.cpp src/microphysics/schemes/lin/lin.cpp src/microphysics/schemes/thompson/thompson.cpp src/microphysics/schemes/milbrandt/milbrandt.cpp src/microphysics/base/thermodynamics.cpp | bin
+bin/test_vulkan_gpu_parity: $(TEST_INFRA) tests/vulkan/test_gpu_parity.cpp $(BACKEND_COMMON_SRCS) src/microphysics/factory.cpp src/microphysics/schemes/kessler/kessler.cpp src/microphysics/schemes/lin/lin.cpp src/microphysics/schemes/thompson/thompson.cpp src/microphysics/schemes/milbrandt/milbrandt.cpp src/microphysics/schemes/none/none.cpp src/microphysics/base/thermodynamics.cpp | bin
 	$(CXX) $(TEST_CXXFLAGS) $(CPPFLAGS) $^ $(LDLIBS) -o $@
 
 # Integration tests
