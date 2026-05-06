@@ -98,7 +98,6 @@ core/
     tornado_sim.cpp          main() -- program entry, initialization sequence
     headless_runtime.cpp     main simulation loop (time stepping, output, diagnostics)
     runtime_config.cpp       YAML config parsing into global state
-    gui.cpp                  SFML viewer (conditional, GUI=1)
 
   orchestration/           Wires modules into the simulation loop
     dynamics/                Equation solver and initialization

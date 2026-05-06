@@ -76,7 +76,7 @@ void compute_wind_profile(const WindProfile& profile, double z, double& u, doubl
 }
 
 /**
- * @brief Program entry point for GUI and headless execution modes.
+ * @brief Program entry point.
  * @param argc CLI argument count.
  * @param argv CLI argument vector.
  * @return Zero on success, non-zero on configuration/runtime failure.
@@ -652,14 +652,6 @@ int main(int argc, char** argv)
         headless_options.live_shm = live_shm;
         headless_options.live_shm_fields = live_shm_fields;
         run_status = run_headless_simulation(headless_options);
-    }
-    else
-    {
-        #ifdef ENABLE_GUI
-        run_gui(export_ms);
-        #else
-        (void)export_ms;
-        #endif
     }
 
     shutdown_compute_backend_runtime();

@@ -25,7 +25,6 @@ The simulation entry point and main loop.
 | `tornado_sim.cpp` | `main()` -- parses CLI args, loads config, runs initialization sequence, enters main loop |
 | `headless_runtime.cpp` | Main simulation loop: timestep selection, physics/dynamics stepping, output, diagnostics |
 | `runtime_config.cpp` | YAML config parsing into global state structs |
-| `gui.cpp` | SFML windowed viewer (conditional, built with `make GUI=1`) |
 
 ### orchestration/
 

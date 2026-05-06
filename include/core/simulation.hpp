@@ -627,11 +627,3 @@ void initialize_nested_grid();
  * @brief Feeds nested-grid updates back to the parent grid.
  */
 void feedback_to_parent();
-
-#ifdef ENABLE_GUI
-/**
- * @brief Runs the GUI front end.
- * @param autoExportMs Optional automatic export cadence in milliseconds.
- */
-void run_gui(int autoExportMs = 0);
-#endif

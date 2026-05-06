@@ -25,7 +25,7 @@ make test
 | OpenMP | Recommended | Parallel computation | 4-8x speedup; simulation runs single-threaded without it |
 | Vulkan SDK | Optional | GPU compute + 3D viewer | Headers, loader, and platform runtime |
 | glslangValidator | Optional | Compile GLSL shaders to SPIR-V | Pre-compiled binaries included; only needed if modifying shader source |
-| GLFW | Optional | Windowed viewer surface | Preferred over SFML fallback |
+| GLFW | Optional | Windowed viewer surface | Required for the Vulkan viewer's window mode |
 | pkg-config | Optional | Library detection on Linux | Helps find Vulkan/GLFW paths |
 | ZFP | Optional | Scientific data compression | Enable with `make ZFP=1` |
 | ffmpeg | Optional | Demo video recording | Only for `scripts/demo.sh --record` |
@@ -152,7 +152,6 @@ make clean              # Remove build artifacts
 
 ```bash
 make CXX=clang++        # Override compiler
-make GUI=1              # Enable SFML GUI (legacy)
 make ZFP=1              # Enable ZFP compression
 make -j8                # Parallel build (set to your core count)
 ```

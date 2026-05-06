@@ -14,8 +14,7 @@ Numerics components are consumed at runtime by:
 - `src/core/orchestration/dynamics/dynamics.cpp`
   - Applies numerics diffusion tendencies (`explicit` or `implicit`) to momentum/scalars.
 - `src/core/runtime/headless_runtime.cpp`
-- `src/core/runtime/gui.cpp`
-  - Both use `choose_runtime_timestep()` to enforce numerics stability caps.
+  - Uses `choose_runtime_timestep()` to enforce numerics stability caps.
 
 ## Directory Layout
 

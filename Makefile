@@ -77,9 +77,7 @@ ifeq ($(LIBOMP_PATH),)
   endif
 endif
 OPENMP_LDLIBS := $(OPENMP_LIB)
-# Optional GUI (SFML) support; default off
-GUI ?= 0
-# Optional: enable slice export from GUI with S key
+# Optional: enable periodic NPY slice export during simulation
 EXPORT_NPY ?= 1
 ifeq ($(EXPORT_NPY),1)
   CXXFLAGS += -DEXPORT_NPY
@@ -201,20 +199,6 @@ CPPFLAGS :=
 LDLIBS := $(OPENMP_LDLIBS) $(ZFP_LDLIBS)
 ifeq ($(UNAME_S),Linux)
   LDLIBS += -ldl
-endif
-ifeq ($(GUI),1)
-  PKG_CONFIG := $(shell command -v pkg-config 2>/dev/null)
-  ifeq ($(PKG_CONFIG),)
-    SFML_PREFIX ?= $(shell brew --prefix sfml 2>/dev/null)
-    SFML_CFLAGS := -I$(SFML_PREFIX)/include
-    SFML_LIBS := -L$(SFML_PREFIX)/lib -lsfml-graphics -lsfml-window -lsfml-system
-  else
-    SFML_CFLAGS := $(shell pkg-config --cflags sfml-graphics)
-    SFML_LIBS := $(shell pkg-config --libs sfml-graphics)
-  endif
-  CPPFLAGS += $(SFML_CFLAGS) -DENABLE_GUI=1
-  LDLIBS += $(SFML_LIBS)
-  SRCS += src/core/runtime/gui.cpp
 endif
 
 # ---------------------------------------------------------------------------
