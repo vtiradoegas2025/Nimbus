@@ -1,0 +1,100 @@
+{
+  "checks": {
+    "forced_direct_required_dispatch": {
+      "assertions": 23,
+      "test_cases": 1
+    },
+    "forced_direct_transfer_telemetry": {
+      "batched_command_buffers": 0,
+      "command_buffers": 1,
+      "descriptor_cache_hits": 0,
+      "descriptor_cache_misses": 1,
+      "device_current_bytes": 23904,
+      "device_download_bytes": 0,
+      "device_high_water_bytes": 23904,
+      "device_memory_allocations": 1,
+      "device_memory_allocations_high_water": 1,
+      "device_memory_reserved_bytes": 24596,
+      "device_memory_reserved_high_water_bytes": 24596,
+      "device_upload_bytes": 0,
+      "dispatches": 1,
+      "host_download_bytes": 7956,
+      "host_upload_bytes": 15948,
+      "model_steps": 0,
+      "resident_entries_invalidated": 0,
+      "resident_full_invalidations": 0,
+      "resident_hits": 0,
+      "resident_misses": 0,
+      "resident_upload_bytes_saved": 0,
+      "staging_current_bytes": 0,
+      "staging_high_water_bytes": 0,
+      "staging_memory_allocations": 0,
+      "staging_memory_allocations_high_water": 0,
+      "staging_memory_reserved_bytes": 0,
+      "staging_memory_reserved_high_water_bytes": 0,
+      "synchronous_waits": 1,
+      "writeonly_output_upload_bytes_saved": 7956
+    },
+    "forced_staged_full_parity": {
+      "assertions": 192,
+      "test_cases": 13
+    },
+    "forced_staged_required_dispatch": {
+      "assertions": 23,
+      "test_cases": 1
+    },
+    "forced_staged_transfer_telemetry": {
+      "batched_command_buffers": 0,
+      "command_buffers": 1,
+      "descriptor_cache_hits": 0,
+      "descriptor_cache_misses": 1,
+      "device_current_bytes": 23904,
+      "device_download_bytes": 7956,
+      "device_high_water_bytes": 23904,
+      "device_memory_allocations": 1,
+      "device_memory_allocations_high_water": 1,
+      "device_memory_reserved_bytes": 24596,
+      "device_memory_reserved_high_water_bytes": 24596,
+      "device_upload_bytes": 15948,
+      "dispatches": 1,
+      "host_download_bytes": 7956,
+      "host_upload_bytes": 15948,
+      "model_steps": 0,
+      "resident_entries_invalidated": 0,
+      "resident_full_invalidations": 0,
+      "resident_hits": 0,
+      "resident_misses": 0,
+      "resident_upload_bytes_saved": 0,
+      "staging_current_bytes": 23904,
+      "staging_high_water_bytes": 23904,
+      "staging_memory_allocations": 1,
+      "staging_memory_allocations_high_water": 1,
+      "staging_memory_reserved_bytes": 24596,
+      "staging_memory_reserved_high_water_bytes": 24596,
+      "synchronous_waits": 1,
+      "writeonly_output_upload_bytes_saved": 7956
+    },
+    "invalid_policy_rejected_before_dispatch": true
+  },
+  "claims": {
+    "forced_direct_shared_path": true,
+    "forced_staged_transfer_path": true,
+    "noncoherent_range_logic_unit_covered": true,
+    "physical_noncoherent_memory_observed": false,
+    "physical_nvidia_or_amd_qualified": false,
+    "physical_vulkan_device_required": true
+  },
+  "inputs": {
+    "parity_binary": {
+      "path": "bin/test_vulkan_gpu_parity",
+      "sha256": "3c3400e53e56c0bbce16b3ad20087f5a537760a70a244d1a340faec3155b293d"
+    },
+    "required_dispatch_binary": {
+      "path": "bin/test_vulkan_required_dispatch",
+      "sha256": "82bf8bc8e920cfde6da9d338ae3fc72c6e7cc9bd8617af134013f75e93d62042"
+    }
+  },
+  "schema": "nimbus.vulkan.memory_policy_qualification",
+  "schema_version": 1,
+  "status": "pass"
+}

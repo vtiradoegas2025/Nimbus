@@ -1,0 +1,451 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_spirv_intrinsics : require
+spirv_execution_mode(extensions = ["SPV_KHR_float_controls"], capabilities = [4466], 4461, 32);
+spirv_execution_mode(extensions = ["SPV_KHR_float_controls"], capabilities = [4467], 4462, 32);
+layout(local_size_x = 64) in;
+layout(set = 0, binding = 0) readonly buffer Field0
+{
+    float temperature[];
+};
+layout(set = 0, binding = 1) readonly buffer Field1
+{
+    float pressure[];
+};
+layout(set = 0, binding = 2) readonly buffer Field2
+{
+    float density[];
+};
+layout(set = 0, binding = 3) readonly buffer Field3
+{
+    float vapor[];
+};
+layout(set = 0, binding = 4) readonly buffer Field4
+{
+    float ice[];
+};
+layout(set = 0, binding = 5) readonly buffer Field5
+{
+    float snow[];
+};
+layout(set = 0, binding = 6) readonly buffer Field6
+{
+    float graupel[];
+};
+layout(set = 0, binding = 7) readonly buffer Field7
+{
+    float ice_number[];
+};
+layout(set = 0, binding = 8) readonly buffer Field8
+{
+    float cloud_vapor_change[];
+};
+layout(set = 0, binding = 9) readonly buffer Field9
+{
+    float evaporation_high[];
+};
+layout(set = 0, binding = 10) readonly buffer Field10
+{
+    float evaporation_low[];
+};
+layout(set = 0, binding = 11) readonly buffer CloudVaporChangeLow
+{
+    float cloud_vapor_change_low[];
+};
+layout(set = 0, binding = 12) readonly buffer Field11
+{
+    float coefficients[];
+};
+layout(set = 0, binding = 13) writeonly buffer Field12
+{
+    float ice_change_high[];
+};
+layout(set = 0, binding = 14) writeonly buffer Field13
+{
+    float ice_change_low[];
+};
+layout(set = 0, binding = 15) writeonly buffer Field14
+{
+    float snow_change_high[];
+};
+layout(set = 0, binding = 16) writeonly buffer Field15
+{
+    float snow_change_low[];
+};
+layout(set = 0, binding = 17) writeonly buffer Field16
+{
+    float graupel_change_high[];
+};
+layout(set = 0, binding = 18) writeonly buffer Field17
+{
+    float graupel_change_low[];
+};
+layout(set = 0, binding = 19) writeonly buffer Field18
+{
+    float temperature_change_high[];
+};
+layout(set = 0, binding = 20) writeonly buffer Field19
+{
+    float temperature_change_low[];
+};
+layout(set = 0, binding = 21) writeonly buffer Field20
+{
+    float ice_number_tendency[];
+};
+layout(set = 0, binding = 22) writeonly buffer Field21
+{
+    float snow_vapor_rate_high[];
+};
+layout(set = 0, binding = 23) writeonly buffer Field22
+{
+    float snow_vapor_rate_low[];
+};
+layout(set = 0, binding = 24) writeonly buffer Field23
+{
+    float lookup_index[];
+};
+layout(set = 0, binding = 25) writeonly buffer Field24
+{
+    float status[];
+};
+layout(push_constant) uniform PushConstants
+{
+    int   nx;
+    int   ny;
+    int   nz;
+    int   i_begin;
+    int   i_end;
+    int   j_begin;
+    int   j_end;
+    int   k_begin;
+    int   k_end;
+    float dt_high;
+    float dt_low;
+};
+#include "thompson_compensated.glsl"
+#include "thompson_number_math.glsl"
+bool finite_pair(vec2 a)
+{
+    return !isnan(a.x) && !isnan(a.y) && !isinf(a.x) && !isinf(a.y);
+}
+vec2 df_min(vec2 a, vec2 b)
+{
+    return df_sub(a, b).x < 0.0 ? a : b;
+}
+vec2 df_max(vec2 a, vec2 b)
+{
+    return df_sub(a, b).x > 0.0 ? a : b;
+}
+vec2 df_power(vec2 a, int power)
+{
+    vec2 result = vec2(1.0, 0.0);
+    for (int p = 0; p < power; ++p)
+        result = df_mul(result, a);
+    return result;
+}
+vec2 df_real_power(vec2 a, vec2 b)
+{
+    if (!finite_pair(a) || a.x <= 0.0)
+        return vec2(uintBitsToFloat(0x7fc00000u));
+    return df_exp(df_mul(b, df_log(a)));
+}
+vec2 coefficient(int i)
+{
+    return vec2(coefficients[2 * i], coefficients[2 * i + 1]);
+}
+int axis_index(vec2 value, int offset, int count)
+{
+    int low = 0, high = count;
+    while (high - low > 1)
+    {
+        int mid = (low + high) / 2;
+        if (df_sub(value, coefficient(offset + mid)).x >= 0.0)
+            low = mid;
+        else
+            high = mid;
+    }
+    return low;
+}
+#include "thompson_snow_moments.glsl"
+vec2 saturation_ice(vec2 t, vec2 p)
+{
+    vec2 tc = df_sub(df_min(vec2(400, 0), df_max(vec2(150, 0), t)), vec2(273.14999389648438, 6.1035156022626325e-06));
+    vec2 e  = df_mul(vec2(611.1500244140625, -2.4414062522737368e-05),
+                     df_exp(df_div(df_mul(df_sub(vec2(23.035999298095703, 7.0190429823924205e-07),
+                                                 df_div(tc, vec2(333.70001220703125, -1.2207031261368684e-05))),
+                                          tc),
+                                   df_add(vec2(279.82000732421875, -7.3242187568212103e-06), tc))));
+    return df_min(vec2(0.20000000298023224, -2.980232227667301e-09),
+                  df_max(vec2(0, 0),
+                         df_div(df_mul(vec2(0.62198001146316528, -1.1463165305869438e-08), e),
+                                df_max(df_sub(df_min(vec2(200000, 0), df_max(vec2(100, 0), p)), e), vec2(1, 0)))));
+}
+vec2 sorted_ice(vec2 mass, vec2 supplied)
+{
+    vec2 number           = df_max(vec2(9.9999999747524271e-07, 2.5247572468697606e-15), supplied);
+    vec2 coefficient_mass = df_div(df_mul(vec2(3.1415927410125732, -8.7412573179790343e-08), vec2(890, 0)), vec2(6, 0));
+    if (df_sub(number, vec2(9.9999999747524271e-07, 2.5247572468697606e-15)).x <= 0.0)
+    {
+        return df_min(
+            vec2(999000, 0),
+            df_div(df_mul(mass, df_power(df_div(vec2(4, 0), vec2(4.9999998736893758e-06, 1.2631062459123954e-13)), 3)),
+                   df_mul(vec2(6, 0), coefficient_mass)));
+    }
+    vec2 slope    = df_cbrt(df_div(df_mul(df_mul(coefficient_mass, vec2(6, 0)), number), mass));
+    vec2 diameter = df_div(vec2(4, 0), slope);
+    if (df_sub(diameter, vec2(4.9999998736893758e-06, 1.2631062459123954e-13)).x < 0.0)
+    {
+        number = df_min(
+            vec2(999000, 0),
+            df_div(df_mul(mass, df_power(df_div(vec2(4, 0), vec2(4.9999998736893758e-06, 1.2631062459123954e-13)), 3)),
+                   df_mul(vec2(6, 0), coefficient_mass)));
+    }
+    else if (df_sub(diameter, vec2(0.00030000001424923539, -1.4249235417897882e-11)).x > 0.0)
+    {
+        number =
+            df_div(df_mul(mass, df_power(df_div(vec2(4, 0), vec2(0.00030000001424923539, -1.4249235417897882e-11)), 3)),
+                   df_mul(vec2(6, 0), coefficient_mass));
+    }
+    return number;
+}
+float number_tendency(float initial, vec2 candidate)
+{
+    float rate      = stored_tendency(initial, df_max(vec2(0.0), candidate));
+    vec2  remaining = df_add(vec2(initial, 0.0), df_mul(vec2(dt_high, dt_low), vec2(rate, 0.0)));
+    if (dt_low != 0.0 && rate < 0.0 && remaining.x <= initial * 1e-13)
+        rate = uintBitsToFloat(floatBitsToUint(rate) - 1u);
+    return rate;
+}
+void evaluate(uint gid)
+{
+    if (gid >= uint(nx * ny * nz))
+        return;
+    int n                      = int(gid);
+    ice_change_high[n]         = 0.0;
+    ice_change_low[n]          = 0.0;
+    snow_change_high[n]        = 0.0;
+    snow_change_low[n]         = 0.0;
+    graupel_change_high[n]     = 0.0;
+    graupel_change_low[n]      = 0.0;
+    temperature_change_high[n] = 0.0;
+    temperature_change_low[n]  = 0.0;
+    ice_number_tendency[n]     = 0.0;
+    snow_vapor_rate_high[n]    = 0.0;
+    snow_vapor_rate_low[n]     = 0.0;
+    lookup_index[n]            = 0.0;
+    status[n]                  = 0.0;
+    int k = n % nz, j = (n / nz) % ny, i = n / (ny * nz);
+    if (i < i_begin || i >= i_end || j < j_begin || j >= j_end || k < k_begin || k >= k_end)
+        return;
+    lookup_index[n] = -1.0;
+    vec2 t = vec2(temperature[n], 0.0), p = vec2(pressure[n], 0.0), rho = vec2(density[n], 0.0);
+    if (df_sub(t, vec2(273.14999389648438, 6.1035156022626325e-06)).x >= 0.0)
+        return;
+    status[n]    = -1.0;
+    vec2 step_dt = vec2(dt_high, dt_low);
+    vec2 v       = df_add(df_add(vec2(vapor[n], 0.0), vec2(cloud_vapor_change[n], cloud_vapor_change_low[n])),
+                          vec2(evaporation_high[n], evaporation_low[n]));
+    vec2 qi = df_mul(rho, vec2(ice[n], 0.0)), qs = df_mul(rho, vec2(snow[n], 0.0)),
+         qg = df_mul(rho, vec2(graupel[n], 0.0));
+    vec2 ni = df_mul(rho, vec2(ice_number[n], 0.0));
+    if (!finite_pair(qi) || !finite_pair(qs) || !finite_pair(qg) || !finite_pair(ni) || !finite_pair(v))
+        return;
+    if (df_sub(qi, vec2(9.999999960041972e-13, 3.9958027796366288e-21)).x <= 0.0 &&
+        df_sub(qs, vec2(9.999999960041972e-13, 3.9958027796366288e-21)).x <= 0.0 &&
+        df_sub(qg, vec2(9.9999999747524271e-07, 2.5247572468697606e-15)).x < 0.0)
+    {
+        status[n] = 0.0;
+        return;
+    }
+    vec2 sat         = saturation_ice(t, p);
+    vec2 ss          = df_sub(df_div(v, sat), vec2(1, 0));
+    vec2 absolute_ss = ss.x < 0.0 ? -ss : ss;
+    if (df_sub(absolute_ss, vec2(9.9999997171806854e-10, 2.8281931525706872e-17)).x < 0.0)
+        ss = vec2(0.0);
+    vec2 diffusion    = df_mul(df_mul(vec2(2.1100000594742596e-05, -5.9474259488079793e-13),
+                                      df_real_power(df_div(t, vec2(273.14999389648438, 6.1035156022626325e-06)),
+                                                    vec2(1.940000057220459, -5.7220459037665705e-08))),
+                               df_div(vec2(101325, 0), p));
+    vec2 tc           = df_sub(t, vec2(273.14999389648438, 6.1035156022626325e-06));
+    vec2 viscosity    = df_mul(df_sub(df_add(vec2(1.718000054359436, -5.4359436063577959e-08),
+                                             df_mul(vec2(0.0049000000581145287, -5.811452881421264e-11), tc)),
+                                      df_mul(df_mul(vec2(1.2000000424450263e-05, -4.2445026307699404e-13), tc), tc)),
+                               vec2(9.9999997473787516e-06, 2.5262124918247909e-13));
+    vec2 conductivity = df_mul(df_mul(df_add(vec2(5.690000057220459, -5.7220458593576495e-08),
+                                             df_mul(vec2(0.01679999940097332, 5.9902667895461725e-10), tc)),
+                                      vec2(9.9999997473787516e-06, 2.5262124918247909e-13)),
+                               vec2(418.93600463867188, -4.6386718963731255e-06));
+    vec2 saturated = df_mul(rho, sat), inverse_t = df_div(vec2(1, 0), t);
+    vec2 derivative        = df_mul(df_mul(saturated, inverse_t),
+                                    df_sub(df_div(df_mul(vec2(2834000, 0), inverse_t), vec2(461.5, 0)), vec2(1, 0)));
+    vec2 second_derivative = df_mul(
+        saturated,
+        df_add(
+            df_sub(df_power(df_mul(inverse_t,
+                                   df_sub(df_div(df_mul(vec2(2834000, 0), inverse_t), vec2(461.5, 0)), vec2(1, 0))),
+                            2),
+                   df_div(df_mul(df_mul(df_mul(df_mul(vec2(2, 0), vec2(2834000, 0)), inverse_t), inverse_t), inverse_t),
+                          vec2(461.5, 0))),
+            df_mul(inverse_t, inverse_t)));
+    vec2 gamma = df_mul(df_div(df_mul(vec2(2834000, 0), diffusion), conductivity), derivative);
+    vec2 alpha =
+        df_max(vec2(9.9999997171806854e-10, 2.8281931525706872e-17),
+               df_div(df_mul(df_div(df_mul(df_mul(vec2(0.5, 0), df_power(df_div(gamma, df_add(vec2(1, 0), gamma)), 2)),
+                                           second_derivative),
+                                    derivative),
+                             saturated),
+                      derivative));
+    vec2 factor = df_div(
+        df_mul(df_mul(vec2(4, 0), vec2(3.1415927410125732, -8.7412573179790343e-08)),
+               df_sub(df_add(df_sub(vec2(1, 0), df_mul(alpha, ss)),
+                             df_mul(df_mul(df_mul(df_mul(vec2(2, 0), alpha), alpha), ss), ss)),
+                      df_mul(df_mul(df_mul(df_mul(df_mul(df_mul(vec2(5, 0), alpha), alpha), alpha), ss), ss), ss))),
+        df_add(vec2(1, 0), gamma));
+    if (!finite_pair(factor) || factor.x < 0.0 || !finite_pair(diffusion))
+        return;
+    vec2 ir = vec2(0.0), sr = vec2(0.0), svr = vec2(0.0), gr = vec2(0.0), nr = vec2(0.0);
+    vec2 saturation_rate =
+        df_mul(df_div(df_mul(df_sub(v, sat), rho), step_dt), vec2(0.99900001287460327, -1.2874603272372553e-08));
+    if (df_sub(qi, vec2(9.999999960041972e-13, 3.9958027796366288e-21)).x > 0.0)
+    {
+        vec2 number = sorted_ice(qi, ni);
+        vec2 slope  = df_cbrt(
+            df_div(df_mul(df_mul(vec2(3.1415927410125732, -8.7412573179790343e-08), vec2(890, 0)), number), qi));
+        vec2 inverse_slope = df_div(vec2(1, 0), slope);
+        vec2 diameter =
+            df_max(vec2(1.2898438399133738e-05, -3.0316050505466846e-13), df_mul(vec2(4, 0), inverse_slope));
+        vec2 mass = df_mul(
+            df_mul(df_mul(df_div(df_mul(vec2(3.1415927410125732, -8.7412573179790343e-08), vec2(890, 0)), vec2(6, 0)),
+                          diameter),
+                   diameter),
+            diameter);
+        ir = df_mul(df_mul(df_mul(df_mul(df_mul(df_mul(vec2(0.5, 0), factor), diffusion), ss), saturated), number),
+                    inverse_slope);
+        if (!finite_pair(ir) || !finite_pair(number))
+            return;
+        if (ir.x < 0.0)
+        {
+            ir = df_max(df_div(-qi, step_dt), ir);
+            nr = df_max(df_div(-df_min(number, ni), step_dt), df_div(ir, mass));
+        }
+        else
+        {
+            int index       = axis_index(number, 3584, 55) * 64 + axis_index(qi, 3520, 64);
+            lookup_index[n] = float(index);
+            vec2 fraction   = coefficient(index);
+            sr              = df_mul(df_sub(vec2(1, 0), fraction), ir);
+            ir              = df_mul(ir, fraction);
+        }
+    }
+    if (df_sub(qs, vec2(9.999999960041972e-13, 3.9958027796366288e-21)).x > 0.0)
+    {
+        vec2 snow_tc    = df_min(-vec2(0.10000000149011612, -1.4901161138336505e-09), tc);
+        vec2 second     = df_div(qs, vec2(0.068999998271465302, 1.7285347042594879e-09));
+        vec2 first      = snow_moment(second, snow_tc, vec2(1, 0));
+        vec2 ventilated = snow_moment(
+            second,
+            snow_tc,
+            df_add(vec2(1, 0),
+                   df_div(df_add(vec2(0.55000001192092896, -1.1920928910669204e-08), vec2(1, 0)), vec2(2, 0))));
+        vec2 capacitance = df_min(
+            vec2(0.5, 0),
+            df_max(vec2(0.15000000596046448, -5.9604644830901776e-09),
+                   df_add(vec2(0.15000000596046448, -5.9604644830901776e-09),
+                          df_div(df_mul(df_add(tc, vec2(1.5, 0)),
+                                        df_sub(vec2(0.5, 0), vec2(0.15000000596046448, -5.9604644830901776e-09))),
+                                 df_add(-vec2(30, 0), vec2(1.5, 0))))));
+        vec2 density_root     = df_sqrt(df_sqrt(df_div(
+            df_div(vec2(101325, 0), df_mul(vec2(287.04998779296875, 1.2207031261368684e-05), vec2(298, 0))), rho)));
+        vec2 viscosity_factor = df_sqrt(df_div(rho, viscosity));
+        vec2 ventilation      = df_mul(df_mul(vec2(0.2800000011920929, -1.1920928688624599e-09),
+                                              df_cbrt(vec2(0.63200002908706665, -2.9087066644173376e-08))),
+                                       df_sqrt(vec2(40, 0)));
+        svr = df_mul(df_mul(df_mul(df_mul(df_mul(capacitance, factor), diffusion), ss), saturated),
+                     df_add(df_mul(vec2(0.86000001430511475, -1.4305114759416426e-08), first),
+                            df_mul(df_mul(df_mul(ventilation, density_root), viscosity_factor), ventilated)));
+        if (!finite_pair(svr))
+            return;
+        if (svr.x < 0.0)
+            svr = df_max(df_div(-qs, step_dt), svr);
+        sr = df_add(sr, svr);
+    }
+    if (df_sub(qg, vec2(9.9999999747524271e-07, 2.5247572468697606e-15)).x >= 0.0 &&
+        df_sub(ss, -vec2(1.0000000036274937e-15, -3.627493647833322e-24)).x < 0.0)
+    {
+        vec2 intercept = df_real_power(
+            vec2(10, 0),
+            df_min(vec2(6, 0),
+                   df_max(vec2(2, 0),
+                          df_add(vec2(3, 0),
+                                 df_mul(df_div(vec2(2, 0), vec2(7, 0)),
+                                        df_add(df_div(df_log(df_max(
+                                                          vec2(9.9999997171806854e-10, 2.8281931525706872e-17), qg)),
+                                                      df_log(vec2(10, 0))),
+                                               vec2(8, 0)))))));
+        vec2 slope = df_real_power(
+            df_div(df_mul(df_mul(intercept,
+                                 df_div(df_mul(vec2(3.1415927410125732, -8.7412573179790343e-08), vec2(400, 0)),
+                                        vec2(6, 0))),
+                          vec2(6, 0)),
+                   qg),
+            vec2(0.25, 0));
+        vec2 inverse_slope     = df_div(vec2(1, 0), slope);
+        vec2 density_root      = df_sqrt(df_sqrt(df_div(
+            df_div(vec2(101325, 0), df_mul(vec2(287.04998779296875, 1.2207031261368684e-05), vec2(298, 0))), rho)));
+        vec2 viscosity_factor  = df_sqrt(df_div(rho, viscosity));
+        vec2 ventilation_gamma = coefficient(3639);
+        vec2 ventilation       = df_mul(df_mul(df_mul(vec2(0.2800000011920929, -1.1920928688624599e-09),
+                                                      df_cbrt(vec2(0.63200002908706665, -2.9087066644173376e-08))),
+                                               df_sqrt(vec2(442, 0))),
+                                        ventilation_gamma);
+        gr                     = df_mul(
+            df_mul(df_mul(df_mul(df_mul(df_mul(vec2(0.5, 0), factor), diffusion), ss), saturated), intercept),
+            df_add(
+                df_mul(df_mul(vec2(0.86000001430511475, -1.4305114759416426e-08), inverse_slope), inverse_slope),
+                df_mul(df_mul(df_mul(ventilation, viscosity_factor), density_root),
+                       df_real_power(inverse_slope,
+                                     df_mul(vec2(0.5, 0),
+                                            df_add(vec2(0.88999998569488525, 1.4305114759416426e-08), vec2(5, 0)))))));
+        if (!finite_pair(gr))
+            return;
+        gr = df_max(df_div(-qg, step_dt), gr);
+    }
+    vec2 total = df_add(df_add(ir, sr), gr);
+    if ((df_sub(total, vec2(1.0000000036274937e-15, -3.627493647833322e-24)).x > 0.0 &&
+         df_sub(total, saturation_rate).x > 0.0) ||
+        (df_sub(total, -vec2(1.0000000036274937e-15, -3.627493647833322e-24)).x < 0.0 &&
+         df_sub(total, saturation_rate).x < 0.0))
+    {
+        vec2 scale = df_div(saturation_rate, total);
+        ir         = df_mul(ir, scale);
+        sr         = df_mul(sr, scale);
+        svr        = df_mul(svr, scale);
+        gr         = df_mul(gr, scale);
+        nr         = df_mul(nr, scale);
+        total      = saturation_rate;
+    }
+    vec2  ice_delta = df_div(df_mul(step_dt, ir), rho), snow_delta = df_div(df_mul(step_dt, sr), rho),
+          graupel_delta = df_div(df_mul(step_dt, gr), rho);
+    vec2  heat          = df_div(df_mul(df_mul(step_dt, df_div(vec2(2834000, 0), vec2(1004, 0))), total), rho);
+    vec2  candidate     = df_add(vec2(ice_number[n], 0.0), df_div(df_mul(step_dt, nr), rho));
+    float number_rate   = number_tendency(ice_number[n], candidate);
+    if (!finite_pair(ice_delta) || !finite_pair(snow_delta) || !finite_pair(graupel_delta) || !finite_pair(heat) ||
+        !finite_pair(svr) || isnan(number_rate) || isinf(number_rate))
+        return;
+    ice_change_high[n]         = ice_delta.x;
+    ice_change_low[n]          = ice_delta.y;
+    snow_change_high[n]        = snow_delta.x;
+    snow_change_low[n]         = snow_delta.y;
+    graupel_change_high[n]     = graupel_delta.x;
+    graupel_change_low[n]      = graupel_delta.y;
+    temperature_change_high[n] = heat.x;
+    temperature_change_low[n]  = heat.y;
+    ice_number_tendency[n]     = number_rate;
+    snow_vapor_rate_high[n]    = svr.x;
+    snow_vapor_rate_low[n]     = svr.y;
+    status[n]                  = 0.0;
+}
+void main()
+{
+    evaluate(gl_GlobalInvocationID.x);
+}

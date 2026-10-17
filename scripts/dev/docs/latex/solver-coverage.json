@@ -1,0 +1,219 @@
+{
+  "modules": [
+    {
+      "id": "core",
+      "roots": [
+        "include/core",
+        "src/core"
+      ],
+      "mathematics_anchor": "putting-it-together",
+      "architecture_anchor": "architecture-solver-map"
+    },
+    {
+      "id": "init",
+      "roots": [
+        "include/init",
+        "src/init"
+      ],
+      "mathematics_anchor": "initialization-theory",
+      "architecture_anchor": "architecture-solver-map"
+    },
+    {
+      "id": "soundings",
+      "roots": [
+        "include/soundings",
+        "src/soundings"
+      ],
+      "mathematics_anchor": "initialization-theory",
+      "architecture_anchor": "architecture-solver-map"
+    },
+    {
+      "id": "dynamics",
+      "roots": [
+        "include/dynamics",
+        "src/dynamics"
+      ],
+      "mathematics_anchor": "grid-theory",
+      "architecture_anchor": "architecture-solver-map"
+    },
+    {
+      "id": "numerics",
+      "roots": [
+        "include/numerics",
+        "src/numerics"
+      ],
+      "mathematics_anchor": "grid-theory",
+      "architecture_anchor": "architecture-solver-map"
+    },
+    {
+      "id": "boundary_conditions",
+      "roots": [
+        "include/boundary_conditions",
+        "src/boundary_conditions"
+      ],
+      "mathematics_anchor": "boundaries-complete-the-equations",
+      "architecture_anchor": "architecture-solver-map"
+    },
+    {
+      "id": "microphysics",
+      "roots": [
+        "include/microphysics",
+        "src/microphysics"
+      ],
+      "mathematics_anchor": "microphysics-theory",
+      "architecture_anchor": "architecture-solver-map"
+    },
+    {
+      "id": "radiation",
+      "roots": [
+        "include/radiation",
+        "src/radiation"
+      ],
+      "mathematics_anchor": "radiation-theory",
+      "architecture_anchor": "architecture-solver-map"
+    },
+    {
+      "id": "boundary_layer",
+      "roots": [
+        "include/boundary_layer",
+        "src/boundary_layer"
+      ],
+      "mathematics_anchor": "mixing-theory",
+      "architecture_anchor": "architecture-solver-map"
+    },
+    {
+      "id": "turbulence",
+      "roots": [
+        "include/turbulence",
+        "src/turbulence"
+      ],
+      "mathematics_anchor": "mixing-theory",
+      "architecture_anchor": "architecture-solver-map"
+    },
+    {
+      "id": "terrain",
+      "roots": [
+        "include/terrain",
+        "src/terrain"
+      ],
+      "mathematics_anchor": "grid-deep-dive",
+      "architecture_anchor": "architecture-solver-map"
+    },
+    {
+      "id": "chaos",
+      "roots": [
+        "include/chaos",
+        "src/chaos"
+      ],
+      "mathematics_anchor": "chaos-theory",
+      "architecture_anchor": "architecture-solver-map"
+    },
+    {
+      "id": "radar",
+      "roots": [
+        "include/radar",
+        "src/radar"
+      ],
+      "mathematics_anchor": "radar-diagnostics-theory",
+      "architecture_anchor": "architecture-solver-map"
+    },
+    {
+      "id": "diagnostics",
+      "roots": [
+        "include/diagnostics",
+        "src/diagnostics"
+      ],
+      "mathematics_anchor": "radar-diagnostics-theory",
+      "architecture_anchor": "architecture-solver-map"
+    },
+    {
+      "id": "compute",
+      "roots": [
+        "include/compute",
+        "src/compute"
+      ],
+      "mathematics_anchor": "precision-reproducibility-and-scientific-interpretation",
+      "architecture_anchor": "architecture-solver-map"
+    },
+    {
+      "id": "util",
+      "roots": [
+        "include/util"
+      ],
+      "mathematics_anchor": "precision-reproducibility-and-scientific-interpretation",
+      "architecture_anchor": "architecture-solver-map"
+    },
+    {
+      "id": "tools",
+      "roots": [
+        "src/tools"
+      ],
+      "mathematics_anchor": "coefficient-data-and-numerical-contracts",
+      "architecture_anchor": "architecture-solver-map"
+    }
+  ],
+  "catalog_selectors": {
+    "dynamics": [
+      "klemp_wilhelmson_split_cartesian_agrid",
+      "klemp_wilhelmson_split_cartesian_cgrid"
+    ],
+    "advection": [
+      "tvd",
+      "weno5",
+      "none"
+    ],
+    "diffusion": [
+      "explicit",
+      "implicit"
+    ],
+    "time_stepping": [
+      "rk3",
+      "rk4",
+      "split_explicit"
+    ],
+    "microphysics": [
+      "kessler",
+      "lin",
+      "thompson",
+      "milbrandt",
+      "none"
+    ],
+    "radiation": [
+      "simple_grey",
+      "rrtmg",
+      "none"
+    ],
+    "boundary_layer": [
+      "slab",
+      "ysu",
+      "mynn",
+      "none"
+    ],
+    "turbulence": [
+      "smagorinsky",
+      "tke",
+      "none"
+    ],
+    "chaos": [
+      "none",
+      "initial_conditions",
+      "boundary_layer",
+      "full_stochastic"
+    ],
+    "terrain": [
+      "none",
+      "bell",
+      "schar"
+    ],
+    "radar": [
+      "reflectivity",
+      "velocity",
+      "zdr"
+    ],
+    "soundings": [
+      "auto",
+      "cm1",
+      "sharpy"
+    ]
+  }
+}

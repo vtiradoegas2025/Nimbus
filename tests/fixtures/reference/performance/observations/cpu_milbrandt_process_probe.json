@@ -1,0 +1,346 @@
+{
+  "analyzer_sha256": "b2cf61088f0efb2d960de0719b1acc8321fd8eba3fc967a8ade6685a20817794",
+  "binary_sha256": "95ed46c5d5893092181eb585a7d79f6c5d241d33740248a8e474524468a6aeb3",
+  "candidateDisposition": {
+    "candidate": "pure removal of the warm-commit traversal",
+    "maximum_entire_pass_removal_percent": 0.7711949182769106,
+    "reason": "Even removing the complete measured traversal cannot reach the time gate; the pass also materializes the warm-before-cold donor state.",
+    "required_time_gain_percent": 2.0,
+    "status": "rejected_without_implementation"
+  },
+  "config_sha256": "c8a13fd1d8b850a47ca32710961d489f4fcc990389975d900adb9099109eeac8",
+  "disposition": "process attribution and bounded pass-removal rejection; no optimization accepted",
+  "endpoint": {
+    "checkpoint_bytes": 2403446,
+    "checkpoint_sha256": "7b7aee8dcf4ceae50c7ba03d40eaf98eadbf38265eedfc536e676b4a70d83479"
+  },
+  "generated_at_utc": "2026-09-27T23:49:28.222036+00:00",
+  "schema": "nimbus.c6-milbrandt-process-attribution.v1",
+  "stage_profile": "/Users/victortiradoegas/Desktop/PersonalProjects/Nimbus/reports/backend_repairs/20260927/performance_disposition/milbrandt_process_probe/stage_profile_v1.json",
+  "stage_profile_sha256": "25162132175845cfd5e225721ea9956fe1742ce10fc722476277dab56a504c45",
+  "summary": {
+    "maximum_phase_fraction_of_step": {
+      "activation": 0.0010452765962134555,
+      "cold": 0.09214154515084179,
+      "finalize": 0.014204052814057375,
+      "melting": 0.04080508545616704,
+      "prepare": 0.008105521458875824,
+      "saturation": 0.012007375348215306,
+      "sedimentation": 0.009508141830401842,
+      "warm": 0.01870596758278132,
+      "warm_commit": 0.0077119491827691055
+    },
+    "median_phase_fraction_of_scheme": {
+      "activation": 0.0051027863187396265,
+      "cold": 0.4519060773856494,
+      "finalize": 0.06890899486869906,
+      "melting": 0.19977890488656194,
+      "prepare": 0.03971697057990928,
+      "saturation": 0.05841742584309744,
+      "sedimentation": 0.0453493809991274,
+      "warm": 0.0918497037097167,
+      "warm_commit": 0.03793893598807025
+    },
+    "median_phase_fraction_of_step": {
+      "activation": 0.001030415336516536,
+      "cold": 0.09112947481627037,
+      "finalize": 0.013926238876812649,
+      "melting": 0.04031710962268609,
+      "prepare": 0.008007888474962402,
+      "saturation": 0.01181834394338714,
+      "sedimentation": 0.009152031787066554,
+      "warm": 0.018535159920218466,
+      "warm_commit": 0.007624723089263968
+    },
+    "minimum_scheme_process_coverage": 0.9992376881544501
+  },
+  "trials": [
+    {
+      "measured_calls": 60,
+      "phase_fraction_of_scheme": {
+        "activation": 0.005200796779739424,
+        "cold": 0.45043510802096215,
+        "finalize": 0.06940407918084968,
+        "melting": 0.2003865417411778,
+        "prepare": 0.03971697057990928,
+        "saturation": 0.05890808724531012,
+        "sedimentation": 0.045610903592413335,
+        "warm": 0.09174674970483247,
+        "warm_commit": 0.037999268122596366
+      },
+      "phase_fraction_of_step": {
+        "activation": 0.001043563132876976,
+        "cold": 0.09038181886193325,
+        "finalize": 0.013926238876812649,
+        "melting": 0.040208455769787606,
+        "prepare": 0.007969387769238976,
+        "saturation": 0.011820171154733355,
+        "sedimentation": 0.009152031787066554,
+        "warm": 0.01840939563842212,
+        "warm_commit": 0.007624723089263968
+      },
+      "phase_totals_s": {
+        "activation": 0.000753247,
+        "cold": 0.065237868,
+        "finalize": 0.010052001,
+        "melting": 0.029022584,
+        "prepare": 0.005752328,
+        "saturation": 0.008531835,
+        "sedimentation": 0.006605964,
+        "warm": 0.013287957,
+        "warm_commit": 0.005503548
+      },
+      "process_covered_s": 0.144747332,
+      "raw_log_sha256": "ceb7bf079e11ee36a24c8fe98a082db4c60291370b76a6fbfd184a0202f98eec",
+      "scheme_process_coverage": 0.9994085049677907,
+      "scheme_s": 0.144833,
+      "trial": 1
+    },
+    {
+      "measured_calls": 60,
+      "phase_fraction_of_scheme": {
+        "activation": 0.005166609135093339,
+        "cold": 0.4479281591737545,
+        "finalize": 0.07019768999226775,
+        "melting": 0.20288710234176516,
+        "prepare": 0.039664827957583124,
+        "saturation": 0.05817334723296144,
+        "sedimentation": 0.045536534850325855,
+        "warm": 0.09199152214735447,
+        "warm_commit": 0.03793893598807025
+      },
+      "phase_fraction_of_step": {
+        "activation": 0.001034711939021136,
+        "cold": 0.08970615001099179,
+        "finalize": 0.014058425173552781,
+        "melting": 0.040632008649641144,
+        "prepare": 0.007943637688433178,
+        "saturation": 0.011650321388919997,
+        "sedimentation": 0.00911955889042359,
+        "warm": 0.018423055386185185,
+        "warm_commit": 0.0075979949313324125
+      },
+      "phase_totals_s": {
+        "activation": 0.000748373,
+        "cold": 0.064881498,
+        "finalize": 0.010167994999999999,
+        "melting": 0.029387791,
+        "prepare": 0.005745371,
+        "saturation": 0.008426293,
+        "sedimentation": 0.006595876,
+        "warm": 0.013324788,
+        "warm_commit": 0.005495379
+      },
+      "process_covered_s": 0.144773364,
+      "raw_log_sha256": "f9791fe1b07dd727f923aa8f2b11b59a266f0737b6bca2081e9f49711f1c6ec0",
+      "scheme_process_coverage": 0.9994847288191758,
+      "scheme_s": 0.144848,
+      "trial": 2
+    },
+    {
+      "measured_calls": 60,
+      "phase_fraction_of_scheme": {
+        "activation": 0.0051027863187396265,
+        "cold": 0.4519060773856494,
+        "finalize": 0.07034080705286931,
+        "melting": 0.19965696171532749,
+        "prepare": 0.04003862479932519,
+        "saturation": 0.05798707518162772,
+        "sedimentation": 0.04504214851296563,
+        "warm": 0.09178916219966804,
+        "warm_commit": 0.03749105466517918
+      },
+      "phase_fraction_of_step": {
+        "activation": 0.001030415336516536,
+        "cold": 0.09125425281735414,
+        "finalize": 0.014204052814057375,
+        "melting": 0.04031710962268609,
+        "prepare": 0.008085075578168871,
+        "saturation": 0.011709440265498883,
+        "sedimentation": 0.009095446628241126,
+        "warm": 0.018535159920218466,
+        "warm_commit": 0.0075706399006577035
+      },
+      "phase_totals_s": {
+        "activation": 0.00075013,
+        "cold": 0.066432001,
+        "finalize": 0.01034038,
+        "melting": 0.029350372,
+        "prepare": 0.005885838,
+        "saturation": 0.008524332,
+        "sedimentation": 0.006621376,
+        "warm": 0.013493374,
+        "warm_commit": 0.005511335
+      },
+      "process_covered_s": 0.146909138,
+      "raw_log_sha256": "a5b6c8966192b217dc7a4ff465dbb3e1aca733b6196b80f6ff83c885e97c055c",
+      "scheme_process_coverage": 0.9993546978313516,
+      "scheme_s": 0.147004,
+      "trial": 3
+    },
+    {
+      "measured_calls": 60,
+      "phase_fraction_of_scheme": {
+        "activation": 0.005049306646352562,
+        "cold": 0.4524343353310368,
+        "finalize": 0.0687446422672698,
+        "melting": 0.19820548480824068,
+        "prepare": 0.039952095566177015,
+        "saturation": 0.05827076184633639,
+        "sedimentation": 0.047436998186561684,
+        "warm": 0.09136260676702374,
+        "warm_commit": 0.03806816236003155
+      },
+      "phase_fraction_of_step": {
+        "activation": 0.0010120691775204137,
+        "cold": 0.09068469746658073,
+        "finalize": 0.013778987578151708,
+        "melting": 0.03972776383759848,
+        "prepare": 0.008007888474962402,
+        "saturation": 0.01167963170902094,
+        "sedimentation": 0.009508141830401842,
+        "warm": 0.018312470357413586,
+        "warm_commit": 0.007630278069418038
+      },
+      "phase_totals_s": {
+        "activation": 0.000748999,
+        "cold": 0.067112752,
+        "finalize": 0.010197374,
+        "melting": 0.029401207,
+        "prepare": 0.005926374,
+        "saturation": 0.00864371,
+        "sedimentation": 0.007036662,
+        "warm": 0.013552455,
+        "warm_commit": 0.0056469169999999996
+      },
+      "process_covered_s": 0.14826645,
+      "raw_log_sha256": "a5de068529b24b0c053ad11c5a86d581dc1d899352dc03c02a602180948f2552",
+      "scheme_process_coverage": 0.9995243937790301,
+      "scheme_s": 0.148337,
+      "trial": 4
+    },
+    {
+      "measured_calls": 60,
+      "phase_fraction_of_scheme": {
+        "activation": 0.005054603999242364,
+        "cold": 0.45356655031523124,
+        "finalize": 0.06747819087047109,
+        "melting": 0.20086294206780855,
+        "prepare": 0.03952198500960576,
+        "saturation": 0.058799483183158814,
+        "sedimentation": 0.044657750899694246,
+        "warm": 0.0918497037097167,
+        "warm_commit": 0.03764393078442514
+      },
+      "phase_fraction_of_step": {
+        "activation": 0.001026837235444555,
+        "cold": 0.09214154515084179,
+        "finalize": 0.013708120156716594,
+        "melting": 0.04080508545616704,
+        "prepare": 0.008028847726276414,
+        "saturation": 0.01194505024852855,
+        "sedimentation": 0.009072172910456889,
+        "warm": 0.018659166147896818,
+        "warm_commit": 0.0076473230788681335
+      },
+      "phase_totals_s": {
+        "activation": 0.000747212,
+        "cold": 0.067049836,
+        "finalize": 0.009975166,
+        "melting": 0.029693167,
+        "prepare": 0.005842456,
+        "saturation": 0.00869221,
+        "sedimentation": 0.006601666,
+        "warm": 0.013577958,
+        "warm_commit": 0.005564827
+      },
+      "process_covered_s": 0.147744498,
+      "raw_log_sha256": "9f83588a503ae29f27c5678c6222cb4ee6109e530f311f6bf45f0a5cf5369d57",
+      "scheme_process_coverage": 0.9994351408393539,
+      "scheme_s": 0.147828,
+      "trial": 5
+    },
+    {
+      "measured_calls": 60,
+      "phase_fraction_of_scheme": {
+        "activation": 0.005174813208987783,
+        "cold": 0.4511514097949389,
+        "finalize": 0.06836878272251308,
+        "melting": 0.19977890488656194,
+        "prepare": 0.04012771324171029,
+        "saturation": 0.05944448080279232,
+        "sedimentation": 0.0453493809991274,
+        "warm": 0.09211420157068062,
+        "warm_commit": 0.03772800092713787
+      },
+      "phase_fraction_of_step": {
+        "activation": 0.0010452765962134555,
+        "cold": 0.09112947481627037,
+        "finalize": 0.013810022817311413,
+        "melting": 0.0403539616333174,
+        "prepare": 0.008105521458875824,
+        "saturation": 0.012007375348215306,
+        "sedimentation": 0.009160262350885358,
+        "warm": 0.01860643373822471,
+        "warm_commit": 0.00762079611348342
+      },
+      "phase_totals_s": {
+        "activation": 0.000759083,
+        "cold": 0.066178498,
+        "finalize": 0.01002888,
+        "melting": 0.029305168,
+        "prepare": 0.005886254,
+        "saturation": 0.008719792,
+        "sedimentation": 0.00665221,
+        "warm": 0.013512048,
+        "warm_commit": 0.005534245
+      },
+      "process_covered_s": 0.146576178,
+      "raw_log_sha256": "489acdc146a45087127d6d40359ffea680e8e9c5b21aacd5b61f733696ad88b1",
+      "scheme_process_coverage": 0.9992376881544501,
+      "scheme_s": 0.146688,
+      "trial": 6
+    },
+    {
+      "measured_calls": 60,
+      "phase_fraction_of_scheme": {
+        "activation": 0.005066144389869111,
+        "cold": 0.45280359739867737,
+        "finalize": 0.06890899486869906,
+        "melting": 0.19927209615015226,
+        "prepare": 0.03918764920560876,
+        "saturation": 0.05841742584309744,
+        "sedimentation": 0.04527302225393079,
+        "warm": 0.09246257168729248,
+        "warm_commit": 0.0381197417885465
+      },
+      "phase_fraction_of_step": {
+        "activation": 0.0010249242585105955,
+        "cold": 0.09160603322771854,
+        "finalize": 0.013940877921234402,
+        "melting": 0.040314446188499505,
+        "prepare": 0.007927995969706178,
+        "saturation": 0.01181834394338714,
+        "sedimentation": 0.00915911888672848,
+        "warm": 0.01870596758278132,
+        "warm_commit": 0.0077119491827691055
+      },
+      "phase_totals_s": {
+        "activation": 0.000738502,
+        "cold": 0.066006086,
+        "finalize": 0.010045002,
+        "melting": 0.029048292,
+        "prepare": 0.005712462,
+        "saturation": 0.008515625,
+        "sedimentation": 0.006599539,
+        "warm": 0.013478454,
+        "warm_commit": 0.005556791
+      },
+      "process_covered_s": 0.14570075300000002,
+      "raw_log_sha256": "e294ffed9bdfabdcc97e8917e228dedb2e27161190384b32edf4dc1bb461df00",
+      "scheme_process_coverage": 0.9995112435858738,
+      "scheme_s": 0.145772,
+      "trial": 7
+    }
+  ]
+}

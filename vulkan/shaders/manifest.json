@@ -1,0 +1,5240 @@
+{
+  "canonicalization": [
+    "spirv-opt --strip-debug --compact-ids",
+    "ignore generator word"
+  ],
+  "division_variants": [
+    {
+      "arithmetic_rewrites": 9450,
+      "artifact": "variants/nvidia-rte-precise-v1/boundary_layer/slab_column.comp.spv",
+      "artifact_hash": "33d03bcb8c4f18e2",
+      "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
+      "requires_fma": true,
+      "source_artifact": "boundary_layer/slab_column.comp.spv",
+      "source_hash": "0533932ed4169f2a"
+    },
+    {
+      "arithmetic_rewrites": 216,
+      "artifact": "variants/nvidia-rte-precise-v1/microphysics/milbrandt_cloud_adjustment.comp.spv",
+      "artifact_hash": "992b4f3bd6f34c83",
+      "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
+      "requires_fma": true,
+      "source_artifact": "microphysics/milbrandt_cloud_adjustment.comp.spv",
+      "source_hash": "10e55c8792a0eed8"
+    },
+    {
+      "arithmetic_rewrites": 23,
+      "artifact": "variants/nvidia-rte-precise-v1/microphysics/milbrandt_cold.comp.spv",
+      "artifact_hash": "9ff72ddaddf156a8",
+      "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
+      "requires_fma": true,
+      "source_artifact": "microphysics/milbrandt_cold.comp.spv",
+      "source_hash": "6c1400a6acb6a3cf"
+    },
+    {
+      "arithmetic_rewrites": 7680,
+      "artifact": "variants/nvidia-rte-precise-v1/microphysics/milbrandt_melting.comp.spv",
+      "artifact_hash": "f98ceca1337f5482",
+      "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
+      "requires_fma": true,
+      "source_artifact": "microphysics/milbrandt_melting.comp.spv",
+      "source_hash": "1320b943f4fb2b10"
+    },
+    {
+      "arithmetic_rewrites": 23,
+      "artifact": "variants/nvidia-rte-precise-v1/microphysics/milbrandt_sedimentation.comp.spv",
+      "artifact_hash": "399466d0c9510282",
+      "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
+      "requires_fma": true,
+      "source_artifact": "microphysics/milbrandt_sedimentation.comp.spv",
+      "source_hash": "e08e8461de17bbea"
+    },
+    {
+      "arithmetic_rewrites": 385,
+      "artifact": "variants/nvidia-rte-precise-v1/microphysics/milbrandt_warm_rain.comp.spv",
+      "artifact_hash": "7e55f13c209005d1",
+      "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
+      "requires_fma": true,
+      "source_artifact": "microphysics/milbrandt_warm_rain.comp.spv",
+      "source_hash": "1d51c25de76aca9c"
+    },
+    {
+      "arithmetic_rewrites": 482,
+      "artifact": "variants/nvidia-rte-precise-v1/microphysics/thompson_cloud_adjustment.comp.spv",
+      "artifact_hash": "82e474901c4becac",
+      "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
+      "requires_fma": true,
+      "source_artifact": "microphysics/thompson_cloud_adjustment.comp.spv",
+      "source_hash": "b067ce7c197ff366"
+    },
+    {
+      "arithmetic_rewrites": 224,
+      "artifact": "variants/nvidia-rte-precise-v1/microphysics/thompson_cloud_phase.comp.spv",
+      "artifact_hash": "07c2e3818a16f609",
+      "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
+      "requires_fma": true,
+      "source_artifact": "microphysics/thompson_cloud_phase.comp.spv",
+      "source_hash": "be3560046aef2336"
+    },
+    {
+      "arithmetic_rewrites": 3240,
+      "artifact": "variants/nvidia-rte-precise-v1/microphysics/thompson_completion.comp.spv",
+      "artifact_hash": "8c1de83faf2a9acc",
+      "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
+      "requires_fma": true,
+      "source_artifact": "microphysics/thompson_completion.comp.spv",
+      "source_hash": "8e16568186c94251"
+    },
+    {
+      "arithmetic_rewrites": 583,
+      "artifact": "variants/nvidia-rte-precise-v1/microphysics/thompson_deposition.comp.spv",
+      "artifact_hash": "fb5e2bebdc231dd3",
+      "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
+      "requires_fma": true,
+      "source_artifact": "microphysics/thompson_deposition.comp.spv",
+      "source_hash": "534432a37abf704f"
+    },
+    {
+      "arithmetic_rewrites": 501,
+      "artifact": "variants/nvidia-rte-precise-v1/microphysics/thompson_freezing.comp.spv",
+      "artifact_hash": "8f6a68110e2c9b29",
+      "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
+      "requires_fma": true,
+      "source_artifact": "microphysics/thompson_freezing.comp.spv",
+      "source_hash": "0ab08bcbfb7be4bd"
+    },
+    {
+      "arithmetic_rewrites": 559,
+      "artifact": "variants/nvidia-rte-precise-v1/microphysics/thompson_warm_rain.comp.spv",
+      "artifact_hash": "c1a495b229c7263d",
+      "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
+      "requires_fma": true,
+      "source_artifact": "microphysics/thompson_warm_rain.comp.spv",
+      "source_hash": "ad0219f45de23a7b"
+    },
+    {
+      "arithmetic_rewrites": 3801,
+      "artifact": "variants/nvidia-rte-precise-v1/radiation/simple_grey.comp.spv",
+      "artifact_hash": "8afd8b0daef6ed77",
+      "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
+      "requires_fma": true,
+      "source_artifact": "radiation/simple_grey.comp.spv",
+      "source_hash": "d5ddb598b9945b85"
+    },
+    {
+      "arithmetic_rewrites": 489,
+      "artifact": "variants/nvidia-rte-precise-v1/terrain/column_remap.comp.spv",
+      "artifact_hash": "4374ad58c856be78",
+      "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
+      "requires_fma": true,
+      "source_artifact": "terrain/column_remap.comp.spv",
+      "source_hash": "2b92fb2bfae9437c"
+    },
+    {
+      "arithmetic_rewrites": 606,
+      "artifact": "variants/nvidia-rte-precise-v1/terrain/conservative_remap.comp.spv",
+      "artifact_hash": "bf8ceba075b6a271",
+      "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
+      "requires_fma": true,
+      "source_artifact": "terrain/conservative_remap.comp.spv",
+      "source_hash": "bfeb00eb90b152ad"
+    },
+    {
+      "arithmetic_rewrites": 13390,
+      "artifact": "variants/nvidia-rte-precise-v1/terrain/earth_geometry.comp.spv",
+      "artifact_hash": "16fcec915db3b6ee",
+      "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
+      "requires_fma": true,
+      "source_artifact": "terrain/earth_geometry.comp.spv",
+      "source_hash": "998b6a6578d4c974"
+    },
+    {
+      "arithmetic_rewrites": 1518,
+      "artifact": "variants/nvidia-rte-precise-v1/terrain/held_sources.comp.spv",
+      "artifact_hash": "1699ff56082bdff7",
+      "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
+      "requires_fma": true,
+      "source_artifact": "terrain/held_sources.comp.spv",
+      "source_hash": "69694193dca0a6cb"
+    },
+    {
+      "arithmetic_rewrites": 2212,
+      "artifact": "variants/nvidia-rte-precise-v1/terrain/moving_energy.comp.spv",
+      "artifact_hash": "c85812ab444004fc",
+      "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
+      "requires_fma": true,
+      "source_artifact": "terrain/moving_energy.comp.spv",
+      "source_hash": "15d885996e3e2922"
+    },
+    {
+      "arithmetic_rewrites": 5297,
+      "artifact": "variants/nvidia-rte-precise-v1/terrain/moving_momentum.comp.spv",
+      "artifact_hash": "383e7de75f6bd049",
+      "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
+      "requires_fma": true,
+      "source_artifact": "terrain/moving_momentum.comp.spv",
+      "source_hash": "0a5200d008ce5325"
+    },
+    {
+      "arithmetic_rewrites": 1082,
+      "artifact": "variants/nvidia-rte-precise-v1/terrain/reference_atmosphere.comp.spv",
+      "artifact_hash": "cd28ba3918564bf1",
+      "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
+      "requires_fma": true,
+      "source_artifact": "terrain/reference_atmosphere.comp.spv",
+      "source_hash": "80d76c70d1765224"
+    },
+    {
+      "arithmetic_rewrites": 287,
+      "artifact": "variants/nvidia-rte-precise-v1/time_stepping/rk_combination.comp.spv",
+      "artifact_hash": "e9a8eb721c1d2087",
+      "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
+      "requires_fma": true,
+      "source_artifact": "time_stepping/rk_combination.comp.spv",
+      "source_hash": "3b43f5ae41beaee5"
+    },
+    {
+      "arithmetic_rewrites": 8431,
+      "artifact": "variants/nvidia-rte-precise-v1/time_stepping/rk_tendency.comp.spv",
+      "artifact_hash": "bc3145a83d92fb18",
+      "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
+      "requires_fma": true,
+      "source_artifact": "time_stepping/rk_tendency.comp.spv",
+      "source_hash": "d9588873ec35e908"
+    },
+    {
+      "arithmetic_rewrites": 25073,
+      "artifact": "variants/nvidia-rte-precise-v1/turbulence/collocated_sgs.comp.spv",
+      "artifact_hash": "824d6079e08b24b9",
+      "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
+      "requires_fma": true,
+      "source_artifact": "turbulence/collocated_sgs.comp.spv",
+      "source_hash": "4f21d73cda657727"
+    }
+  ],
+  "include_sha256": {
+    "vulkan/shaders/compute/acoustic/momentum_precision.glsl": "bda4bf5d1a439fe20be22d816b27e77d9e3e1549bc80d243e501515f93208540",
+    "vulkan/shaders/compute/acoustic/pressure_eos.glsl": "428d1354ab6131e4f1af97c6624b56991f451b58f957dd0c7bba1f0a5b2233e3",
+    "vulkan/shaders/compute/dynamics/boundary_float32.glsl": "0c13df48da453c39293f1e963d790a2d17842383918bf3aee653f48de00effff",
+    "vulkan/shaders/compute/microphysics/compensated_fma.glsl": "1aa62d1a150d642050eb4afe6881f6c5b683f30f859df07d0686fad918573139",
+    "vulkan/shaders/compute/microphysics/liquid_adjustment.glsl": "a3b27fdf846492b4064faf2454974be035af5a6d4ecc219120543d01d0acb35b",
+    "vulkan/shaders/compute/microphysics/milbrandt_thermodynamics.glsl": "809a87d96a8d43aecf81fbcd5804f3b19d2d228659514ac131cfaed4e23139ed",
+    "vulkan/shaders/compute/microphysics/thompson_compensated.glsl": "249fb162bae663bf06a6991954de797c50eb0dbddc59222701a4a7ff650c7761",
+    "vulkan/shaders/compute/microphysics/thompson_completion_math.glsl": "7a204d314eb17fddb544d057c1866352f6b6a33269223be260a0885a4556f3fc",
+    "vulkan/shaders/compute/microphysics/thompson_completion_processes.glsl": "3195c73e9462fdf08d9fcdbccf0676eabfd1a6ae6322138647458c850ecf2f66",
+    "vulkan/shaders/compute/microphysics/thompson_number_math.glsl": "f6983abc7de404c437771ddf720009dd9e102ec3e753ca94697b197bad93799e",
+    "vulkan/shaders/compute/microphysics/thompson_snow_moments.glsl": "7a42e253ef8829061454b5279744c20e62668baf1deeebe0a7f03d22c38d4083",
+    "vulkan/shaders/compute/microphysics/thompson_warm_math.glsl": "981d452277de19cf997c75c54c397d700098f2ba8e139bb081123c714d12ebc8",
+    "vulkan/shaders/compute/terrain/compensated_storage.glsl": "838e2eafed4794af3607711039a4c4a956b0a1c0d51f5e59620ea8e17bd096ea",
+    "vulkan/shaders/compute/terrain/signed_scalar_update.glsl": "db7212cec6ef57fa9ddc57d6f6f11596d8eafe6557626d5c192134e196bcbfd2",
+    "vulkan/shaders/support/exact_division.glsl": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854"
+  },
+  "schema_version": 1,
+  "shaders": [
+    {
+      "artifact": "vulkan/shaders/compute/acoustic/acoustic_boundary_cartesian_agrid.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 16,
+      "source": "vulkan/shaders/compute/acoustic/acoustic_boundary_cartesian_agrid.comp",
+      "source_sha256": "59c9dee8cb4de4936140d7efbf650032e64c058d7d71bd14d5f1b99e01dc0296",
+      "spirv_fnv1a64": "df90cca9220f6567",
+      "spirv_sha256": "8a57c95afea45df6ff909d2811c45f5304f437e11809d25e5c33ec4cf4bc4517",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/acoustic/acoustic_continuity_massflux_cartesian_agrid.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        },
+        {
+          "binding": 9,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 64,
+      "source": "vulkan/shaders/compute/acoustic/acoustic_continuity_massflux_cartesian_agrid.comp",
+      "source_sha256": "1ff956af122a99d22cd1a733bf10b5445eacefba944f3c263341d65f667ce3e5",
+      "spirv_fnv1a64": "785ce7c646242243",
+      "spirv_sha256": "85d63586c698d8886fe5b67f8158ad829941b44815f7a0f733ac0fbb73d97f0e",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/acoustic/acoustic_momentum_cartesian.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 40,
+      "source": "vulkan/shaders/compute/acoustic/acoustic_momentum_cartesian.comp",
+      "source_sha256": "b301c2d628d5fb9c7d8d9117e2fdb77001f93cb35295b4b24a9724086c46d957",
+      "spirv_fnv1a64": "69917b3448f4d0b5",
+      "spirv_sha256": "42bff5498f09741850c39f8528f3e308d44cec983d3de3fba5d5bf97e7782ac8",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/acoustic/acoustic_momentum_cartesian_agrid.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 40,
+      "source": "vulkan/shaders/compute/acoustic/acoustic_momentum_cartesian_agrid.comp",
+      "source_sha256": "63951488cabb5ce503cf879bd71d8f3b4eace56134394be707e8a202f91ba826",
+      "spirv_fnv1a64": "646196f9f4003fc7",
+      "spirv_sha256": "adaf6f1fab775b4790f4a656604c88239d6e60f0e8db6cfc3d14f2596350c8b8",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/acoustic/acoustic_momentum_cartesian_cgrid.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 44,
+      "source": "vulkan/shaders/compute/acoustic/acoustic_momentum_cartesian_cgrid.comp",
+      "source_sha256": "16694bffbb5edf09ef88154e2145c226de0822d75b3f3a9e2ec75a79c4b11a74",
+      "spirv_fnv1a64": "ff184576aa4bd7ed",
+      "spirv_sha256": "07f79a36df385423506b822a7aa87d7102f4170582d10a93bc002da9d0d93bf1",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/acoustic/acoustic_null_mode_constraint_cartesian_agrid.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        },
+        {
+          "binding": 9,
+          "set": 0
+        },
+        {
+          "binding": 10,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 16,
+      "source": "vulkan/shaders/compute/acoustic/acoustic_null_mode_constraint_cartesian_agrid.comp",
+      "source_sha256": "74ca1340a64263d82446d06e9268a126b969f4cedf35ed82d758267a7a62bb73",
+      "spirv_fnv1a64": "2fb08245e66313bf",
+      "spirv_sha256": "9537bb480655a1322ec5371746a5ef5ac6029e945afa5f9fbacd888231fe0d5c",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/acoustic/acoustic_pressure_cartesian.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 40,
+      "source": "vulkan/shaders/compute/acoustic/acoustic_pressure_cartesian.comp",
+      "source_sha256": "62e7be3039de8a645e70a1f726f06420c20569959fc9c43db229328e400450dc",
+      "spirv_fnv1a64": "1509da583c7ea394",
+      "spirv_sha256": "8d1284b3f2107e37844387b41660bda24360b8cd7a4858859c834910fc5ffb00",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/acoustic/acoustic_pressure_cartesian_cgrid.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        },
+        {
+          "binding": 9,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 72,
+      "source": "vulkan/shaders/compute/acoustic/acoustic_pressure_cartesian_cgrid.comp",
+      "source_sha256": "820ca5048642a9a9b0e6d975f616c455c61ea2ce67e0ec3660fcc7932a63939e",
+      "spirv_fnv1a64": "12c11b8636f940fe",
+      "spirv_sha256": "b5dbbb7a4ee5c0838974db9f8752130d6be328175d877994865c1c98f011f980",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/acoustic/acoustic_pressure_eos_cartesian_agrid.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 48,
+      "source": "vulkan/shaders/compute/acoustic/acoustic_pressure_eos_cartesian_agrid.comp",
+      "source_sha256": "69a496abb8dbb21af75e673740cee9f9f4bd843bd0965bdf0ae177b1b3a2b3e6",
+      "spirv_fnv1a64": "f70661b5aa63bfbd",
+      "spirv_sha256": "d5ed741d6471ea7c9b879be26dea02d0da3d0661f8e1a41f4ae138ead06c04ec",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/acoustic/acoustic_pressure_massflux_cartesian_cgrid.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        },
+        {
+          "binding": 9,
+          "set": 0
+        },
+        {
+          "binding": 10,
+          "set": 0
+        },
+        {
+          "binding": 11,
+          "set": 0
+        },
+        {
+          "binding": 12,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 72,
+      "source": "vulkan/shaders/compute/acoustic/acoustic_pressure_massflux_cartesian_cgrid.comp",
+      "source_sha256": "539683ace67df35fae7c1c854ce94d63c4f59becf27080172b2f65b8d1561d8f",
+      "spirv_fnv1a64": "b4e52fb2d0205218",
+      "spirv_sha256": "dbf0befd0732216d81e7cce38e877b0005a1778ee205d15d76181c308553af24",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/acoustic/acoustic_retained_flux_fp64.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x00070000",
+      "push_constant_bytes": 32,
+      "source": "vulkan/shaders/compute/acoustic/acoustic_retained_flux_fp64.comp",
+      "source_sha256": "46ed5657c91029fc490bbb71bf64c20e26c6e6a30cb52ee6514602d5edfb79c4",
+      "spirv_fnv1a64": "2698b06dd388c6be",
+      "spirv_sha256": "cec683802c562004bc020fc193778658e3900e72073bdf3c8eb4607ddb20985f",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/advection/advect_conservative_mass_flux_cartesian_cgrid.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 24,
+      "source": "vulkan/shaders/compute/advection/advect_conservative_mass_flux_cartesian_cgrid.comp",
+      "source_sha256": "33db8fe55ef7d03bd32f96eb214422d4473722c015cb308aaaa6e92a05d7e1ec",
+      "spirv_fnv1a64": "540e782784b5afef",
+      "spirv_sha256": "0c83b01fd3b3c5b66e4b276ba1e8c6ca35f946bdd910d0bd9d1b936ccfcea628",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/advection/advect_conservative_scalar_flux_cartesian_cgrid.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 16,
+      "source": "vulkan/shaders/compute/advection/advect_conservative_scalar_flux_cartesian_cgrid.comp",
+      "source_sha256": "a012cb97e19af7ee0956c9823821858810372bc8d5e46613ed35620f213b84b4",
+      "spirv_fnv1a64": "c6663293e8b3ff6a",
+      "spirv_sha256": "d5fd008162868bb247e9b313e2b4eef9077a1f1fba8a1a68ef744b7e8ac8c92a",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/advection/advect_conservative_update_cartesian_cgrid.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        },
+        {
+          "binding": 9,
+          "set": 0
+        },
+        {
+          "binding": 10,
+          "set": 0
+        },
+        {
+          "binding": 11,
+          "set": 0
+        },
+        {
+          "binding": 12,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 76,
+      "source": "vulkan/shaders/compute/advection/advect_conservative_update_cartesian_cgrid.comp",
+      "source_sha256": "3ff08c2e512a888573a5adb7dace019a70271526bd166163119841ef5b5358fe",
+      "spirv_fnv1a64": "5bb5c8b80e9a9c36",
+      "spirv_sha256": "077c7a8973eec90ee96e7647f4f5f116e245baec7d4f5eeaec3ee3c63c765b4f",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/advection/advect_pd_limiter_cartesian_cgrid.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 9,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 32,
+      "source": "vulkan/shaders/compute/advection/advect_pd_limiter_cartesian_cgrid.comp",
+      "source_sha256": "4e5b680e5f6a2ea9e89255d8c2e78f0004c0bc8237f611ff9dcae6ca62cd7560",
+      "spirv_fnv1a64": "cce1050331a8b908",
+      "spirv_sha256": "f899c4a4440f19220c6efb3020360c37b146b5153c9d58213c41b6886fa468cb",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/advection/advect_x.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 32,
+      "source": "vulkan/shaders/compute/advection/advect_x.comp",
+      "source_sha256": "bfa015739f7b1a9f3a74b1941708cbf00c98ffab60b8ea9dab18c05c24f70f0a",
+      "spirv_fnv1a64": "be7ee3339932f72d",
+      "spirv_sha256": "3b9c0763adb00d36491d478d7cc037023f0e92723b2a8e6dca2d98798a083d7c",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/advection/advect_y.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 32,
+      "source": "vulkan/shaders/compute/advection/advect_y.comp",
+      "source_sha256": "073634e13306ec1f9d0ef4933f9c5adc7e85f1fde11974b2dc05fb7265c9fd46",
+      "spirv_fnv1a64": "7d5c8804d1368417",
+      "spirv_sha256": "9175b1f7e81f24a7e9a9ba520be521950be05d14d46af6d767269d86382b7baa",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/advection/tvd_vertical_flux.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 32,
+      "source": "vulkan/shaders/compute/advection/tvd_vertical_flux.comp",
+      "source_sha256": "ca70204cb8eb820f6a1209e1b806e97f9f39737d5cf3b4ab4c21832af6927d6e",
+      "spirv_fnv1a64": "f7889f53c08a8857",
+      "spirv_sha256": "fbea2aae4a10014ae0d377b8ef13e35a87d6ca2f333aaf7f1d4edc3c0ddbd7b1",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/boundary_layer/mynn_level25_stability.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 16,
+      "source": "vulkan/shaders/compute/boundary_layer/mynn_level25_stability.comp",
+      "source_sha256": "46f564ae684acc042eaed4355062db641d8668bab85435b75bca8f6ef51aa15d",
+      "spirv_fnv1a64": "2a40af78b09df0b4",
+      "spirv_sha256": "aea21be01449a7c814314b16e5160dc4b915365f0a007bf2fcb8725b4ce94019",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/boundary_layer/slab_column.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 32,
+      "source": "vulkan/shaders/compute/boundary_layer/slab_column.comp",
+      "source_sha256": "ef744ee59f5d153abc0af3c76bb92d6f96be224290cd4e0949e0b6813261d1e3",
+      "spirv_fnv1a64": "0533932ed4169f2a",
+      "spirv_sha256": "9b2042e2a59e61efeba4e8c9ade3db30de6674cf23321b62561a141c52dcf81c",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/chaos/earth_control_evolution.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 80,
+      "source": "vulkan/shaders/compute/chaos/earth_control_evolution.comp",
+      "source_sha256": "640b86a4c1be12b593c5e18bcd8fb35937331bded69211b9ce502f505e66f192",
+      "spirv_fnv1a64": "4de32726b640ea78",
+      "spirv_sha256": "9e59126384aed2fecb6ec3f61856b591f8bd46325ed098dc6cd07c7e4e44aba7",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/diffusion/diffuse_cartesian.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 32,
+      "source": "vulkan/shaders/compute/diffusion/diffuse_cartesian.comp",
+      "source_sha256": "2652fab2df152b2da2a04495c5c94de5702f4a405147f2560aa8a1c67072e3a7",
+      "spirv_fnv1a64": "d75684cdeda6f0dd",
+      "spirv_sha256": "6b25c201c6932bb6163046d39e85f87d3790675b85da22d522406feedeceeb49",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/diffusion/diffusion.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 64,
+      "source": "vulkan/shaders/compute/diffusion/diffusion.comp",
+      "source_sha256": "c810c6e15c363ab667346678f5c4c469cc330628bd1bf965eef870023801cb30",
+      "spirv_fnv1a64": "e4725d28ee57dddf",
+      "spirv_sha256": "9549f5935097aeb8fa7fa55bfbfdf0310c453491389ced4f4f338904354fbe0c",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/diffusion/implicit_diffusion_stencil.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 80,
+      "source": "vulkan/shaders/compute/diffusion/implicit_diffusion_stencil.comp",
+      "source_sha256": "1549f84d005e731042ce5260202b32a96417cda5832a4c011d8543592ac7b7bf",
+      "spirv_fnv1a64": "ad3472218080626f",
+      "spirv_sha256": "057f7aa3dcaa1e899b98c934fc8912494181a3653d74dd017c39076704a61e1f",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/diffusion/implicit_diffusion_vector.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        },
+        {
+          "binding": 9,
+          "set": 0
+        },
+        {
+          "binding": 10,
+          "set": 0
+        },
+        {
+          "binding": 11,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 32,
+      "source": "vulkan/shaders/compute/diffusion/implicit_diffusion_vector.comp",
+      "source_sha256": "dbaa9b047b5facb019000b64599c18a4a5a243dd2b7a91f43f8774e75a596a45",
+      "spirv_fnv1a64": "4c402eb107c49eef",
+      "spirv_sha256": "bd9a7f1273af485dd97377ba658857bcd922b5f40614016337168e582ed65424",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/domain/domain_recycling_homogeneous_field.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 44,
+      "source": "vulkan/shaders/compute/domain/domain_recycling_homogeneous_field.comp",
+      "source_sha256": "839f1497468a81ae65fa6b6899b00df9e4378f942d00694f96fc4eeba33a88e3",
+      "spirv_fnv1a64": "71cc8ee3b62dc269",
+      "spirv_sha256": "dcf1f1580bfa07578e71d13a52f0a0b717b4c27a7ff3d88ccdc6b9461631bdf0",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/dynamics/acoustic_bc_face_cartesian_cgrid.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 64,
+      "source": "vulkan/shaders/compute/dynamics/acoustic_bc_face_cartesian_cgrid.comp",
+      "source_sha256": "f863b202fdcf1a04df19b9b97d3575fe79e6ae297d46cc7e7266f18f7b5e1760",
+      "spirv_fnv1a64": "7e9000e547904439",
+      "spirv_sha256": "f6af67356e0726da85f51ccc12f8ef1039a77bc232e438393a6584562448be2e",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/dynamics/cartesian_cgrid_slow_tendencies.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        },
+        {
+          "binding": 9,
+          "set": 0
+        },
+        {
+          "binding": 10,
+          "set": 0
+        },
+        {
+          "binding": 11,
+          "set": 0
+        },
+        {
+          "binding": 12,
+          "set": 0
+        },
+        {
+          "binding": 13,
+          "set": 0
+        },
+        {
+          "binding": 14,
+          "set": 0
+        },
+        {
+          "binding": 15,
+          "set": 0
+        },
+        {
+          "binding": 16,
+          "set": 0
+        },
+        {
+          "binding": 17,
+          "set": 0
+        },
+        {
+          "binding": 18,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 56,
+      "source": "vulkan/shaders/compute/dynamics/cartesian_cgrid_slow_tendencies.comp",
+      "source_sha256": "1eb41c357932af79a5e37fa9bb25e1069a4d2ce341f4c086a895d7fdf9c7dd4f",
+      "spirv_fnv1a64": "c2a0a8f2a3cab774",
+      "spirv_sha256": "a4ffaf4281fc955c05823f347abdd83cbc86e072237ef9d79ee77b78710b26b9",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/dynamics/cartesian_tendencies.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        },
+        {
+          "binding": 9,
+          "set": 0
+        },
+        {
+          "binding": 10,
+          "set": 0
+        },
+        {
+          "binding": 11,
+          "set": 0
+        },
+        {
+          "binding": 12,
+          "set": 0
+        },
+        {
+          "binding": 13,
+          "set": 0
+        },
+        {
+          "binding": 14,
+          "set": 0
+        },
+        {
+          "binding": 15,
+          "set": 0
+        },
+        {
+          "binding": 16,
+          "set": 0
+        },
+        {
+          "binding": 17,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 64,
+      "source": "vulkan/shaders/compute/dynamics/cartesian_tendencies.comp",
+      "source_sha256": "826318e313208fef08bd1642a47a024e753b35865fee2e9260d28458e17e8dca",
+      "spirv_fnv1a64": "48a704bf983903e4",
+      "spirv_sha256": "7e314d381e521bf2a5de300cc173af4a019fe5d0d2e330b3942c56440c1b6300",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/dynamics/conservative_momentum.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 80,
+      "source": "vulkan/shaders/compute/dynamics/conservative_momentum.comp",
+      "source_sha256": "f242ccf3e073242524b08fb48d9777f37e347011ba6e12b8e215bc2d5f22688c",
+      "spirv_fnv1a64": "34ea6cb005636aeb",
+      "spirv_sha256": "28c854e2d936870351654d85706bee74d1d91b49b6dfa48d1bac63712f1b68f5",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/dynamics/conservative_reduction.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 8,
+      "source": "vulkan/shaders/compute/dynamics/conservative_reduction.comp",
+      "source_sha256": "86957bcd06b3bc0dcc16a60b05afbfe8f16fd05d77c58939e4e9cabbffd34203",
+      "spirv_fnv1a64": "ac0410b844aa84d3",
+      "spirv_sha256": "a973d3f6d51147ada826f2bbace133ccbccc1d8f4ec7325a9884dad6f5c1f937",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/dynamics/slow_apply.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        },
+        {
+          "binding": 9,
+          "set": 0
+        },
+        {
+          "binding": 10,
+          "set": 0
+        },
+        {
+          "binding": 11,
+          "set": 0
+        },
+        {
+          "binding": 12,
+          "set": 0
+        },
+        {
+          "binding": 13,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 32,
+      "source": "vulkan/shaders/compute/dynamics/slow_apply.comp",
+      "source_sha256": "c36942cc2ba4b7c9ebce9ab00741139d649b174e37bc0779e300baa243cd20ab",
+      "spirv_fnv1a64": "9bf6902bc54b2bec",
+      "spirv_sha256": "9c8325f9220ec7ec82e7b306107db7d9d0d9aa5d8fcc759f755574fbcd47b1f7",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/dynamics/state_relaxation_cartesian.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 48,
+      "source": "vulkan/shaders/compute/dynamics/state_relaxation_cartesian.comp",
+      "source_sha256": "00c75873cd631d50c0d4cc0dadf6d129cafe5f4b7e9093122eff8eaa6df638b2",
+      "spirv_fnv1a64": "53c5f1aeb63c3c36",
+      "spirv_sha256": "dbcaddb1be3b01d37d4c136d4c9ef941abd17c7d49fd531ad9ccdd34c22a9a4d",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/microphysics/kessler_pointwise.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        },
+        {
+          "binding": 9,
+          "set": 0
+        },
+        {
+          "binding": 10,
+          "set": 0
+        },
+        {
+          "binding": 11,
+          "set": 0
+        },
+        {
+          "binding": 12,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 64,
+      "source": "vulkan/shaders/compute/microphysics/kessler_pointwise.comp",
+      "source_sha256": "6674970dd422d9a7a4e5c8286ada3db663868ee3c796086fd8aa8b54880a23c6",
+      "spirv_fnv1a64": "bd79d138e715eb5a",
+      "spirv_sha256": "e6e1f950c90b716c2ad059fb0d9e18672923df4965cc18b5b2a11d4938ec4f8f",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/microphysics/kessler_sedimentation.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 64,
+      "source": "vulkan/shaders/compute/microphysics/kessler_sedimentation.comp",
+      "source_sha256": "040b3155ffc5035c29c60acde02a7fb957ba642167b168973114bb2ba7e9c323",
+      "spirv_fnv1a64": "19469f666b3b9510",
+      "spirv_sha256": "d51a4c8e8b05165f374e128642b4fee99882b1dca6cd25f462c4f684b6ec3a85",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/microphysics/lin_pointwise.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        },
+        {
+          "binding": 9,
+          "set": 0
+        },
+        {
+          "binding": 10,
+          "set": 0
+        },
+        {
+          "binding": 11,
+          "set": 0
+        },
+        {
+          "binding": 12,
+          "set": 0
+        },
+        {
+          "binding": 13,
+          "set": 0
+        },
+        {
+          "binding": 14,
+          "set": 0
+        },
+        {
+          "binding": 15,
+          "set": 0
+        },
+        {
+          "binding": 16,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 112,
+      "source": "vulkan/shaders/compute/microphysics/lin_pointwise.comp",
+      "source_sha256": "4683e7fe85ebba6941384961cb3b4de138c4f7ab48062b56e020279fb48671b3",
+      "spirv_fnv1a64": "f6edabe911c28193",
+      "spirv_sha256": "eebd9be4d6ee2463690f93924c9e50c72b0db024fc6f7e14ebe9d1321ea2ea8d",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/microphysics/lin_sedimentation.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        },
+        {
+          "binding": 9,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 64,
+      "source": "vulkan/shaders/compute/microphysics/lin_sedimentation.comp",
+      "source_sha256": "802b2084965c6f186a7b9ef6d84c916560c597f1193963e379dcf535f4175aaa",
+      "spirv_fnv1a64": "2a069f95e8679798",
+      "spirv_sha256": "d7112179244b8813ad6b9ce6e5b026f0c75af7167a973fd0e29144581fc1c2d5",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/microphysics/microphysics_apply.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        },
+        {
+          "binding": 9,
+          "set": 0
+        },
+        {
+          "binding": 10,
+          "set": 0
+        },
+        {
+          "binding": 11,
+          "set": 0
+        },
+        {
+          "binding": 12,
+          "set": 0
+        },
+        {
+          "binding": 13,
+          "set": 0
+        },
+        {
+          "binding": 14,
+          "set": 0
+        },
+        {
+          "binding": 15,
+          "set": 0
+        },
+        {
+          "binding": 16,
+          "set": 0
+        },
+        {
+          "binding": 17,
+          "set": 0
+        },
+        {
+          "binding": 18,
+          "set": 0
+        },
+        {
+          "binding": 19,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 64,
+      "source": "vulkan/shaders/compute/microphysics/microphysics_apply.comp",
+      "source_sha256": "0e8a68b8d360c1e181a2bf2218ff04f2babe43139268e0bc5f054783298dde1b",
+      "spirv_fnv1a64": "9a2c8d06dfad498c",
+      "spirv_sha256": "337e8c21f102ae8ec2332dc89afb887f9b9a388f7911f49749c841fc8ea7ed21",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/microphysics/milbrandt_cloud_adjustment.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        },
+        {
+          "binding": 9,
+          "set": 0
+        },
+        {
+          "binding": 10,
+          "set": 0
+        },
+        {
+          "binding": 11,
+          "set": 0
+        },
+        {
+          "binding": 12,
+          "set": 0
+        },
+        {
+          "binding": 13,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 48,
+      "source": "vulkan/shaders/compute/microphysics/milbrandt_cloud_adjustment.comp",
+      "source_sha256": "c7bae35dea20d3f1db2abdc84f01352f1571242528e63f22555dd0a05338ea2d",
+      "spirv_fnv1a64": "10e55c8792a0eed8",
+      "spirv_sha256": "d0dd9030329614096cc40dba5c3f6e044037ab569a38872ab188569fdc840900",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/microphysics/milbrandt_cold.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        },
+        {
+          "binding": 9,
+          "set": 0
+        },
+        {
+          "binding": 10,
+          "set": 0
+        },
+        {
+          "binding": 11,
+          "set": 0
+        },
+        {
+          "binding": 12,
+          "set": 0
+        },
+        {
+          "binding": 13,
+          "set": 0
+        },
+        {
+          "binding": 14,
+          "set": 0
+        },
+        {
+          "binding": 15,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 48,
+      "source": "vulkan/shaders/compute/microphysics/milbrandt_cold.comp",
+      "source_sha256": "5dc81efbca9c498d86f550e4c0beee28abfe2d5968ec0c13664406ef80a6c67c",
+      "spirv_fnv1a64": "6c1400a6acb6a3cf",
+      "spirv_sha256": "2c8c04996cbc88cee9b0bbae4b749f893646b0b28fab6ffd8e5a39203267852c",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/microphysics/milbrandt_melting.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        },
+        {
+          "binding": 9,
+          "set": 0
+        },
+        {
+          "binding": 10,
+          "set": 0
+        },
+        {
+          "binding": 11,
+          "set": 0
+        },
+        {
+          "binding": 12,
+          "set": 0
+        },
+        {
+          "binding": 13,
+          "set": 0
+        },
+        {
+          "binding": 14,
+          "set": 0
+        },
+        {
+          "binding": 15,
+          "set": 0
+        },
+        {
+          "binding": 16,
+          "set": 0
+        },
+        {
+          "binding": 17,
+          "set": 0
+        },
+        {
+          "binding": 18,
+          "set": 0
+        },
+        {
+          "binding": 19,
+          "set": 0
+        },
+        {
+          "binding": 20,
+          "set": 0
+        },
+        {
+          "binding": 21,
+          "set": 0
+        },
+        {
+          "binding": 22,
+          "set": 0
+        },
+        {
+          "binding": 23,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 44,
+      "source": "vulkan/shaders/compute/microphysics/milbrandt_melting.comp",
+      "source_sha256": "ac3d00702ff7f27e62e766c744dc58f22bdfa33bad602986bc8928fea04ba828",
+      "spirv_fnv1a64": "1320b943f4fb2b10",
+      "spirv_sha256": "2e5e2baa372b741fee120b917438e201e28a34c34dc5d05dc17cfdab3dfc14bc",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/microphysics/milbrandt_sedimentation.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        },
+        {
+          "binding": 9,
+          "set": 0
+        },
+        {
+          "binding": 10,
+          "set": 0
+        },
+        {
+          "binding": 11,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 48,
+      "source": "vulkan/shaders/compute/microphysics/milbrandt_sedimentation.comp",
+      "source_sha256": "e42cb1a65eb633f1ebccfb33011f632f4401e4479ad8c36f906b87147dcd20d4",
+      "spirv_fnv1a64": "e08e8461de17bbea",
+      "spirv_sha256": "9399d9fa145c067be44ee868d610e43114fd4e3d598f7bf038797d3f8c9ae0bc",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/microphysics/milbrandt_warm_rain.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        },
+        {
+          "binding": 9,
+          "set": 0
+        },
+        {
+          "binding": 10,
+          "set": 0
+        },
+        {
+          "binding": 11,
+          "set": 0
+        },
+        {
+          "binding": 12,
+          "set": 0
+        },
+        {
+          "binding": 13,
+          "set": 0
+        },
+        {
+          "binding": 14,
+          "set": 0
+        },
+        {
+          "binding": 15,
+          "set": 0
+        },
+        {
+          "binding": 16,
+          "set": 0
+        },
+        {
+          "binding": 17,
+          "set": 0
+        },
+        {
+          "binding": 18,
+          "set": 0
+        },
+        {
+          "binding": 19,
+          "set": 0
+        },
+        {
+          "binding": 20,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 44,
+      "source": "vulkan/shaders/compute/microphysics/milbrandt_warm_rain.comp",
+      "source_sha256": "ab06e71e3b67ad40fe5d1a01780a1c6e730c78cbbc401d74c86982c9f7bfec1b",
+      "spirv_fnv1a64": "1d51c25de76aca9c",
+      "spirv_sha256": "31049a357be32f77fc3bf24ddb4d75cbdb1ac58c7ef436e349e5a81af6deadf8",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/microphysics/thompson_cloud_adjustment.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        },
+        {
+          "binding": 9,
+          "set": 0
+        },
+        {
+          "binding": 10,
+          "set": 0
+        },
+        {
+          "binding": 11,
+          "set": 0
+        },
+        {
+          "binding": 12,
+          "set": 0
+        },
+        {
+          "binding": 13,
+          "set": 0
+        },
+        {
+          "binding": 14,
+          "set": 0
+        },
+        {
+          "binding": 15,
+          "set": 0
+        },
+        {
+          "binding": 16,
+          "set": 0
+        },
+        {
+          "binding": 17,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 48,
+      "source": "vulkan/shaders/compute/microphysics/thompson_cloud_adjustment.comp",
+      "source_sha256": "6a5880fca21ab7d43e66fb4f02f379643089d00f9863bb3df7afe799fc62523d",
+      "spirv_fnv1a64": "b067ce7c197ff366",
+      "spirv_sha256": "8317391423e4729e7faa34f95b32eebf2c97cb422ef27e2ea2c96301073689a9",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/microphysics/thompson_cloud_phase.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        },
+        {
+          "binding": 9,
+          "set": 0
+        },
+        {
+          "binding": 10,
+          "set": 0
+        },
+        {
+          "binding": 11,
+          "set": 0
+        },
+        {
+          "binding": 12,
+          "set": 0
+        },
+        {
+          "binding": 13,
+          "set": 0
+        },
+        {
+          "binding": 14,
+          "set": 0
+        },
+        {
+          "binding": 15,
+          "set": 0
+        },
+        {
+          "binding": 16,
+          "set": 0
+        },
+        {
+          "binding": 17,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 44,
+      "source": "vulkan/shaders/compute/microphysics/thompson_cloud_phase.comp",
+      "source_sha256": "98f009360a161fe76c2de5ff7082744b05ac73512f04d5167238757aca4c6b2f",
+      "spirv_fnv1a64": "be3560046aef2336",
+      "spirv_sha256": "fb6d9d41d4ec3edbdcf1d90a1edaedd9cc5f405adf1cba57596010f6b3662362",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/microphysics/thompson_completion.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 12,
+      "source": "vulkan/shaders/compute/microphysics/thompson_completion.comp",
+      "source_sha256": "a26a197743bd00d74d28760525426aceef5b2cb72080d09792776e98c2117fa7",
+      "spirv_fnv1a64": "8e16568186c94251",
+      "spirv_sha256": "7a55d7ddebc9d31489528b970d75bb858e467109708dbeb2bc953b359aabebe6",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/microphysics/thompson_deposition.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        },
+        {
+          "binding": 9,
+          "set": 0
+        },
+        {
+          "binding": 10,
+          "set": 0
+        },
+        {
+          "binding": 11,
+          "set": 0
+        },
+        {
+          "binding": 12,
+          "set": 0
+        },
+        {
+          "binding": 13,
+          "set": 0
+        },
+        {
+          "binding": 14,
+          "set": 0
+        },
+        {
+          "binding": 15,
+          "set": 0
+        },
+        {
+          "binding": 16,
+          "set": 0
+        },
+        {
+          "binding": 17,
+          "set": 0
+        },
+        {
+          "binding": 18,
+          "set": 0
+        },
+        {
+          "binding": 19,
+          "set": 0
+        },
+        {
+          "binding": 20,
+          "set": 0
+        },
+        {
+          "binding": 21,
+          "set": 0
+        },
+        {
+          "binding": 22,
+          "set": 0
+        },
+        {
+          "binding": 23,
+          "set": 0
+        },
+        {
+          "binding": 24,
+          "set": 0
+        },
+        {
+          "binding": 25,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 44,
+      "source": "vulkan/shaders/compute/microphysics/thompson_deposition.comp",
+      "source_sha256": "a89b79aef3c04437816706e9d5ef105b12e39ac2094194be002bf2a0990ff6ee",
+      "spirv_fnv1a64": "534432a37abf704f",
+      "spirv_sha256": "b2072219183035aca238950f758576e4fd27dcaa29ec8d9b7f27346f67f0b429",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/microphysics/thompson_freezing.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        },
+        {
+          "binding": 9,
+          "set": 0
+        },
+        {
+          "binding": 10,
+          "set": 0
+        },
+        {
+          "binding": 11,
+          "set": 0
+        },
+        {
+          "binding": 12,
+          "set": 0
+        },
+        {
+          "binding": 13,
+          "set": 0
+        },
+        {
+          "binding": 14,
+          "set": 0
+        },
+        {
+          "binding": 15,
+          "set": 0
+        },
+        {
+          "binding": 16,
+          "set": 0
+        },
+        {
+          "binding": 17,
+          "set": 0
+        },
+        {
+          "binding": 18,
+          "set": 0
+        },
+        {
+          "binding": 19,
+          "set": 0
+        },
+        {
+          "binding": 20,
+          "set": 0
+        },
+        {
+          "binding": 21,
+          "set": 0
+        },
+        {
+          "binding": 22,
+          "set": 0
+        },
+        {
+          "binding": 23,
+          "set": 0
+        },
+        {
+          "binding": 24,
+          "set": 0
+        },
+        {
+          "binding": 25,
+          "set": 0
+        },
+        {
+          "binding": 26,
+          "set": 0
+        },
+        {
+          "binding": 27,
+          "set": 0
+        },
+        {
+          "binding": 28,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 44,
+      "source": "vulkan/shaders/compute/microphysics/thompson_freezing.comp",
+      "source_sha256": "97dee19d798abeed7155e30e7993100f67e4141e22630db17fde60604fc82dfc",
+      "spirv_fnv1a64": "0ab08bcbfb7be4bd",
+      "spirv_sha256": "bbc5f83b6ebdb8abf3f66da3504c6917d71958fc68002af336030ef25d863980",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/microphysics/thompson_moment_sedimentation.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        },
+        {
+          "binding": 9,
+          "set": 0
+        },
+        {
+          "binding": 10,
+          "set": 0
+        },
+        {
+          "binding": 11,
+          "set": 0
+        },
+        {
+          "binding": 12,
+          "set": 0
+        },
+        {
+          "binding": 13,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 48,
+      "source": "vulkan/shaders/compute/microphysics/thompson_moment_sedimentation.comp",
+      "source_sha256": "899c44d617802588f8c6457ef42a616bdaa32ee4f4f0dd3c72a53761ea321655",
+      "spirv_fnv1a64": "f22921b5a490cbe0",
+      "spirv_sha256": "22698375d0f97028151c29ddabf555e1e4e12a1b97e1886ee912ef31a40e2883",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/microphysics/thompson_pointwise.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        },
+        {
+          "binding": 9,
+          "set": 0
+        },
+        {
+          "binding": 10,
+          "set": 0
+        },
+        {
+          "binding": 11,
+          "set": 0
+        },
+        {
+          "binding": 12,
+          "set": 0
+        },
+        {
+          "binding": 13,
+          "set": 0
+        },
+        {
+          "binding": 14,
+          "set": 0
+        },
+        {
+          "binding": 15,
+          "set": 0
+        },
+        {
+          "binding": 16,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 64,
+      "source": "vulkan/shaders/compute/microphysics/thompson_pointwise.comp",
+      "source_sha256": "2db5b3a30b82fc998514679826d2887b2c96c5b9b37524e715459b75b743f244",
+      "spirv_fnv1a64": "9212844269e6742b",
+      "spirv_sha256": "2ccfbc1ac727259d696116e9f897ab0b65dec7ea9e90b8fd302a87788909d058",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/microphysics/thompson_sedimentation.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 64,
+      "source": "vulkan/shaders/compute/microphysics/thompson_sedimentation.comp",
+      "source_sha256": "ec586856d93eb7b46342e51f2cf85e8ac9315b4ff4f2a9635106e6a4e86f5495",
+      "spirv_fnv1a64": "00f233788e6e86b6",
+      "spirv_sha256": "b97c5bc217228ef1252aadbc3110d9f47b1d1c9e782a90759fe16be9e6a329e0",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/microphysics/thompson_warm_rain.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        },
+        {
+          "binding": 9,
+          "set": 0
+        },
+        {
+          "binding": 10,
+          "set": 0
+        },
+        {
+          "binding": 11,
+          "set": 0
+        },
+        {
+          "binding": 12,
+          "set": 0
+        },
+        {
+          "binding": 13,
+          "set": 0
+        },
+        {
+          "binding": 14,
+          "set": 0
+        },
+        {
+          "binding": 15,
+          "set": 0
+        },
+        {
+          "binding": 16,
+          "set": 0
+        },
+        {
+          "binding": 17,
+          "set": 0
+        },
+        {
+          "binding": 18,
+          "set": 0
+        },
+        {
+          "binding": 19,
+          "set": 0
+        },
+        {
+          "binding": 20,
+          "set": 0
+        },
+        {
+          "binding": 21,
+          "set": 0
+        },
+        {
+          "binding": 22,
+          "set": 0
+        },
+        {
+          "binding": 23,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 44,
+      "source": "vulkan/shaders/compute/microphysics/thompson_warm_rain.comp",
+      "source_sha256": "4ec0ceea4abb8558fbb6760af09ebd760d93ca900f6fc14492d957ad02b22827",
+      "spirv_fnv1a64": "ad0219f45de23a7b",
+      "spirv_sha256": "411b4070257a082bcb0209d855ce8859bc97f3017ae3f0fc5909038092c7527a",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/radiation/rrtmg_longwave_transfer.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 32,
+      "source": "vulkan/shaders/compute/radiation/rrtmg_longwave_transfer.comp",
+      "source_sha256": "581565092538aa8de1d94cf64dc3a70150f066d79a91be411e6e2eef414f309b",
+      "spirv_fnv1a64": "8941721960b4f0e1",
+      "spirv_sha256": "70ee43ad50e539d727dd30cd6999a9f37e07fc7cec0e887848aea1f1dfe48db8",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/radiation/rrtmg_longwave_transfer_batch.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        },
+        {
+          "binding": 9,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 32,
+      "source": "vulkan/shaders/compute/radiation/rrtmg_longwave_transfer_batch.comp",
+      "source_sha256": "edb4a11e3f09d48bf740d6acc7c94ff35f41df9ff0b1e8786fa3f0e7afa8aef0",
+      "spirv_fnv1a64": "8abba943a395b1c6",
+      "spirv_sha256": "a5d29259d023d23710ae6867346439eb5095cdbb877de923bc49fa9ee11db4f7",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/radiation/rrtmg_shortwave_transfer.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        },
+        {
+          "binding": 9,
+          "set": 0
+        },
+        {
+          "binding": 10,
+          "set": 0
+        },
+        {
+          "binding": 11,
+          "set": 0
+        },
+        {
+          "binding": 12,
+          "set": 0
+        },
+        {
+          "binding": 13,
+          "set": 0
+        },
+        {
+          "binding": 14,
+          "set": 0
+        },
+        {
+          "binding": 15,
+          "set": 0
+        },
+        {
+          "binding": 16,
+          "set": 0
+        },
+        {
+          "binding": 17,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 32,
+      "source": "vulkan/shaders/compute/radiation/rrtmg_shortwave_transfer.comp",
+      "source_sha256": "c3ba631622653f1f1401fc384eab8b47b606e93e4b32f5d4a34d032d83f51628",
+      "spirv_fnv1a64": "dda7fc32cb8af87e",
+      "spirv_sha256": "970596125d32fb6eb8d4ebdb4fefd836a965502703881cc542ea557d4d89ba13",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/radiation/rrtmg_shortwave_transfer_batch.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        },
+        {
+          "binding": 9,
+          "set": 0
+        },
+        {
+          "binding": 10,
+          "set": 0
+        },
+        {
+          "binding": 11,
+          "set": 0
+        },
+        {
+          "binding": 12,
+          "set": 0
+        },
+        {
+          "binding": 13,
+          "set": 0
+        },
+        {
+          "binding": 14,
+          "set": 0
+        },
+        {
+          "binding": 15,
+          "set": 0
+        },
+        {
+          "binding": 16,
+          "set": 0
+        },
+        {
+          "binding": 17,
+          "set": 0
+        },
+        {
+          "binding": 18,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 32,
+      "source": "vulkan/shaders/compute/radiation/rrtmg_shortwave_transfer_batch.comp",
+      "source_sha256": "31767a08cdc53c61e21f3ca2381e86e6fa5e22bad878b07269a25f1c46ee50c4",
+      "spirv_fnv1a64": "01098c98c15e87fc",
+      "spirv_sha256": "acba7e4b3dfa5f4d1b5495073bba6b1a16a8aa1daae60bfd2af3db2b91bf561a",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/radiation/simple_grey.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 32,
+      "source": "vulkan/shaders/compute/radiation/simple_grey.comp",
+      "source_sha256": "fdbd6040f845671dcc3038d21948ae2581941b9a78e44b215da73db0499de86d",
+      "spirv_fnv1a64": "d5ddb598b9945b85",
+      "spirv_sha256": "368b8100ddac869289d1f6dd6f2c82c599417a1f8c6d7ad8cad90ce8235840d7",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/terrain/column_remap.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 32,
+      "source": "vulkan/shaders/compute/terrain/column_remap.comp",
+      "source_sha256": "0bce9e4c22aa08fa3d33143cd6a557a01b142b2b6ee6ecd7928788e525defa5c",
+      "spirv_fnv1a64": "2b92fb2bfae9437c",
+      "spirv_sha256": "09f162f6c371f06b5a9fe23fee8ab53ff99e6a2a0bcdfc0460749b66905c40d7",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/terrain/conservative_remap.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        },
+        {
+          "binding": 9,
+          "set": 0
+        },
+        {
+          "binding": 10,
+          "set": 0
+        },
+        {
+          "binding": 11,
+          "set": 0
+        },
+        {
+          "binding": 12,
+          "set": 0
+        },
+        {
+          "binding": 13,
+          "set": 0
+        },
+        {
+          "binding": 14,
+          "set": 0
+        },
+        {
+          "binding": 15,
+          "set": 0
+        },
+        {
+          "binding": 16,
+          "set": 0
+        },
+        {
+          "binding": 17,
+          "set": 0
+        },
+        {
+          "binding": 18,
+          "set": 0
+        },
+        {
+          "binding": 19,
+          "set": 0
+        },
+        {
+          "binding": 20,
+          "set": 0
+        },
+        {
+          "binding": 21,
+          "set": 0
+        },
+        {
+          "binding": 22,
+          "set": 0
+        },
+        {
+          "binding": 23,
+          "set": 0
+        },
+        {
+          "binding": 24,
+          "set": 0
+        },
+        {
+          "binding": 25,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 24,
+      "source": "vulkan/shaders/compute/terrain/conservative_remap.comp",
+      "source_sha256": "c40e2e0f4045a7f5600ec81b91016d68c31179d42c47abc01a5c97b0f19fee79",
+      "spirv_fnv1a64": "bfeb00eb90b152ad",
+      "spirv_sha256": "f2021e457ff409840c1c332c32aec532e96525ec2ed93b1f0ca8d4c52275da00",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/terrain/earth_geometry.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        },
+        {
+          "binding": 9,
+          "set": 0
+        },
+        {
+          "binding": 10,
+          "set": 0
+        },
+        {
+          "binding": 11,
+          "set": 0
+        },
+        {
+          "binding": 12,
+          "set": 0
+        },
+        {
+          "binding": 13,
+          "set": 0
+        },
+        {
+          "binding": 14,
+          "set": 0
+        },
+        {
+          "binding": 15,
+          "set": 0
+        },
+        {
+          "binding": 16,
+          "set": 0
+        },
+        {
+          "binding": 17,
+          "set": 0
+        },
+        {
+          "binding": 18,
+          "set": 0
+        },
+        {
+          "binding": 19,
+          "set": 0
+        },
+        {
+          "binding": 20,
+          "set": 0
+        },
+        {
+          "binding": 21,
+          "set": 0
+        },
+        {
+          "binding": 22,
+          "set": 0
+        },
+        {
+          "binding": 23,
+          "set": 0
+        },
+        {
+          "binding": 24,
+          "set": 0
+        },
+        {
+          "binding": 25,
+          "set": 0
+        },
+        {
+          "binding": 26,
+          "set": 0
+        },
+        {
+          "binding": 27,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 112,
+      "source": "vulkan/shaders/compute/terrain/earth_geometry.comp",
+      "source_sha256": "e79cc510fa48084e7b13f7621d25b46d799dfe5ae26c98d85d06a988721f8b4c",
+      "spirv_fnv1a64": "998b6a6578d4c974",
+      "spirv_sha256": "c76ccf2f5e6bb0bb68ae1669467527c95644d29b240252f4206ad21511386523",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/terrain/held_sources.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 84,
+      "source": "vulkan/shaders/compute/terrain/held_sources.comp",
+      "source_sha256": "a502491d728b58164bd6b2ab5d3b674af6b2736b97e8368207905493327c25d4",
+      "spirv_fnv1a64": "69694193dca0a6cb",
+      "spirv_sha256": "50e3f0ffdd8c6655f4e77880d8c17ce6a9c2ac383826d34ff62d376cdd18b310",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/terrain/mapped_boundary.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        },
+        {
+          "binding": 9,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 48,
+      "source": "vulkan/shaders/compute/terrain/mapped_boundary.comp",
+      "source_sha256": "e9fa85d300ed7c9be509428ae29b1a6c17482a469a7430cae0d380d34832e80a",
+      "spirv_fnv1a64": "9a50b2b53f8b66fd",
+      "spirv_sha256": "658e84910573319ff9d695ec4f1cffc9d8a9208877b0e3e6ede65216d0bec303",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/terrain/mapped_eos.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 16,
+      "source": "vulkan/shaders/compute/terrain/mapped_eos.comp",
+      "source_sha256": "a65ce9a0ec769c350a4b087af299fa23cf0c147cf9757a567b4c9a3d338a58fc",
+      "spirv_fnv1a64": "7150bd92bf411fab",
+      "spirv_sha256": "f6a6a788dc6a227be137b5b2a408ec3ad0caed6dc8785eca2f244ea55275a862",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/terrain/mapped_fast_momentum.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 32,
+      "source": "vulkan/shaders/compute/terrain/mapped_fast_momentum.comp",
+      "source_sha256": "518fd98a1087913f7bc85b5c3838c9cb4abd7bfcc235c086c36c6fccf448dbeb",
+      "spirv_fnv1a64": "313be64de3aa37cc",
+      "spirv_sha256": "18ef2fb129f9191745ec2c54873f601373e476577e99d64f9733ddb780b35c8b",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/terrain/mapped_flux_accumulation.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 32,
+      "source": "vulkan/shaders/compute/terrain/mapped_flux_accumulation.comp",
+      "source_sha256": "5b15f12bf3111626ba11606c36ea29f2ae74f1b0b6e78e1d2c697e63c18dfd50",
+      "spirv_fnv1a64": "c6de0a6065396063",
+      "spirv_sha256": "375994491775b106cc663936edf83dd1c619e731824316c141d4833a124def80",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/terrain/mapped_mass_continuity.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        },
+        {
+          "binding": 9,
+          "set": 0
+        },
+        {
+          "binding": 10,
+          "set": 0
+        },
+        {
+          "binding": 11,
+          "set": 0
+        },
+        {
+          "binding": 12,
+          "set": 0
+        },
+        {
+          "binding": 13,
+          "set": 0
+        },
+        {
+          "binding": 14,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 64,
+      "source": "vulkan/shaders/compute/terrain/mapped_mass_continuity.comp",
+      "source_sha256": "97383a86e2f4db32a5461e12c8d24fcaa024adff208389f8039e368a083b2228",
+      "spirv_fnv1a64": "849460320bcdee9a",
+      "spirv_sha256": "7f3658fefdc917a630bf3968a430a1079d24e2c23da18e4df7f7c63631d0c06a",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/terrain/mapped_scalar_limiter.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 48,
+      "source": "vulkan/shaders/compute/terrain/mapped_scalar_limiter.comp",
+      "source_sha256": "e9713f583dcdfaa8f7650896cf2348fd2f517121b4f105d0e3a079346a4c8e26",
+      "spirv_fnv1a64": "4153765379975d7c",
+      "spirv_sha256": "9c8c3725b2b47bdc080b544a0c0107d9e8e9c3a0601e225ab0289165259adc45",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/terrain/mapped_scalar_update.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        },
+        {
+          "binding": 9,
+          "set": 0
+        },
+        {
+          "binding": 10,
+          "set": 0
+        },
+        {
+          "binding": 11,
+          "set": 0
+        },
+        {
+          "binding": 12,
+          "set": 0
+        },
+        {
+          "binding": 13,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 48,
+      "source": "vulkan/shaders/compute/terrain/mapped_scalar_update.comp",
+      "source_sha256": "c2c0b67aa7aee759c0b8cf2c94f2d34799ec6d18c5106085ce803dd1b2f6b9b6",
+      "spirv_fnv1a64": "ed9dd8ac18410944",
+      "spirv_sha256": "823db9f680575687c741199d6b561a8d5059ea85bbea1b08c18721b01a426794",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/terrain/mapped_slow_tendencies.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        },
+        {
+          "binding": 9,
+          "set": 0
+        },
+        {
+          "binding": 10,
+          "set": 0
+        },
+        {
+          "binding": 11,
+          "set": 0
+        },
+        {
+          "binding": 12,
+          "set": 0
+        },
+        {
+          "binding": 13,
+          "set": 0
+        },
+        {
+          "binding": 14,
+          "set": 0
+        },
+        {
+          "binding": 15,
+          "set": 0
+        },
+        {
+          "binding": 16,
+          "set": 0
+        },
+        {
+          "binding": 17,
+          "set": 0
+        },
+        {
+          "binding": 18,
+          "set": 0
+        },
+        {
+          "binding": 19,
+          "set": 0
+        },
+        {
+          "binding": 20,
+          "set": 0
+        },
+        {
+          "binding": 21,
+          "set": 0
+        },
+        {
+          "binding": 22,
+          "set": 0
+        },
+        {
+          "binding": 23,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 64,
+      "source": "vulkan/shaders/compute/terrain/mapped_slow_tendencies.comp",
+      "source_sha256": "6c246a8885005e6eb5dfcc5e5245de4b948a575fd31059780d0e865431bbf480",
+      "spirv_fnv1a64": "6df8c3f191d64a34",
+      "spirv_sha256": "4101edac8b4e6c4450c85bfed26bd1d6159cbc00fe5b0a3181e5b03dbfb13571",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/terrain/mapped_state_update.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        },
+        {
+          "binding": 9,
+          "set": 0
+        },
+        {
+          "binding": 10,
+          "set": 0
+        },
+        {
+          "binding": 11,
+          "set": 0
+        },
+        {
+          "binding": 12,
+          "set": 0
+        },
+        {
+          "binding": 13,
+          "set": 0
+        },
+        {
+          "binding": 14,
+          "set": 0
+        },
+        {
+          "binding": 15,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 32,
+      "source": "vulkan/shaders/compute/terrain/mapped_state_update.comp",
+      "source_sha256": "40fbb8ede8d36879740f31032ddc6699bd4ddd29ef75cb6fe82bde87a68357e8",
+      "spirv_fnv1a64": "5ff13858381aaae6",
+      "spirv_sha256": "685fd180ce1ee2768bb8d269b2831b657c1fbad8cc61bf49b81381754da824b4",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/terrain/moving_energy.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 128,
+      "source": "vulkan/shaders/compute/terrain/moving_energy.comp",
+      "source_sha256": "9e46e250b2555b4f7d28edb30385d644f518e815fb7c9a08883feb8d2af80ba8",
+      "spirv_fnv1a64": "15d885996e3e2922",
+      "spirv_sha256": "e08d88a4c69bab34c3a79d13362b58fd281c35291e89e58d8408f18de43eff78",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/terrain/moving_momentum.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 64,
+      "source": "vulkan/shaders/compute/terrain/moving_momentum.comp",
+      "source_sha256": "985fbc5e28b30dbecadcaac7377930ff0e152d1f9058b2b6f8351ab7a5d19e40",
+      "spirv_fnv1a64": "0a5200d008ce5325",
+      "spirv_sha256": "200fa3687a628f5d2f9359a5652c87540d6368cec614d9cd75e1a72bea716f5f",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/terrain/reference_atmosphere.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 64,
+      "source": "vulkan/shaders/compute/terrain/reference_atmosphere.comp",
+      "source_sha256": "49bdf349dcf90a79f5ad9674b555983ff65a2488042ec2d62212799081bb1ae3",
+      "spirv_fnv1a64": "80d76c70d1765224",
+      "spirv_sha256": "199b4e9563432d945e45a8ebd07bd2736a9792e0f1dfefd1d399fdce74534061",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/time_stepping/rk_combination.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        },
+        {
+          "binding": 9,
+          "set": 0
+        },
+        {
+          "binding": 10,
+          "set": 0
+        },
+        {
+          "binding": 11,
+          "set": 0
+        },
+        {
+          "binding": 12,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 64,
+      "source": "vulkan/shaders/compute/time_stepping/rk_combination.comp",
+      "source_sha256": "f5908effc4e3e2b95e8c1013e1e87cc5ab70cad559d54d6b149013a776bf88aa",
+      "spirv_fnv1a64": "3b43f5ae41beaee5",
+      "spirv_sha256": "76ea103d789c73dcaa72746168e7e16f771374663b34f1f15666875299d648bf",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/time_stepping/rk_tendency.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        },
+        {
+          "binding": 9,
+          "set": 0
+        },
+        {
+          "binding": 10,
+          "set": 0
+        },
+        {
+          "binding": 11,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 64,
+      "source": "vulkan/shaders/compute/time_stepping/rk_tendency.comp",
+      "source_sha256": "996fa622acaafdc5133363c20b9e99d0ffd862a91feda83b1516d59b9dfdce46",
+      "spirv_fnv1a64": "d9588873ec35e908",
+      "spirv_sha256": "19f15c5622d4502b2d464229233fc9d0996823cca484aa1714432c9a4cfa746c",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/turbulence/collocated_sgs.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        },
+        {
+          "binding": 9,
+          "set": 0
+        },
+        {
+          "binding": 10,
+          "set": 0
+        },
+        {
+          "binding": 11,
+          "set": 0
+        },
+        {
+          "binding": 12,
+          "set": 0
+        },
+        {
+          "binding": 13,
+          "set": 0
+        },
+        {
+          "binding": 14,
+          "set": 0
+        },
+        {
+          "binding": 15,
+          "set": 0
+        },
+        {
+          "binding": 16,
+          "set": 0
+        },
+        {
+          "binding": 17,
+          "set": 0
+        },
+        {
+          "binding": 18,
+          "set": 0
+        },
+        {
+          "binding": 19,
+          "set": 0
+        },
+        {
+          "binding": 20,
+          "set": 0
+        },
+        {
+          "binding": 21,
+          "set": 0
+        },
+        {
+          "binding": 22,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 64,
+      "source": "vulkan/shaders/compute/turbulence/collocated_sgs.comp",
+      "source_sha256": "c225bf3040f4474c56d1ac63d799f710dcbac7d8773b6ef7637602bf60bce225",
+      "spirv_fnv1a64": "4f21d73cda657727",
+      "spirv_sha256": "ebd82ca0f6ef03e60c504815b2d9390beb51039fe3ad219a0f6c0ab2f40457ca",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/turbulence/sgs_apply.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        },
+        {
+          "binding": 9,
+          "set": 0
+        },
+        {
+          "binding": 10,
+          "set": 0
+        },
+        {
+          "binding": 11,
+          "set": 0
+        },
+        {
+          "binding": 12,
+          "set": 0
+        },
+        {
+          "binding": 13,
+          "set": 0
+        },
+        {
+          "binding": 14,
+          "set": 0
+        },
+        {
+          "binding": 15,
+          "set": 0
+        },
+        {
+          "binding": 16,
+          "set": 0
+        },
+        {
+          "binding": 17,
+          "set": 0
+        },
+        {
+          "binding": 18,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 56,
+      "source": "vulkan/shaders/compute/turbulence/sgs_apply.comp",
+      "source_sha256": "e9fe23a3581ac64cace5d31830189dae800a66c2e56faef4f0d4e3d0222adeb6",
+      "spirv_fnv1a64": "9b18ad85b1048aef",
+      "spirv_sha256": "e1c92c7b1d4eea6734bfa4bdc326a3f2e070f259f401d9bedda5ac952ad65467",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/turbulence/smagorinsky_coefficients.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 60,
+      "source": "vulkan/shaders/compute/turbulence/smagorinsky_coefficients.comp",
+      "source_sha256": "3229b9d4a38701cc7754b8c32da5d0895be7e1a5c6f3ecf40c62c783ffb19553",
+      "spirv_fnv1a64": "cd1c67a017b16b98",
+      "spirv_sha256": "601f35bcc6072cc1b690d3ded4d343f9accfe978284663b154b440ecda9b4258",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/turbulence/smagorinsky_tendencies.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        },
+        {
+          "binding": 9,
+          "set": 0
+        },
+        {
+          "binding": 10,
+          "set": 0
+        },
+        {
+          "binding": 11,
+          "set": 0
+        },
+        {
+          "binding": 12,
+          "set": 0
+        },
+        {
+          "binding": 13,
+          "set": 0
+        },
+        {
+          "binding": 14,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 44,
+      "source": "vulkan/shaders/compute/turbulence/smagorinsky_tendencies.comp",
+      "source_sha256": "52a66366da449ef3fbfbb28b007eaaf562921d2db97c52da346c31bdb14905eb",
+      "spirv_fnv1a64": "1b49cb776a39f1df",
+      "spirv_sha256": "ff5cf5b2d67596fb90d80b9fd4e5295267a8f2fbe1f5cb58a8334859a364afcb",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/turbulence/tke_closure.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        },
+        {
+          "binding": 8,
+          "set": 0
+        },
+        {
+          "binding": 9,
+          "set": 0
+        },
+        {
+          "binding": 10,
+          "set": 0
+        },
+        {
+          "binding": 11,
+          "set": 0
+        },
+        {
+          "binding": 12,
+          "set": 0
+        },
+        {
+          "binding": 13,
+          "set": 0
+        },
+        {
+          "binding": 14,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 64,
+      "source": "vulkan/shaders/compute/turbulence/tke_closure.comp",
+      "source_sha256": "f9f554d70ee820f8c325f05123bc3503b5a535791f640d58d3a114916df0c14b",
+      "spirv_fnv1a64": "9e69b39f4a535491",
+      "spirv_sha256": "bb96b28fc897541bf53323c1a43db0ce6e824d73ae803a27cacddefde7d52a54",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/compute/turbulence/tke_tendency.comp.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        },
+        {
+          "binding": 1,
+          "set": 0
+        },
+        {
+          "binding": 2,
+          "set": 0
+        },
+        {
+          "binding": 3,
+          "set": 0
+        },
+        {
+          "binding": 4,
+          "set": 0
+        },
+        {
+          "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
+          "set": 0
+        },
+        {
+          "binding": 7,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 40,
+      "source": "vulkan/shaders/compute/turbulence/tke_tendency.comp",
+      "source_sha256": "c738156834b50b2b946d5067f09e0cd02c1080f77c02274a630533cd57ec8b94",
+      "spirv_fnv1a64": "bb9e74065fb488b8",
+      "spirv_sha256": "5c3a545ed19c24be0b54a40e822e9e96535e0a941bc65b5ad2e3af53559b2e03",
+      "stage": "comp"
+    },
+    {
+      "artifact": "vulkan/shaders/rendering/volume.frag.spv",
+      "descriptor_bindings": [
+        {
+          "binding": 0,
+          "set": 0
+        }
+      ],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 128,
+      "source": "vulkan/shaders/rendering/volume.frag",
+      "source_sha256": "0d0a7ee14d5a4df23c7292d943c6f1dc7c1b6cc9e3e140f145b92267e88aeffe",
+      "spirv_fnv1a64": "093492c71b7c4bd0",
+      "spirv_sha256": "2fb6cfad5278c3e493a4c18d209bfe149908f869a8bf2bb08af44f7560d970cb",
+      "stage": "frag"
+    },
+    {
+      "artifact": "vulkan/shaders/rendering/volume.vert.spv",
+      "descriptor_bindings": [],
+      "entry_point": "main",
+      "flags": [
+        "-V",
+        "-Os"
+      ],
+      "generator_word": "0x0008000b",
+      "push_constant_bytes": 0,
+      "source": "vulkan/shaders/rendering/volume.vert",
+      "source_sha256": "ed1713768f9c07bebf0b0ee917a15cca2dfd7b3a00d48812288a0db71f5368f0",
+      "spirv_fnv1a64": "4d132c22a0d892d3",
+      "spirv_sha256": "272aaf9c76a137585c0b553dee4d1f44e2efdff778c7588c85d1ccf4b277b2b7",
+      "stage": "vert"
+    }
+  ],
+  "verification_toolchain": {
+    "glslangValidator": "Glslang Version: 11:16.2.0",
+    "spirv-opt": "SPIRV-Tools v2026.1 unknown hash, 2026-01-22T19:45:19+00:00",
+    "spirv-val": "SPIRV-Tools v2026.1 unknown hash, 2026-01-22T19:45:19+00:00"
+  }
+}

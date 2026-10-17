@@ -1,0 +1,203 @@
+// acoustic_momentum_cartesian_cgrid.comp
+//
+// Fused acoustic momentum substep on the Cartesian Arakawa C-grid:
+// per-face pressure gradient (perturbation form in the vertical) ->
+// u/v/w Forward-Euler integration with NaN sanitization and magnitude
+// clamps. GPU equivalent of
+//   CartesianCGrid3DScheme::compute_fast_momentum_tendencies + the
+//   apply_fast_momentum integration loop in
+//   src/core/orchestration/dynamics/dynamics.cpp.
+//
+// Field placement (Arakawa C-grid):
+//   q[i][j][k]  at cell center (rho, p, p0_base broadcast)
+//   u[i][j][k]  at x-face (between cells i and i+1)
+//   v[i][j][k]  at y-face (between cells j and j+1)
+//   w[i][j][k]  at z-face (between cells k and k+1)
+//
+// Per-face tendencies (matching StaggeredCartesianDerivatives::grad_*
+// and the CPU loop ranges in cartesian_cgrid_3d.cpp):
+//
+//   du/dt at x-face[i], i in [1, NX-2], j in [1, NY-2], k in [1, NZ-2]:
+//     dp_dx = (p[i+1] - p[i]) / dx
+//     rho_f = 0.5 * (rho[i] + rho[i+1])
+//     du/dt = -dp_dx / safe(rho_f)
+//
+//   dv/dt at y-face[j], same ranges:
+//     dp_dy = (p[j+1] - p[j]) / dy
+//     rho_f = 0.5 * (rho[j] + rho[j+1])
+//     dv/dt = -dp_dy / safe(rho_f)
+//
+//   dw/dt at z-face[k], i in [1, NX-2], j in [1, NY-2], k in [0, NZ-2]:
+//     dw/dt = -((p[k+1] - p[k]) / dz - dp0_dz[k]) / safe(rho_f)
+//
+// dp0_dz[k] is the base-state vertical pressure gradient at z-face[k],
+// PRECOMPUTED ON THE HOST IN DOUBLE from the fp64 p0_base profile and
+// rounded once to fp32. This is the GPU audit section 2.3
+// perturbation decomposition with the base difference exact:
+//   - (p[k+1] - p[k]) between vertical neighbors is EXACT in fp32
+//     (Sterbenz: adjacent hydrostatic levels are within a factor of 2),
+//   - a naive p' = p - p0 with broadcast fp32 p0 would add two
+//     independent half-ulp roundings of O(1e5 Pa) values (~4e-3 Pa
+//     each), swamping the O(1e-4 Pa) calm-state perturbation; the
+//     parity harness catches that as an O(1e-5 m/s) w breach.
+// The only fp32 cancellation left is between two O(10 Pa/m) gradients,
+// which keeps the hydrostatic residual to ~1e-7 m/s^2 noise.
+//
+// The CPU pre-zeros all tendencies and writes only the valid face
+// ranges; the integration runs over ALL cells with magnitude clamps.
+// Mirrored here: out-of-range faces integrate a zero tendency
+// (passthrough modulo the clamp).
+//
+// dp0_dz is a 1D profile of length NZ (entry NZ-1 unused) uploaded as a
+// full NX*NY*NZ buffer broadcast across (i, j) (same trick as
+// acoustic_momentum_cgrid.comp uses for p0_base).
+//
+// Data layout: row-major [nx][ny][nz]. Index (i, j, k) = (i*ny + j)*nz + k.
+
+#version 450
+#extension GL_GOOGLE_include_directive : require
+
+#include "../microphysics/compensated_fma.glsl"
+#include "momentum_precision.glsl"
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+// Inputs: cell-centered state (post pressure-substep) + the base-state
+// vertical pressure gradient profile (broadcast).
+layout(set = 0, binding = 0) readonly buffer RhoInBuf  { float rho_in[];   };
+layout(set = 0, binding = 1) readonly buffer PInBuf    { float p_in[];     };
+layout(set = 0, binding = 2) readonly buffer Dp0DzBuf  { float dp0_dz_b[]; };
+
+// Inputs: face-staggered velocities (current substep state).
+layout(set = 0, binding = 3) readonly buffer UInBuf { float u_in[]; };
+layout(set = 0, binding = 4) readonly buffer VInBuf { float v_in[]; };
+layout(set = 0, binding = 5) readonly buffer WInBuf { float w_in[]; };
+
+// Outputs: face-staggered velocities after integration. Each thread reads
+// u/v/w only at its own index, so in-place aliasing with the inputs is
+// safe (the fused dispatch relies on this).
+layout(set = 0, binding = 6) writeonly buffer UOutBuf { float u_out[]; };
+layout(set = 0, binding = 7) writeonly buffer VOutBuf { float v_out[]; };
+layout(set = 0, binding = 8) writeonly buffer WOutBuf { float w_out[]; };
+
+// Push constants (44 bytes; mirrors AcousticMomentumCartesianCgridPushConstants).
+layout(push_constant) uniform PushConstants {
+    int   nx;
+    int   ny;
+    int   nz;
+    float dx;
+    float dy;
+    float dz_val;
+    float dt_small;
+    float wind_clamp_h;
+    float wind_clamp_v;
+    int preserve_unrepaired;
+    int paired_base_gradient;
+};
+
+const float SAFE_RHO_MIN      = 1.0e-6;
+const float SAFE_RHO_FALLBACK = 1.0;
+
+// Mirrors safe_rho() in cartesian_cgrid_3d.cpp.
+float safe_rho(float rho_val)
+{
+    return (!isnan(rho_val) && !isinf(rho_val) && rho_val > SAFE_RHO_MIN)
+        ? rho_val : SAFE_RHO_FALLBACK;
+}
+
+float sanitize_tendency(float t)
+{
+    return preserve_unrepaired == 0 && (isnan(t) || isinf(t)) ? 0.0 : t;
+}
+
+// Mirror clamp_wind_horizontal_ms / clamp_wind_vertical_ms in
+// include/core/runtime/simulation.hpp: NaN/Inf -> 0, then magnitude clamp.
+float clamp_h(float val)
+{
+    if (preserve_unrepaired != 0) return val;
+    if (isnan(val) || isinf(val)) return 0.0;
+    return clamp(val, -wind_clamp_h, wind_clamp_h);
+}
+
+float clamp_v(float val)
+{
+    if (preserve_unrepaired != 0) return val;
+    if (isnan(val) || isinf(val)) return 0.0;
+    return clamp(val, -wind_clamp_v, wind_clamp_v);
+}
+
+void main()
+{
+    uint gid = gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * gl_NumWorkGroups.x * gl_WorkGroupSize.x;
+    uint total = uint(nx) * uint(ny) * uint(nz);
+    if (gid >= total)
+    {
+        return;
+    }
+
+    int k = int(gid % uint(nz));
+    uint ij = gid / uint(nz);
+    int j = int(ij % uint(ny));
+    int i = int(ij / uint(ny));
+
+    uint c = gid;
+
+    // Per-face validity (inclusive), matching the CPU per-face loops.
+    bool h_interior = (i >= 1) && (i <= nx - 2) && (j >= 1) && (j <= ny - 2);
+    // k = 0 is prognostic for u/v (SCIENCE.md M19; the gradient is
+    // purely horizontal, so no ground stencil is needed here).
+    bool u_face_active = h_interior && (k >= 0) && (k <= nz - 2);
+    bool v_face_active = u_face_active;
+    bool w_face_active = h_interior && (k >= 0) && (k <= nz - 2);
+
+    float du = 0.0;
+    float dv = 0.0;
+    float dw = 0.0;
+
+    if (u_face_active)
+    {
+        // x-face[i] sits between cell centers i and i+1.
+        uint c_ip = uint(((i + 1) * ny + j) * nz + k);
+        float dp_dx = (p_in[c_ip] - p_in[c]) * (1.0 / dx);
+        float rho_f = 0.5 * (rho_in[c] + rho_in[c_ip]);
+        du = sanitize_tendency(-dp_dx / safe_rho(rho_f));
+        if (preserve_unrepaired != 0)
+            du = acoustic_precise_momentum_rate(p_in[c], p_in[c_ip], rho_in[c], rho_in[c_ip], dx, vec2(0));
+    }
+
+    if (v_face_active)
+    {
+        // y-face[j] sits between cell centers j and j+1.
+        uint c_jp = uint((i * ny + (j + 1)) * nz + k);
+        float dp_dy = (p_in[c_jp] - p_in[c]) * (1.0 / dy);
+        float rho_f = 0.5 * (rho_in[c] + rho_in[c_jp]);
+        dv = sanitize_tendency(-dp_dy / safe_rho(rho_f));
+        if (preserve_unrepaired != 0)
+            dv = acoustic_precise_momentum_rate(p_in[c], p_in[c_jp], rho_in[c], rho_in[c_jp], dy, vec2(0));
+    }
+
+    if (w_face_active)
+    {
+        // z-face[k] sits between cell centers k and k+1. The face
+        // difference of p is exact in fp32 (Sterbenz); the base-state
+        // gradient comes in pre-differenced from fp64 (header comment).
+        uint c_kp = uint((i * ny + j) * nz + (k + 1));
+        float dp_dz       = (p_in[c_kp] - p_in[c]) * (1.0 / dz_val);
+        // dp0_dz is a compact 1D [nz] buffer (GPU audit Phase 4.3).
+        float dp_prime_dz = dp_dz - dp0_dz_b[k];
+        float rho_f = 0.5 * (rho_in[c] + rho_in[c_kp]);
+        dw = sanitize_tendency(-dp_prime_dz / safe_rho(rho_f));
+        if (preserve_unrepaired != 0)
+            dw = acoustic_precise_momentum_rate(p_in[c], p_in[c_kp], rho_in[c], rho_in[c_kp], dz_val,
+                 vec2(dp0_dz_b[k], paired_base_gradient != 0 ? dp0_dz_b[k + nz] : 0.0));
+    }
+
+    // Forward-Euler integrate every cell, mirroring the CPU integration
+    // loop (zero tendency outside valid faces -> passthrough modulo clamp).
+    u_out[c] = preserve_unrepaired != 0 ? acoustic_precise_update(u_in[c], du, dt_small)
+                                      : clamp_h(u_in[c] + du * dt_small);
+    v_out[c] = preserve_unrepaired != 0 ? acoustic_precise_update(v_in[c], dv, dt_small)
+                                      : clamp_h(v_in[c] + dv * dt_small);
+    w_out[c] = preserve_unrepaired != 0 ? acoustic_precise_update(w_in[c], dw, dt_small)
+                                      : clamp_v(w_in[c] + dw * dt_small);
+}

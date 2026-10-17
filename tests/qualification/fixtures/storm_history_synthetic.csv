@@ -1,0 +1,13 @@
+# schema=nimbus.qualification.storm_tracker_history.v1
+# coordinates=grid_relative_metres; domain_west_m=0; domain_east_m=30000; envelope_half_width_m=500
+# This committed history is an independently inspectable temporal fixture, not generated inside the test.
+case_id,time_s,detection_status,candidate_count,overflow,x0_m,y0_m,x1_m,y1_m,expected_continuity,expected_continuity_reason,expected_movement,expected_movement_reason,expected_i_cells,expected_j_cells
+eastward_ambiguity_recovery,0,detected,1,0,22000,10000,0,0,tentative,none,ineligible,tracker_not_authoritative,0,0
+eastward_ambiguity_recovery,60,detected,1,0,22600,10000,0,0,tentative,none,ineligible,tracker_not_authoritative,0,0
+eastward_ambiguity_recovery,120,detected,1,0,23200,10000,0,0,tracking,none,pending_confirmation,confirmation_pending,12,0
+eastward_ambiguity_recovery,180,detected,1,0,23800,10000,0,0,tracking,none,requested,request_ready,12,0
+eastward_ambiguity_recovery,240,ambiguous,2,0,24400,9900,24400,10100,ambiguous,spatial_ambiguity,ineligible,ambiguous_track,0,0
+eastward_ambiguity_recovery,300,detected,1,0,25000,10000,0,0,tracking,none,pending_confirmation,confirmation_pending,12,0
+eastward_ambiguity_recovery,360,detected,1,0,25600,10000,0,0,tracking,none,requested,request_ready,12,0
+eastward_ambiguity_recovery,420,detected,1,0,26200,10000,0,0,tracking,none,requested,request_ready,12,0
+eastward_ambiguity_recovery,480,detected,1,0,26800,10000,0,0,tracking,none,requested,request_ready,12,0

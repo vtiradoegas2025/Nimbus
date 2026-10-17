@@ -1,0 +1,24 @@
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+layout(std430, set = 0, binding = 0) readonly buffer Density { float density[]; };
+layout(std430, set = 0, binding = 1) readonly buffer Theta { float theta[]; };
+layout(std430, set = 0, binding = 2) writeonly buffer Pressure { float pressure[]; };
+
+layout(push_constant) uniform Constants {
+    int nx;
+    int ny;
+    int nz;
+    int padding0;
+} pc;
+
+void main() {
+    uint n = gl_GlobalInvocationID.x;
+    uint count = uint(pc.nx) * uint(pc.ny) * uint(pc.nz);
+    if (n >= count) return;
+    const float rd = 287.0;
+    const float p0 = 100000.0;
+    const float gamma = 1.40027894;
+    float base = density[n] * rd * theta[n] / p0;
+    pressure[n] = clamp(p0 * pow(base, gamma), 1000.0, 200000.0);
+}

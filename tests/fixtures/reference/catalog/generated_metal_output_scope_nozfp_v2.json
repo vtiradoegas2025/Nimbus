@@ -1,0 +1,38 @@
+{
+  "schema": "nimbus.generated-metal-output-scope-nozfp.v2",
+  "version": 2,
+  "claimBoundary": "Existing canonical NPY/netCDF scope plus exactly one separately admitted east-radiative minimal NPY configuration; this binary has no ZFP codec.",
+  "priorOutputScopeV1ManifestSha256": "30d5fcc9494016894733ef973909849f8c58fbd04b3e0d6bb2e5e497c0c9ca99",
+  "baseManifestSha256": "85642f094c418fe95eb4c2fa0ba5a2a947aec95f8f1c43b17abcd924b0f068a0",
+  "sourceTuples": 2016,
+  "outputFormats": [
+    "npy_3d",
+    "netcdf"
+  ],
+  "totalTuples": 4033,
+  "distinctConfigCount": 3025,
+  "writeCadenceSecondsByFormat": {
+    "npy_3d": [
+      1,
+      301
+    ],
+    "netcdf": [
+      1,
+      301
+    ]
+  },
+  "additionalBoundaryNpyScope": {
+    "version": 1,
+    "profileCount": 1,
+    "familyId": "boundary:2b5bfbe6dfa466c6baf991e3",
+    "strictCanonicalYamlSha256": "a244b58833f7e3cd7060d941e8453d4e5face3dff9e18e87ebf61dd581a24d55",
+    "outputFormats": [
+      "npy_3d"
+    ],
+    "writeCadenceSeconds": [
+      1
+    ],
+    "manifestSha256": "26712e5d5714b313cc1e17f348d67b9db9eeea60e5b888d56b0b7cf3cc5673a9"
+  },
+  "normalization": "Existing v1 canonical NPY/netCDF normalization is unchanged; east-radiative NPY is a raw-format digest with no codec normalization."
+}

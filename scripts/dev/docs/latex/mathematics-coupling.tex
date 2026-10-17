@@ -1,0 +1,390 @@
+\chapter{Putting it all together: one atmosphere, one timestep}\label{putting-it-together}
+
+The preceding chapters describe individual equations and numerical choices.
+A simulation becomes coherent only when those choices describe the same air,
+water, geometry and time interval. This chapter follows a complete update and
+shows how to reason about its coupled behavior. The main example is the
+Cartesian C-grid split-explicit path with bulk microphysics. Other admitted
+integrators and geometries have their own stage owners; the example is not a
+claim that one ordering can be substituted for every supported configuration.
+
+\section{Begin with a complete mathematical state}
+
+A useful abstract state is
+\[
+ X=(\rho_d,\theta,\boldsymbol u,\boldsymbol q,\boldsymbol N,
+       \boldsymbol Z,\boldsymbol s,\mathcal G,\mathcal H).
+\]
+Here $\boldsymbol q$ contains the selected water species, $\boldsymbol N$
+contains the applicable number concentrations, and $\boldsymbol Z$ denotes
+additional prognostic moments only where a scheme actually owns them.
+$\boldsymbol s$ includes scheme-private physical state such as held column
+sources or turbulence variables. $\mathcal G$ is geometry and domain placement;
+$\mathcal H$ includes histories needed by boundaries, staged integration and
+continuation. Some of these components are absent for a simpler configuration.
+Pressure is additionally stored and used, but its committed relationship to
+dry density and potential temperature is constrained by the production EOS.
+
+The state is larger than the arrays shown in a plot. Two runs with identical
+visible temperature and water at one instant can evolve differently if their
+particle number, held heating interval, radiative boundary history or nested
+placement differs. A restart specification must therefore identify the full
+continuation state. A snapshot of plotted fields is insufficient evidence that
+the next tendency will match.
+
+Geometry is included because changing cell volume changes the interpretation
+of density and mixing ratio. Time history is included because a source held
+between radiation calls is not equivalent to a source freshly evaluated from
+the current cloud. A complete state definition is the first defense against
+accidentally comparing different mathematical problems while believing that
+only a backend, thread count or file format changed.
+
+\section{Initialization must create a mutually compatible state}
+
+A sounding supplies a vertical environment, but the solver must place it on
+its own scalar and velocity locations. The procedure needs physical heights,
+a pressure/base-state construction, water conventions and an equation of state.
+An interpolation that is monotone in a sounding coordinate does not
+necessarily preserve hydrostatic balance on the model interfaces. Similarly,
+using moisture in a thermodynamic conversion does not justify adding it a
+second time to a buoyancy correction.
+
+For a simple resting dry column, hydrostatic balance is
+$dp_0/dz=-\rho_0g$. A discrete balance might be expressed at a face as
+\[
+ \frac{p_{0,k+1}-p_{0,k}}{z_{k+1}-z_k}
+ =-g\rho_{0,k+1/2},
+\]
+provided this is the same averaging and distance used by the force operator.
+That last condition is essential. Integrating a continuous hydrostatic profile
+very accurately and sampling it with an incompatible force stencil can still
+launch adjustment waves. Nimbus's initialization and hydrostatic tests examine
+the implemented pairing; they are more informative than assuming that the word
+``hydrostatic'' in a configuration guarantees a discrete resting solution.
+
+A thermal perturbation is also a declared intervention in the initial state.
+Holding pressure fixed while increasing theta changes diagnosed temperature
+and density differently from holding density fixed. A bubble specification
+must be interpreted through the actual initialization path, not through an
+informal statement that it ``adds heat.'' The
+\href{../src/init}{initialization implementation},
+\href{../tests/init}{initialization tests} and the public configuration compiler
+make those choices concrete. Invalid dimensions, missing coefficient tables,
+incompatible boundaries and unavailable combinations must be rejected before
+advancing a partially constructed state.
+
+\section{Choose the interval before assigning its sources}
+
+The outer runtime chooses an allowed large time step from configuration, current
+state and the relevant stability constraints. The acoustic substep count then
+belongs to the chosen split method. Output times, source cadences and a requested
+end time may further bound an interval. A process that receives a smaller
+interval must use that interval consistently for its tendency integration,
+precipitation and diagnostic receipts.
+
+For a source evaluated every $\tau$ seconds, a held tendency can be written
+schematically as
+\[
+ S(t)=S(X(t_m)),\qquad t_m\le t<t_m+\tau.
+\]
+This is an approximation to the continuously reevaluated source. Its error
+depends on how rapidly the source and its inputs vary during the hold, not
+merely on whether $\tau$ divides a nominal large step. For example, rapidly
+changing condensate can change radiative heating while the held value remains
+unchanged. A continuation must preserve both the held value and its timing.
+Reevaluating it immediately after restart changes the experiment.
+
+Nested levels add a synchronization problem: a child's shorter steps cover a
+parent interval, but a parent source or boundary history is not automatically
+valid at each child stage. The execution plan must specify interpolation,
+refresh and feedback times. The public admission system exists partly because
+individual schemes being selectable does not establish those combined owners.
+
+\section{Transport dry air and its carried quantities coherently}
+
+For the representative split path, slow tendencies are prepared from the
+appropriate stage state. The integrator applies the slow increment, seeds the
+acoustic radiation history, and advances the fast pressure/density and momentum
+sequence through its acoustic substeps. Closure of the fields read by the next
+substep is part of that sequence. Reusing a host or device buffer is correct
+only if it holds the state required at this particular stage.
+
+The continuity calculation produces a carrier mass change. Retained face fluxes
+allow the subsequent scalar update to use the same mass that moved through each
+face. For a species $x$, the coupled relation is
+\[
+ \begin{aligned}
+ M_C^*&=M_C^n-\sum_f B_{Cf}\mathcal F_f,\\
+ W_{x,C}^*&=M_C^n q_{x,C}^n-\sum_fB_{Cf}\mathcal F_f q_{x,f},\\
+ q_{x,C}^*&=W_{x,C}^*/M_C^*,
+ \end{aligned}
+\]
+where $\mathcal F_f$ is the time-integrated dry-mass flow, in kg, over the
+interval used by this transport operation. The asterisk denotes the transported
+endpoint, not the final source-adjusted state. A retained flux integrated over
+one interval cannot be reused as though it represented a different interval
+without an explicit conversion justified by the integrator.
+
+Private moments need the same care as visible water. If a number is stored per
+kg dry air, its inventory follows the dry-mass carrier. If it is stored per
+volume, its numerical transport must use that definition. Moving mass with one
+carrier while moving particle number with another can create a false change in
+mean size even if both arrays remain positive. This affects terminal velocity,
+collection and radiative interpretation at the next process call.
+
+A basic invariant is the uniform-tracer test: a constant mixing ratio should
+remain constant when only its carrier moves. Another is a closed or periodic
+inventory test. A third is the boundary flux balance for an open domain. These
+tests answer different questions and should not be replaced by a visual check
+that a cloud retains roughly the same shape.
+
+\section{A microphysics call is a coupled material transaction}
+
+At a transported cell, microphysics receives pressure, temperature/theta,
+dry density and the selected water and moment state. Processes redistribute
+water among vapor, liquid and ice, change particle counts and sizes, exchange
+latent energy, and move precipitation vertically. A process list is not a
+set of independent increments that may all consume the original reservoir.
+Ordering, shared-vapor allocation, collection routing and moment repair define
+the actual closure.
+
+Write the local phase-source inventory change as
+\[
+ \Delta W_x=M_C\Delta q_x.
+\]
+With no external water source and no sedimentation across the cell boundary,
+the phase-change identity is $\sum_x\Delta W_x=0$. A domain water budget must
+add sedimentation and other boundary exchanges. The appropriate total is all
+prognostic water categories, not just cloud condensate or precipitation.
+A cloud-to-rain conversion can reduce displayed cloud while conserving water.
+An evaporating raindrop can disappear from the rain field while increasing
+vapor and cooling the cell.
+
+The thermodynamic increment follows the declared phase energies and heat
+capacities. For an illustrative constant-pressure condensation of a small
+amount $\delta q$ with constant latent heat and heat capacity,
+\[
+ \Delta T\simeq \frac{L_v\delta q}{c_p}.
+\]
+This is an explanatory approximation with held coefficients and the stated
+thermodynamic constraint. The earlier microphysics chapter describes more
+complete mixture and material-temperature issues. Freezing, melting, liquid
+surface temperature, vapor competition and EOS projection prevent this
+one-line estimate from being a universal energy owner.
+
+A collection rule also makes a distributional assumption. Combining two mass
+reservoirs without a compatible number change alters the inferred spectrum.
+A count cap is therefore a model choice with consequences for size, fall speed
+and subsequent collection, not merely protection against a large integer.
+The documented Nimbus routing choices, including its retained new-hail gate
+and count bounds, must be stated when comparing the model with a publication.
+The guarded third-moment owners do not yet establish a complete live
+source/EOS transaction; their source presence is not public readiness.
+
+\section{Pressure adjustment is part of the thermal path}
+
+The production dry rho--theta EOS can be expressed, with
+$\kappa=R_d/c_p$ and $\gamma=1/(1-\kappa)$, as
+\[
+ p=p_{\rm ref}\left(\frac{\rho_dR_d\theta}{p_{\rm ref}}\right)^\gamma,
+ \qquad T=\theta\left(\frac{p}{p_{\rm ref}}\right)^\kappa.
+\]
+These equations describe the declared dry pressure law. Moisture affects other
+parts of the model, including phase energy and loading; that does not make the
+pressure relation a full moist-mixture EOS.
+
+The thermal sensitivity depends on what is held fixed. If pressure is held,
+$dT/T=d\theta/\theta$. If dry density is held and pressure is subsequently
+projected by the EOS, then
+\[
+ \frac{dT}{T}=\gamma\frac{d\theta}{\theta}.
+\]
+Thus a theta increment designed using a fixed-pressure temperature conversion
+and a later fixed-density pressure projection form a different endpoint map
+from the original fixed-pressure calculation. The equation is a local
+sensitivity demonstration, not a claim that every Nimbus process applies that
+simplified source or has an error of exactly $\gamma$.
+
+To prescribe a particular endpoint temperature at held dry density, one can
+instead solve the EOS relation for the required theta,
+\[
+ \theta=T^{1-\kappa}
+        \left(\frac{p_{\rm ref}}{\rho_dR_d}\right)^\kappa.
+\]
+But choosing that endpoint requires an appropriate energy constraint first.
+Replacing one conversion with this expression without deciding whether the
+physical process is a constant-volume, constant-pressure or open-system
+exchange would simply conceal a different assumption in the code.
+
+Nimbus has explicit bounded work on a source/EOS energy mapping, described in
+the preceding chapter. The live orchestration can place SGS, diffusion and
+other operations between a microphysics source and final pressure projection.
+Their changes must be represented in the complete endpoint transaction. A
+cell-level mapping that rejects intervening mutation cannot be treated as a
+complete field-level integration merely because its isolated residual is small.
+
+\section{Mixing, sedimentation and radiation close different budgets}
+
+Subgrid mixing exchanges momentum and scalar inventories between locations.
+The eddy diffusivity depends on the closure and sometimes on gradients of the
+state being mixed. A diffusivity has units of area per time; it is not itself
+a mass flux. Density, face area, gradient and the integration interval turn it
+into an exchange. A dissipative velocity update also needs a declared treatment
+of its kinetic-energy change. An energetically complete closure cannot be
+inferred solely from the sign of a diffusion coefficient.
+
+Sedimentation is transport relative to the air. Its vertical flux depends on
+the category's mass or moment distribution and its terminal-velocity closure.
+The bottom boundary contributes precipitation leaving the atmosphere. If a
+surface accumulation is updated without removing the corresponding atmospheric
+inventory, water is created in the combined atmosphere-plus-surface accounting.
+If removal occurs without the accumulation receipt, the atmospheric budget may
+be correct while the published precipitation diagnostic is wrong.
+
+For radiation, column heating follows flux divergence with the actual physical
+layer mass and the chosen heat-capacity convention. The surface and top-of-column
+radiative fluxes are external energy exchanges. Radiation should not be added
+to a closed-domain energy expectation as though it were an internal transfer.
+A held heating tendency and a freshly recomputed diagnostic flux can also refer
+to different states; comparing them without their cadence information can
+produce a misleading closure residual.
+
+The combination of a boundary-layer scheme and resolved-grid SGS requires an
+explicit division of transport. Both can represent unresolved mixing, but they
+operate with different assumptions and length scales. Adding them together
+without a coupling policy can count the same transport twice. Nimbus's
+configuration admission and runtime owners restrict supported combinations;
+a paper describing either component independently does not settle the combined
+closure.
+
+\section{A numerical ledger can be exact while the physics is wrong}
+
+Let a completed step consist of states $X_0,X_1,\ldots,X_m$, and let
+$E(X)$ be one consistently defined energy diagnostic. Then
+\[
+ E(X_m)-E(X_0)=\sum_{r=0}^{m-1}\big[E(X_{r+1})-E(X_r)\big]
+\]
+is a telescoping identity. It holds even if an operator implements an incorrect
+physical law. Recording endpoint differences establishes where the diagnostic
+changed, but does not independently establish why that change is physically
+justified.
+
+A stronger report compares each change with a separately specified exchange,
+\[
+ R_r=E(X_{r+1})-E(X_r)-\mathcal W_r-\mathcal Q_r-\mathcal B_r,
+\]
+where $\mathcal W_r$ is the declared mechanical work, $\mathcal Q_r$ the thermal
+or phase exchange, and $\mathcal B_r$ the boundary contribution for that
+operation and energy basis. Those terms must be derived from the appropriate
+physics and geometry. Defining $\mathcal Q_r$ to equal the measured endpoint
+difference by construction makes $R_r=0$ without testing the thermal law.
+
+Floating-point storage is another observable operation. A double-precision
+candidate cast back to a float field can change the diagnosed inventory.
+Nimbus distinguishes storage/rounding effects where required by an owner;
+those effects should not be relabeled as condensation, surface work or an
+unknown physical sink. Deterministic reduction can make the effect repeatable,
+but does not eliminate it.
+
+The same discipline applies to conservation of water. A perfect domain sum can
+hide a spatially wrong transfer between cells; a correct cell source can coexist
+with a wrong boundary flux. Scientific validation therefore combines inventory
+closure, local reference states, geometric invariants and dynamic behavior.
+A single global residual is necessary for some claims and insufficient for all
+of them.
+
+\section{A worked control-volume example}
+
+Consider an illustrative flat cell with volume
+$100\,\mathrm m\times100\,\mathrm m\times50\,\mathrm m
+=5\times10^5\,\mathrm{m^3}$ and dry density
+$1\,\mathrm{kg\,m^{-3}}$. Its dry mass is $5\times10^5$ kg. At
+$q_v=0.01\,\mathrm{kg\,kg^{-1}}$, it contains 5000 kg of vapor. These numbers
+are chosen to expose the accounting; they are not a recommended grid or a
+Nimbus regression reference.
+
+Suppose one face brings in 1000 kg of dry air carrying the same vapor mixing
+ratio while another removes 500 kg. The new dry mass is 500500 kg and vapor
+mass is $5000+10-5=5005$ kg. Dividing gives the same $q_v=0.01$. Updating water
+with the entering and leaving fluxes but dividing by the old dry mass would
+instead produce a false concentration increase. Updating the mixing ratio
+before constructing its old inventory can create the opposite kind of error.
+
+Now let local condensation transfer $\delta q=2\times10^{-4}$ from vapor to
+cloud liquid at the transported endpoint. It transfers 100.1 kg of water:
+\[
+ W_v'=5005-100.1,\qquad W_c'=W_c+100.1.
+\]
+Their sum is unchanged. With the illustrative held values
+$L_v=2.5\times10^6\,\mathrm{J\,kg^{-1}}$ and
+$c_p=1004\,\mathrm{J\,kg^{-1}\,K^{-1}}$, a constant-pressure estimate gives
+$\Delta T\simeq0.498$ K. This estimate neglects temperature dependence,
+mixture heat capacity, saturation feedback and all transport during the source.
+Those are declared assumptions, not small corrections whose omission is
+universally justified.
+
+If part of that liquid converts to rain, the atmospheric total water still
+need not change. If 20 kg subsequently falls through the physical bottom
+boundary, atmospheric water decreases by 20 kg and the surface precipitation
+inventory increases by 20 kg, subject to the chosen diagnostic units and area.
+Rain falling from an upper cell into this cell is an internal vertical exchange,
+not surface precipitation. The distinction depends on the physical interface
+owner, especially on a stretched or terrain-following column.
+
+Finally, pressure projection and momentum evolution determine the new thermal
+and mechanical endpoint. The illustrative latent-heat estimate is not enough
+to predict that endpoint without the EOS and work assumptions. A complete
+step report would identify the carrier transport, phase transfer, sedimentation,
+pressure-related energy change, mixing, boundaries and storage effects. The
+example shows how to audit a step; it does not replace the actual source laws
+or their tests.
+
+\section{Publication should preserve the interpretation of the endpoint}
+
+After the numerical state is accepted, diagnostics reconstruct quantities such
+as temperature, vorticity, radar products and storm measures from that endpoint.
+A diagnostic can use a different spatial location from its inputs: for example,
+wind may be interpolated from faces to a scalar point for a plot. Its metadata
+must state that reconstruction. A visual field must not silently combine the
+new theta with an old pressure or a new geometry with an old domain origin.
+
+The output layer publishes completion and geometry information so readers can
+identify a consistent frame. Compression and visual downsampling are additional
+representations of that frame. A block maximum is useful for retaining a small
+visible peak but is not a conservative volume average. A volume renderer's
+interpolated color is not a microphysics concentration. The architecture guide
+explains these later representations and the GPU path that produces pixels.
+
+Restart has a stronger requirement than visualization. It must preserve the
+state needed by the next update, including private moments and relevant
+histories, and must reject incompatible continuation assumptions. A successful
+plot decode does not prove restart fidelity, and a successful restart does not
+by itself prove that the underlying physical experiment is valid.
+
+\section{Which assumptions travel with a result}
+
+A reproducible scientific result should state the physical domain and frame,
+scalar ownership and staggering, physical spacings and terrain geometry, base
+state and initial perturbations, transport and time-integration choices,
+boundary conditions, microphysics categories and moment units, closure and
+radiation choices, source cadences and required coefficient identities. It
+should also state precision, backend, threading and output transformations
+when those affect the comparison. These are the components of the problem
+actually solved.
+
+The highest-level assumption is that a resolved, compressible grid model with
+bulk closures is an appropriate description for the question being asked.
+Subgrid distributions, unresolved turbulent motions and radiative optical
+properties are modeled rather than resolved particle by particle. Refining the
+grid does not remove every closure assumption. Conversely, matching one
+observed storm feature does not uniquely validate each closure: compensating
+errors can produce a similar visible outcome.
+
+Verification asks whether the implemented operators satisfy their stated
+mathematical contracts. Validation asks whether the model is adequate for a
+physical use and whether its assumptions are supported by comparison with
+independent evidence. Long campaigns examine behavior beyond a bounded case;
+independent domain review examines the scientific interpretation. Nimbus's
+readiness terminology keeps those stages separate. Engineering-incomplete
+couplings remain work to be completed, even when a local formula, guard or
+reference test is already correct.

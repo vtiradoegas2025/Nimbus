@@ -1,0 +1,27 @@
+import assert from "node:assert/strict";
+import { holdVtkSceneRendering, protectVtkTraversal } from "../../../../ui/src/lib/vtk/vtkContextRenderGuard.ts";
+
+let renders = 0;
+const values = { cloud: 0, precip: 0, contour: 0 };
+const observed: typeof values[] = [];
+const view = { traverseAllPasses: () => { renders++; observed.push({ ...values }); }, getContext: () => null };
+protectVtkTraversal(view);
+const window = { getApiSpecificRenderWindow: () => view };
+view.traverseAllPasses();
+const release = holdVtkSceneRendering(window);
+values.cloud = 1;
+view.traverseAllPasses();
+values.precip = 1;
+view.traverseAllPasses();
+const nested = holdVtkSceneRendering(window);
+values.contour = 1;
+release();
+view.traverseAllPasses();
+assert.equal(renders, 1, "scalar and contour swaps cannot trigger a half-scene render");
+nested();
+view.traverseAllPasses();
+assert.deepEqual(observed, [{ cloud: 0, precip: 0, contour: 0 }, { cloud: 1, precip: 1, contour: 1 }]);
+nested(); release();
+view.traverseAllPasses();
+assert.equal(renders, 3, "releases are idempotent and subsequent camera renders continue");
+console.log("Atomic scene traversal holding and nested ownership: passed");

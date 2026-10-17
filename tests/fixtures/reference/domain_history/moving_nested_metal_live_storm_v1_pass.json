@@ -1,0 +1,51 @@
+{
+  "schema": "nimbus.evidence.moving_nested_metal_live_storm",
+  "schema_version": 1,
+  "status": "pass",
+  "qualification_eligible": false,
+  "scope": "exploratory_cross_backend_resume_physical_metal",
+  "report": {
+    "path": "docs/evidence/moving_nested_metal_live_storm_v1_report.json",
+    "sha256": "ed9c1730c0ec66aa92b5dd72be825c29314b39707b31612125ca5097a9e72d93"
+  },
+  "inputs": {
+    "binary_sha256": "95e87f6babe6fcd6fb7c4c059e6bfcada4b962fbe63de73e4fd840967863d582",
+    "config_sha256": "adb44405cc424abdd9db842d03586ed82a328669684dc81f3a18e833a9a2da1a",
+    "source_checkpoint_sha256": "7f72b1a3c1d3543020b8aa20167e63c45928d550bcabe51869be0086dea5e69a",
+    "source_checkpoint_time_s": 4050,
+    "final_time_s": 4500
+  },
+  "identity": {
+    "physical_device": "Apple M4 Max",
+    "operating_system": "macOS 26.5.2 (Build 25F84)",
+    "toolchain": "Apple clang 21.0.0 (clang-2100.0.123.102)",
+    "backend": "metal",
+    "fallback": "off"
+  },
+  "summary": {
+    "tracker_samples": 15,
+    "final_tracker_status": "valid",
+    "relocation_times_s": [4170, 4260, 4320],
+    "final_cumulative_shift_cells": {"i": 52, "j": 21},
+    "parent_smagorinsky_dispatches_per_operation": 600,
+    "child_smagorinsky_dispatches_per_operation": 600,
+    "parent_kessler_process_dispatches_per_operation": 300,
+    "child_kessler_process_dispatches_per_operation": 600,
+    "parent_microphysics_apply_dispatches": 0,
+    "child_microphysics_apply_dispatches": 0,
+    "strict_finite_bounded_outputs": true,
+    "final_checkpoint_time_s": 4500,
+    "final_checkpoint_sha256": "58747b69e7758bd411d4b8877f76d0181258ab6e6b466010d7ebc73c15514ff7",
+    "final_tracker_sha256": "1c8dae8613f299783ff9662718530755ad73592f3821b9bdef421216ea05c4e5",
+    "runtime_log_sha256": "754d72ad768e4ec02e4715188fdabb88a006d0d68c061a9a19e21f9b74af2b75",
+    "solver_step_wall_seconds": 1208.66,
+    "simulated_seconds_per_solver_wall_second": 0.372313
+  },
+  "claim_limits": {
+    "public_moving_nest_admitted": false,
+    "device_resident_relocation": false,
+    "fresh_same_backend_lifetime": false,
+    "same_backend_reference_qualification": false,
+    "throughput_promotion": false
+  }
+}

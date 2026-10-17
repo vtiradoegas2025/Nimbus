@@ -1,0 +1,711 @@
+name: CI
+
+# Maintained source, UI, package and documentation gates.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancel superseded runs on the same branch / PR.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NIMBUS_BUILD_JOBS: "2"
+  CARGO_BUILD_JOBS: "2"
+  CMAKE_BUILD_PARALLEL_LEVEL: "2"
+
+jobs:
+  documentation:
+    name: Documentation links and LaTeX PDFs
+    runs-on: macos-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check maintained documentation and PDF identities
+        run: |
+          python3 scripts/tests/architecture/check_repository_layout.py
+          python3 scripts/tests/architecture/check_docs.py
+          python3 scripts/dev/docs/build_guides.py --check
+      - name: Install the document compiler
+        run: brew install tectonic
+      - name: Rebuild the technical guides
+        run: python3 scripts/dev/docs/build_guides.py
+
+  vulkan-software:
+    name: Vulkan dispatch + parity (lavapipe)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install software Vulkan and shader tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential ccache cmake glslang-tools libomp-dev libvulkan-dev \
+            mesa-vulkan-drivers spirv-tools vulkan-tools
+
+      - name: Restore current SPIR-V tools
+        uses: actions/cache@v4
+        with:
+          path: .cache/spirv-tools-2026.1
+          key: spirv-tools-2026.1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/dev/shaders/build_spirv_tools.sh') }}
+
+      - name: Build SPIR-V tools with strict FMA support
+        run: |
+          bash scripts/dev/shaders/build_spirv_tools.sh .cache/spirv-tools-2026.1
+          echo "$GITHUB_WORKSPACE/.cache/spirv-tools-2026.1/build/tools" >> "$GITHUB_PATH"
+
+      - name: Restore C++ compiler cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-vulkan-${{ runner.os }}-${{ hashFiles('Makefile', 'mk/*.mk') }}
+          restore-keys: ccache-vulkan-${{ runner.os }}-
+
+      - name: Configure C++ compiler cache
+        run: ccache --max-size=1G
+
+      - name: Select lavapipe explicitly
+        run: |
+          lvp_icd="$(find /usr/share/vulkan/icd.d -name 'lvp_icd*.json' -print -quit)"
+          test -n "$lvp_icd"
+          echo "VK_ICD_FILENAMES=$lvp_icd" >> "$GITHUB_ENV"
+          echo "Selected ICD: $lvp_icd"
+
+      - name: Prove software device creation
+        run: vulkaninfo --summary
+
+      - name: Rebuild and verify every SPIR-V artifact
+        run: make verify-shaders
+
+      - name: Verify memory topology without a physical GPU
+        run: |
+          make -j"$NIMBUS_BUILD_JOBS" bin/test_vulkan_memory_plan
+          ./bin/test_vulkan_memory_plan
+
+      - name: Build required dispatch and parity binaries
+        run: |
+          make -j"$NIMBUS_BUILD_JOBS" vulkan-compute-shaders \
+            bin/test_vulkan_required_dispatch \
+            bin/test_vulkan_gpu_parity \
+            bin/test_dynamics_acoustic_cartesian_cgrid_gpu_parity \
+            bin/test_dynamics_cartesian_cgrid_slow_tendencies_gpu_parity \
+            bin/test_numerics_advect_conservative_cartesian_cgrid_gpu_parity \
+            ZFP=0
+
+      - name: Require a completed Vulkan dispatch
+        run: make test-vulkan-required ZFP=0
+
+      - name: Run supported-kernel parity on lavapipe
+        run: |
+          ./bin/test_vulkan_gpu_parity
+          ./bin/test_dynamics_acoustic_cartesian_cgrid_gpu_parity
+          ./bin/test_dynamics_cartesian_cgrid_slow_tendencies_gpu_parity
+          ./bin/test_numerics_advect_conservative_cartesian_cgrid_gpu_parity
+
+      - name: Report C++ compiler cache
+        if: always()
+        run: ccache --show-stats
+
+  ui-browser:
+    name: UI lifecycle (Chromium + SwiftShader)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Install UI dependencies
+        working-directory: ui
+        run: npm ci
+
+      # Run every deterministic Node-based UI contract, including engine/UI
+      # field-catalog drift and the packaged-app security configuration. Keeping
+      # this as one discovered gate prevents newly added test_*.ts scripts from
+      # existing locally without ever being selected by CI.
+      - name: Run complete UI unit gate
+        working-directory: ui
+        run: npm run test:unit
+
+      # WebKit alongside Chromium because WebKit is not a second opinion here —
+      # it is the shipped macOS app. Tauri renders in WKWebView, and a
+      # Chromium-only gate let a WebKit-only defect ship: the COEP value the app
+      # sent was Chromium-specific, so WebKit never entered cross-origin
+      # isolation, SharedArrayBuffer was absent, and the Python tab's Stop
+      # button could not interrupt anything on the platform most of this is
+      # developed on. Nothing running here could have seen that.
+      - name: Install Chromium, WebKit and system libraries
+        working-directory: ui
+        run: npx playwright install --with-deps chromium webkit
+
+      # Blocks the React #310 class of defect: a hook added below the early
+      # return in a long component changes the hook count between renders and
+      # takes down the whole view. Errors fail the job; exhaustive-deps is a
+      # warning and does not (see ui/eslint.config.js for why).
+      - name: Lint React hook rules
+        working-directory: ui
+        run: npm run lint
+
+      - name: Type-check browser harness
+        working-directory: ui
+        run: npm run typecheck:browser
+
+      # The Python specs boot a real interpreter. Its runtime comes from the
+      # pyodide npm package, but that package ships no wheels, so ~37 MB of
+      # them are pulled from the pinned CDN release. Cached on package-lock,
+      # which is what pins the version: a Pyodide bump changes the key and
+      # re-downloads, anything else reuses. The vendor script verifies every
+      # wheel against the digest in Pyodide's lock file, so a corrupt or
+      # partially-restored cache entry is rejected rather than served.
+      - name: Cache Pyodide wheels
+        uses: actions/cache@v4
+        with:
+          path: ui/build/pyodide-cache
+          key: pyodide-wheels-${{ hashFiles('ui/package-lock.json') }}
+          restore-keys: pyodide-wheels-
+
+      # Run explicitly rather than leaving it to the Playwright web server, so
+      # a download failure is its own named step instead of a timeout buried in
+      # server output. The build's own call is then a no-op.
+      - name: Vendor Pyodide for the browser tests
+        working-directory: ui
+        run: npm run vendor:pyodide
+
+      - name: Run production VTK lifecycle gate
+        working-directory: ui
+        env:
+          NIMBUS_VTK_MOUNT_CYCLES: 100
+        run: npm run test:browser
+
+      # WKWebView is the shipped macOS engine, so gate the complete supported
+      # surface at both standard and Retina scale. This covers more than the
+      # Python worker: layout, lifecycle, config, archive, and high-DPI behavior
+      # can all diverge from Chromium independently.
+      - name: Run complete WebKit release matrix
+        working-directory: ui
+        run: npm run test:webkit-smoke
+
+      - name: Upload lifecycle metrics and failure traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vtk-lifecycle-chromium-swiftshader
+          path: |
+            ui/build/test-results
+            ui/build/playwright-report
+          if-no-files-found: warn
+          retention-days: 14
+
+  studio-macos-package:
+    name: Nimbus Studio package (macOS ${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-15
+          - arch: x64
+            runner: macos-15-intel
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@1.77.2
+
+      - name: Install complete native simulator dependencies
+        run: brew install libomp vulkan-headers vulkan-loader molten-vk glslang glfw pkg-config zfp netcdf ffmpeg
+
+      - name: Build and verify the complete native simulator
+        run: |
+          make -j"$NIMBUS_BUILD_JOBS" REQUIRE_FULL_STACK=1
+          ./bin/nimbus_sim --version | grep -F 'OpenMP runtime: available'
+          ./bin/nimbus_sim --version | grep -F 'ZFP compression: available'
+          ./bin/nimbus_sim --version | grep -F 'netCDF4 history output: available'
+          ./bin/nimbus_sim --version | grep -F 'Vulkan compute: available'
+          ./bin/nimbus_sim --version | grep -F 'live shared memory: available'
+
+      - name: Install locked Studio dependencies
+        working-directory: ui
+        run: npm ci
+
+      - name: Qualify native netCDF and ZFP publication
+        run: make qualify-io REQUIRE_FULL_STACK=1
+
+      - name: Exercise the native macOS Studio bridge
+        working-directory: ui/src-tauri
+        run: cargo test --lib
+
+      - name: Build the native application bundle without installing it
+        working-directory: ui
+        run: bash scripts/build_native_app.sh --bundle-only
+
+      - name: Qualify packaged production visualization in WKWebView
+        working-directory: ui
+        run: |
+          npm run qualify:packaged-visualization -- \
+            --profile production --mode release --skip-build \
+            --output build/qualification/packaged-visualization-macos-${{ matrix.arch }}.json
+
+      - name: Upload packaged visualization evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: packaged-visualization-macos-${{ matrix.arch }}
+          path: ui/build/qualification/packaged-visualization-macos-${{ matrix.arch }}.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Require the complete bundled application
+        run: |
+          app='ui/src-tauri/target/release/bundle/macos/Nimbus Studio.app'
+          test -d "$app"
+          test -x "$app/Contents/MacOS/nimbus-studio"
+          test -x "$app/Contents/Resources/bin/nimbus_sim"
+          test -f "$app/Contents/Resources/configs/500meterResolution/kessler/baseline.yaml"
+          codesign --verify --deep --strict "$app"
+          file "$app/Contents/MacOS/nimbus-studio"
+          file "$app/Contents/Resources/bin/nimbus_sim"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nimbus-studio-macos-${{ matrix.arch }}-app
+          path: |
+            ui/src-tauri/target/release/bundle/macos/Nimbus Studio.app
+            ui/build/qualification/packaged-visualization-macos-${{ matrix.arch }}.json
+          if-no-files-found: error
+          retention-days: 14
+
+  studio-linux-package:
+    name: Nimbus Studio package (Linux ${{ matrix.arch }} AppImage)
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@1.77.2
+
+      - name: Install simulator and Tauri build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential libomp-dev libvulkan-dev glslang-tools pkg-config \
+            libzfp-dev libnetcdf-dev netcdf-bin ffmpeg \
+            libwebkit2gtk-4.1-dev librsvg2-dev libssl-dev xvfb \
+            libayatana-appindicator3-dev libxdo-dev patchelf file
+
+      - name: Build the simulator bundled by Studio
+        run: make -j"$NIMBUS_BUILD_JOBS" REQUIRE_FULL_STACK=1
+
+      - name: Install locked Studio dependencies
+        working-directory: ui
+        run: npm ci
+
+      - name: Qualify native netCDF and ZFP publication
+        run: make qualify-io REQUIRE_FULL_STACK=1
+
+      - name: Exercise the native Linux Studio bridge
+        working-directory: ui/src-tauri
+        run: cargo test --lib
+
+      - name: Build portable Studio package
+        working-directory: ui
+        run: npm run tauri:build
+
+      - name: Qualify packaged production visualization in WebKitGTK
+        working-directory: ui
+        run: |
+          xvfb-run -a npm run qualify:packaged-visualization -- \
+            --profile production --mode release --skip-build \
+            --output build/qualification/packaged-visualization-linux-${{ matrix.arch }}.json
+
+      - name: Upload packaged visualization evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: packaged-visualization-linux-${{ matrix.arch }}
+          path: ui/build/qualification/packaged-visualization-linux-${{ matrix.arch }}.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Require one executable AppImage
+        run: |
+          artifact="$(find ui/src-tauri/target/release/bundle -type f -name '*.AppImage' -print -quit)"
+          test -n "$artifact"
+          test -x "$artifact"
+          "$artifact" --appimage-extract >/dev/null
+          test -n "$(find squashfs-root -type f -path '*/configs/500meterResolution/kessler/baseline.yaml' -print -quit)"
+          echo "Studio artifact: $artifact"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nimbus-studio-linux-${{ matrix.arch }}-appimage
+          path: |
+            ui/src-tauri/target/release/bundle/appimage/*.AppImage
+            ui/build/qualification/packaged-visualization-linux-${{ matrix.arch }}.json
+          if-no-files-found: error
+          retention-days: 14
+
+  studio-windows-package:
+    name: Nimbus Studio parity + package (Windows ${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: windows-latest
+            msystem: UCRT64
+            package_prefix: mingw-w64-ucrt-x86_64
+            prefix_dir: windows-prefix
+            compiler: g++
+          - arch: arm64
+            runner: windows-11-arm
+            msystem: CLANGARM64
+            package_prefix: mingw-w64-clang-aarch64
+            prefix_dir: windows-prefix-arm64
+            compiler: clang++
+    steps:
+      - shell: pwsh
+        run: git config --global core.autocrlf input
+
+      - uses: actions/checkout@v4
+
+      - id: msys2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{ matrix.msystem }}
+          update: true
+          install: >-
+            make git curl tar base-devel
+            ${{ matrix.package_prefix }}-toolchain
+            ${{ matrix.package_prefix }}-clang
+            ${{ matrix.package_prefix }}-cmake
+            ${{ matrix.package_prefix }}-ninja
+            ${{ matrix.package_prefix }}-python
+            ${{ matrix.package_prefix }}-pkgconf
+            ${{ matrix.package_prefix }}-vulkan-devel
+            ${{ matrix.package_prefix }}-glslang
+            ${{ matrix.package_prefix }}-glfw
+            ${{ matrix.package_prefix }}-netcdf
+            ${{ matrix.package_prefix }}-ffmpeg
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@1.77.2
+
+      - name: Check native Rust dependency architecture guards
+        shell: pwsh
+        run: .\scripts\tests\architecture\test_windows_rust_environment.ps1
+
+      - name: Build pinned ZFP for the native simulator
+        shell: msys2 {0}
+        run: NIMBUS_WINDOWS_PREFIX="$PWD/build/${{ matrix.prefix_dir }}" ./scripts/windows/install_zfp.sh
+
+      - name: Prove the UI-first PowerShell setup sees a complete host
+        shell: pwsh
+        env:
+          NIMBUS_MSYS2_ROOT: ${{ steps.msys2.outputs.msys2-location }}
+        run: .\scripts\setup.ps1 -Check -NoArt
+
+      - name: Build the full native Windows simulator
+        shell: msys2 {0}
+        run: make -j2 REQUIRE_FULL_STACK=1 ZFP_PREFIX="$PWD/build/${{ matrix.prefix_dir }}" NETCDF=1
+
+      - name: Prove Windows durability, live transport, ZFP and netCDF
+        shell: msys2 {0}
+        run: |
+          ./bin/nimbus_sim.exe --version
+          ./bin/nimbus_sim.exe --version | grep -F 'OpenMP runtime: available'
+          ./bin/nimbus_sim.exe --version | grep -F 'ZFP compression: available'
+          ./bin/nimbus_sim.exe --version | grep -F 'netCDF4 history output: available'
+          ./bin/nimbus_sim.exe --version | grep -F 'Vulkan compute: available'
+          ./bin/nimbus_sim.exe --version | grep -F 'live shared memory: available'
+          make bin/test_core_field bin/test_core_durable_file bin/test_core_netcdf_history_writer \
+            bin/test_core_zfp_roundtrip bin/test_core_shm bin/test_shm_e2e \
+            ZFP_PREFIX="$PWD/build/${{ matrix.prefix_dir }}" NETCDF=1
+          ./bin/test_core_field.exe
+          ./bin/test_core_durable_file.exe
+          ./bin/test_core_netcdf_history_writer.exe
+          ./bin/test_core_zfp_roundtrip.exe
+          ./bin/test_core_shm.exe
+          ./bin/test_shm_e2e.exe
+
+      - name: Test native Windows process telemetry and cancellation
+        shell: msys2 {0}
+        run: python3 -m unittest tests.integration.test_cpu_benchmark_runner
+
+      - name: Install locked Studio dependencies
+        working-directory: ui
+        shell: pwsh
+        run: npm ci
+
+      - name: Typecheck app and browser contracts on Windows
+        working-directory: ui
+        shell: pwsh
+        run: |
+          npm run typecheck
+          npm run typecheck:browser
+
+      - name: Exercise the production UI shell in Windows Edge
+        working-directory: ui
+        shell: pwsh
+        run: |
+          $Edge = @(
+            "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe",
+            "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe"
+          ) | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
+          if (-not $Edge) { throw "Microsoft Edge is unavailable." }
+          $env:NIMBUS_BROWSER_EXECUTABLE = $Edge
+          npx playwright test ../tests/ui/browser/specs/production-shell.spec.ts --project=chromium-swiftshader
+
+      - name: Enforce distribution and icon contracts
+        shell: msys2 {0}
+        run: |
+          python3 scripts/tests/architecture/test_studio_distribution.py
+          python3 scripts/tests/architecture/test_openmp_probe.py
+
+      - name: Exercise the native Windows Studio bridge
+        working-directory: ui/src-tauri
+        shell: pwsh
+        run: |
+          . ..\..\scripts\windows\rust_build_environment.ps1
+          Initialize-NimbusRustBuildEnvironment -MsysRoot '${{ steps.msys2.outputs.msys2-location }}' -Architecture '${{ matrix.arch }}'
+          cargo test --lib
+
+      - name: Build the native NSIS installer with bundled runtimes
+        working-directory: ui
+        shell: pwsh
+        env:
+          NIMBUS_MSYS2_ROOT: ${{ steps.msys2.outputs.msys2-location }}
+        run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/build_native_app.ps1
+
+      - name: Qualify packaged production visualization in WebView2
+        working-directory: ui
+        shell: pwsh
+        run: |
+          ..\tests\ui\qualify_packaged_visualization.ps1 `
+            -Profile production -Mode release -SkipBuild `
+            -Output "build\qualification\packaged-visualization-windows-${{ matrix.arch }}.json"
+
+      - name: Upload packaged visualization evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: packaged-visualization-windows-${{ matrix.arch }}
+          path: ui/build/qualification/packaged-visualization-windows-${{ matrix.arch }}.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Require the simulator, ffmpeg, netCDF and installer payloads
+        shell: pwsh
+        run: |
+          if (-not (Test-Path ui/src-tauri/windows-runtime/nimbus_sim.exe)) { throw "simulator missing" }
+          if (-not (Test-Path ui/src-tauri/windows-runtime/ffmpeg.exe)) { throw "ffmpeg missing" }
+          if (-not (Get-ChildItem ui/src-tauri/windows-runtime -Filter '*netcdf*.dll')) { throw "netCDF runtime missing" }
+          if (-not (Get-ChildItem ui/src-tauri/target/release/bundle/nsis -Filter '*-setup.exe')) { throw "NSIS installer missing" }
+
+      - name: Silently install, launch and uninstall the produced NSIS package
+        shell: pwsh
+        run: |
+          $Installer = Get-ChildItem ui/src-tauri/target/release/bundle/nsis -Filter '*-setup.exe' | Select-Object -First 1
+          if (-not $Installer) { throw "NSIS installer missing" }
+          $InstallRoot = Join-Path $env:RUNNER_TEMP "NimbusStudioAcceptance"
+          $Install = Start-Process -FilePath $Installer.FullName -ArgumentList @('/S', "/D=$InstallRoot") -Wait -PassThru
+          if ($Install.ExitCode -ne 0) { throw "NSIS silent install failed with $($Install.ExitCode)" }
+          $Simulator = Get-ChildItem -LiteralPath $InstallRoot -Filter 'nimbus_sim.exe' -File -Recurse | Select-Object -First 1
+          $Studio = Get-ChildItem -LiteralPath $InstallRoot -Filter 'nimbus-studio.exe' -File -Recurse | Select-Object -First 1
+          if (-not $Simulator) { throw "Installed simulator payload missing" }
+          if (-not $Studio) { throw "Installed Studio executable missing" }
+          $BundledConfig = Join-Path $InstallRoot 'configs\500meterResolution\kessler\baseline.yaml'
+          if (-not (Test-Path -LiteralPath $BundledConfig -PathType Leaf)) { throw "Installed configuration catalog missing" }
+          $RuntimeDirectory = Split-Path -Parent $Simulator.FullName
+          $PriorPath = $env:Path
+          try {
+            $env:Path = "$RuntimeDirectory;$env:Path"
+            $Capabilities = (& $Simulator.FullName --version 2>&1 | Out-String)
+            if ($LASTEXITCODE -ne 0 -or -not $Capabilities.Contains('profile portable')) {
+              throw "Installed simulator is not the portable release profile"
+            }
+            $StudioProcess = Start-Process -FilePath $Studio.FullName -PassThru
+            Start-Sleep -Seconds 8
+            if ($StudioProcess.HasExited) { throw "Installed Nimbus Studio exited during launch smoke" }
+            Stop-Process -Id $StudioProcess.Id -Force
+          } finally {
+            $env:Path = $PriorPath
+          }
+          $Uninstaller = Get-ChildItem -LiteralPath $InstallRoot -Filter 'uninstall.exe' -File -Recurse | Select-Object -First 1
+          if (-not $Uninstaller) { throw "NSIS uninstaller missing" }
+          $Uninstall = Start-Process -FilePath $Uninstaller.FullName -ArgumentList '/S' -Wait -PassThru
+          if ($Uninstall.ExitCode -ne 0) { throw "NSIS silent uninstall failed with $($Uninstall.ExitCode)" }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nimbus-studio-windows-${{ matrix.arch }}-nsis
+          path: ui/src-tauri/target/release/bundle/nsis/*-setup.exe
+          if-no-files-found: error
+          retention-days: 14
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nimbus-windows-${{ matrix.arch }}-hosted-evidence
+          path: |
+            ui/build/test-results/playwright/**
+            ui/build/playwright-report/**
+            ui/build/qualification/packaged-visualization-windows-${{ matrix.arch }}.json
+          if-no-files-found: warn
+          retention-days: 14
+
+  packaged-visualization-matrix:
+    name: Packaged visualization evidence matrix
+    if: ${{ always() }}
+    needs: [studio-macos-package, studio-linux-package, studio-windows-package]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Download every packaged visualization report
+        uses: actions/download-artifact@v4
+        with:
+          pattern: packaged-visualization-*
+          path: build/packaged-visualization-evidence
+          merge-multiple: true
+
+      - name: Validate and aggregate the six-profile matrix
+        working-directory: ui
+        run: |
+          node --experimental-strip-types --import ../tests/ui/register-ts-resolve.mjs \
+            ../tests/ui/release/aggregate_packaged_visualization_evidence.ts \
+            ../build/packaged-visualization-evidence \
+            ../reports/qualification/packaged_visualization_matrix.json
+
+      - name: Upload combined packaged visualization matrix
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: packaged-visualization-matrix-${{ github.run_id }}-${{ github.run_attempt }}
+          path: reports/qualification/packaged_visualization_matrix.json
+          if-no-files-found: error
+          retention-days: 30
+
+  build-and-test:
+    name: Build + test (Ubuntu, CPU)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential ccache libomp-dev libvulkan-dev \
+            libzfp-dev libnetcdf-dev netcdf-bin
+
+      - uses: dtolnay/rust-toolchain@1.77.2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Install locked Studio dependencies
+        working-directory: ui
+        run: npm ci
+
+      - name: Restore C++ compiler cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-cpu-${{ runner.os }}-${{ hashFiles('Makefile', 'mk/*.mk') }}
+          restore-keys: ccache-cpu-${{ runner.os }}-
+
+      - name: Configure C++ compiler cache
+        run: ccache --max-size=1G
+
+      # The Vulkan backend compiles against the headers and finds no device on
+      # the GPU-less runner, so GPU parity tests self-skip. This lane requires
+      # both history codecs so core tests cannot pass by compiling them out.
+      - name: Build simulator
+        run: make -j"$NIMBUS_BUILD_JOBS" bin/nimbus_sim REQUIRE_FULL_STACK=1
+
+      - name: Provision required scientific tables
+        run: |
+          make -j2 thompson-data REQUIRE_FULL_STACK=1
+          bash scripts/dependencies/fetch_rrtmg_coefficients.sh
+
+      - name: Run test suite
+        run: make -j"$NIMBUS_BUILD_JOBS" test REQUIRE_FULL_STACK=1
+
+      - name: Qualify native netCDF and ZFP publication
+        run: make qualify-io REQUIRE_FULL_STACK=1
+
+      - name: Report C++ compiler cache
+        if: always()
+        run: ccache --show-stats
+
+  format:
+    name: clang-format (changed lines)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history so the diff base resolves
+
+      - name: Install clang-format + git-clang-format
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends clang-format curl
+          sudo curl -fsSL \
+            https://raw.githubusercontent.com/llvm/llvm-project/release/18.x/clang/tools/clang-format/git-clang-format \
+            -o /usr/local/bin/git-clang-format
+          sudo chmod +x /usr/local/bin/git-clang-format
+
+      # Gradual adoption: only the lines changed vs the PR base (or the previous
+      # commit on a push) are checked, so the not-yet-formatted legacy tree does
+      # not block work. Run `make format` locally to fix findings.
+      - name: Check formatting of changed lines
+        run: |
+          base="${{ github.event.pull_request.base.sha || github.event.before }}"
+          if [ -z "$base" ] || ! git cat-file -e "${base}^{commit}" 2>/dev/null \
+              || ! git merge-base "$base" HEAD >/dev/null 2>&1; then
+            base="$(git rev-parse --verify HEAD^ 2>/dev/null || echo empty-tree)"
+          fi
+          echo "Format base: $base"
+          make format-check FORMAT_BASE="$base"

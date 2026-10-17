@@ -1,0 +1,169 @@
+.log-stream {
+  display: flex;
+  flex-direction: column;
+  /* Fills the run-detail log section on the block axis. Not `height: 100%` —
+   * that would pin the panel to full height even when collapsed, defeating
+   * the --collapsed rule below. */
+  flex: 1;
+  min-height: 0;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  position: relative;
+}
+
+.log-stream--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+}
+
+.log-stream__empty-message {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.log-stream__empty-message > svg {
+  color: var(--color-info);
+}
+
+.log-stream__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-2);
+}
+
+.log-stream--collapsed .log-stream__header {
+  border-bottom: none;
+}
+
+.log-stream--collapsed {
+  /* Collapsed state collapses height to header-only so the surrounding
+   * RunDetail layout reclaims the freed vertical space for the stats /
+   * sparkline section. */
+  flex: 0 0 auto;
+}
+
+.log-stream__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 2px var(--space-2);
+  margin-left: calc(-1 * var(--space-2));
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text);
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.log-stream__toggle:hover {
+  background: var(--color-surface-3);
+}
+
+.log-stream__title {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.log-stream__counter {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+}
+
+.log-stream__counter--warn {
+  background: color-mix(in oklch, var(--color-warn) 18%, transparent);
+  color: var(--color-warn);
+}
+
+.log-stream__counter--error {
+  background: color-mix(in oklch, var(--color-error) 18%, transparent);
+  color: var(--color-error);
+}
+
+.log-stream__meta {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  flex: 1;
+}
+
+.log-stream__btn {
+  padding: 3px var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-3);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.log-stream__btn:hover {
+  background: var(--color-border-strong);
+  color: var(--color-text);
+}
+
+.log-stream__body {
+  flex: 1;
+  overflow-y: auto;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-body);
+  padding: var(--space-2) 0;
+  background: var(--color-bg);
+}
+
+.log-stream__placeholder {
+  padding: var(--space-3) var(--space-4);
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.log-row {
+  padding: 1px var(--space-4);
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: var(--color-text-secondary);
+}
+
+.log-row--info { color: var(--color-text-secondary); }
+.log-row--debug { color: var(--color-text-muted); }
+.log-row--warn { color: var(--color-warn); }
+.log-row--error { color: var(--color-error); }
+.log-row--fatal {
+  color: var(--color-error);
+  font-weight: 600;
+  background: color-mix(in oklch, var(--color-error) 8%, transparent);
+}
+.log-row--velmax { color: var(--color-info); }
+.log-row--budget { color: var(--color-info); }
+.log-row--progress { color: var(--color-accent); }
+.log-row--default { color: var(--color-text-secondary); }
+
+.log-stream__resume {
+  position: absolute;
+  bottom: var(--space-3);
+  right: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  box-shadow: 0 4px 12px var(--shadow-color);
+}
+
+.log-stream__resume:hover {
+  background: var(--color-accent-hover);
+}

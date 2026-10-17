@@ -1,0 +1,36 @@
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm,font=\small,
+  velocity/.style={-{Latex[length=2mm]},very thick,draw=NimbusBlue}]
+  \draw[fill=NimbusLight,draw=gray] (0,0) rectangle (6,3);
+  \draw[draw=gray] (3,0)--(3,3);
+  \node[above] at (3,3.65) {C-grid: two neighboring scalar cells};
+  \foreach \x in {1.5,4.5} {
+    \fill[NimbusBlue] (\x,1.5) circle (2pt);
+    \node[below=3pt] at (\x,1.5) {$\rho_d,p,\theta,q_x$};
+    \draw[velocity] (\x,0)--(\x,.55);
+    \draw[velocity] (\x,3)--(\x,3.55);
+    \node[right] at (\x,3.3) {$v$};
+  }
+  \foreach \x in {0,3,6} {
+    \draw[velocity] (\x,1.5)--(\x+.65,1.5);
+    \node[above] at (\x+.3,1.5) {$u$};
+  }
+  \node[below] at (1.5,-.2) {$C_i$};
+  \node[below] at (4.5,-.2) {$C_{i+1}$};
+  \node[anchor=north,align=center,text width=6cm] at (3,-.85)
+    {The shared face carries one mass flux, with opposite signs in the two cell inventories.};
+  \draw[fill=NimbusLight,draw=gray] (8,0) rectangle (11,3);
+  \node[above] at (9.5,3.65) {A-grid: collocated state};
+  \fill[NimbusBlue] (9.5,1.5) circle (2pt);
+  \draw[velocity] (9.5,1.5)--(10.4,1.5);
+  \draw[velocity] (9.5,1.5)--(9.5,2.4);
+  \node[below=4pt,align=center] at (9.5,1.5) {$\rho_d,p,\theta,q_x$\\$u,v,w$};
+  \node[anchor=north,align=center,text width=4cm] at (9.5,-.85)
+    {Face transport and pressure--velocity coupling require separate reconstructions.};
+\end{tikzpicture}
+\caption{Horizontal plan views of the two layouts. On the C-grid, $w$ is stored
+on the horizontal faces above and below each scalar volume and is omitted from
+this plan view. The labels describe physical locations, not a universal array
+index convention. Halo and closure locations are not additional atmospheric cells.}
+\end{figure}

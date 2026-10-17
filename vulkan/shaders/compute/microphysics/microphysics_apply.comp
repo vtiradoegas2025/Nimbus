@@ -1,0 +1,193 @@
+// microphysics_apply.comp
+//
+// Forward-Euler application of microphysics tendencies (GPU.md
+// Phase 4.2): mirrors the apply loop of step_microphysics
+// (microphysics_step.cpp) exactly -
+//   theta += clamp(dtheta_mp + dtheta_rad + dtheta_pbl, +-max_theta_step)*dt,
+//     then the theta bounds clamp (non-finite -> theta0 fallback);
+//   qv   += (dqv_mp + dqv_pbl)*dt, then the qv clamp [0, qv_max];
+//   qc..qh += dq*dt, then the hydrometeor clamp [0, hydro_max].
+// State fields update IN PLACE (bindings 0-7, pointwise: each thread owns
+// its cell). Tendencies are read-only; the driver has already run its
+// chaos hook and non-finite sanitize sweeps on them, so the in-shader
+// non-finite guards are defence in depth and normally count zero.
+//
+// Guard telemetry matches the CPU loop: the stats buffer carries the
+// counters that feed the [MICROPHYSICS GUARD] / [MICROPHYSICS THETA CLAMP
+// DETAIL] log lines -
+//   [0] non-finite tendency reads zeroed (mirrors the driver sweeps)
+//   [1] non-finite combined dtheta totals zeroed
+//   [2] dtheta totals limited to +-max_theta_step
+//   [3] theta bounds clamps
+//   [4] first-clamp claim flag (atomicExchange; first thread wins, same
+//       first-encountered semantics as the CPU's omp critical section)
+//   [5] first-clamp flat index
+//   [6..9] first-clamp detail: theta_new, theta_bounded, dtheta_total,
+//          dtheta_limited (floatBitsToUint)
+//   [10 .. 10+nz)      per-k clamp histogram
+//   [10+nz .. 10+nz+nx) per-i clamp histogram
+// The driver zero-fills the stats slot before dispatch.
+//
+// Data layout: row-major [nx][ny][nz]. Index (i, j, k) = (i*ny + j)*nz + k.
+
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) buffer ThetaBuf { float theta[]; };
+layout(set = 0, binding = 1) buffer QvBuf    { float qv[];    };
+layout(set = 0, binding = 2) buffer QcBuf    { float qc[];    };
+layout(set = 0, binding = 3) buffer QrBuf    { float qr[];    };
+layout(set = 0, binding = 4) buffer QiBuf    { float qi[];    };
+layout(set = 0, binding = 5) buffer QsBuf    { float qs[];    };
+layout(set = 0, binding = 6) buffer QgBuf    { float qg[];    };
+layout(set = 0, binding = 7) buffer QhBuf    { float qh[];    };
+
+layout(set = 0, binding = 8)  readonly buffer DThetaBuf { float dtheta[]; };
+layout(set = 0, binding = 9)  readonly buffer DQvBuf    { float dqv[];    };
+layout(set = 0, binding = 10) readonly buffer DQcBuf    { float dqc[];    };
+layout(set = 0, binding = 11) readonly buffer DQrBuf    { float dqr[];    };
+layout(set = 0, binding = 12) readonly buffer DQiBuf    { float dqi[];    };
+layout(set = 0, binding = 13) readonly buffer DQsBuf    { float dqs[];    };
+layout(set = 0, binding = 14) readonly buffer DQgBuf    { float dqg[];    };
+layout(set = 0, binding = 15) readonly buffer DQhBuf    { float dqh[];    };
+
+layout(set = 0, binding = 16) readonly buffer DThetaRadBuf { float dtheta_rad[]; };
+layout(set = 0, binding = 17) readonly buffer DThetaPblBuf { float dtheta_pbl[]; };
+layout(set = 0, binding = 18) readonly buffer DQvPblBuf    { float dqv_pbl[];    };
+
+layout(set = 0, binding = 19) buffer StatsBuf { uint stats[]; };
+
+// Push constants (64 bytes; mirrors MicrophysicsApplyPushConstants).
+layout(push_constant) uniform PushConstants {
+    int   nx;
+    int   ny;
+    int   nz;
+    int   pad0;
+    int   i_begin;
+    int   i_end;
+    int   j_begin;
+    int   j_end;
+    float dt_step;
+    float theta_fallback;
+    float theta_min;
+    float theta_max;
+    float max_theta_step;
+    float qv_max;
+    float hydro_max;
+    float pad1;
+};
+
+bool finite_f(float v) { return !isnan(v) && !isinf(v); }
+
+// Mirrors the driver's sanitize sweep semantics for one tendency read:
+// non-finite reads become zero and are counted.
+float guarded_tendency(float v, inout uint nonfinite_count)
+{
+    if (!finite_f(v))
+    {
+        nonfinite_count += 1u;
+        return 0.0;
+    }
+    return v;
+}
+
+void main()
+{
+    uint gid = gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * gl_NumWorkGroups.x * gl_WorkGroupSize.x;
+    uint total = uint(nx) * uint(ny) * uint(nz);
+    if (gid >= total)
+    {
+        return;
+    }
+
+    int k = int(gid % uint(nz));
+    int i = int(gid / (uint(ny) * uint(nz)));
+    int j = int((gid / uint(nz)) % uint(ny));
+    if (i < i_begin || i >= i_end || j < j_begin || j >= j_end)
+    {
+        return;
+    }
+
+    uint nonfinite_tendency = 0u;
+    float dth = guarded_tendency(dtheta[gid], nonfinite_tendency);
+    float dv_ = guarded_tendency(dqv[gid],    nonfinite_tendency);
+    float dc_ = guarded_tendency(dqc[gid],    nonfinite_tendency);
+    float dr_ = guarded_tendency(dqr[gid],    nonfinite_tendency);
+    float di_ = guarded_tendency(dqi[gid],    nonfinite_tendency);
+    float ds_ = guarded_tendency(dqs[gid],    nonfinite_tendency);
+    float dg_ = guarded_tendency(dqg[gid],    nonfinite_tendency);
+    float dh_ = guarded_tendency(dqh[gid],    nonfinite_tendency);
+
+    // theta: combine microphysics + radiation + PBL heating, guard the
+    // total, limit the per-step change, then bounds-clamp.
+    float dtheta_total = (dth + dtheta_rad[gid] + dtheta_pbl[gid]) * dt_step;
+    bool nonfinite_total = !finite_f(dtheta_total);
+    if (nonfinite_total)
+    {
+        dtheta_total = 0.0;
+    }
+    float dtheta_limited = clamp(dtheta_total, -max_theta_step, max_theta_step);
+    bool limited = (dtheta_limited != dtheta_total);
+
+    // A non-finite integrated theta keeps the cell's pre-step value
+    // theta[gid] (its own altitude), not the surface theta_fallback cold
+    // bomb (science audit NaN-theta); theta_fallback is the terminal backstop
+    // only when the pre-step value is itself corrupt. Mirrors microphysics_step.cpp.
+    float theta_new = theta[gid] + dtheta_limited;
+    float theta_safe = finite_f(theta_new)
+        ? theta_new
+        : (finite_f(theta[gid]) ? theta[gid] : theta_fallback);
+    float theta_bounded = clamp(theta_safe, theta_min, theta_max);
+    bool theta_clamped = (theta_bounded != theta_new) || !finite_f(theta_new);
+    theta[gid] = theta_bounded;
+
+    // Moisture integrations with the CPU's clamp semantics: non-finite
+    // results fall back to zero, otherwise clamp to physical bounds.
+    float qv_new = qv[gid] + (dv_ + dqv_pbl[gid]) * dt_step;
+    qv[gid] = finite_f(qv_new) ? clamp(qv_new, 0.0, qv_max) : 0.0;
+
+    float qc_new = qc[gid] + dc_ * dt_step;
+    qc[gid] = finite_f(qc_new) ? clamp(qc_new, 0.0, hydro_max) : 0.0;
+    float qr_new = qr[gid] + dr_ * dt_step;
+    qr[gid] = finite_f(qr_new) ? clamp(qr_new, 0.0, hydro_max) : 0.0;
+    float qi_new = qi[gid] + di_ * dt_step;
+    qi[gid] = finite_f(qi_new) ? clamp(qi_new, 0.0, hydro_max) : 0.0;
+    float qs_new = qs[gid] + ds_ * dt_step;
+    qs[gid] = finite_f(qs_new) ? clamp(qs_new, 0.0, hydro_max) : 0.0;
+    float qg_new = qg[gid] + dg_ * dt_step;
+    qg[gid] = finite_f(qg_new) ? clamp(qg_new, 0.0, hydro_max) : 0.0;
+    float qh_new = qh[gid] + dh_ * dt_step;
+    qh[gid] = finite_f(qh_new) ? clamp(qh_new, 0.0, hydro_max) : 0.0;
+
+    // Guard telemetry: atomics fire only on misbehaving cells, so a clean
+    // step pays nothing here.
+    if (nonfinite_tendency > 0u)
+    {
+        atomicAdd(stats[0], nonfinite_tendency);
+    }
+    if (nonfinite_total)
+    {
+        atomicAdd(stats[1], 1u);
+    }
+    if (limited)
+    {
+        atomicAdd(stats[2], 1u);
+    }
+    if (theta_clamped)
+    {
+        atomicAdd(stats[3], 1u);
+        atomicAdd(stats[10u + uint(k)], 1u);
+        atomicAdd(stats[10u + uint(nz) + uint(i)], 1u);
+        if (atomicExchange(stats[4], 1u) == 0u)
+        {
+            // Exactly one thread ever passes this gate, so the plain
+            // stores below are race-free.
+            stats[5] = gid;
+            stats[6] = floatBitsToUint(theta_new);
+            stats[7] = floatBitsToUint(theta_bounded);
+            stats[8] = floatBitsToUint(dtheta_total);
+            stats[9] = floatBitsToUint(dtheta_limited);
+        }
+    }
+}

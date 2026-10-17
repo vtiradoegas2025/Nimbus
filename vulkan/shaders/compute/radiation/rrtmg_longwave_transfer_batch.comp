@@ -1,0 +1,43 @@
+// Prepared RRTMG longwave transfer for an equal-height column batch.
+#version 450
+layout(local_size_x=64,local_size_y=1,local_size_z=1) in;
+layout(set=0,binding=0) readonly buffer A{float absorption[];};
+layout(set=0,binding=1) readonly buffer F{float planck_fraction[];};
+layout(set=0,binding=2) readonly buffer LP{float layer_planck[];};
+layout(set=0,binding=3) readonly buffer IP{float interface_planck[];};
+layout(set=0,binding=4) readonly buffer SP{float surface_planck[];};
+layout(set=0,binding=5) readonly buffer BW{float band_width_cm[];};
+layout(set=0,binding=6) readonly buffer C{float cloud_absorption[];};
+layout(set=0,binding=7) readonly buffer P{vec4 column_parameters[];};
+layout(set=0,binding=8) writeonly buffer U{float upward_partial[];};
+layout(set=0,binding=9) writeonly buffer D{float downward_partial[];};
+layout(push_constant) uniform PC{int layers;int columns;int has_clouds;int p0;int p1;int p2;int p3;int p4;};
+const int ends[16]=int[16](10,22,38,52,68,76,88,96,108,114,122,130,134,136,138,140);
+const float a0[16]=float[16](1.66,1.55,1.58,1.66,1.54,1.454,1.89,1.33,1.668,1.66,1.66,1.66,1.66,1.66,1.66,1.66);
+const float a1[16]=float[16](0.0,0.25,0.22,0.0,0.13,0.446,-0.10,0.40,-0.006,0.0,0.0,0.0,0.0,0.0,0.0,0.0);
+const float a2[16]=float[16](0.0,-12.0,-11.7,0.0,-0.72,-0.243,0.19,-0.062,0.414,0.0,0.0,0.0,0.0,0.0,0.0,0.0);
+int band_for(uint g){for(int b=0;b<16;++b)if(g<uint(ends[b]))return b;return 15;}
+float secant_for(int b,float water){if(b==0||b==3||b>=9)return 1.66;return clamp(a0[b]+a1[b]*exp(a2[b]*water),1.50,1.80);}
+vec2 clear_transfer(float depth){if(depth<=0.06)return vec2(depth-0.5*depth*depth,depth/6.0);float t=exp(-depth);return vec2(1.0-t,1.0-2.0*(1.0/depth-t/(1.0-t)));}
+float lookup(float depth){float c=depth/(1.0/0.278+depth);uint i=uint(10000.0*c+0.5);if(i>=10000u)return 1.0e10;float f=float(i)/10000.0;return(1.0/0.278)*f/(1.0-f);}
+vec2 transfer(float gas,float cloud){if(cloud>0.0){if(gas>0.06)gas=lookup(gas);float total=gas+cloud;if(total>0.06)total=lookup(total);return clear_transfer(total);}return clear_transfer(gas);}
+void main(){
+ uint work=gl_GlobalInvocationID.x,total=uint(columns)*140u;if(work>=total)return;
+ uint column=work/140u,g=work%140u;int band=band_for(g);vec4 params=column_parameters[column];
+ float secant=secant_for(band,params.y);uint stride=uint(layers+1),base=work*stride;
+ uint spectral_base=column*uint(layers)*140u,layer_band_base=column*uint(layers)*16u;
+ uint interface_band_base=column*uint(layers+1)*16u,surface_base=column*16u;
+ float down=0.0;downward_partial[base+uint(layers)]=0.0;
+ for(int layer=layers-1;layer>=0;--layer){uint ix=spectral_base+uint(layer)*140u+g;
+  float cloud=has_clouds!=0?cloud_absorption[layer_band_base+uint(layer)*16u+uint(band)]:0.0;
+  vec2 tr=transfer(secant*absorption[ix],secant*cloud);float planck=layer_planck[layer_band_base+uint(layer)*16u+uint(band)];
+  float diff=interface_planck[interface_band_base+uint(layer)*16u+uint(band)]-planck;
+  float source=planck_fraction[ix]*(planck+tr.y*diff);down+=(source-down)*tr.x;downward_partial[base+uint(layer)]=down;}
+ float up=surface_planck[surface_base+uint(band)]*planck_fraction[spectral_base+g]+(1.0-params.x)*down;upward_partial[base]=up;
+ for(int layer=0;layer<layers;++layer){uint ix=spectral_base+uint(layer)*140u+g;
+  float cloud=has_clouds!=0?cloud_absorption[layer_band_base+uint(layer)*16u+uint(band)]:0.0;
+  vec2 tr=transfer(secant*absorption[ix],secant*cloud);float planck=layer_planck[layer_band_base+uint(layer)*16u+uint(band)];
+  float diff=interface_planck[interface_band_base+uint(layer+1)*16u+uint(band)]-planck;
+  float source=planck_fraction[ix]*(planck+tr.y*diff);up+=(source-up)*tr.x;upward_partial[base+uint(layer+1)]=up;}
+ float scale=3.14159265358979323846e4*band_width_cm[uint(band)];for(int i=0;i<=layers;++i){uint ix=base+uint(i);upward_partial[ix]*=scale;downward_partial[ix]*=scale;}
+}

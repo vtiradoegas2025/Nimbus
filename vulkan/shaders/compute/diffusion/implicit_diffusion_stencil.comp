@@ -1,0 +1,199 @@
+#version 450
+
+layout(local_size_x = 64) in;
+layout(set = 0, binding = 0) readonly buffer B0
+{
+    float field[];
+};
+layout(set = 0, binding = 1) readonly buffer B1
+{
+    float rho[];
+};
+layout(set = 0, binding = 2) readonly buffer B2
+{
+    float dz[];
+};
+layout(set = 0, binding = 3) readonly buffer B3
+{
+    float vertical_K[];
+};
+layout(set = 0, binding = 4) writeonly buffer B4
+{
+    float image[];
+};
+layout(set = 0, binding = 5) writeonly buffer B5
+{
+    float diagonal[];
+};
+layout(set = 0, binding = 6) writeonly buffer B6
+{
+    float dot_product[];
+};
+layout(set = 0, binding = 7) writeonly buffer B7
+{
+    float preconditioned_norm[];
+};
+layout(set = 0, binding = 8) writeonly buffer B8
+{
+    float norm[];
+};
+
+layout(push_constant) uniform PushConstants
+{
+    int   nx;
+    int   ny;
+    int   nz;
+    int   location;
+    int   c_grid;
+    int   periodic_x;
+    int   periodic_y;
+    int   use_variable_K;
+    float inv_dx2;
+    float inv_dy2;
+    float K_h;
+    float K_v;
+    float dt;
+    int   form_rhs;
+    float field_scale;
+    float density_scale;
+    float thickness_scale;
+    float padding0;
+    float padding1;
+    float padding2;
+};
+
+uint at(int i, int j, int k)
+{
+    return uint((i * ny + j) * nz + k);
+}
+float density(int i, int j, int k)
+{
+    return rho[at(i, j, k)] / density_scale;
+}
+float diffusivity(int i, int j, int k)
+{
+    return use_variable_K != 0 ? vertical_K[at(i, j, k)] : K_v;
+}
+float component_density(int i, int j, int k)
+{
+    if (c_grid == 0 || location == 0)
+        return density(i, j, k);
+    if (location == 1)
+        return 0.5 * (density(i, j, k) + density(periodic_x != 0 && i == nx - 2 ? 1 : i + 1, j, k));
+    if (location == 2)
+        return 0.5 * (density(i, j, k) + density(i, periodic_y != 0 && j == ny - 2 ? 1 : j + 1, k));
+    return (density(i, j, k) * dz[k] + density(i, j, k + 1) * dz[k + 1]) / (dz[k] + dz[k + 1]);
+}
+float transport(int i, int j, int k)
+{
+    if (c_grid == 0 || location == 0)
+        return density(i, j, k) * diffusivity(i, j, k);
+    if (location == 1)
+    {
+        int e = periodic_x != 0 && i == nx - 2 ? 1 : i + 1;
+        return 0.5 * (density(i, j, k) * diffusivity(i, j, k) + density(e, j, k) * diffusivity(e, j, k));
+    }
+    if (location == 2)
+    {
+        int n = periodic_y != 0 && j == ny - 2 ? 1 : j + 1;
+        return 0.5 * (density(i, j, k) * diffusivity(i, j, k) + density(i, n, k) * diffusivity(i, n, k));
+    }
+    return 0.5 * (density(i, j, k) * diffusivity(i, j, k) + density(i, j, k + 1) * diffusivity(i, j, k + 1));
+}
+float difference(uint neighbor, uint center)
+{
+    if (form_rhs == 0)
+        return field[neighbor] - field[center];
+    float delta = field[neighbor] - field[center];
+    return (!isnan(delta) && !isinf(delta)) ? delta / field_scale
+                                            : field[neighbor] / field_scale - field[center] / field_scale;
+}
+vec2 compensated_add(vec2 sum, float value)
+{
+    float y = value - sum.y;
+    float t = sum.x + y;
+    return vec2(t, (t - sum.x) - y);
+}
+void evaluate(uint column)
+{
+    if (column >= uint(nx) * uint(ny))
+        return;
+    int i = int(column / uint(ny)), j = int(column % uint(ny));
+    int ie = nx - 1, je = ny - 1, kb = c_grid != 0 ? 0 : 1, ke = c_grid != 0 ? nz : nz - 1;
+    if (c_grid != 0 && location != 0)
+        ke = nz - 1;
+    if (c_grid != 0 && location == 1 && periodic_x == 0)
+        ie = nx - 2;
+    if (c_grid != 0 && location == 2 && periodic_y == 0)
+        je = ny - 2;
+    vec2 xy = vec2(0.0), rz = vec2(0.0), rr = vec2(0.0);
+    for (int k = 0; k < nz; ++k)
+    {
+        uint n      = at(i, j, k);
+        image[n]    = 0.0;
+        diagonal[n] = 0.0;
+        if (i < 1 || i >= ie || j < 1 || j >= je || k < kb || k >= ke)
+            continue;
+        float density_c = component_density(i, j, k);
+        bool  w_face    = c_grid != 0 && location == 3;
+        float mass = w_face ? 0.5 * (density(i, j, k) * dz[k] + density(i, j, k + 1) * dz[k + 1]) : density_c * dz[k];
+        float laplacian = 0.0, diagonal_rate = 0.0;
+        if (k > kb)
+        {
+            float distance    = w_face ? dz[k] : 0.5 * (dz[k - 1] + dz[k]);
+            float coefficient = (w_face ? density(i, j, k) * diffusivity(i, j, k)
+                                        : 0.5 * (transport(i, j, k - 1) + transport(i, j, k))) /
+                                (mass * distance);
+            laplacian += coefficient * difference(at(i, j, k - 1), n);
+            diagonal_rate += coefficient;
+        }
+        if (k + 1 < ke)
+        {
+            float distance    = w_face ? dz[k + 1] : 0.5 * (dz[k] + dz[k + 1]);
+            float coefficient = (w_face ? density(i, j, k + 1) * diffusivity(i, j, k + 1)
+                                        : 0.5 * (transport(i, j, k) + transport(i, j, k + 1))) /
+                                (mass * distance);
+            laplacian += coefficient * difference(at(i, j, k + 1), n);
+            diagonal_rate += coefficient;
+        }
+        for (int axis = 0; axis < 2; ++axis)
+            for (int sign = -1; sign <= 1; sign += 2)
+            {
+                int  coordinate = axis == 0 ? i : j;
+                int  end        = axis == 0 ? ie : je;
+                bool periodic   = axis == 0 ? periodic_x != 0 : periodic_y != 0;
+                if (!periodic && ((sign < 0 && coordinate == 1) || (sign > 0 && coordinate == end - 1)))
+                    continue;
+                int adjacent = coordinate + sign;
+                if (adjacent < 1)
+                    adjacent = end - 1;
+                if (adjacent >= end)
+                    adjacent = 1;
+                int   ii = axis == 0 ? adjacent : i, jj = axis == 1 ? adjacent : j;
+                float coefficient = K_h * 0.5 * (density_c + component_density(ii, jj, k)) / density_c *
+                                    (axis == 0 ? inv_dx2 : inv_dy2);
+                laplacian += coefficient * difference(at(ii, jj, k), n);
+                diagonal_rate += coefficient;
+            }
+        mass /= thickness_scale;
+        if (mass <= 0.0 || isnan(mass) || isinf(mass))
+        {
+            diagonal[n] = -1.0;
+            continue;
+        }
+        float value = form_rhs != 0 ? mass * dt * laplacian : mass * (field[n] - dt * laplacian);
+        float diag  = mass * (1.0 + dt * diagonal_rate);
+        image[n]    = value;
+        diagonal[n] = diag;
+        xy          = compensated_add(xy, field[n] * value);
+        rz          = compensated_add(rz, value * (value / diag));
+        rr          = compensated_add(rr, value * value);
+    }
+    dot_product[column]         = xy.x;
+    preconditioned_norm[column] = rz.x;
+    norm[column]                = rr.x;
+}
+void main()
+{
+    evaluate(gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * gl_NumWorkGroups.x * gl_WorkGroupSize.x);
+}

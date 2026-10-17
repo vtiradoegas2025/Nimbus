@@ -1,0 +1,406 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_spirv_intrinsics : require
+// Compensated arithmetic requires preservation and rounding modes even when a driver defaults to fast math.
+spirv_execution_mode(extensions = ["SPV_KHR_float_controls"], capabilities = [4466], 4461, 32);
+spirv_execution_mode(extensions = ["SPV_KHR_float_controls"], capabilities = [4467], 4462, 32);
+layout(local_size_x = 64) in;
+layout(set = 0, binding = 0) readonly buffer Temperature
+{
+    float temperature[];
+};
+layout(set = 0, binding = 1) readonly buffer Pressure
+{
+    float pressure[];
+};
+layout(set = 0, binding = 2) readonly buffer Density
+{
+    float density[];
+};
+layout(set = 0, binding = 3) readonly buffer Vapor
+{
+    float vapor[];
+};
+layout(set = 0, binding = 4) readonly buffer Cloud
+{
+    float cloud[];
+};
+layout(set = 0, binding = 5) readonly buffer CloudNumber
+{
+    float cloud_number[];
+};
+layout(set = 0, binding = 6) readonly buffer Aerosol
+{
+    float aerosol[];
+};
+layout(set = 0, binding = 7) readonly buffer Velocity
+{
+    float velocity[];
+};
+layout(set = 0, binding = 8) readonly buffer Activation
+{
+    float activation[];
+};
+layout(set = 0, binding = 9) readonly buffer Evaporation
+{
+    float evaporation[];
+};
+layout(set = 0, binding = 10) readonly buffer PotentialTemperature
+{
+    float potential_temperature[];
+};
+layout(set = 0, binding = 11) writeonly buffer VaporChange
+{
+    float vapor_change[];
+};
+layout(set = 0, binding = 12) writeonly buffer TemperatureChange
+{
+    float temperature_change[];
+};
+layout(set = 0, binding = 13) writeonly buffer NumberTendency
+{
+    float number_tendency[];
+};
+layout(set = 0, binding = 14) writeonly buffer AerosolTendency
+{
+    float aerosol_tendency[];
+};
+layout(set = 0, binding = 15) writeonly buffer LookupIndex
+{
+    float lookup_index[];
+};
+
+layout(set = 0, binding = 16) writeonly buffer VaporChangeLow
+{
+    float vapor_change_low[];
+};
+layout(set = 0, binding = 17) writeonly buffer TemperatureChangeLow
+{
+    float temperature_change_low[];
+};
+
+layout(push_constant) uniform PushConstants
+{
+    int   nx;
+    int   ny;
+    int   nz;
+    int   i_begin;
+    int   i_end;
+    int   j_begin;
+    int   j_end;
+    int   k_begin;
+    int   k_end;
+    float dt_high;
+    float dt_low;
+    int input_flags;
+};
+
+#include "thompson_compensated.glsl"
+#include "liquid_adjustment.glsl"
+#include "thompson_number_math.glsl"
+
+float axis(int index)
+{
+    if (index == 0)
+    {
+        return 1.0;
+    }
+    if (index == 1)
+    {
+        return 3.16;
+    }
+    if (index == 2)
+    {
+        return 10.0;
+    }
+    if (index == 3)
+    {
+        return 31.6;
+    }
+    if (index == 4)
+    {
+        return 100.0;
+    }
+    if (index == 5)
+    {
+        return 316.0;
+    }
+    if (index == 6)
+    {
+        return 1000.0;
+    }
+    if (index == 7)
+    {
+        return 3160.0;
+    }
+    return 10000.0;
+}
+
+int temperature_bin(float value)
+{
+    // These constants round below the exact half-bin edges for FP32 inputs.
+    return int(value > 248.15) + int(value > 258.15) + int(value > 268.15) + int(value > 278.15) + int(value > 288.15) +
+           int(value > 298.15);
+}
+
+float activation_target(int n)
+{
+    float available     = aerosol[n] * density[n];
+    float concentration = available * 1e-6;
+    if (concentration >= 10000.0)
+    {
+        concentration = 9999.0;
+    }
+    else if (concentration <= 10.0)
+    {
+        concentration = 11.0;
+    }
+    float speed = velocity[n];
+    if (speed >= 100.0)
+    {
+        speed = 99.0;
+    }
+    else if (speed <= 0.01)
+    {
+        speed = 0.011;
+    }
+    int a = 1;
+    int b = 1;
+    while (a < 6 && concentration >= axis(a + 2))
+    {
+        ++a;
+    }
+    while (b < 8 && speed >= axis(b) * 0.01)
+    {
+        ++b;
+    }
+    float x        = (log(concentration) - log(axis(a + 1))) / (log(axis(a + 2)) - log(axis(a + 1)));
+    float y        = (log(speed) - log(axis(b - 1) * 0.01)) / (log(axis(b) * 0.01) - log(axis(b - 1) * 0.01));
+    int   t        = temperature_bin(temperature[n]);
+    int   base     = ((1 * 5 + 2) * 7 + t) * 9 * 7;
+    float v00      = activation[base + (b - 1) * 7 + a - 1];
+    float v10      = activation[base + (b - 1) * 7 + a];
+    float v11      = activation[base + b * 7 + a];
+    float v01      = activation[base + b * 7 + a - 1];
+    float fraction = (1.0 - x) * (1.0 - y) * v00 + x * (1.0 - y) * v10 + x * y * v11 + (1.0 - x) * y * v01;
+    return max(2.0, available * fraction);
+}
+
+vec2 saturation(int n)
+{
+    return milbrandt_qsat(vec2(temperature[n], 0.0), pressure[n]);
+}
+
+vec2 evaporated_diameter(int n, vec2 qsat)
+{
+    vec2 t                 = vec2(temperature[n], 0.0);
+    vec2 tc                = df_sub(t, vec2(273.14999389648438, 6.1035156022626325e-06));
+    vec2 inv_t             = df_div(vec2(1, 0), t);
+    vec2 latent            = df_sub(vec2(2500000, 0), df_mul(vec2(2112, 0), tc));
+    vec2 power             = df_exp(df_mul(vec2(1.940000057220459, -5.7220459037665705e-08),
+                                           df_log(df_div(t, vec2(273.14999389648438, 6.1035156022626325e-06)))));
+    vec2 diffusivity       = df_mul(df_mul(vec2(2.1100000594742596e-05, -5.9474259488079793e-13), power),
+                                    df_div(vec2(101325, 0), vec2(pressure[n], 0.0)));
+    vec2 conductivity      = df_mul(df_add(vec2(5.690000057220459, -5.7220458593576495e-08),
+                                           df_mul(vec2(0.01679999940097332, 5.9902667895461725e-10), tc)),
+                                    df_mul(vec2(9.9999997473787516e-06, 2.5262124918247909e-13),
+                                           vec2(418.93600463867188, -4.6386718963731255e-06)));
+    vec2 saturated_density = df_mul(vec2(density[n], 0.0), qsat);
+    vec2 factor            = df_mul(inv_t, df_sub(df_div(df_mul(latent, inv_t), vec2(461.5, 0)), vec2(1, 0)));
+    vec2 derivative        = df_mul(saturated_density, factor);
+    vec2 second            = df_mul(
+        saturated_density,
+        df_add(df_sub(df_mul(factor, factor),
+                      df_div(df_mul(df_mul(vec2(2, 0), latent), df_mul(df_mul(inv_t, inv_t), inv_t)), vec2(461.5, 0))),
+               df_mul(inv_t, inv_t)));
+    vec2 gamma = df_mul(df_div(df_mul(latent, diffusivity), conductivity), derivative);
+    vec2 ratio = df_div(gamma, df_add(vec2(1, 0), gamma));
+    vec2 alpha = df_mul(df_mul(vec2(0.5, 0), df_mul(ratio, ratio)),
+                        df_mul(df_div(second, derivative), df_div(saturated_density, derivative)));
+    if (alpha.x < 1e-9)
+    {
+        alpha = vec2(9.9999997171806854e-10, 2.8281931525706872e-17);
+    }
+    vec2 deficit = df_sub(df_div(vec2(vapor[n], 0.0), qsat), vec2(1, 0));
+    vec2 x       = df_mul(alpha, deficit);
+    vec2 x2      = df_mul(x, x);
+    vec2 correction =
+        df_div(df_sub(df_add(df_sub(vec2(1, 0), x), df_mul(vec2(2, 0), x2)), df_mul(vec2(5, 0), df_mul(x2, x))),
+               df_add(vec2(1, 0), gamma));
+    vec2 squared = df_div(df_mul(df_mul(df_mul(df_mul(vec2(-8, 0), vec2(dt_high, dt_low)), correction), diffusivity),
+                                 df_mul(deficit, saturated_density)),
+                          vec2(1000, 0));
+    return df_sqrt(squared);
+}
+
+int table_bin(float value, float rho, int offset, int count)
+{
+    precise float high     = value * rho;
+    float         low      = fma(value, rho, -high);
+    int           selected = 0;
+    for (int index = 1; index < count; ++index)
+    {
+        float bh = evaporation[offset + 2 * index];
+        float bl = evaporation[offset + 2 * index + 1];
+        if (high > bh || (high == bh && low >= bl))
+        {
+            selected = index;
+        }
+    }
+    return selected;
+}
+
+float storage_upper(float x)
+{
+    return x == 0.0 ? uintBitsToFloat(1u) : uintBitsToFloat(min(floatBitsToUint(x) + 1u, 0x7f7fffffu));
+}
+float storage_lower(float x)
+{
+    return x > 0.0 ? uintBitsToFloat(floatBitsToUint(x) - 1u) : 0.0;
+}
+float temperature_from_theta(float theta, float P)
+{
+    vec2 ratio = df_div(vec2(clamp(P, 100.0, 200000.0), 0), vec2(100000, 0));
+    vec2 exner = df_exp(df_mul(df_div(vec2(287, 0), vec2(1004, 0)), df_log(ratio)));
+    return value(df_mul(vec2(clamp(theta, 150.0, 700.0), 0), exner));
+}
+int saturation_resolution(int n, float evaporated_cloud)
+{
+    float P = pressure[n], V = vapor[n];
+    float pressure_upper = storage_upper(P), pressure_lower = storage_lower(P);
+    float temperature_upper = (input_flags & 1) != 0
+        ? temperature_from_theta(storage_upper(potential_temperature[n]), pressure_upper) : storage_upper(temperature[n]);
+    float temperature_lower = (input_flags & 1) != 0
+        ? temperature_from_theta(storage_lower(potential_temperature[n]), pressure_lower) : storage_lower(temperature[n]);
+    vec2 vapor_upper = vec2(storage_upper(V), 0), vapor_lower = vec2(storage_lower(V), 0);
+    if (evaporated_cloud > 0.0)
+    {
+        vec2 latent = df_div(vec2(2500000, 0), vec2(1004, 0));
+        temperature_lower = value(df_sub(vec2(temperature_lower, 0), df_mul(latent, vec2(storage_upper(evaporated_cloud), 0))));
+        temperature_upper = value(df_sub(vec2(temperature_upper, 0), df_mul(latent, vec2(storage_lower(evaporated_cloud), 0))));
+        vapor_lower = df_add(vapor_lower, vec2(storage_lower(evaporated_cloud), 0));
+        vapor_upper = df_add(vapor_upper, vec2(storage_upper(evaporated_cloud), 0));
+    }
+    bool condensation = ml_greater(vapor_lower, milbrandt_qsat(vec2(temperature_upper, 0), pressure_lower));
+    bool evaporation = ml_greater(milbrandt_qsat(vec2(temperature_lower, 0), pressure_upper), vapor_upper);
+    return condensation ? 1 : evaporation ? -1 : 0;
+}
+
+void evaluate(uint gid)
+{
+    if (gid >= uint(nx * ny * nz))
+    {
+        return;
+    }
+    int n                 = int(gid);
+    vapor_change[n]       = 0.0;
+    vapor_change_low[n] = 0.0;
+    temperature_change_low[n] = 0.0;
+    temperature_change[n] = 0.0;
+    number_tendency[n]    = 0.0;
+    aerosol_tendency[n]   = 0.0;
+    lookup_index[n]       = -1.0;
+    int k                 = n % nz;
+    int j                 = (n / nz) % ny;
+    int i                 = n / (ny * nz);
+    if (i < i_begin || i >= i_end || j < j_begin || j >= j_end || k < k_begin || k >= k_end)
+    {
+        return;
+    }
+    vec2  qsat       = saturation(n);
+    int resolution = saturation_resolution(n, 0.0);
+    bool resolved_condensation = resolution > 0, resolved_evaporation = resolution < 0;
+    vec2 adjusted = resolved_condensation || resolved_evaporation
+        ? liquid_adjustment(temperature[n], pressure[n], vapor[n], cloud[n]) : vec2(0.0);
+    float change = -(adjusted.x + adjusted.y);
+    if (isnan(change) || isinf(change))
+    {
+        lookup_index[n] = -16.0;
+        return;
+    }
+    if (change > 0.0 && density[n] * cloud[n] > 1e-12 && cloud_number[n] <= 0.0)
+    {
+        lookup_index[n] = -16.0;
+        return;
+    }
+    bool fully_evaporated = change > 0.0 && df_sub(df_mul(vec2(density[n], 0.0), df_add(vec2(cloud[n], 0.0), adjusted)),
+        vec2(9.999999960041972e-13, 3.9958025776882371e-21)).x <= 0.0;
+    float exhausted_temperature = value(df_sub(vec2(temperature[n], 0),
+        df_mul(df_div(vec2(2500000, 0), vec2(1004, 0)), vec2(cloud[n], 0))));
+    if (change > 0.0 && exhausted_temperature >= 150.0 &&
+        saturation_resolution(n, cloud[n]) <= 0)
+        fully_evaporated = true;
+    vec2 change_pair = fully_evaporated ? vec2(cloud[n], 0) : -adjusted;
+    change = value(change_pair);
+    vapor_change[n] = change_pair.x;
+    vapor_change_low[n] = change_pair.y;
+    vec2 heating = df_mul(df_div(vec2(-2500000, 0), vec2(1004, 0)), change_pair);
+    temperature_change[n] = heating.x;
+    temperature_change_low[n] = heating.y;
+    float exchange        = 0.0;
+    if (fully_evaporated)
+    {
+        exchange = -cloud_number[n];
+    }
+    else if (change < -1e-15 && resolved_condensation)
+    {
+        exchange        = min(aerosol[n], max(0.0, activation_target(n) / density[n] - cloud_number[n]));
+        vec2 rho = vec2(density[n], 0);
+        vec2 content = df_mul(rho, df_sub(vec2(cloud[n], 0), change_pair));
+        vec2 supported = df_div(normalize_cloud(content,
+            df_mul(rho, df_add(vec2(cloud_number[n], 0), vec2(exchange, 0)))), rho);
+        exchange = min(exchange, max(0.0, value(df_sub(supported, vec2(cloud_number[n], 0)))));
+        lookup_index[n] = -float(temperature_bin(temperature[n]) + 2);
+    }
+    else if (change > 1e-15 && resolved_evaporation && df_sub(df_div(vec2(vapor[n], 0.0), qsat), vec2(1, 0)).x < -1e-6)
+    {
+        if (cloud_number[n] <= 0.0)
+        {
+            lookup_index[n] = -16.0;
+            return;
+        }
+        vec2 diameter = evaporated_diameter(n, qsat);
+        if (isnan(diameter.x) || isinf(diameter.x) || diameter.x <= 0.0)
+        {
+            lookup_index[n] = -16.0;
+            return;
+        }
+        vec2 microns  = df_mul(diameter, vec2(1000000, 0));
+        int  integral = int(clamp(microns.x, 0.0, 100.0));
+        if (microns.x == float(integral) && microns.y < 0.0)
+        {
+            --integral;
+        }
+        int d           = clamp(integral, 1, 100) - 1;
+        int count       = table_bin(cloud_number[n], density[n], 370074, 100);
+        int content     = table_bin(cloud[n], density[n], 370000, 37);
+        int index       = (count * 37 + content) * 100 + d;
+        exchange        = -min(0.99 * cloud_number[n], evaporation[index] / density[n]);
+        lookup_index[n] = float(index);
+    }
+    vec2  quotient = df_div(vec2(exchange, 0.0), vec2(dt_high, dt_low));
+    float rate     = quotient.x + quotient.y;
+    if (!isnan(rate) && !isinf(rate) && rate != 0.0)
+    {
+        float donor = rate > 0.0 ? aerosol[n] : cloud_number[n];
+        int exponent;
+        frexp(max(abs(rate), donor), exponent);
+        int shift = clamp(-exponent, 0, 100);
+        vec2 used = df_mul(vec2(ldexp(abs(rate), shift), 0.0), vec2(dt_high, dt_low));
+        float scaled_donor = ldexp(donor, shift);
+        // Two FP32 words can lose the final FP64 timestep bits. Only the host
+        // can certify when equality represents exact donor exhaustion.
+        bool exact_step = (input_flags & 2) != 0;
+        if (used.x > scaled_donor || (used.x == scaled_donor && (used.y > 0.0 || !exact_step)))
+        {
+            rate = uintBitsToFloat(floatBitsToUint(rate) - 1u);
+        }
+    }
+    number_tendency[n]  = rate;
+    aerosol_tendency[n] = -rate;
+}
+
+void main()
+{
+    evaluate(gl_GlobalInvocationID.x);
+}

@@ -1,0 +1,3055 @@
+{
+  "schema": "nimbus.maintained-execution-inventory.v1",
+  "qualified": [
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_flat_cpu_core_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_flat_metal_complete_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_flat_vulkan_complete_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_full_stochastic_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_kessler_radiation_coupled.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_lin_rrtmg_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_none_chaos_boundary_layer_bell_kessler_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_none_chaos_boundary_layer_bell_lin_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_none_chaos_boundary_layer_bell_milbrandt_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_none_chaos_boundary_layer_bell_none_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_none_chaos_boundary_layer_bell_thompson_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_none_chaos_boundary_layer_schar_kessler_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_none_chaos_boundary_layer_schar_lin_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_none_chaos_boundary_layer_schar_milbrandt_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_none_chaos_boundary_layer_schar_none_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_none_chaos_boundary_layer_schar_thompson_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_none_chaos_full_stochastic_bell_kessler_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_none_chaos_full_stochastic_bell_lin_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_none_chaos_full_stochastic_bell_milbrandt_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_none_chaos_full_stochastic_bell_none_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_none_chaos_full_stochastic_bell_thompson_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_none_chaos_full_stochastic_schar_kessler_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_none_chaos_full_stochastic_schar_lin_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_none_chaos_full_stochastic_schar_milbrandt_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_none_chaos_full_stochastic_schar_none_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_none_chaos_full_stochastic_schar_thompson_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_none_chaos_initial_conditions_bell_kessler_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_none_chaos_initial_conditions_bell_lin_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_none_chaos_initial_conditions_bell_milbrandt_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_none_chaos_initial_conditions_bell_none_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_none_chaos_initial_conditions_bell_thompson_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_none_chaos_initial_conditions_schar_kessler_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_none_chaos_initial_conditions_schar_lin_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_none_chaos_initial_conditions_schar_milbrandt_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_none_chaos_initial_conditions_schar_none_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_none_chaos_initial_conditions_schar_thompson_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_none_chaos_none_bell_kessler_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_none_chaos_none_bell_lin_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_none_chaos_none_bell_milbrandt_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_none_chaos_none_bell_none_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_none_chaos_none_bell_thompson_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_none_chaos_none_schar_kessler_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_none_chaos_none_schar_lin_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_none_chaos_none_schar_milbrandt_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_none_chaos_none_schar_none_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_none_chaos_none_schar_thompson_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_tvd_chaos_boundary_layer_bell_kessler_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_tvd_chaos_boundary_layer_bell_lin_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_tvd_chaos_boundary_layer_bell_milbrandt_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_tvd_chaos_boundary_layer_bell_none_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_tvd_chaos_boundary_layer_bell_thompson_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_tvd_chaos_boundary_layer_schar_kessler_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_tvd_chaos_boundary_layer_schar_lin_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_tvd_chaos_boundary_layer_schar_milbrandt_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_tvd_chaos_boundary_layer_schar_none_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_tvd_chaos_boundary_layer_schar_thompson_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_tvd_chaos_full_stochastic_bell_kessler_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_tvd_chaos_full_stochastic_bell_lin_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_tvd_chaos_full_stochastic_bell_milbrandt_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_tvd_chaos_full_stochastic_bell_none_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_tvd_chaos_full_stochastic_bell_thompson_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_tvd_chaos_full_stochastic_schar_kessler_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_tvd_chaos_full_stochastic_schar_lin_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_tvd_chaos_full_stochastic_schar_milbrandt_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_tvd_chaos_full_stochastic_schar_none_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_tvd_chaos_full_stochastic_schar_thompson_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_tvd_chaos_initial_conditions_bell_kessler_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_tvd_chaos_initial_conditions_bell_lin_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_tvd_chaos_initial_conditions_bell_milbrandt_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_tvd_chaos_initial_conditions_bell_none_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_tvd_chaos_initial_conditions_bell_thompson_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_tvd_chaos_initial_conditions_schar_kessler_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_tvd_chaos_initial_conditions_schar_lin_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_tvd_chaos_initial_conditions_schar_milbrandt_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_tvd_chaos_initial_conditions_schar_none_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_tvd_chaos_initial_conditions_schar_thompson_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_tvd_chaos_none_bell_kessler_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_tvd_chaos_none_bell_lin_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_tvd_chaos_none_bell_milbrandt_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_tvd_chaos_none_bell_none_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_tvd_chaos_none_bell_thompson_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_tvd_chaos_none_schar_kessler_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_tvd_chaos_none_schar_lin_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_tvd_chaos_none_schar_milbrandt_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_tvd_chaos_none_schar_none_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_advection_tvd_chaos_none_schar_thompson_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_boundary_layer_bell_kessler_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_boundary_layer_bell_lin_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_boundary_layer_bell_milbrandt_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_boundary_layer_bell_none_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_boundary_layer_bell_thompson_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_boundary_layer_schar_kessler_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_boundary_layer_schar_lin_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_boundary_layer_schar_milbrandt_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_boundary_layer_schar_none_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_boundary_layer_schar_thompson_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_full_stochastic_kessler_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_full_stochastic_lin_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_full_stochastic_milbrandt_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_full_stochastic_none_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_full_stochastic_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_full_stochastic_schar_kessler_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_full_stochastic_schar_lin_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_full_stochastic_schar_milbrandt_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_full_stochastic_schar_none_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_full_stochastic_schar_thompson_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_initial_conditions_bell_kessler_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_initial_conditions_bell_lin_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_initial_conditions_bell_milbrandt_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_initial_conditions_bell_none_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_initial_conditions_bell_thompson_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_initial_conditions_schar_kessler_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_initial_conditions_schar_lin_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_initial_conditions_schar_milbrandt_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_initial_conditions_schar_none_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_initial_conditions_schar_thompson_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_none_bell_kessler_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_none_bell_lin_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_none_bell_milbrandt_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_none_bell_none_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_none_bell_thompson_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_none_schar_kessler_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_none_schar_lin_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_none_schar_milbrandt_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_none_schar_none_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_mapped_none_schar_thompson_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_milbrandt_rrtmg_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_production_integrator_calm.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_rk4_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_rk4_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_ssprk3_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_ssprk3_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_stationary_bell_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_thompson_rrtmg_implicit_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_thompson_rrtmg_implicit_weno_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_thompson_rrtmg_implicit_weno_rk4_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_thompson_rrtmg_implicit_weno_ssprk3_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/agrid_thompson_rrtmg_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_dynamic_smagorinsky_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_implicit_rrtmg_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_implicit_rrtmg_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_implicit_rrtmg_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_lin_rrtmg_cloud_top_ysu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_lin_rrtmg_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_lin_rrtmg_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_lin_rrtmg_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_milbrandt_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_milbrandt_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_milbrandt_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_mynn_rrtmg_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_mynn_tke_top_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_radar_polarimetric_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_radar_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_richardson_smagorinsky_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_rk4_coupled_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_rk4_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_rk4_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_simple_grey_absorbing_water_cloud_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_ssprk3_coupled_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_ssprk3_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_ssprk3_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_stationary_bell_metal_complete_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_stationary_bell_pbl_implicit_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_stationary_bell_vulkan_complete_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_stationary_schar_metal_complete_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_stationary_schar_vulkan_complete_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_terrain_smagorinsky_coupled.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_thompson_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_thompson_implicit_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_thompson_implicit_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_thompson_implicit_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_thompson_implicit_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_thompson_implicit_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_thompson_implicit_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_thompson_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_thompson_tke_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_thompson_tke_implicit_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_thompson_tke_implicit_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_thompson_tke_implicit_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_thompson_tke_implicit_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_thompson_tke_implicit_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_thompson_tke_implicit_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_thompson_tke_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_thompson_tke_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_thompson_tke_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_thompson_tke_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_thompson_tke_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_thompson_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_thompson_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_thompson_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_thompson_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_tke_implicit_rrtmg_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_tke_implicit_rrtmg_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_tke_implicit_rrtmg_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_tke_implicit_rrtmg_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_tke_implicit_rrtmg_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_tke_implicit_rrtmg_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_tke_rrtmg_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_tke_rrtmg_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_tke_rrtmg_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_tke_rrtmg_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_tke_rrtmg_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_tke_rrtmg_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_translating_schar_pbl_implicit_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_user_filter_width_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_variable_diffusion_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_variable_diffusion_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_weno5_rrtmg_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_weno5_rrtmg_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_weno5_rrtmg_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_ysu_rrtmg_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/cgrid_ysu_theta_top_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/constant_velocity_agrid_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/domain_recycling_kessler_native_chaos_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/domain_recycling_kessler_native_chaos_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/domain_recycling_kessler_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/earth_fixed_terrain_motion_diagnostics_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/earth_fixed_terrain_motion_lin_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/earth_fixed_terrain_motion_lin_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/earth_fixed_terrain_motion_lin_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/earth_fixed_terrain_motion_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/earth_fixed_terrain_motion_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/earth_fixed_terrain_motion_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/earth_fixed_terrain_recycling_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/hydrostatic_cgrid_calm_1h.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/mapped_nested_recycling_kessler_bell2_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/mapped_nested_recycling_kessler_bell2_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/mapped_nested_recycling_kessler_bell2_tvd_native_slow_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/mapped_nested_recycling_kessler_bell2_tvd_native_slow_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/mapped_nested_recycling_kessler_bell2_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/mapped_nested_recycling_kessler_bell3_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/mapped_nested_recycling_kessler_bell3_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/mapped_nested_recycling_kessler_bell3_tvd_native_slow_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/mapped_nested_recycling_kessler_bell3_tvd_native_slow_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/mapped_nested_recycling_kessler_bell3_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/mapped_nested_recycling_kessler_schar2_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/mapped_nested_recycling_kessler_schar2_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/mapped_nested_recycling_kessler_schar2_tvd_native_slow_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/mapped_nested_recycling_kessler_schar2_tvd_native_slow_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/mapped_nested_recycling_kessler_schar2_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/mapped_nested_recycling_kessler_schar3_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/mapped_nested_recycling_kessler_schar3_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/mapped_nested_recycling_kessler_schar3_tvd_native_slow_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/mapped_nested_recycling_kessler_schar3_tvd_native_slow_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/mapped_nested_recycling_kessler_schar3_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_kessler_bell2_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_kessler_bell2_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_kessler_bell2_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_kessler_bell2_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_kessler_bell2_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_kessler_bell2_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_kessler_bell3_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_kessler_bell3_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_kessler_bell3_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_kessler_bell3_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_kessler_bell3_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_kessler_bell3_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_kessler_schar2_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_kessler_schar2_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_kessler_schar2_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_kessler_schar2_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_kessler_schar2_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_kessler_schar2_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_kessler_schar3_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_kessler_schar3_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_kessler_schar3_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_kessler_schar3_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_kessler_schar3_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_kessler_schar3_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_lin_bell2_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_lin_bell2_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_lin_bell2_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_lin_bell2_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_lin_bell2_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_lin_bell2_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_lin_bell3_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_lin_bell3_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_lin_bell3_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_lin_bell3_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_lin_bell3_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_lin_bell3_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_lin_schar2_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_lin_schar2_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_lin_schar2_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_lin_schar2_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_lin_schar2_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_lin_schar2_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_lin_schar3_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_lin_schar3_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_lin_schar3_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_lin_schar3_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_lin_schar3_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_lin_schar3_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_bell2_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_bell2_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_bell2_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_bell2_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_bell2_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_bell2_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_bell3_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_bell3_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_bell3_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_bell3_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_bell3_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_bell3_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_no_hail_bell2_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_no_hail_bell2_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_no_hail_bell2_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_no_hail_bell2_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_no_hail_bell2_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_no_hail_bell2_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_no_hail_bell3_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_no_hail_bell3_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_no_hail_bell3_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_no_hail_bell3_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_no_hail_bell3_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_no_hail_bell3_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_no_hail_schar2_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_no_hail_schar2_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_no_hail_schar2_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_no_hail_schar2_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_no_hail_schar2_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_no_hail_schar2_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_no_hail_schar3_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_no_hail_schar3_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_no_hail_schar3_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_no_hail_schar3_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_no_hail_schar3_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_no_hail_schar3_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_schar2_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_schar2_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_schar2_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_schar2_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_schar2_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_schar2_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_schar3_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_schar3_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_schar3_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_schar3_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_schar3_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_milbrandt_schar3_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_thompson_bell2_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_thompson_bell2_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_thompson_bell2_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_thompson_bell2_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_thompson_bell2_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_thompson_bell2_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_thompson_bell3_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_thompson_bell3_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_thompson_bell3_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_thompson_bell3_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_thompson_bell3_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_thompson_bell3_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_thompson_schar2_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_thompson_schar2_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_thompson_schar2_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_thompson_schar2_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_thompson_schar2_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_thompson_schar2_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_thompson_schar3_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_thompson_schar3_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_thompson_schar3_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_thompson_schar3_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_thompson_schar3_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_mapped_nested_thompson_schar3_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_nested_milbrandt_no_hail_two_way_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_nested_milbrandt_no_hail_two_way_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_nested_milbrandt_no_hail_two_way_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_nested_milbrandt_no_hail_two_way_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_nested_milbrandt_no_hail_two_way_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_nested_milbrandt_no_hail_two_way_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_nested_milbrandt_two_way_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_nested_milbrandt_two_way_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_nested_milbrandt_two_way_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_nested_milbrandt_two_way_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_nested_milbrandt_two_way_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_nested_milbrandt_two_way_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_nested_supercell_cpu_v1.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_nested_supercell_metal_v1.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_nested_supercell_vulkan_v1.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_nested_thompson_two_way_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_nested_thompson_two_way_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_nested_thompson_two_way_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_nested_thompson_two_way_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_nested_thompson_two_way_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_nested_thompson_two_way_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_nested_two_way_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_nested_two_way_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_nested_two_way_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_nested_two_way_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_nested_two_way_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_nested_two_way_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/moving_nested_two_way_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/nested_grid_recycling_milbrandt_no_hail_two_way_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/nested_grid_recycling_milbrandt_no_hail_two_way_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/nested_grid_recycling_milbrandt_no_hail_two_way_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/nested_grid_recycling_milbrandt_no_hail_two_way_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/nested_grid_recycling_milbrandt_no_hail_two_way_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/nested_grid_recycling_milbrandt_no_hail_two_way_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/nested_grid_recycling_milbrandt_two_way_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/nested_grid_recycling_milbrandt_two_way_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/nested_grid_recycling_milbrandt_two_way_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/nested_grid_recycling_milbrandt_two_way_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/nested_grid_recycling_milbrandt_two_way_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/nested_grid_recycling_milbrandt_two_way_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/nested_grid_recycling_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/nested_grid_recycling_thompson_two_way_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/nested_grid_recycling_thompson_two_way_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/nested_grid_recycling_thompson_two_way_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/nested_grid_recycling_thompson_two_way_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/nested_grid_recycling_thompson_two_way_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/nested_grid_recycling_thompson_two_way_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/nested_grid_recycling_two_way_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/nested_grid_recycling_two_way_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/nested_grid_recycling_two_way_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/nested_grid_recycling_two_way_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/nested_grid_recycling_two_way_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/nested_grid_recycling_two_way_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/nested_grid_recycling_two_way_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_dry_bell3_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_dry_bell3_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_dry_bell3_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_dry_bell3_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_dry_bell3_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_dry_bell3_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_dry_bell_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_dry_bell_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_dry_bell_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_dry_bell_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_dry_bell_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_dry_bell_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_dry_schar3_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_dry_schar3_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_dry_schar3_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_dry_schar3_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_dry_schar3_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_dry_schar3_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_dry_schar_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_dry_schar_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_dry_schar_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_dry_schar_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_dry_schar_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_dry_schar_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_kessler_bell3_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_kessler_bell3_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_kessler_bell3_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_kessler_bell3_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_kessler_bell3_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_kessler_bell3_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_kessler_bell_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_kessler_bell_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_kessler_bell_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_kessler_bell_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_kessler_bell_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_kessler_bell_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_kessler_schar3_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_kessler_schar3_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_kessler_schar3_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_kessler_schar3_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_kessler_schar3_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_kessler_schar3_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_kessler_schar_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_kessler_schar_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_kessler_schar_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_kessler_schar_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_kessler_schar_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_kessler_schar_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_lin_bell3_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_lin_bell3_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_lin_bell3_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_lin_bell3_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_lin_bell3_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_lin_bell3_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_lin_bell_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_lin_bell_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_lin_bell_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_lin_bell_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_lin_bell_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_lin_bell_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_lin_schar3_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_lin_schar3_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_lin_schar3_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_lin_schar3_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_lin_schar3_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_lin_schar3_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_lin_schar_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_lin_schar_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_lin_schar_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_lin_schar_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_lin_schar_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_lin_schar_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_bell3_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_bell3_tvd_cpu_unseeded_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_bell3_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_bell3_tvd_metal_unseeded_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_bell3_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_bell3_tvd_vulkan_unseeded_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_bell3_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_bell3_weno_cpu_unseeded_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_bell3_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_bell3_weno_metal_unseeded_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_bell3_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_bell3_weno_vulkan_unseeded_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_bell_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_bell_tvd_cpu_unseeded_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_bell_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_bell_tvd_metal_unseeded_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_bell_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_bell_tvd_vulkan_unseeded_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_bell_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_bell_weno_cpu_unseeded_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_bell_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_bell_weno_metal_unseeded_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_bell_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_bell_weno_vulkan_unseeded_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_bell3_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_bell3_tvd_cpu_unseeded_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_bell3_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_bell3_tvd_metal_unseeded_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_bell3_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_bell3_tvd_vulkan_unseeded_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_bell3_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_bell3_weno_cpu_unseeded_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_bell3_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_bell3_weno_metal_unseeded_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_bell3_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_bell3_weno_vulkan_unseeded_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_bell_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_bell_tvd_cpu_unseeded_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_bell_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_bell_tvd_metal_unseeded_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_bell_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_bell_tvd_vulkan_unseeded_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_bell_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_bell_weno_cpu_unseeded_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_bell_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_bell_weno_metal_unseeded_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_bell_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_bell_weno_vulkan_unseeded_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_schar3_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_schar3_tvd_cpu_unseeded_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_schar3_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_schar3_tvd_metal_unseeded_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_schar3_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_schar3_tvd_vulkan_unseeded_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_schar3_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_schar3_weno_cpu_unseeded_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_schar3_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_schar3_weno_metal_unseeded_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_schar3_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_schar3_weno_vulkan_unseeded_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_schar_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_schar_tvd_cpu_unseeded_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_schar_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_schar_tvd_metal_unseeded_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_schar_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_schar_tvd_vulkan_unseeded_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_schar_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_schar_weno_cpu_unseeded_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_schar_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_schar_weno_metal_unseeded_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_schar_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_no_hail_schar_weno_vulkan_unseeded_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_schar3_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_schar3_tvd_cpu_unseeded_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_schar3_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_schar3_tvd_metal_unseeded_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_schar3_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_schar3_tvd_vulkan_unseeded_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_schar3_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_schar3_weno_cpu_unseeded_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_schar3_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_schar3_weno_metal_unseeded_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_schar3_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_schar3_weno_vulkan_unseeded_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_schar_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_schar_tvd_cpu_unseeded_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_schar_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_schar_tvd_metal_unseeded_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_schar_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_schar_tvd_vulkan_unseeded_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_schar_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_schar_weno_cpu_unseeded_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_schar_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_schar_weno_metal_unseeded_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_schar_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_milbrandt_schar_weno_vulkan_unseeded_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_bell3_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_bell3_tvd_cpu_unseeded_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_bell3_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_bell3_tvd_metal_unseeded_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_bell3_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_bell3_tvd_vulkan_unseeded_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_bell3_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_bell3_weno_cpu_unseeded_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_bell3_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_bell3_weno_metal_unseeded_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_bell3_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_bell3_weno_vulkan_unseeded_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_bell_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_bell_tvd_cpu_unseeded_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_bell_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_bell_tvd_metal_unseeded_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_bell_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_bell_tvd_vulkan_unseeded_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_bell_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_bell_weno_cpu_unseeded_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_bell_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_bell_weno_metal_unseeded_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_bell_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_bell_weno_vulkan_unseeded_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_schar3_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_schar3_tvd_cpu_unseeded_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_schar3_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_schar3_tvd_metal_unseeded_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_schar3_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_schar3_tvd_vulkan_unseeded_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_schar3_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_schar3_weno_cpu_unseeded_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_schar3_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_schar3_weno_metal_unseeded_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_schar3_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_schar3_weno_vulkan_unseeded_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_schar_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_schar_tvd_cpu_unseeded_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_schar_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_schar_tvd_metal_unseeded_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_schar_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_schar_tvd_vulkan_unseeded_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_schar_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_schar_weno_cpu_unseeded_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_schar_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_schar_weno_metal_unseeded_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_schar_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_mapped_nested_thompson_schar_weno_vulkan_unseeded_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_active_bell_cpu_one_way_3to1_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_active_bell_cpu_one_way_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_active_bell_cpu_two_way_3to1_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_active_schar_cpu_one_way_3to1_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_active_schar_cpu_one_way_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_active_schar_cpu_two_way_3to1_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_active_schar_cpu_two_way_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_active_terrain_cpu_two_way_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_condensing_bell3_cpu_two_way_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_condensing_bell3_lin_cpu_two_way_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_condensing_bell_cpu_two_way_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_condensing_bell_lin_cpu_two_way_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_condensing_cpu_two_way_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_condensing_lin_cpu_two_way_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_condensing_schar3_cpu_two_way_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_condensing_schar3_lin_cpu_two_way_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_condensing_schar_cpu_two_way_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_condensing_schar_lin_cpu_two_way_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_cpu_two_way_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_dry_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_dry_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_dry_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_dry_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_dry_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_dry_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_kessler_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_kessler_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_kessler_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_kessler_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_kessler_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_kessler_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_lin_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_lin_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_lin_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_lin_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_lin_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_lin_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_milbrandt_no_hail_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_milbrandt_no_hail_tvd_cpu_unseeded_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_milbrandt_no_hail_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_milbrandt_no_hail_tvd_metal_unseeded_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_milbrandt_no_hail_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_milbrandt_no_hail_tvd_vulkan_unseeded_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_milbrandt_no_hail_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_milbrandt_no_hail_weno_cpu_unseeded_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_milbrandt_no_hail_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_milbrandt_no_hail_weno_metal_unseeded_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_milbrandt_no_hail_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_milbrandt_no_hail_weno_vulkan_unseeded_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_milbrandt_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_milbrandt_tvd_cpu_unseeded_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_milbrandt_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_milbrandt_tvd_metal_unseeded_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_milbrandt_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_milbrandt_tvd_vulkan_unseeded_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_milbrandt_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_milbrandt_weno_cpu_unseeded_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_milbrandt_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_milbrandt_weno_metal_unseeded_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_milbrandt_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_milbrandt_weno_vulkan_unseeded_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_moist_cpu_two_way_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_thompson_tvd_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_thompson_tvd_cpu_unseeded_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_thompson_tvd_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_thompson_tvd_metal_unseeded_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_thompson_tvd_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_thompson_tvd_vulkan_unseeded_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_thompson_weno_cpu_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_thompson_weno_cpu_unseeded_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_thompson_weno_metal_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_thompson_weno_metal_unseeded_ready.yaml",
+      "backend": "metal"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_thompson_weno_vulkan_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_thompson_weno_vulkan_unseeded_ready.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_vulkan_dry.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_vulkan_kessler_smagorinsky.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_vulkan_radiation.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/stationary_nested_vulkan_smagorinsky.yaml",
+      "backend": "vulkan"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/tracked_window_kessler_ready.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "tests/fixtures/configs/qualification/zfp_core_history.yaml",
+      "backend": "cpu"
+    }
+  ],
+  "representatives": [
+    {
+      "path": "configs/1000meterResolution/dry/baseline.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "configs/1000meterResolution/dry/les.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "configs/1000meterResolution/dry/les_radiation.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "configs/1000meterResolution/dry/radiation.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "configs/1000meterResolution/dry/tke.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "configs/1000meterResolution/dry/tke_radiation.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "configs/1000meterResolution/dry/ysu.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "configs/1000meterResolution/dry/ysu_radiation.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "configs/1000meterResolution/kessler/baseline.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "configs/1000meterResolution/kessler/les.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "configs/1000meterResolution/kessler/les_radiation.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "configs/1000meterResolution/kessler/radiation.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "configs/1000meterResolution/kessler/tke.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "configs/1000meterResolution/kessler/tke_radiation.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "configs/1000meterResolution/kessler/ysu.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "configs/1000meterResolution/kessler/ysu_radiation.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "configs/1000meterResolution/lin/baseline.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "configs/1000meterResolution/lin/les.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "configs/1000meterResolution/lin/les_radiation.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "configs/1000meterResolution/lin/radiation.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "configs/1000meterResolution/lin/tke.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "configs/1000meterResolution/lin/tke_radiation.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "configs/1000meterResolution/lin/ysu.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "configs/1000meterResolution/lin/ysu_radiation.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "configs/1000meterResolution/milbrandt/baseline.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "configs/1000meterResolution/milbrandt/les.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "configs/1000meterResolution/milbrandt/les_radiation.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "configs/1000meterResolution/milbrandt/radiation.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "configs/1000meterResolution/milbrandt/tke.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "configs/1000meterResolution/milbrandt/tke_radiation.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "configs/1000meterResolution/milbrandt/ysu.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "configs/1000meterResolution/milbrandt/ysu_radiation.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "configs/1000meterResolution/thompson/baseline.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "configs/1000meterResolution/thompson/les.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "configs/1000meterResolution/thompson/les_radiation.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "configs/1000meterResolution/thompson/radiation.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "configs/1000meterResolution/thompson/tke.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "configs/1000meterResolution/thompson/tke_radiation.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "configs/1000meterResolution/thompson/ysu.yaml",
+      "backend": "cpu"
+    },
+    {
+      "path": "configs/1000meterResolution/thompson/ysu_radiation.yaml",
+      "backend": "cpu"
+    }
+  ],
+  "restartClasses": [
+    "scripts/tests/science/test_coupled_rk_ready.py",
+    "scripts/tests/science/test_agrid_chaos_ready.py",
+    "scripts/tests/science/test_mapped_terrain_ready.py",
+    "scripts/tests/science/test_collocated_mapped_terrain_ready.py",
+    "scripts/tests/science/test_two_way_nested_ready.py",
+    "scripts/tests/science/test_active_terrain_nested_ready.py",
+    "scripts/tests/science/test_domain_recycling_ready.py",
+    "scripts/tests/science/test_tracked_window_ready.py",
+    "scripts/tests/science/test_earth_fixed_terrain_recycling_ready.py",
+    "scripts/tests/science/test_nested_grid_recycling_ready.py",
+    "scripts/tests/science/test_radar_polarimetric_ready.py",
+    "scripts/tests/science/test_earth_fixed_terrain_motion_ready.py",
+    "scripts/tests/science/test_richardson_smagorinsky_ready.py",
+    "scripts/tests/science/test_thompson_accelerator_ready.py",
+    "scripts/tests/science/test_tke_implicit_ready.py",
+    "scripts/tests/science/test_thompson_implicit_ready.py",
+    "scripts/tests/science/test_thompson_tke_ready.py",
+    "scripts/tests/science/test_weno_native_family_ready.py",
+    "scripts/tests/science/test_thompson_tke_weno_ready.py",
+    "scripts/tests/science/test_tke_weno_ready.py",
+    "scripts/tests/science/test_thompson_weno_ready.py",
+    "scripts/tests/science/test_milbrandt_accelerator_ready.py",
+    "scripts/tests/science/test_coupled_rk_accelerator_ready.py",
+    "scripts/tests/science/test_thompson_two_way_ready.py",
+    "scripts/tests/science/test_unseeded_private_two_way_ready.py",
+    "scripts/tests/science/test_mapped_nested_recycling_ready.py"
+  ]
+}

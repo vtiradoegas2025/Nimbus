@@ -1,0 +1,121 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) readonly buffer PreviousBuffer
+{
+    float previous_values[];
+};
+
+layout(set = 0, binding = 1) writeonly buffer DestinationBuffer
+{
+    float destination_values[];
+};
+
+layout(push_constant) uniform PushConstants
+{
+    uint64_t seed;
+    uint64_t member_bits;
+    uint64_t initial_process_key;
+    uint64_t innovation_process_key;
+    uint64_t innovation_epoch;
+    int64_t control_i_min;
+    int64_t control_j_min;
+    int control_i_count;
+    int control_j_count;
+    int nz;
+    float rho;
+    uint mode;
+    float rho_low;
+};
+
+#include "../microphysics/compensated_fma.glsl"
+
+uint64_t splitmix64(uint64_t value)
+{
+    value += uint64_t(0x9e3779b97f4a7c15UL);
+    value = (value ^ (value >> 30)) * uint64_t(0xbf58476d1ce4e5b9UL);
+    value = (value ^ (value >> 27)) * uint64_t(0x94d049bb133111ebUL);
+    return value ^ (value >> 31);
+}
+
+uint64_t fold(uint64_t state, uint64_t value)
+{
+    return splitmix64(state ^ splitmix64(value));
+}
+
+float open_unit(uint64_t bits)
+{
+    return (float(bits >> 11) + 0.5) * (1.0 / 9007199254740992.0);
+}
+
+float gaussian(uint64_t process_key, uint64_t epoch,
+               int64_t control_i, int64_t control_j, int k)
+{
+    uint64_t address = splitmix64(seed);
+    address = fold(address, member_bits);
+    address = fold(address, process_key);
+    address = fold(address, epoch);
+    address = fold(address, uint64_t(control_i));
+    address = fold(address, uint64_t(control_j));
+    address = fold(address, uint64_t(k));
+    const float u1 = open_unit(splitmix64(address));
+    const float u2 = open_unit(splitmix64(address ^ uint64_t(0xd1b54a32d192ed03UL)));
+    return sqrt(-2.0 * log(u1)) * cos(6.2831853071795864769 * u2);
+}
+
+vec2 innovation_scale(vec2 correlation)
+{
+    vec2 variance = df_sub(vec2(1.0, 0.0), df_mul(correlation, correlation));
+    return variance.x > 0.0 ? df_sqrt(variance) : vec2(0.0);
+}
+
+float advance_control(float previous, float innovation, vec2 correlation, vec2 scale)
+{
+    vec2 value = df_add(df_mul(correlation, vec2(previous, 0.0)),
+                       df_mul(scale, vec2(innovation, 0.0)));
+    return value.x + value.y;
+}
+
+void evaluate(uint index)
+{
+    const uint total = uint(control_i_count) * uint(control_j_count) * uint(nz);
+    if (index >= total)
+        return;
+
+    const int k = int(index % uint(nz));
+    const uint horizontal = index / uint(nz);
+    const int cj = int(horizontal % uint(control_j_count));
+    const int ci = int(horizontal / uint(control_j_count));
+    const int64_t earth_i = control_i_min + int64_t(ci);
+    const int64_t earth_j = control_j_min + int64_t(cj);
+    const vec2 correlation = vec2(rho, rho_low);
+
+    float value;
+    if (mode == 1u)
+    {
+        const float innovation = gaussian(
+            innovation_process_key, innovation_epoch, earth_i, earth_j, k);
+        value = advance_control(previous_values[index], innovation, correlation,
+                                innovation_scale(correlation));
+    }
+    else
+    {
+        value = gaussian(initial_process_key, uint64_t(0), earth_i, earth_j, k);
+        if (mode == 2u && (rho != 1.0 || rho_low != 0.0))
+        {
+            const vec2 scale = innovation_scale(correlation);
+            for (uint64_t epoch = uint64_t(0); epoch < innovation_epoch; ++epoch)
+                value = advance_control(value, gaussian(
+                    innovation_process_key, epoch, earth_i, earth_j, k), correlation, scale);
+        }
+    }
+    destination_values[index] = value;
+}
+
+void main()
+{
+    evaluate(gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * gl_NumWorkGroups.x * gl_WorkGroupSize.x);
+}

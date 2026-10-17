@@ -1,0 +1,133 @@
+// state_relaxation_cartesian.comp
+//
+// Fused end-of-step sponge relaxation on the Cartesian grid. The production
+// FP64 EOS pressure projection is CPU-owned on every backend because the
+// former shader FP32 pow path failed the full-solver CPU-028 experiment.
+// Three pointwise passes are applied per cell in the CPU's exact call order:
+//   1. upper Rayleigh sponge: relax u,v -> wind profile, w -> 0, theta ->
+//      theta0(z) with the per-level alpha profile (apply_rayleigh_damping;
+//      rho/p are NOT relaxed - SCIENCE.md C6);
+//   2. the additive w-only lid absorber with its own alpha profile;
+//   3. the lateral sponge: nearest-face distance alpha, relaxing u, v, w
+//      and theta ONLY (deliberately not rho/p, matching the CPU comment
+//      and CM1/WRF practice).
+//
+// All references and damping coefficients arrive in ONE packed profiles
+// buffer with row stride nz:
+//   row 0: upper-sponge alpha(k)        row 3: v_ref(k)
+//   row 1: w-only alpha(k)              row 4: theta0_base(k)
+//   row 2: u_ref(k)                     row 5: lateral alpha by distance
+//                                              (entries [0, lateral_width))
+//   row 6: stagger-aware upper-w alpha(k)
+// Each pass is gated by its own flag so the dispatch mirrors whichever
+// subset the runtime configuration enables. Cells untouched by every
+// enabled pass copy through unchanged.
+//
+// Data layout: row-major [nx][ny][nz]. Index (i, j, k) = (i*ny + j)*nz + k.
+
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) readonly buffer UInBuf     { float u_in[];     };
+layout(set = 0, binding = 1) readonly buffer VInBuf     { float v_in[];     };
+layout(set = 0, binding = 2) readonly buffer WInBuf     { float w_in[];     };
+layout(set = 0, binding = 3) readonly buffer ThetaInBuf { float theta_in[]; };
+layout(set = 0, binding = 4) readonly buffer ProfBuf    { float prof[];     };
+
+layout(set = 0, binding = 5) writeonly buffer UOutBuf     { float u_out[];     };
+layout(set = 0, binding = 6) writeonly buffer VOutBuf     { float v_out[];     };
+layout(set = 0, binding = 7) writeonly buffer WOutBuf     { float w_out[];     };
+layout(set = 0, binding = 8) writeonly buffer ThetaOutBuf { float theta_out[]; };
+
+// Push constants (48 bytes; mirrors StateRelaxationPushConstants).
+layout(push_constant) uniform PushConstants {
+    int   nx;
+    int   ny;
+    int   nz;
+    int   lateral_width;
+    int   reserved_zero;
+    int   do_upper;
+    int   do_w_only;
+    int   do_lateral;
+    float dt_step;
+    float reserved1;
+    float reserved2;
+    float reserved3;
+};
+
+void main()
+{
+    uint gid = gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * gl_NumWorkGroups.x * gl_WorkGroupSize.x;
+    uint total = uint(nx) * uint(ny) * uint(nz);
+    if (gid >= total)
+    {
+        return;
+    }
+
+    int k = int(gid % uint(nz));
+    uint ij = gid / uint(nz);
+    int j = int(ij % uint(ny));
+    int i = int(ij / uint(ny));
+    uint c = gid;
+
+    float theta0_k = prof[uint(4 * nz + k)];
+    float u_ref    = prof[uint(2 * nz + k)];
+    float v_ref    = prof[uint(3 * nz + k)];
+
+    float dt_safe = max(dt_step, 1.0e-12);
+
+    float u_v     = u_in[c];
+    float v_v     = v_in[c];
+    float w_v     = w_in[c];
+    float theta_v = theta_in[c];
+
+    // ── 1. Upper Rayleigh sponge (velocities + theta; NOT rho/p) ──────
+    if (do_upper != 0)
+    {
+        float alpha = prof[uint(0 * nz + k)];
+        float alpha_w = prof[uint(6 * nz + k)];
+        if (alpha > 0.0 || alpha_w > 0.0)
+        {
+            float factor = 1.0 - exp(-alpha * dt_safe);
+            float factor_w = 1.0 - exp(-alpha_w * dt_safe);
+            u_v     += factor * (u_ref - u_v);
+            v_v     += factor * (v_ref - v_v);
+            w_v     += factor_w * (0.0 - w_v);
+            theta_v += factor * (theta0_k - theta_v);
+        }
+    }
+
+    // ── 2. Additive w-only lid absorber ───────────────────────────────
+    if (do_w_only != 0)
+    {
+        float alpha_w = prof[uint(1 * nz + k)];
+        if (alpha_w > 0.0)
+        {
+            float factor_w = 1.0 - exp(-alpha_w * dt_safe);
+            w_v += factor_w * (0.0 - w_v);
+        }
+    }
+
+    // ── 3. Lateral sponge (velocities + theta; NOT rho/p) ─────────────
+    if (do_lateral != 0 && lateral_width > 0)
+    {
+        int dist_i = min(i, nx - 1 - i);
+        int dist_j = min(j, ny - 1 - j);
+        int dist = min(dist_i, dist_j);
+        if (dist < lateral_width)
+        {
+            float alpha = prof[uint(5 * nz + dist)];
+            float factor = 1.0 - exp(-alpha * dt_safe);
+            u_v     += factor * (u_ref - u_v);
+            v_v     += factor * (v_ref - v_v);
+            w_v     += factor * (0.0 - w_v);
+            theta_v += factor * (theta0_k - theta_v);
+        }
+    }
+
+    u_out[c]     = u_v;
+    v_out[c]     = v_v;
+    w_out[c]     = w_v;
+    theta_out[c] = theta_v;
+}

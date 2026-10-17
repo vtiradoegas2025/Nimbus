@@ -1,0 +1,609 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+\PassOptionsToPackage{dvipsnames,svgnames,x11names}{xcolor}
+\documentclass[
+  11pt,
+]{article}
+\usepackage{xcolor}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\setcounter{secnumdepth}{5}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math} % this also loads fontspec
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else
+  % xetex/luatex font selection
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{longtable,booktabs,array}
+\usepackage{caption}
+\captionsetup[table]{skip=6pt}
+\newcounter{none} % for unnumbered tables
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\input{guide-preamble.tex}
+\usepackage{bookmark}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same}
+% fallback for those not using the hyperref driver hyperxmp:
+\makeatletter
+\@ifundefined{xmpquote}{\newcommand{\xmpquote}[1]{#1}}{}
+\makeatother
+\hypersetup{
+  pdftitle={Nimbus: Architecture and design choices},
+  pdfauthor={Nimbus project documentation},
+  colorlinks=true,
+  linkcolor={Maroon},
+  filecolor={Maroon},
+  citecolor={Blue},
+  urlcolor={Blue},
+  pdfcreator={LaTeX via pandoc}}
+
+\title{Nimbus: Architecture and design choices}
+\author{Nimbus project documentation}
+\date{17 October 2026}
+
+\begin{document}
+\hypersetup{pageanchor=false}
+\maketitle
+\hypersetup{pageanchor=true}
+\pagenumbering{roman}
+
+{
+\small
+\setlength{\parskip}{0pt}
+\setcounter{tocdepth}{2}
+\tableofcontents
+}
+\clearpage
+\pagenumbering{arabic}
+\pagestyle{fancy}
+Nimbus separates the atmospheric calculation from the application used
+to configure and inspect it. The simulator is a C++17 executable. Nimbus
+Studio is a Tauri desktop application: TypeScript and React provide the
+interface, while Rust owns filesystem access, process control and native
+data readers. Studio launches the simulator as a separate process. The
+same executable can run from a terminal or on a remote Linux computer
+without an open Studio window.
+
+This boundary makes a saved configuration and the simulator that
+interpreted it the starting point for reproducibility. A plot is a view
+of a completed simulation product, rather than part of the atmospheric
+time integration. The \href{MATHEMATICS.pdf}{mathematics guide} explains the
+physical and numerical assumptions; this guide explains where those
+assumptions are enforced and who owns the data. The execution chapters follow
+configuration, host storage, CPU portability, GPU submission and numerical
+precision. The publication chapters then trace persistence and IPC; the
+rendering chapter follows those published values through shaders to pixels.
+The final chapters separate performance models, historical observations and
+the evidence required for a new change.
+
+\input{figures/architecture.tex}
+
+\input{architecture-solver.tex}
+
+\input{architecture-execution.tex}
+
+\input{architecture-io.tex}
+
+\section{GPU execution and the path from a field to a screen
+pixel}\label{gpu-execution-and-the-path-from-a-field-to-a-screen-pixel}
+
+Nimbus uses GPUs for two different jobs. The solver's Metal and Vulkan
+compute backends advance atmospheric state. Studio and the standalone
+Vulkan viewer turn an available state into an image. Changing a
+colormap, camera, opacity or rendering resolution does not change the
+simulated atmosphere. Conversely, selecting a solver backend does not
+select Studio's rendering API or give its webview direct access to the
+solver's GPU buffers.
+
+\input{figures/rendering.tex}
+
+\subsection{Decode the field before interpreting its
+appearance}\label{decode-the-field-before-interpreting-its-appearance}
+
+Studio's native Rust layer reads exported NPY, ZFP and netCDF fields,
+validates their metadata and returns binary arrays through Tauri. Large
+reads can request a bounded spatial window with explicit origin, extent,
+stride and aggregation. The window protocol reports the source shape,
+returned shape, sample location, missing-data policy and byte
+accounting. Its output-byte limit is distinct from the amount of source
+data read: computing a block mean still visits the source cells
+represented by that block. See the
+\href{../ui/src-tauri/src/commands/outputs.rs}{native output reader} and
+\href{../ui/src/lib/dataset/nativeFieldWindow.ts}{field-window
+protocol}.
+
+The numbers need physical coordinates and units. A dimension named z is
+not sufficient evidence of uniform vertical spacing, and closure/halo
+storage is not extra atmosphere to display. The reader checks valid
+physical ranges, scalar origins, staggering and terrain metadata.
+Windowed terrain data can carry double-precision physical centroids and
+cell volumes alongside float field values. Studio's Cartesian
+preparation resamples stretched or mapped geometry onto the regular
+lattice required by a volume image, retaining the interpretation of that
+reconstruction.
+
+Units come from the field catalog rather than guesses based on the
+variable name. Derived-field recipes declare their inputs and required
+units; a saved native field takes precedence over a Studio-derived field
+with the same name. For example, temperature derived from theta and
+pressure remains a derived diagnostic with a recipe and dependencies. A
+horizontal-level anomaly is also a deliberate transformation, not raw
+temperature with a different palette.
+\href{../ui/src/lib/science/fieldUnits.ts}{Unit labels}, the
+\href{../ui/src/lib/derived/derivedFieldRegistry.ts}{derived-field
+registry} and \href{../ui/src/lib/science/cartesianInterp.ts}{Cartesian
+preparation} own these decisions.
+
+Preparation then repacks values into VTK's x-fastest order. A common
+Nimbus array index is \((i n_y+j)n_z+k\); the corresponding VTK scalar
+index is \(i+n_x(j+n_yk)\). Setting dimensions without this repack can
+silently transpose a non-cubic storm. \texttt{vtkImageData} combines the
+scalar array with dimensions, origin and spacing; vectors have three
+components per point. Surface geometry instead uses \texttt{vtkPolyData}
+with points, connectivity and associated arrays. Neither object is a
+framebuffer or an already rendered picture. The
+\href{../ui/src/lib/vtk/vtkImageData.ts}{VTK image adapter} is the
+central layout boundary; Kitware's
+\href{https://kitware.github.io/vtk-js/docs/structures.html}{data-structure
+documentation} describes the framework objects.
+
+\subsection{The actual Studio GPU
+APIs}\label{the-actual-studio-gpu-apis}
+
+Studio currently selects \textbf{WebGL for volume workloads}, including
+when the user prefers WebGPU. Its pinned vtk.js volume path does not
+provide the same scene-light, scattering, opacity-normal and
+close-camera behavior through WebGPU. This is an explicit workload
+policy, not CPU volume rendering. Scientific volume texture code
+requires an available WebGL2 context.
+
+Eligible geometry scenes can select WebGPU. Adapter discovery is only
+the first check: Studio waits for the mounted
+\texttt{vtkWebGPURenderWindow} to initialize its device and confirms the
+active API before reporting it active. Missing support, initialization
+failure or device loss leads to the documented WebGL compatibility path
+and scene reconstruction. The authoritative policy is
+\href{../ui/src/lib/vtk/vtkBackend.ts}{vtkBackend.ts}; upstream WebGPU
+availability alone does not override it.
+
+A vertex shader transforms mesh vertices into camera/clip coordinates
+and passes attributes onward. Rasterization determines the screen
+fragments covered by triangles or lines. A fragment shader computes
+color and opacity for those fragments. Depth and blending operations
+determine how their results enter the framebuffer. A compute shader
+instead runs explicit workgroups that read and write buffers or images
+without inherently drawing triangles. These are distinct pipeline roles
+in the
+\href{https://docs.vulkan.org/spec/latest/chapters/pipelines.html}{Vulkan
+pipeline specification}.
+
+In Studio, worker-based preparation, marching-cubes extraction and
+streamline integration are CPU-side JavaScript work even though their
+results are drawn by GPU shaders. The WebGL volume ray marcher runs in a
+fragment shader, not a solver compute kernel. WebGPU geometry uses
+vtk.js's graphics pipeline with Nimbus's
+\href{../ui/src/lib/vtk/vtkWebGpuSurfaceLighting.ts}{surface-lighting
+adaptation}.
+
+\subsection{Upload a field, then look up a
+color}\label{upload-a-field-then-look-up-a-color}
+
+The VTK volume mapper needs a three-dimensional GPU texture. Nimbus's
+\href{../ui/src/lib/vtk/volumeScalarSampling.ts}{scalar texture owner}
+explicitly disables half-float storage and uploads Float32 scalar data.
+It queries the context's 3D texture limit and float-linear filtering
+support. If hardware float-linear filtering is unavailable, a shader
+fetches the neighboring texels and performs trilinear interpolation
+explicitly. That fallback preserves the scalar precision choice rather
+than silently switching to a smaller texture format.
+
+Texture dimensions and logical grid dimensions need not coincide. If one
+logical axis is too long but the total cell capacity fits, Nimbus packs
+the linear scalar sequence into a legal 3D texture and reconstructs its
+logical addresses in GLSL. The upload uses \texttt{texSubImage3D} for
+the occupied prefix and restores pixel-unpack state afterward. Capacity
+failures are reported; texture packing is not permission to discard
+cells. See \href{../ui/src/lib/vtk/volumeTexturePacking.ts}{texture
+packing} and
+\href{../ui/src/lib/vtk/volumeTextureCapabilities.ts}{capability
+checks}.
+
+A color transfer function maps a scalar to RGB. For a range-based
+palette, the conceptual coordinate is
+
+\[s=\operatorname{clamp}\!\left(\frac{q-q_{\min}}{q_{\max}-q_{\min}},0,1\right).\]
+
+The palette interpolates between color stops at that coordinate. This
+changes the display interpretation, not the source array. Signed fields
+can use a diverging palette to distinguish opposite signs. A constant
+field needs an explicit degenerate-range policy to avoid division by
+zero. Studio's dBZ palette uses physical dBZ anchors, so a specified dBZ
+value has the same palette color across runs rather than being stretched
+to each frame's extrema.
+\href{../ui/src/components/plots/VolumeRender3D.tsx}{VolumeRender3D}
+applies these transfer functions and publishes their range for the
+legend.
+
+Opacity is a separate transfer function. Two samples can have the same
+RGB but different visibility. Increasing opacity can obscure interior
+structure; changing the color range can make small variations appear
+dramatic. Neither operation increases the information resolved by the
+simulation. A scientific figure therefore needs its field, units,
+transformation, color range and opacity policy, not just the palette
+name.
+
+\subsection{How a volume becomes one
+pixel}\label{how-a-volume-becomes-one-pixel}
+
+For each covered screen fragment, the camera defines a ray through the
+volume. The shader intersects that ray with the volume's
+physical/display bounds and samples along the interior interval. A
+texture sample reconstructs a scalar from nearby grid values; transfer
+functions turn it into a color and opacity. Sampling between grid points
+smooths the displayed reconstruction but does not create new atmospheric
+resolution.
+
+Opacity must account for distance. If a transfer-function opacity
+\(a_0\) is defined over reference length \(\ell_0\), the corresponding
+opacity over a ray segment \(\Delta\ell\) is
+
+\[a=1-(1-a_0)^{\Delta\ell/\ell_0}.\]
+
+This is the constant-extinction Beer--Lambert relationship. Without the
+distance correction, taking twice as many samples would make the same
+column artificially more opaque. Nimbus also converts display distance
+back to physical distance: vertical exaggeration must not thicken a
+cloud optically simply by stretching its picture. Geometry
+spacing/origin, sample budgets and opacity correction therefore change
+together. These are visualization extinction controls, not the
+atmospheric RRTMG optical coefficients. See
+\href{../ui/src/lib/vtk/vtkPhysicalVolumeOpacity.ts}{physical opacity}
+and \href{../ui/src/lib/vtk/volumeOpticalDepth.ts}{optical-distance
+handling}.
+
+The front-to-back accumulation for premultiplied color \(\boldsymbol C\)
+and opacity \(A\) is
+
+\[\begin{aligned}
+\boldsymbol C_{n+1}&=\boldsymbol C_n+(1-A_n)a_n\boldsymbol c_n,\\
+A_{n+1}&=A_n+(1-A_n)a_n.
+\end{aligned}\]
+
+The remaining transmission weights everything behind the accumulated
+samples, including the background. Rays can stop when their interval
+ends or their remaining transparency is negligible. Nimbus's coherent
+sampling uses a stable pixel-dependent phase and shared sampling bins
+across bricks, weighting only each brick's owned segment. Otherwise
+arbitrary brick edges can change total opacity or create seams.
+
+When several supported cloud/precipitation layers overlap, the joint
+renderer samples their local contributions together and combines optical
+depth. Drawing each entire volume as an independent translucent object
+can yield incorrect overlap ordering. The current joint owner supports
+up to four active scalar textures and owns their transforms, sample
+budgets and transfer functions.
+\href{../ui/src/lib/vtk/coherentVolumeSampling.ts}{Coherent sampling}
+and the \href{../ui/src/lib/vtk/jointVolumeShader.ts}{joint fragment
+shader} contain the actual accumulation rules.
+
+Lighting modifies the displayed color using normals and scene lights.
+Surface normals come from geometry; lit volumes estimate gradients from
+reconstructed scalar or declared opacity information. Nimbus corrects
+gradient geometry for anisotropic spacing and uses a fixed world-space
+key/fill/rim rig rather than letting an automatic headlight change the
+material as the camera moves. Certain structural/cloud views also use
+volumetric shadow/scattering controls; generic scalar views can remain
+unlit. These are visual cues, not a measured photograph or the solver's
+solar-radiation calculation. The
+\href{../ui/src/lib/vtk/sceneLighting.ts}{lighting owner} records those
+choices.
+
+Opaque geometry contributes depth, which the volume path receives
+through its z-buffer pass so integration can respect scene occlusion.
+Translucent geometry requires blending and ordering; Nimbus has an
+explicit \href{../ui/src/lib/vtk/orderedRenderer.ts}{ordered-renderer
+adaptation}. The resulting color/alpha image resides in framebuffer
+attachments before the browser or native webview composites the canvas
+with controls and legends. Display color handling and final finite-bit
+pixels are another representation boundary. A screenshot pixel is not an
+invertible measurement of the original scalar after lighting, opacity,
+overlap and quantization.
+
+\subsection{Surfaces, contours, vectors and missing
+data}\label{surfaces-contours-vectors-and-missing-data}
+
+An isosurface answers a different question: where does a reconstructed
+scalar equal a chosen threshold? Marching cubes interpolates crossings
+inside cells and creates triangles. The GPU draws those triangles; it
+does not integrate every volume sample behind them. Surface color can be
+uniform or mapped from an attached scalar. A two-dimensional contour
+similarly traces a level set on a plane rather than representing
+integrated cloud opacity.
+
+Vector glyphs display sampled direction and magnitude. Streamlines
+integrate a vector field at one time and then draw polylines or tubes;
+they are not automatically particle trajectories through a changing wind
+field. Their seed spacing, integration limits and interpolation
+determine what is shown. Studio's separate trajectory owner retains that
+distinction.
+
+Missing values are not zeros. A finite substitute may be needed to keep
+a volume texture valid, but Studio retains a separate validity mask and
+samples it in the shader. The mask also protects normal estimation near
+gaps. Marching-cubes cells with missing corners are omitted, and
+streamline support prevents a line from bridging an invalid region. The
+\href{../ui/src/lib/vtk/volumeValidity.ts}{volume mask},
+\href{../ui/src/lib/vtk/finiteImageMarchingCubes.ts}{finite
+marching-cubes adapter} and
+\href{../ui/src/lib/vtk/finiteImageStreamline.ts}{finite streamline
+adapter} implement different representations of the same missing-data
+obligation.
+
+Level of detail is likewise explicit. Block means, extrema and point
+samples answer different questions; averaging dBZ requires its declared
+linear- reflectivity aggregation rather than an ordinary logarithmic
+mean. Terrain means use physical-volume information where the protocol
+declares it. Bricks, overview levels, temporary screen resolution and
+ray step size are distinct quality controls. Preparation carries
+resource budgets and source/window provenance, and generation ownership
+prevents a stale asynchronous result from replacing a newer field.
+Finer-looking interpolation cannot be labeled native resolution after a
+coarse source window has been selected.
+
+\subsection{Loading concurrency, cancellation and memory preferences}
+
+Studio separates the count of loading workers from the amount of memory
+those workers may hold. A worker limit bounds concurrent field reads and
+decoding. The shared native I/O limit accounts for a request's declared source
+working set plus twice its output allowance, covering the result and encoding
+workspace. The JavaScript scheduler also reserves its estimated read cost.
+These are admission bounds rather than measurements of the whole process:
+field caches, Python's WebAssembly heap, prepared geometry, browser copies and
+GPU allocations retain their own owners and limits.
+
+The automatic native I/O allowance is one thirty-second of detected system RAM,
+bounded between 512 MiB and 4 GiB, and further limited by the manual ceiling.
+That ceiling is one quarter of RAM, bounded between 64 MiB and 16 GiB. If RAM
+is unknown, the default is 512 MiB and the manual ceiling is 2 GiB. A saved
+preference can select a smaller or larger allowance within the current
+computer's permitted range. These policies use detected capacity, not an ARM
+or x86 label; neither policy assumes that GPU memory is unified with RAM.
+
+An individual request larger than the allowance is rejected with its required
+size. Ordinary contention instead waits on a native condition variable and
+checks cancellation. Reservations live with the worker and its completed
+payload until the response is handed back or discarded. Reducing the limit
+does not erase memory already owned by an active worker. Those workers finish
+or cancel, while later reads wait for capacity. The preference is published to
+the frontend only after native configuration succeeds. A delayed status reply
+cannot overwrite that newer configuration. Budget-related failed plot reads
+retry after a changed allowance is applied, without requiring the user to
+leave a volume view.
+
+Prefetch belongs to the selected run, field and spatial window. Frame advance
+within that selection can join an existing future-frame read. Replacing or
+deselecting the field releases that selection's interest; a shared read is
+cancelled when it has no remaining consumers. Failed foreground reads do not
+start speculative work. Likewise, an empty isosurface releases its old
+geometry rather than merely hiding an actor while retaining its buffers.
+These lifetimes matter on both unified-memory and discrete-memory computers.
+
+The first ordinary desktop session without a matching saved profile can measure
+loading workers after the interface becomes idle. The measurement generates a
+2 MiB float32 NPY file and processes sixteen equal read-and-scan jobs per trial.
+Each candidate count receives a warmup and three trials; the median determines
+throughput. Candidate counts are powers of two through sixteen, bounded by the
+detected core count and including that bound. Studio chooses the smallest count
+within five percent of the best median throughput. Cancellation and a twenty
+second cooperative deadline bound the work; an operating-system read already
+in progress must return before it can stop. Temporary files are removed when
+the measurement ends. Explicit worker preferences are preserved.
+
+This is a cached-read and CPU-scan heuristic. It does not measure sustained
+storage throughput, netCDF or ZFP decoding, every plot's preparation cost,
+solver scaling, or GPU execution. The recommendation is associated with the
+CPU identity, core count and RAM reported by the native shell. It can be rerun
+after workload changes, and manual controls remain available. A successful
+short measurement is not a hardware qualification campaign.
+
+Python array previews similarly separate representation from ownership. A
+large heatmap initially point-samples a bounded number of cells; zooming selects
+finer samples from the retained complete array. The color range remains tied to
+the full finite result, and export uses the original dtype and shape. Coordinate
+metadata uses explicit metre, radian, model-level or index units. Unknown
+physical geometry does not acquire metre labels through a nominal spacing.
+
+\subsection{The standalone Vulkan
+viewer}\label{the-standalone-vulkan-viewer}
+
+The native viewer has a separate path under
+\texttt{vulkan/src/rendering}. Its export reader loads and transposes
+field data, while a shared-memory input can provide live host-visible
+frames. These inputs still pass through the viewer's own normalization
+and texture upload; they do not alias a Studio texture or a solver
+compute buffer.
+
+Its unipolar normalization uses percentile-clipped ranges. Signed data
+uses a centered encoding, with zero at 0.5 and opposite signs on
+opposite sides; a sampled cross-frame magnitude estimate is used when
+available, with a per-frame fallback. Nonfinite values are counted and
+replaced by neutral display values. This differs from Studio's explicit
+validity-mask behavior. The normalized intensity is therefore not a
+universal physical color scale.
+\href{../vulkan/src/data/export_dataset.cpp}{ExportDataset} is the
+authority.
+
+The viewer allocates R32 floating-point 3D images, checks required
+format and linear-filter support, and uploads each active field. A
+persistent two-slot ring holds mapped host-coherent staging buffers. CPU
+\texttt{memcpy} fills a free slot; image barriers make it a transfer
+destination; \texttt{vkCmdCopyBufferToImage} copies the data; a later
+barrier makes it shader-readable. Submission uses
+\texttt{vkQueueSubmit}, and slot fences protect reuse while earlier work
+is pending. The path remains explicit even on shared-memory hardware.
+See
+\href{../vulkan/src/rendering/volume_backend.cpp}{volume\_backend.cpp}.
+
+The \href{../vulkan/shaders/rendering/volume.vert}{vertex shader} emits
+one oversized fullscreen triangle. The
+\href{../vulkan/shaders/rendering/volume.frag}{fragment shader}
+constructs camera rays, intersects the physically scaled box, samples
+the selected fields and accumulates transmittance. It uses a bounded
+ray-step count, anisotropy-aware gradients, display palettes, lighting
+and background sky. Optional natural/cinematic texture adds procedural
+appearance; it is not simulated small-scale cloud structure. This is a
+graphics-fragment ray marcher, not Vulkan hardware ray tracing or
+marching-cubes surface extraction.
+
+The window renderer acquires a swapchain image, waits for the necessary
+frame ownership, submits drawing and presents it with
+\texttt{vkQueuePresentKHR}. It prefers an sRGB surface format when
+available. Screenshot capture has a separate image-to-buffer readback
+while the application still owns the image, with supported
+capture-format checks. Ordinary presentation does not require copying
+every pixel back to the CPU.
+\href{../vulkan/src/rendering/window_renderer.cpp}{WindowRenderer} owns
+this final image-to-display boundary.
+
+\subsection{Memory sharing does not erase ownership or
+synchronization}\label{memory-sharing-does-not-erase-ownership-or-synchronization}
+
+Studio's \texttt{SharedArrayBuffer} path can avoid a JavaScript copy
+between workers and the main thread. When unavailable, it uses
+transferable copies with retained-source and retry rules. It also reuses
+immutable prepared datasets across camera changes. These are host
+handoff optimizations: ``shared zero copy'' does not mean the browser
+directly renders the solver's memory or that texture upload costs
+nothing. The \href{../ui/src/lib/vtk/vtkDatasetHandoff.ts}{handoff
+owner} records the relevant stages and copies.
+
+On discrete GPUs, host and device memory are separate pools; uploads and
+readbacks commonly traverse a bus. Unified memory can expose one
+compatible allocation to both processors, but capacity, visibility and
+execution ordering still matter. The
+\href{https://docs.vulkan.org/guide/latest/memory_allocation.html}{Khronos
+memory guide} describes these allocation distinctions. Nimbus's solver
+Vulkan backend chooses direct host-visible/device-local buffers only
+when its memory plan permits them; the staged path has separate host and
+device buffers. It uses buffer copies, barriers, fences and noncoherent
+flush/invalidate handling as required. Resident reuse additionally needs
+valid field identities and generations; reusing an allocation does not
+establish that its contents are current.
+\href{../vulkan/src/compute/compute_backend_vulkan.cpp}{The compute
+backend} owns these rules independently of the viewer's image-upload
+ring.
+
+Metal solver operators use declared buffer ownership, including shared
+storage paths. \texttt{newBufferWithBytes} and copying from a buffer's
+contents are real copies even on unified memory. Command completion
+still precedes consuming a result on the CPU. Host diagnostics or output
+may require materializing data that otherwise stays resident. Thus
+neither ``Metal'' nor ``unified'' guarantees a copy-free full timestep.
+The \href{../metal/src/compute/backend/advection.inc}{Metal advection
+owner} shows both ordinary copy paths and resident reuse.
+
+\subsection{Rendering quality and numerical precision are separate
+contracts}\label{rendering-quality-and-numerical-precision-are-separate-contracts}
+
+Solver fields are commonly Float32, while selected compute kernels use
+compensated pairs, fused operations or explicit storage-rounding
+handling to preserve their numerical contracts. The
+\href{../metal/include/compute/metal/shaders/terrain/mapped_scalar_math_msl.hpp}{mapped
+scalar helper} and
+\href{../vulkan/shaders/compute/terrain/compensated_storage.glsl}{Vulkan
+storage helper} are examples. These are scientific arithmetic choices,
+not image-quality settings. The Metal compiler's retained fast-math
+policy also belongs to the compute contract.
+
+Rendering instead has its own precision, interpolation, sampling,
+texture and display constraints. A visually smooth cloud is not evidence
+of a conservative solver, and pixel differences do not by themselves
+prove a physics difference. Maintained tests separately cover
+\href{../tests/ui/unit/vtk/test_volume_scalar_sampling.ts}{scalar texture
+precision},
+\href{../tests/ui/browser/specs/volume-validity.spec.ts}{missing-data
+rendering}, \href{../tests/ui/browser/specs/joint-volume.spec.ts}{joint
+volume composition},
+\href{../tests/ui/browser/specs/volume-colormap.spec.ts}{colormaps} and
+\href{../tests/ui/browser/specs/vtk-lifecycle.spec.ts}{scene lifecycle}.
+Context/device loss disposes stale resources and rebuilds owned state
+before reporting a recovered frame. Capability fallback is visible;
+renderer availability is separate from native-only solver admission.
+These mechanisms explain behavior and limits, without establishing a
+universal performance claim or changing any scientific readiness status.
+
+
+\input{architecture-validation.tex}
+
+\section{Repository boundaries}\label{repository-boundaries}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.5000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.5000}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Location
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Maintained responsibility
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\texttt{include/}, \texttt{src/} & Solver interfaces, state, operators
+and orchestration \\
+\texttt{vulkan/}, \texttt{metal/} & Native backend code, shaders and
+backend checks \\
+\texttt{ui/} & Studio frontend, native shell and their tests \\
+\texttt{configs/} & Public starting configurations \\
+\texttt{tests/} & Numerical references, contracts and bounded
+fixtures \\
+\texttt{scripts/}, \texttt{mk/} & Reproducible build,
+validation and operating tools \\
+\texttt{docs/} & Current mathematical, architectural and operating
+explanations \\
+\end{longtable}
+}
+
+Build products, downloaded data, simulation output and historical
+investigation records are not source dependencies. Generated directories
+are ignored by Git. Required runtime tables have explicit provisioning
+instructions in \href{BUILDING.md}{the build guide}. A clean
+checkout must be able to rebuild and run the maintained checks without
+borrowing objects from an old experiment.
+
+\end{document}

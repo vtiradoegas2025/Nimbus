@@ -1,0 +1,158 @@
+{
+  "schema": "nimbus.qualification.moving_nested_reference_frontier.result",
+  "schema_version": 1,
+  "status": "pass",
+  "qualification_disposition": "pass",
+  "qualification_eligible": true,
+  "scope": "ratified-v12 fixed-aperture same-equation moving-child versus oversized stationary reference frontier",
+  "campaign_root": "tests/artifacts/moving_nested_reference_frontier_v12_20260818",
+  "campaign": {
+    "report_sha256": "5d9ee2a73c5958132abfab14af76b6103379c1646782f68c87746c7a9e25023d",
+    "policy_status": "ratified",
+    "duration_s": 4500,
+    "sample_interval_s": 30,
+    "expected_samples_per_branch": 150,
+    "threads_per_branch": 12
+  },
+  "frozen_inputs": {
+    "binary": {
+      "bytes": 6164208,
+      "sha256": "5bb6da18616f391eaafad5d71cbca0bc1b7217cac3e676e419367e07a72e186f",
+      "movement_algorithm": "qualified_envelope_hysteresis_v14"
+    },
+    "moving_config_sha256": "c86663caaee2c1217d300809713fd5e3856ae141561aae256437267c8f2287f0",
+    "reference_config_sha256": "df57ab348dcb742177a9e3ae4740ebeed6ee18540cb26e296db8604c3b1f8925",
+    "policy": {
+      "path": "../../tests/qualification/fixtures/moving_nested_supercell_reference_frontier_v12.json",
+      "sha256": "ba4a8f76f196be809f5b036f77a27ec49880ccaa476bd151119252110890c9cc",
+      "schema_version": 12,
+      "policy_id": "moving-nested-reference-frontier-v12-parent-stencil-limit-amendment"
+    }
+  },
+  "branches": {
+    "oversized_reference": {
+      "execution_mode": "fresh",
+      "process_exit_code": 0,
+      "duration_s": 4500,
+      "tracker_samples": 150,
+      "diagnostic_samples": 150,
+      "checkpoint_count": 10,
+      "runtime_log_sha256": "680f012cc6c41e1077e499a6a06b00f93130841e0dfb5101a6fc9db5ebe7be2d",
+      "validation_summary": {
+        "sha256": "57c5a71eff852e9dee3a1b7a390365de434e7475fdfc43325270f68a8a7757a6",
+        "report_count": 161,
+        "failed_report_count": 0,
+        "total_violations": 0,
+        "total_nonfinite": 0,
+        "total_bounds": 0
+      },
+      "final_checkpoint": {
+        "simulation_time_s": 4500,
+        "completed_steps": 6000,
+        "bytes": 431767130,
+        "sha256": "d8e3458110f5604165d1197c30b30c115fdcdc2a7fe15d6261feda682b9c1f86",
+        "fnv1a64": "74be80108745c32a",
+        "sidecar_sha256": "88490b84eb1aeda33f375f5bcf8156a986e0caf4fa7d483bd3833aab46bc6f33"
+      }
+    },
+    "moving_child": {
+      "execution_mode": "fresh",
+      "process_exit_code": 0,
+      "duration_s": 4500,
+      "tracker_samples": 150,
+      "diagnostic_samples": 150,
+      "checkpoint_count": 10,
+      "runtime_log_sha256": "fa9e66f3da9801328e70569e0831363d395693721e530ffc5a1b13f144a07e53",
+      "validation_summary": {
+        "sha256": "b2bd557a8502dea8e5aa67cb4da14f7b86533b8a9a7b68ccc38563246cb2558b",
+        "report_count": 171,
+        "failed_report_count": 0,
+        "total_violations": 0,
+        "total_nonfinite": 0,
+        "total_bounds": 0
+      },
+      "final_checkpoint": {
+        "simulation_time_s": 4500,
+        "completed_steps": 3000,
+        "bytes": 253294210,
+        "sha256": "7a2c924c77f7fb831d7b856bb76b8cfa47ed4f2096200ea5769b419f46b575bc",
+        "fnv1a64": "166d5cbdf27cdcb4",
+        "sidecar_sha256": "258a03eef08594d9dada693f4b4ec6f15b290893d2d89bb1f7b31ecdff259f38"
+      }
+    }
+  },
+  "parent_stencil_frontier": [
+    {
+      "simulation_time_s": 4320,
+      "tracker_sha256": "d9cd7f40eacc8e5af429bdd12a49cb3d7385de57cf1a78dfb0d6c7aae1e27992",
+      "movement_status": "requested",
+      "movement_reason": "trusted_interior_containment",
+      "committed_shift_cells": {"i": 1, "j": 2},
+      "cumulative_shift_cells": {"i": 52, "j": 21},
+      "legal_maximum_shift_cells": {"i": 1, "j": 2},
+      "scientific_status": "valid"
+    },
+    {
+      "simulation_time_s": 4350,
+      "tracker_sha256": "5353dfbee2271c41a85db399575b88518436eef5984c0b275752d18a6235a1e2",
+      "movement_status": "ineligible",
+      "movement_reason": "parent_stencil_limited_contained",
+      "requested_shift_cells": {"i": 0, "j": 0},
+      "commit_performed": false,
+      "legal_maximum_shift_cells": {"i": 0, "j": 0},
+      "scientific_status": "valid"
+    },
+    {
+      "simulation_time_s": 4380,
+      "tracker_sha256": "eca775bb8dd685af6e0c82c1c8f8143a6881829a1f696c965ec2cfe417b7fa4f",
+      "prior_v11_failure_frontier_crossed": true,
+      "movement_status": "ineligible",
+      "movement_reason": "parent_stencil_limited_contained",
+      "requested_shift_cells": {"i": 0, "j": 0},
+      "commit_performed": false,
+      "cumulative_shift_cells": {"i": 52, "j": 21},
+      "scientific_status": "valid"
+    },
+    {
+      "simulation_time_s": 4500,
+      "tracker_sha256": "398fd06ec61380b5a6ec8e1eeec7dedec6940d1ee03aa2c7b8784162f891205e",
+      "movement_status": "cooldown",
+      "movement_reason": "cooldown_active",
+      "requested_shift_cells": {"i": 0, "j": 0},
+      "commit_performed": false,
+      "cumulative_shift_cells": {"i": 52, "j": 21},
+      "scientific_status": "valid"
+    }
+  ],
+  "comparison": {
+    "report_sha256": "eb5d05bdf7127505a5eff9abb29a3e67be4d8ac330b84d62da3c1fa2292cb3d1",
+    "status": "pass",
+    "qualification_eligible": true,
+    "contract_errors": [],
+    "incomplete_reasons": [],
+    "passed_checks": 21,
+    "failed_checks": 0,
+    "coverage": {
+      "common_sample_count": 150,
+      "paired_selected_samples": 147,
+      "paired_selected_fraction": 0.9932432432432432,
+      "maximum_consecutive_unpaired_samples": 1,
+      "final_sample_paired": true
+    },
+    "metrics": {
+      "path_rmse_m": 230.7457639280823,
+      "path_maximum_m": 543.7179128979132,
+      "maximum_updraft_normalized_rmse": 0.058442365572130436,
+      "maximum_absolute_uh_normalized_rmse": 0.12466053312789763,
+      "cold_pool_area_normalized_rmse": 0.10070717750097914,
+      "cold_pool_centroid_rmse_m": 175.6774697512077,
+      "precipitation_final_accumulated_mass_relative_error": 0.00937479603703823,
+      "precipitation_maximum_depth_normalized_rmse": 0.049194001871470244
+    }
+  },
+  "claims": [
+    "The v14 CPU moving child completed the full 4500-second ratified frontier with strict validation and exact live parent-stencil bounds.",
+    "The same-equation moving/reference comparison passed all frozen coverage, path, intensity, cold-pool, and precipitation thresholds.",
+    "This result does not add live-storm Vulkan execution, device-resident relocation, public moving-nest selection, or a GPU throughput claim."
+  ]
+}

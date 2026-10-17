@@ -1,0 +1,197 @@
+/* Nimbus Studio — a restrained, observatory-console design system. */
+
+:root {
+  color-scheme: dark;
+
+  /* Cursor-like graphite neutrals reduce glare without reading as blue-black. */
+  --color-bg: oklch(14.8% 0.006 255);
+  --color-surface: oklch(18.2% 0.007 255);
+  --color-surface-2: oklch(22% 0.008 255);
+  --color-surface-3: oklch(27% 0.009 255);
+  --color-surface-raised: oklch(20% 0.008 255);
+
+  /* Borders */
+  --color-border: oklch(29% 0.009 255);
+  --color-border-strong: oklch(39% 0.011 255);
+
+  /* Text */
+  --color-text: oklch(92% 0.006 255);
+  --color-text-secondary: oklch(74% 0.009 255);
+  /* 65%, not 59%: muted text is painted on every surface step, and at 59% it
+   * failed WCAG AA for normal text on --color-surface (4.42:1), --surface-2
+   * (4.22:1) and --surface-3 (3.66:1, the hovered/active row behind the
+   * command palette). 65% is the lowest value clearing 4.5:1 on all four. */
+  --color-text-muted: oklch(65% 0.01 255);
+
+  /* Interface actions stay achromatic. Scientific plots own saturated color. */
+  --color-accent: oklch(84% 0.007 255);
+  --color-accent-hover: oklch(91% 0.006 255);
+  --color-accent-pressed: oklch(75% 0.008 255);
+  --color-accent-contrast: oklch(17% 0.006 255);
+  --color-accent-soft: oklch(25% 0.009 255);
+  --color-focus-ring: oklch(78% 0.01 255);
+
+  /* Status */
+  --color-info: oklch(76% 0.012 255);
+  --color-warn: oklch(77% 0.12 78);
+  --color-error: oklch(70% 0.14 22);
+  --color-ok: oklch(73% 0.105 155);
+  --color-danger: var(--color-error);
+  --color-warning: var(--color-warn);
+
+  /* Compatibility names used by a few specialized scientific instruments. */
+  --bg-primary: var(--color-bg);
+  --bg-secondary: var(--color-surface);
+  --text-primary: var(--color-text);
+  --text-muted: var(--color-text-muted);
+  --border-color: var(--color-border);
+
+  /* Geometry */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-pill: 999px;
+
+  /* Spacing — 4px base unit */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 28px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* Typography */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --font-size-xs: 0.6875rem;
+  --font-size-sm: 0.75rem;
+  --font-size-md: 0.875rem;
+  --font-size-lg: 1rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --line-height-tight: 1.25;
+  --line-height-body: 1.5;
+  --tracking-label: 0.075em;
+
+  /* Motion is functional: fast feedback, calm state changes. */
+  --duration-fast: 100ms;
+  --duration-medium: 180ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Sizing. Every control that can share a row with an input matches
+   * --control-height so toolbars align on one baseline. */
+  --control-height: 36px;
+  --nav-rail-width: 68px;
+  --queue-panel-width: 240px;
+  --header-height: 56px;
+
+  /* Overlays drawn on top of a rendered VTK scene. The scene's clear colour now
+   * follows the user's appearance (lib/plot/sceneBackground.ts), so these DO
+   * flip — see the light-theme block below. They were pinned at :root while the
+   * scene was hardcoded near-black; leaving them pinned now would put pale ink
+   * on pale paper. Scene ink is separate from --color-text-* because it is read
+   * against a WebGL clear colour, not the page surface. */
+  --scene-bg: oklch(17% 0.008 255);
+  --scene-scrim: color-mix(in oklch, var(--scene-bg) 65%, transparent);
+  --scene-scrim-strong: color-mix(in oklch, var(--scene-bg) 72%, transparent);
+  --scene-ink: oklch(86% 0.008 255);
+  --scene-ink-muted: oklch(65% 0.012 255);
+  --scene-accent: oklch(80% 0.09 82);
+  --scene-warn: oklch(77% 0.12 78);
+  --scene-error: oklch(70% 0.14 22);
+  --scene-hairline: oklch(100% 0 0 / 0.18);
+  --scene-chip: oklch(100% 0 0 / 0.1);
+
+  /* Plotly chrome. Plotly owns an SVG subtree and cannot read custom
+   * properties, so these are resolved to literals in JS (see usePlotChrome in
+   * components/plots/common.tsx) and re-resolved on theme change. Unlike
+   * --scene-*, Plotly draws onto the themed page background (paper_bgcolor is
+   * transparent), so these DO flip with the theme. Kept as rgba()/hex rather
+   * than oklch() because Plotly parses colors with tinycolor, which does not
+   * understand oklch and would silently fall back to black. */
+  --plot-gridline: rgba(255, 255, 255, 0.04);
+  --plot-zeroline: #2e3340;
+  --plot-overlay-bg: rgba(20, 23, 29, 0.7);
+  --plot-ink: #eef1f7;
+  /* Plotly's bundled colour parser cannot consume the oklch text tokens above.
+   * Keep the shared SVG text colour in a legacy colour space as well. */
+  --plot-text: #a3a8b3;
+
+  /* Modal scrim. Also theme-independent: a backdrop has to darken the page
+   * behind it, so deriving it from --color-bg would stop dimming anything at
+   * all under the light theme. */
+  --color-scrim: oklch(8% 0.012 248 / 0.72);
+
+  /* Elevation and stacking remain deliberately shallow. Surfaces that need a
+   * non-default offset (a dock casting upward) compose --shadow-color so the
+   * tint still tracks the theme. */
+  --shadow-color: oklch(5% 0.006 255 / 0.3);
+  --shadow-raised: 0 8px 24px var(--shadow-color);
+  --z-sticky: 200;
+}
+
+/* Daylight bench: warm paper, graphite actions, and the same density/hierarchy
+ * as dark mode. Data colormaps remain scientifically stable across themes. */
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --color-bg: oklch(97.2% 0.007 85);
+  --color-surface: oklch(99.2% 0.004 85);
+  --color-surface-2: oklch(94.7% 0.008 85);
+  --color-surface-3: oklch(90.6% 0.009 85);
+  --color-surface-raised: oklch(99.6% 0.003 85);
+
+  --color-border: oklch(84% 0.009 85);
+  --color-border-strong: oklch(70% 0.012 85);
+
+  --color-text: oklch(22% 0.009 255);
+  --color-text-secondary: oklch(38% 0.011 255);
+  --color-text-muted: oklch(49% 0.012 255);
+
+  --color-accent: oklch(29% 0.01 255);
+  --color-accent-hover: oklch(22% 0.009 255);
+  --color-accent-pressed: oklch(18% 0.008 255);
+  --color-accent-contrast: oklch(98% 0.004 85);
+  --color-accent-soft: oklch(91.5% 0.01 85);
+  --color-focus-ring: oklch(31% 0.014 255);
+
+  --color-info: oklch(39% 0.014 255);
+  --color-warn: oklch(49% 0.115 66);
+  --color-error: oklch(51% 0.16 25);
+  --color-ok: oklch(43% 0.105 153);
+
+  --shadow-color: oklch(34% 0.025 240 / 0.14);
+  --shadow-raised: 0 10px 28px var(--shadow-color);
+
+  /* Ink-on-paper counterparts. The dark values are white-on-black washes that
+   * vanish against warm paper, so they invert rather than dim. */
+  --plot-gridline: rgba(24, 26, 30, 0.1);
+  --plot-zeroline: rgba(24, 26, 30, 0.22);
+  --plot-overlay-bg: rgba(253, 251, 247, 0.82);
+  --plot-ink: rgba(24, 26, 30, 0.92);
+  --plot-text: #4d5864;
+
+  /* Ink for text painted on the light 3D scene (a soft paper grey, not white:
+   * a pure white clear colour blows out the near-white cloud volume). */
+  --scene-bg: oklch(91% 0.004 255);
+  --scene-scrim: color-mix(in oklch, var(--scene-bg) 65%, transparent);
+  --scene-scrim-strong: color-mix(in oklch, var(--scene-bg) 78%, transparent);
+  --scene-ink: oklch(26% 0.01 255);
+  --scene-ink-muted: oklch(44% 0.012 255);
+  --scene-accent: oklch(48% 0.11 70);
+  --scene-warn: oklch(49% 0.115 66);
+  --scene-error: oklch(51% 0.16 25);
+  --scene-hairline: oklch(0% 0 0 / 0.18);
+  --scene-chip: oklch(0% 0 0 / 0.08);
+}
+
+:root[data-text-size="comfortable"] {
+  --font-size-xs: 0.8125rem;
+  --font-size-sm: 0.875rem;
+  --font-size-md: 0.9375rem;
+  --control-height: 40px;
+}

@@ -1,0 +1,25 @@
+schema: nimbus.v1
+grid:
+  coordinate_system: cartesian
+  staggering: c_grid
+  nx: 16
+  ny: 16
+  nz: 32
+  dx: 500
+  dy: 500
+  dz: 500
+  ztop: 16000
+time:
+  run_time: 60
+  dt_large: 1
+  output_interval: 0
+dynamics:
+  scheme: klemp_wilhelmson_split_cartesian_cgrid
+initial_conditions:
+  sounding:
+    type: file
+    file_path: tests/init/fixtures/test_supercell.tmv
+  hodograph:
+    type: auto
+  trigger:
+    type: none

@@ -1,0 +1,430 @@
+// lin_pointwise.comp
+//
+// Fused point-wise Lin microphysics (GPU.md Phase 3.3): the
+// complete per-cell process chain of LinScheme::compute_tendencies in
+// src/microphysics/schemes/lin/lin.cpp, including the theta -> temperature
+// conversion at the top and the Exner back-conversion of the temperature
+// tendency at the bottom (both CPU passes in the reference; fused here so
+// no temperature scratch field exists on the GPU path).
+//
+// Every conversion is mass-limited via xfer() - a process can never move
+// more mass than the source holds - so the scheme is conservative by
+// construction (the 2026-06 mass-limited rewrite). Latent heat is released
+// only for genuine phase changes. Process order matches the CPU exactly:
+//   saturation adjustment (qv <-> qc, L_v)
+//   warm rain: autoconversion above qc0, accretion, rain evaporation
+//   T < T0: homogeneous freezing, vapor deposition on ice, riming
+//           (collection efficiency ramp 0..-5 C), aggregation above the
+//           constant q_I0 threshold, ice autoconversion, sublimation
+//   T >= T0: snow/graupel/hail melting
+//
+// Outputs are per-species tendencies (w_new - q_old) * inv_dt, with
+// dtheta_dt = Exner(dT_sum * inv_dt). dt and inv_dt arrive separately,
+// each rounded once from fp64 on the host.
+//
+// Data layout: row-major [nx][ny][nz]. Index (i, j, k) = (i*ny + j)*nz + k.
+
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) readonly buffer ThetaBuf
+{
+    float theta_in[];
+};
+layout(set = 0, binding = 1) readonly buffer PBuf
+{
+    float p_in[];
+};
+layout(set = 0, binding = 2) readonly buffer QvBuf
+{
+    float qv_in[];
+};
+layout(set = 0, binding = 3) readonly buffer QcBuf
+{
+    float qc_in[];
+};
+layout(set = 0, binding = 4) readonly buffer QrBuf
+{
+    float qr_in[];
+};
+layout(set = 0, binding = 5) readonly buffer QiBuf
+{
+    float qi_in[];
+};
+layout(set = 0, binding = 6) readonly buffer QsBuf
+{
+    float qs_in[];
+};
+layout(set = 0, binding = 7) readonly buffer QgBuf
+{
+    float qg_in[];
+};
+layout(set = 0, binding = 8) readonly buffer QhBuf
+{
+    float qh_in[];
+};
+
+layout(set = 0, binding = 9) writeonly buffer DThetaBuf
+{
+    float dtheta_dt[];
+};
+layout(set = 0, binding = 10) writeonly buffer DQvBuf
+{
+    float dqv_dt[];
+};
+layout(set = 0, binding = 11) writeonly buffer DQcBuf
+{
+    float dqc_dt[];
+};
+layout(set = 0, binding = 12) writeonly buffer DQrBuf
+{
+    float dqr_dt[];
+};
+layout(set = 0, binding = 13) writeonly buffer DQiBuf
+{
+    float dqi_dt[];
+};
+layout(set = 0, binding = 14) writeonly buffer DQsBuf
+{
+    float dqs_dt[];
+};
+layout(set = 0, binding = 15) writeonly buffer DQgBuf
+{
+    float dqg_dt[];
+};
+layout(set = 0, binding = 16) writeonly buffer DQhBuf
+{
+    float dqh_dt[];
+};
+
+// Push constants mirror LinPointwisePushConstants.
+layout(push_constant) uniform PushConstants
+{
+    int   nx;
+    int   ny;
+    int   nz;
+    int   pad0;
+    float dt_step;
+    float inv_dt;
+    float qc0;
+    float c_auto;
+    float c_accr;
+    float c_evap;
+    float c_ihom;
+    float c_rime;
+    float c_agg;
+    float c_melt_s;
+    float c_melt_g;
+    float c_melt_h;
+    float c_subl;
+    float Lv_cp;
+    float Lf_cp;
+    float Ls_cp;
+    int   i_begin;
+    int   i_end;
+    int   j_begin;
+    int   j_end;
+    int   k_begin;
+    int   k_end;
+    int   pad_tail0;
+    int   pad_tail1;
+};
+
+// Physical constants (microphysics_constants; fixed, not configurable).
+const float T0_K     = 273.15;
+const float P0_REF   = 100000.0;
+const float KAPPA_RD = 287.0 / 1004.0;
+const float R_D_GAS  = 287.0;
+// microphysics_constants::homogeneous_freezing_dT (SCIENCE.md M8).
+const float DT_HOM_FREEZE = 38.0;
+
+// Marshall-Palmer spectrum integrals (SCIENCE.md M9) - mirrors
+// src/microphysics/base/fall_speeds.hpp (keep in sync).
+const float PI_MP        = 3.14159265;
+const float RHO_WATER_MP = 1000.0;
+const float N0_RAIN_MP   = 8.0e6;
+const float RHO_SNOW_MP  = 100.0;
+const float N0_SNOW_MP   = 3.0e6;
+const float SNOW_C_MP    = 4.83607122;
+const float SNOW_D_MP    = 0.25;
+const float GAMMA_3P25   = 2.5492514;
+const float BIGG_A       = 0.66;
+const float BIGG_B       = 100.0;
+const float E_SNOW_CLOUD = 1.0;
+const float MIN_Q_MP     = 1.0e-9;
+
+float mp_lambda_pw(float q, float rho_air, float rho_x, float N0)
+{
+    return pow(PI_MP * rho_x * N0 / (rho_air * q), 0.25);
+}
+
+// Bigg stochastic rain freezing (LFO83 Pgfr), kg/kg/s.
+float rain_bigg_freezing_rate(float qr_v, float rho_air, float supercooling)
+{
+    if (qr_v < MIN_Q_MP || supercooling <= 0.0)
+        return 0.0;
+    float rho_safe = rho_air;
+    float lam      = mp_lambda_pw(qr_v, rho_safe, RHO_WATER_MP, N0_RAIN_MP);
+    float growth   = exp(min(BIGG_A * supercooling, 60.0)) - 1.0;
+    return 20.0 * PI_MP * PI_MP * BIGG_B * N0_RAIN_MP * (RHO_WATER_MP / rho_safe) * growth / pow(lam, 7.0);
+}
+
+// Snow-collects-cloud (LFO83 PSACW), per unit qc.
+float snow_cloud_collection_rate(float qs_v, float rho_air)
+{
+    if (qs_v < MIN_Q_MP)
+        return 0.0;
+    float lam = mp_lambda_pw(qs_v, rho_air, RHO_SNOW_MP, N0_SNOW_MP);
+    return (PI_MP / 4.0) * E_SNOW_CLOUD * N0_SNOW_MP * SNOW_C_MP * GAMMA_3P25 / pow(lam, 3.0 + SNOW_D_MP);
+}
+
+bool finite_f(float v)
+{
+    return !isnan(v) && !isinf(v);
+}
+
+// Mirrors thermodynamics::theta_to_temperature.
+float theta_to_temperature(float theta_v, float p_v)
+{
+    if (!finite_f(theta_v) || !finite_f(p_v))
+        return T0_K;
+    float theta_safe = clamp(theta_v, 150.0, 700.0); // matches thermodynamics.hpp / theta_max_k (was 500)
+    float p_safe     = clamp(p_v, 100.0, 200000.0);
+    float T          = theta_safe * pow(p_safe / P0_REF, KAPPA_RD);
+    return finite_f(T) ? T : T0_K;
+}
+
+// Mirrors thermodynamics::saturation_vapor_pressure_water: the Buck
+// water equation at ALL temperatures (valid supercooled). The old
+// sub-freezing ice-form branch deleted the WBF band (SCIENCE.md M7).
+float sat_vapor_pressure_water(float T)
+{
+    if (!finite_f(T))
+        return 0.0;
+    T           = clamp(T, 150.0, 400.0);
+    float T_c   = T - T0_K;
+    float value = 611.21 * exp((18.678 - T_c / 234.5) * T_c / (257.14 + T_c));
+    return finite_f(value) ? max(0.0, value) : 0.0;
+}
+
+// Mirrors thermodynamics::saturation_vapor_pressure_ice.
+float sat_vapor_pressure_ice(float T)
+{
+    if (!finite_f(T))
+        return 0.0;
+    T           = clamp(T, 150.0, 400.0);
+    float T_c   = T - T0_K;
+    float value = 611.15 * exp((23.036 - T_c / 333.7) * T_c / (279.82 + T_c));
+    return finite_f(value) ? max(0.0, value) : 0.0;
+}
+
+float sat_mixing_ratio(float e_sat, float p_v)
+{
+    if (!finite_f(e_sat) || !finite_f(p_v))
+        return 0.0;
+    float p_safe = clamp(p_v, 100.0, 200000.0);
+    float denom  = max(p_safe - e_sat, 1.0);
+    return clamp(0.62198 * e_sat / denom, 0.0, 0.2);
+}
+
+// Mirrors LinScheme::collection_efficiency.
+float collection_efficiency(float T_celsius)
+{
+    if (T_celsius <= -5.0)
+        return 1.0;
+    if (T_celsius >= 0.0)
+        return 0.0;
+    return clamp((-T_celsius) / 5.0, 0.0, 1.0);
+}
+
+// Mirrors the mass-limited transfer() lambda: move `amount` from src to
+// dst, capped at the available src mass; accumulate latent heating.
+void xfer(inout float src, inout float dst, float amount, float L_over_cp, inout float dT_sum, float T_safe)
+{
+    if (amount > src)
+        amount = src;
+    if (amount <= 0.0)
+        return;
+    src -= amount;
+    dst += amount;
+    // Temperature increment dT = (L/cp) dq; the Exner conversion at the
+    // end produces dtheta (SCIENCE.md C3: the old /T made heating
+    // ~T x too weak).
+    dT_sum += L_over_cp * amount;
+}
+
+void evaluate(uint gid)
+{
+    uint total = uint(nx) * uint(ny) * uint(nz);
+    if (gid >= total)
+    {
+        return;
+    }
+    uint c = gid;
+    int  i = int(gid) / (ny * nz), j = (int(gid) / nz) % ny, k = int(gid) % nz;
+    if (i < i_begin || i >= i_end || j < j_begin || j >= j_end || k < k_begin || k >= k_end)
+    {
+        dtheta_dt[c] = 0.0;
+        dqv_dt[c]    = 0.0;
+        dqc_dt[c]    = 0.0;
+        dqr_dt[c]    = 0.0;
+        dqi_dt[c]    = 0.0;
+        dqs_dt[c]    = 0.0;
+        dqg_dt[c]    = 0.0;
+        dqh_dt[c]    = 0.0;
+        return;
+    }
+
+    float T      = theta_to_temperature(theta_in[c], p_in[c]);
+    float P      = p_in[c];
+    float T_safe = max(T, 1.0);
+    float Tc     = T - T0_K;
+
+    float wqv    = qv_in[c];
+    float wqc    = qc_in[c];
+    float wqr    = qr_in[c];
+    float wqi    = qi_in[c];
+    float wqs    = qs_in[c];
+    float wqg    = qg_in[c];
+    float wqh    = qh_in[c];
+    float dT_sum = 0.0;
+
+    // --- Saturation adjustment (qv <-> qc, latent L_v) ---
+    // Implicit form (SCIENCE.md M13), mirroring lin.cpp: divide the
+    // raw excess/deficit by 1 + gamma, gamma = L^2 qvs/(cp Rv T^2).
+    // L_v = 2.5e6 J/kg, cp = 1004 J/(kg K), Rv = 461.5 J/(kg K) - the
+    // same constants the CPU reference uses.
+    float       qvsat_w   = sat_mixing_ratio(sat_vapor_pressure_water(T), P);
+    const float L_V_CONST = 2.5e6;
+    const float CP_CONST  = 1004.0;
+    const float RV_CONST  = 461.5;
+    float       gamma_sat = (L_V_CONST * L_V_CONST * qvsat_w) / (CP_CONST * RV_CONST * max(T_safe * T_safe, 1.0));
+    if (wqv > qvsat_w)
+    {
+        xfer(wqv, wqc, (wqv - qvsat_w) / (1.0 + gamma_sat), Lv_cp, dT_sum, T_safe);
+    }
+    else if (wqc > 0.0)
+    {
+        xfer(wqc, wqv, (qvsat_w - wqv) / (1.0 + gamma_sat), -Lv_cp, dT_sum, T_safe);
+    }
+
+    // --- Warm rain (liquid->liquid: NO latent heat) ---
+    if (wqc > qc0)
+    {
+        xfer(wqc, wqr, c_auto * (wqc - qc0) * dt_step, 0.0, dT_sum, T_safe);
+    }
+    if (wqc > 0.0 && wqr > 0.0)
+    {
+        xfer(wqc, wqr, c_accr * wqc * wqr * dt_step, 0.0, dT_sum, T_safe);
+    }
+    if (wqr > 0.0)
+    {
+        float RH = (wqv > 0.0) ? wqv / max(qvsat_w, 1.0e-12) : 0.0;
+        if (RH < 1.0)
+        {
+            xfer(wqr, wqv, c_evap * (1.0 - RH) * wqr * dt_step, -Lv_cp, dT_sum, T_safe);
+        }
+    }
+
+    // --- Ice / mixed phase ---
+    // Local dry-air density for the spectrum integrals (M9); mirrors
+    // the CPU exactly.
+    float rho_air = P / (R_D_GAS * T_safe);
+
+    if (T < T0_K)
+    {
+        if (wqc > 0.0)
+        {
+            // Ramp with supercooling toward instantaneous homogeneous
+            // freezing at T0 - 38 (SCIENCE.md M8; mirrors lin.cpp).
+            float supercooling      = T0_K - T;
+            float freeze_frac_per_s = (supercooling >= DT_HOM_FREEZE) ? 1.0 : c_ihom * (supercooling / DT_HOM_FREEZE);
+            xfer(wqc, wqi, freeze_frac_per_s * wqc * dt_step, Lf_cp, dT_sum, T_safe);
+        }
+        // Bigg stochastic freezing of supercooled rain -> hail embryos
+        // (SCIENCE.md M9; mirrors lin.cpp).
+        if (wqr > 0.0)
+        {
+            float pgfr = rain_bigg_freezing_rate(wqr, rho_air, T0_K - T);
+            xfer(wqr, wqh, pgfr * dt_step, Lf_cp, dT_sum, T_safe);
+        }
+        float qvsat_i = sat_mixing_ratio(sat_vapor_pressure_ice(T), P);
+        if (wqi > 0.0 && wqv > qvsat_i)
+        {
+            xfer(wqv, wqi, c_subl * (wqv - qvsat_i) * dt_step, Ls_cp, dT_sum, T_safe);
+        }
+        if (wqc > 0.0 && wqi > 0.0)
+        {
+            float E_ac = collection_efficiency(Tc);
+            xfer(wqc, wqg, c_rime * E_ac * wqc * wqi * dt_step, Lf_cp, dT_sum, T_safe);
+        }
+        // Snow rimes supercooled cloud (SCIENCE.md M9;
+        // LFO83 PSACW; mirrors lin.cpp).
+        if (wqc > 0.0 && wqs > 0.0)
+        {
+            float psacw_per_qc = snow_cloud_collection_rate(wqs, rho_air);
+            xfer(wqc, wqs, psacw_per_qc * wqc * dt_step, Lf_cp, dT_sum, T_safe);
+        }
+        // Lin83 ice -> snow autoconversion/aggregation, threshold-gated and
+        // temperature-dependent. The extra c_auto*qi^2 term had no Lin83 analog
+        // and double-counted ice->snow (science audit) - removed, mirroring lin.cpp.
+        const float q_I0 = 1.0e-3; // Lin83 ice autoconversion threshold (kg/kg)
+        if (wqi > q_I0)
+        {
+            xfer(wqi, wqs, c_agg * (wqi - q_I0) * exp(0.025 * Tc) * dt_step, 0.0, dT_sum, T_safe);
+        }
+        float RH_i = (wqv > 0.0) ? wqv / max(qvsat_i, 1.0e-12) : 0.0;
+        if (RH_i < 1.0)
+        {
+            if (wqi > 0.0)
+            {
+                xfer(wqi, wqv, c_subl * (1.0 - RH_i) * wqi * dt_step, -Ls_cp, dT_sum, T_safe);
+            }
+            if (wqs > 0.0)
+            {
+                xfer(wqs, wqv, c_subl * (1.0 - RH_i) * wqs * dt_step, -Ls_cp, dT_sum, T_safe);
+            }
+        }
+    }
+    else
+    {
+        // --- Melting (T > T0): snow/graupel/hail -> rain (absorb L_f).
+        // Rate scales with the warm excess and per-species heat-transfer
+        // coefficients (SCIENCE.md M10).
+        float warm_excess = T - T0_K;
+        if (wqs > 0.0)
+            xfer(wqs, wqr, c_melt_s * warm_excess * wqs * dt_step, -Lf_cp, dT_sum, T_safe);
+        if (wqg > 0.0)
+            xfer(wqg, wqr, c_melt_g * warm_excess * wqg * dt_step, -Lf_cp, dT_sum, T_safe);
+        if (wqh > 0.0)
+            xfer(wqh, wqr, c_melt_h * warm_excess * wqh * dt_step, -Lf_cp, dT_sum, T_safe);
+    }
+
+    // Net per-species tendencies.
+    dqv_dt[c] = (wqv - qv_in[c]) * inv_dt;
+    dqc_dt[c] = (wqc - qc_in[c]) * inv_dt;
+    dqr_dt[c] = (wqr - qr_in[c]) * inv_dt;
+    dqi_dt[c] = (wqi - qi_in[c]) * inv_dt;
+    dqs_dt[c] = (wqs - qs_in[c]) * inv_dt;
+    dqg_dt[c] = (wqg - qg_in[c]) * inv_dt;
+    dqh_dt[c] = (wqh - qh_in[c]) * inv_dt;
+
+    // Temperature tendency -> potential-temperature tendency (Exner),
+    // mirroring thermodynamics::temperature_tendency_to_theta.
+    float dT_dt  = dT_sum * inv_dt;
+    float dtheta = 0.0;
+    if (finite_f(dT_dt) && finite_f(P))
+    {
+        float p_safe = clamp(P, 100.0, 200000.0);
+        dtheta       = dT_dt * pow(P0_REF / p_safe, KAPPA_RD);
+        if (!finite_f(dtheta))
+            dtheta = 0.0;
+    }
+    dtheta_dt[c] = dtheta;
+}
+
+void main()
+{
+    evaluate(gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * gl_NumWorkGroups.x * gl_WorkGroupSize.x);
+}

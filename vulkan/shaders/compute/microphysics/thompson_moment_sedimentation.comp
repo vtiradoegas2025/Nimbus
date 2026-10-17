@@ -1,0 +1,247 @@
+#version 450
+layout(local_size_x = 64) in;
+layout(set = 0, binding = 0) readonly buffer Mass
+{
+    float mass[];
+};
+layout(set = 0, binding = 1) readonly buffer Number
+{
+    float number[];
+};
+layout(set = 0, binding = 2) readonly buffer Density
+{
+    float density[];
+};
+layout(set = 0, binding = 3) readonly buffer Temperature
+{
+    float temperature[];
+};
+layout(set = 0, binding = 4) readonly buffer Thickness
+{
+    float thickness[];
+};
+layout(set = 0, binding = 5) readonly buffer VerticalVelocity
+{
+    float vertical_velocity[];
+};
+layout(set = 0, binding = 6) readonly buffer SnowMultiplier
+{
+    float snow_multiplier[];
+};
+layout(set = 0, binding = 7) writeonly buffer MassChange
+{
+    float mass_change[];
+};
+layout(set = 0, binding = 8) writeonly buffer NumberChange
+{
+    float number_change[];
+};
+layout(set = 0, binding = 9) writeonly buffer SurfaceMass
+{
+    float surface_mass[];
+};
+layout(set = 0, binding = 10) buffer WorkMass
+{
+    float work_mass[];
+};
+layout(set = 0, binding = 11) buffer WorkNumber
+{
+    float work_number[];
+};
+layout(set = 0, binding = 12) buffer MassSpeed
+{
+    float mass_speed[];
+};
+layout(set = 0, binding = 13) buffer NumberSpeed
+{
+    float number_speed[];
+};
+
+layout(push_constant) uniform PushConstants
+{
+    int   nx;
+    int   ny;
+    int   nz;
+    int   i_begin;
+    int   i_end;
+    int   j_begin;
+    int   j_end;
+    int   k_begin;
+    int   k_end;
+    int   species;
+    int   maximum_substeps;
+    float dt;
+};
+
+float snow_third_moment(float second, float t)
+{
+    // The third-moment polynomial is reduced algebraically before FP32 evaluation.
+    float a = -1.649501 + t * (0.054539 + t * 0.000327);
+    float b = 1.420867 + t * (0.011854 + t * 0.000096);
+    return pow(10.0, a) * pow(second, b);
+}
+
+vec2 fall_speeds(int n, float height)
+{
+    float q  = work_mass[n];
+    float nc = work_number[n];
+    if (q <= 1.0e-12)
+    {
+        return vec2(0.0);
+    }
+    float factor            = sqrt((101325.0 / (287.05 * 298.0)) / density[n]);
+    float water_coefficient = 3.1415926536 * 1000.0 / 6.0;
+    if (species == 0)
+    {
+        if (nc <= 2.0 || height > 500.0 || vertical_velocity[n] >= 0.1)
+        {
+            return vec2(0.0);
+        }
+        float shape = min(15.0, floor(1.0e9 / nc + 0.5) + 2.0);
+        float slope = pow(nc * water_coefficient * (shape + 3.0) * (shape + 2.0) * (shape + 1.0) / q, 1.0 / 3.0);
+        factor *= 0.316946e8 / (slope * slope);
+        return factor * vec2((shape + 5.0) * (shape + 4.0), (shape + 2.0) * (shape + 1.0));
+    }
+    if (species == 1)
+    {
+        if (nc <= 1.0e-6)
+        {
+            return vec2(0.0);
+        }
+        float slope = clamp(pow(water_coefficient * 6.0 * nc / q, 1.0 / 3.0), 3.672 / 2.5e-3, 3.672 / 37.5e-6);
+        float ratio = slope / (slope + 195.0);
+        return factor * 4854.0 / (slope + 195.0) * vec2(4.0 * pow(ratio, 4.0), 2.5 * pow(ratio, 2.5));
+    }
+    if (species == 2)
+    {
+        if (nc <= 1.0e-6)
+        {
+            return vec2(0.0);
+        }
+        float slope = clamp(pow(3.1415926536 * 890.0 * nc / q, 1.0 / 3.0), 4.0 / 300.0e-6, 4.0 / 5.0e-6);
+        return factor * 1493.9 / slope * vec2(4.0, 2.5);
+    }
+    if (species == 3)
+    {
+        float second       = q / 0.069;
+        float inverse_size = second / snow_third_moment(second, min(-0.1, temperature[n] - 273.15));
+        float first        = 1.0 / (inverse_size * 20.78 + 100.0);
+        float second_slope = 1.0 / (inverse_size * 3.29 + 100.0);
+        float numerator    = 490.6 * 3.5132521446932 * pow(first, 3.55) +
+                             17.46 * pow(inverse_size, 0.6357) * 7.61279965268895 * pow(second_slope, 4.1857);
+        float denominator  = 490.6 * 2.0 / pow(inverse_size * 20.78, 3.0) +
+                             17.46 * pow(inverse_size, 0.6357) * 3.8716065382667 / pow(inverse_size * 3.29, 3.6357);
+        return vec2(factor * 40.0 * numerator / denominator * snow_multiplier[n], 0.0);
+    }
+    float logarithmic_content = log(max(1.0e-9, q)) / log(10.0);
+    float intercept           = pow(10.0, clamp(3.0 + 2.0 / 7.0 * (logarithmic_content + 8.0), 2.0, 6.0));
+    float slope               = pow(intercept * (3.1415926536 * 400.0 / 6.0) / q, 0.25) * pow(6.0, 1.0 / 3.0);
+    return vec2(factor * 442.0 * pow(1.0 / slope, 0.89) * 3.39387174482061, 0.0);
+}
+
+void evaluate(uint gid)
+{
+    if (gid >= uint(nx * ny))
+    {
+        return;
+    }
+    int column           = int(gid);
+    int i                = column / ny;
+    int j                = column % ny;
+    int base             = column * nz;
+    surface_mass[column] = 0.0;
+    for (int k = 0; k < nz; ++k)
+    {
+        mass_change[base + k]   = 0.0;
+        number_change[base + k] = 0.0;
+    }
+    if (i < i_begin || i >= i_end || j < j_begin || j >= j_end)
+    {
+        return;
+    }
+    surface_mass[column] = -1.0;
+    float height         = 0.0;
+    for (int k = k_begin; k < k_end; ++k)
+    {
+        int n          = base + k;
+        work_mass[n]   = mass[n] * density[n];
+        work_number[n] = species < 3 ? number[n] * density[n] : 0.0;
+        vec2 speeds    = fall_speeds(n, height);
+        if (isnan(speeds.x) || isinf(speeds.x) || speeds.x < 0.0 || isnan(speeds.y) || isinf(speeds.y) ||
+            speeds.y < 0.0)
+        {
+            return;
+        }
+        mass_speed[n]   = speeds.x;
+        number_speed[n] = speeds.y;
+        height += thickness[n];
+    }
+    int substeps = 1;
+    if (species != 0)
+    {
+        for (int k = k_end - 2; k >= k_begin; --k)
+        {
+            int n = base + k;
+            if (work_mass[n] <= 1.0e-12)
+            {
+                mass_speed[n]   = mass_speed[n + 1];
+                number_speed[n] = number_speed[n + 1];
+            }
+        }
+        for (int k = k_begin; k < k_end; ++k)
+        {
+            int   n     = base + k;
+            float speed = species == 1 ? max(mass_speed[n], number_speed[n]) : mass_speed[n];
+            if (speed > 1.0e-3)
+            {
+                float courant = dt * speed / thickness[n];
+                if (isnan(courant) || isinf(courant) || courant >= float(maximum_substeps))
+                {
+                    return;
+                }
+                substeps = max(substeps, int(courant) + 1);
+            }
+        }
+    }
+    float substep_dt    = dt / float(substeps);
+    float precipitation = 0.0;
+    for (int step = 0; step < substeps; ++step)
+    {
+        // Bottom-to-top traversal reads each upper donor before it is updated.
+        for (int k = k_begin; k < k_end; ++k)
+        {
+            int   n              = base + k;
+            float flux           = mass_speed[n] * work_mass[n] * substep_dt;
+            float number_flux    = number_speed[n] * work_number[n] * substep_dt;
+            float removed        = flux / thickness[n];
+            float removed_number = number_flux / thickness[n];
+            if (removed > work_mass[n] + 1.0e-12 || removed_number > work_number[n] + 1.0e-5)
+            {
+                return;
+            }
+            work_mass[n]   = max(0.0, work_mass[n] - removed);
+            work_number[n] = max(0.0, work_number[n] - removed_number);
+            if (k + 1 < k_end)
+            {
+                work_mass[n] += mass_speed[n + 1] * work_mass[n + 1] * substep_dt / thickness[n];
+                work_number[n] += number_speed[n + 1] * work_number[n + 1] * substep_dt / thickness[n];
+            }
+            if (k == k_begin)
+            {
+                precipitation += flux;
+            }
+        }
+    }
+    for (int k = k_begin; k < k_end; ++k)
+    {
+        int n            = base + k;
+        mass_change[n]   = (work_mass[n] - mass[n] * density[n]) / density[n] / dt;
+        number_change[n] = species < 3 ? (work_number[n] - number[n] * density[n]) / density[n] / dt : 0.0;
+    }
+    surface_mass[column] = precipitation;
+}
+
+void main()
+{
+    evaluate(gl_GlobalInvocationID.x);
+}

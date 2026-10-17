@@ -1,0 +1,563 @@
+{
+  "aggregate": {
+    "checkpoint_sha256": "0625abe49d93e4ff46cb0a8b02088c93761a8959fcdad7339b671e5af92e3984",
+    "field_sha256": {
+      "p": "cafbea84db9052f363065aeb54c449cade0e7dd344bee279f888fd26a47bdaf2",
+      "qr": "c6852956ef3e07e7b6c4abb17dc10f5cd190f4babe65d22fad53ddfb2eb7b1c0",
+      "qv": "124dbb55e0ed780cfd64b375724e9a716b78f86a68dab250e538507962581393",
+      "rho": "5a3085a8c936b510c15dfec3d2aa853f1d8a216ff461637f80a0a1deb5a9d1f6",
+      "theta": "77f4854e1583efa3605263e9ed5edb9d17292f1befdc38e0fbd121009deef872",
+      "u": "e550a02755449608e73edadd074b2fba97267ed11e33be7a8f1e8c044dec1623",
+      "v": "3d5a808bc0587c7be2834dc80ece8584abcf0e395d16dc33a50810cfd89934ff",
+      "w": "e41f76350430661ec52dbaa42aa06201e6e21adb12541a6e7fae8518d66aa502"
+    },
+    "ledger_sha256": {
+      "budget.csv": "7116bd2127996dec51bc6f7b4856002f66f6ffe9b50ea60138ab385c9355b578",
+      "energy_budget.csv": "735c6fe291d0065c20fe23564be444f01e9b5a560cfe5da190947262f5d4b180",
+      "moisture_budget.csv": "ce3bc586d4679ad4c2199619ae8acf130c7cce5b3ffd4368f3886efbd81162e3",
+      "momentum_budget.csv": "a1b30d99779898fb9242d5a78f9f7ee1ef04cbb6de822f6aa035a8e5963a06f9",
+      "radiation_budget.csv": "f16afcab93718fc1e78d05b9187dafa6ecb3343c10f58e9a8f8dff27f27aada4",
+      "thermodynamic_source_budget.csv": "e823d2cb244001de19e0c42b6c6f5580c9f7ce1c2ee64c44a2c235b2907b3e06"
+    },
+    "median_speedup_percent": -0.08772803361168972,
+    "minimum_named_wall_fraction": 0.9528480044188669,
+    "paired_mad_percent": 0.10742417556857846,
+    "paired_speedups_percent": [
+      -0.308177088627484,
+      -4.930590148218477,
+      -0.060384176492957506,
+      -0.19515220918026818,
+      0.2106961514734473,
+      -0.08772803361168972,
+      -0.010498136580766355
+    ],
+    "three_mad_percent": 0.32227252670573536,
+    "time_gate_passed": false
+  },
+  "contract": {
+    "duration_s": 40,
+    "field_count": 8,
+    "ledger_count": 6,
+    "measured_steps": 60,
+    "minimum_named_wall_fraction": 0.95,
+    "minimum_noise_multiple_mad": 3.0,
+    "minimum_time_gain_percent": 2.0,
+    "threads": 1,
+    "timeout_per_run_s": 20,
+    "trials": 7,
+    "warmup_steps": 20
+  },
+  "disposition": "time_gain_rejected",
+  "generated_at_utc": "2026-09-27T23:49:33.435779+00:00",
+  "pairs": [
+    {
+      "baseline": {
+        "avg_step_ms": 21.6434,
+        "binary_sha256": "08b9918b3d2f2e59e77a4befaaa406948028d3ccc1421a65792a18855e23422d",
+        "checkpoint_bytes": 2403446,
+        "checkpoint_sha256": "0625abe49d93e4ff46cb0a8b02088c93761a8959fcdad7339b671e5af92e3984",
+        "field_sha256": {
+          "p": "cafbea84db9052f363065aeb54c449cade0e7dd344bee279f888fd26a47bdaf2",
+          "qr": "c6852956ef3e07e7b6c4abb17dc10f5cd190f4babe65d22fad53ddfb2eb7b1c0",
+          "qv": "124dbb55e0ed780cfd64b375724e9a716b78f86a68dab250e538507962581393",
+          "rho": "5a3085a8c936b510c15dfec3d2aa853f1d8a216ff461637f80a0a1deb5a9d1f6",
+          "theta": "77f4854e1583efa3605263e9ed5edb9d17292f1befdc38e0fbd121009deef872",
+          "u": "e550a02755449608e73edadd074b2fba97267ed11e33be7a8f1e8c044dec1623",
+          "v": "3d5a808bc0587c7be2834dc80ece8584abcf0e395d16dc33a50810cfd89934ff",
+          "w": "e41f76350430661ec52dbaa42aa06201e6e21adb12541a6e7fae8518d66aa502"
+        },
+        "ledger_sha256": {
+          "budget.csv": "7116bd2127996dec51bc6f7b4856002f66f6ffe9b50ea60138ab385c9355b578",
+          "energy_budget.csv": "735c6fe291d0065c20fe23564be444f01e9b5a560cfe5da190947262f5d4b180",
+          "moisture_budget.csv": "ce3bc586d4679ad4c2199619ae8acf130c7cce5b3ffd4368f3886efbd81162e3",
+          "momentum_budget.csv": "a1b30d99779898fb9242d5a78f9f7ee1ef04cbb6de822f6aa035a8e5963a06f9",
+          "radiation_budget.csv": "f16afcab93718fc1e78d05b9187dafa6ecb3343c10f58e9a8f8dff27f27aada4",
+          "thermodynamic_source_budget.csv": "e823d2cb244001de19e0c42b6c6f5580c9f7ce1c2ee64c44a2c235b2907b3e06"
+        },
+        "log": "/private/tmp/nimbus-c6-gamma-ab-raw-20260927/pair_01_baseline/runtime.log",
+        "log_sha256": "4df830e44028df24f849bcdc96af89f6e9695e8b632c79b93b237edde5fb399b",
+        "microphysics_s": 0.197606,
+        "microphysics_scheme_s": 0.142001,
+        "named_wall_fraction": 0.9882643749855614,
+        "step_wall_s": 1.29861,
+        "validation_sha256": "35605449931469473d1d89e819704d1b6c71bc62018aaba2973e3fb6966350df"
+      },
+      "candidate": {
+        "avg_step_ms": 21.7101,
+        "binary_sha256": "1983524fc9536e68ea044c2c629e7f817bbb09433ace2f5782d9d03c7a138b6b",
+        "checkpoint_bytes": 2403446,
+        "checkpoint_sha256": "0625abe49d93e4ff46cb0a8b02088c93761a8959fcdad7339b671e5af92e3984",
+        "field_sha256": {
+          "p": "cafbea84db9052f363065aeb54c449cade0e7dd344bee279f888fd26a47bdaf2",
+          "qr": "c6852956ef3e07e7b6c4abb17dc10f5cd190f4babe65d22fad53ddfb2eb7b1c0",
+          "qv": "124dbb55e0ed780cfd64b375724e9a716b78f86a68dab250e538507962581393",
+          "rho": "5a3085a8c936b510c15dfec3d2aa853f1d8a216ff461637f80a0a1deb5a9d1f6",
+          "theta": "77f4854e1583efa3605263e9ed5edb9d17292f1befdc38e0fbd121009deef872",
+          "u": "e550a02755449608e73edadd074b2fba97267ed11e33be7a8f1e8c044dec1623",
+          "v": "3d5a808bc0587c7be2834dc80ece8584abcf0e395d16dc33a50810cfd89934ff",
+          "w": "e41f76350430661ec52dbaa42aa06201e6e21adb12541a6e7fae8518d66aa502"
+        },
+        "ledger_sha256": {
+          "budget.csv": "7116bd2127996dec51bc6f7b4856002f66f6ffe9b50ea60138ab385c9355b578",
+          "energy_budget.csv": "735c6fe291d0065c20fe23564be444f01e9b5a560cfe5da190947262f5d4b180",
+          "moisture_budget.csv": "ce3bc586d4679ad4c2199619ae8acf130c7cce5b3ffd4368f3886efbd81162e3",
+          "momentum_budget.csv": "a1b30d99779898fb9242d5a78f9f7ee1ef04cbb6de822f6aa035a8e5963a06f9",
+          "radiation_budget.csv": "f16afcab93718fc1e78d05b9187dafa6ecb3343c10f58e9a8f8dff27f27aada4",
+          "thermodynamic_source_budget.csv": "e823d2cb244001de19e0c42b6c6f5580c9f7ce1c2ee64c44a2c235b2907b3e06"
+        },
+        "log": "/private/tmp/nimbus-c6-gamma-ab-raw-20260927/pair_01_candidate/runtime.log",
+        "log_sha256": "e93b71bd60f8a85f8880925af590fba275b43b7a4db08144e8efc1971aabfe26",
+        "microphysics_s": 0.197541,
+        "microphysics_scheme_s": 0.141321,
+        "named_wall_fraction": 0.988415565671997,
+        "step_wall_s": 1.30261,
+        "validation_sha256": "35605449931469473d1d89e819704d1b6c71bc62018aaba2973e3fb6966350df"
+      },
+      "exact_state_fields_and_ledgers": true,
+      "order": [
+        "candidate",
+        "baseline"
+      ],
+      "pair": 1,
+      "speedup_percent": -0.308177088627484
+    },
+    {
+      "baseline": {
+        "avg_step_ms": 21.2794,
+        "binary_sha256": "08b9918b3d2f2e59e77a4befaaa406948028d3ccc1421a65792a18855e23422d",
+        "checkpoint_bytes": 2403446,
+        "checkpoint_sha256": "0625abe49d93e4ff46cb0a8b02088c93761a8959fcdad7339b671e5af92e3984",
+        "field_sha256": {
+          "p": "cafbea84db9052f363065aeb54c449cade0e7dd344bee279f888fd26a47bdaf2",
+          "qr": "c6852956ef3e07e7b6c4abb17dc10f5cd190f4babe65d22fad53ddfb2eb7b1c0",
+          "qv": "124dbb55e0ed780cfd64b375724e9a716b78f86a68dab250e538507962581393",
+          "rho": "5a3085a8c936b510c15dfec3d2aa853f1d8a216ff461637f80a0a1deb5a9d1f6",
+          "theta": "77f4854e1583efa3605263e9ed5edb9d17292f1befdc38e0fbd121009deef872",
+          "u": "e550a02755449608e73edadd074b2fba97267ed11e33be7a8f1e8c044dec1623",
+          "v": "3d5a808bc0587c7be2834dc80ece8584abcf0e395d16dc33a50810cfd89934ff",
+          "w": "e41f76350430661ec52dbaa42aa06201e6e21adb12541a6e7fae8518d66aa502"
+        },
+        "ledger_sha256": {
+          "budget.csv": "7116bd2127996dec51bc6f7b4856002f66f6ffe9b50ea60138ab385c9355b578",
+          "energy_budget.csv": "735c6fe291d0065c20fe23564be444f01e9b5a560cfe5da190947262f5d4b180",
+          "moisture_budget.csv": "ce3bc586d4679ad4c2199619ae8acf130c7cce5b3ffd4368f3886efbd81162e3",
+          "momentum_budget.csv": "a1b30d99779898fb9242d5a78f9f7ee1ef04cbb6de822f6aa035a8e5963a06f9",
+          "radiation_budget.csv": "f16afcab93718fc1e78d05b9187dafa6ecb3343c10f58e9a8f8dff27f27aada4",
+          "thermodynamic_source_budget.csv": "e823d2cb244001de19e0c42b6c6f5580c9f7ce1c2ee64c44a2c235b2907b3e06"
+        },
+        "log": "/private/tmp/nimbus-c6-gamma-ab-raw-20260927/pair_02_baseline/runtime.log",
+        "log_sha256": "9a7ae3791c7e6f6b9af84e3faf317813ce64f5c1f08ac1804f1a298378175f0d",
+        "microphysics_s": 0.193707,
+        "microphysics_scheme_s": 0.139814,
+        "named_wall_fraction": 0.9888625202659838,
+        "step_wall_s": 1.27677,
+        "validation_sha256": "35605449931469473d1d89e819704d1b6c71bc62018aaba2973e3fb6966350df"
+      },
+      "candidate": {
+        "avg_step_ms": 22.3286,
+        "binary_sha256": "1983524fc9536e68ea044c2c629e7f817bbb09433ace2f5782d9d03c7a138b6b",
+        "checkpoint_bytes": 2403446,
+        "checkpoint_sha256": "0625abe49d93e4ff46cb0a8b02088c93761a8959fcdad7339b671e5af92e3984",
+        "field_sha256": {
+          "p": "cafbea84db9052f363065aeb54c449cade0e7dd344bee279f888fd26a47bdaf2",
+          "qr": "c6852956ef3e07e7b6c4abb17dc10f5cd190f4babe65d22fad53ddfb2eb7b1c0",
+          "qv": "124dbb55e0ed780cfd64b375724e9a716b78f86a68dab250e538507962581393",
+          "rho": "5a3085a8c936b510c15dfec3d2aa853f1d8a216ff461637f80a0a1deb5a9d1f6",
+          "theta": "77f4854e1583efa3605263e9ed5edb9d17292f1befdc38e0fbd121009deef872",
+          "u": "e550a02755449608e73edadd074b2fba97267ed11e33be7a8f1e8c044dec1623",
+          "v": "3d5a808bc0587c7be2834dc80ece8584abcf0e395d16dc33a50810cfd89934ff",
+          "w": "e41f76350430661ec52dbaa42aa06201e6e21adb12541a6e7fae8518d66aa502"
+        },
+        "ledger_sha256": {
+          "budget.csv": "7116bd2127996dec51bc6f7b4856002f66f6ffe9b50ea60138ab385c9355b578",
+          "energy_budget.csv": "735c6fe291d0065c20fe23564be444f01e9b5a560cfe5da190947262f5d4b180",
+          "moisture_budget.csv": "ce3bc586d4679ad4c2199619ae8acf130c7cce5b3ffd4368f3886efbd81162e3",
+          "momentum_budget.csv": "a1b30d99779898fb9242d5a78f9f7ee1ef04cbb6de822f6aa035a8e5963a06f9",
+          "radiation_budget.csv": "f16afcab93718fc1e78d05b9187dafa6ecb3343c10f58e9a8f8dff27f27aada4",
+          "thermodynamic_source_budget.csv": "e823d2cb244001de19e0c42b6c6f5580c9f7ce1c2ee64c44a2c235b2907b3e06"
+        },
+        "log": "/private/tmp/nimbus-c6-gamma-ab-raw-20260927/pair_02_candidate/runtime.log",
+        "log_sha256": "b4c10f2f8445026271cfc474e7c4f36c3c6e8b6c6d24b32e954daf59e6921c74",
+        "microphysics_s": 0.197098,
+        "microphysics_scheme_s": 0.140152,
+        "named_wall_fraction": 0.9528480044188669,
+        "step_wall_s": 1.33971,
+        "validation_sha256": "35605449931469473d1d89e819704d1b6c71bc62018aaba2973e3fb6966350df"
+      },
+      "exact_state_fields_and_ledgers": true,
+      "order": [
+        "baseline",
+        "candidate"
+      ],
+      "pair": 2,
+      "speedup_percent": -4.930590148218477
+    },
+    {
+      "baseline": {
+        "avg_step_ms": 21.032,
+        "binary_sha256": "08b9918b3d2f2e59e77a4befaaa406948028d3ccc1421a65792a18855e23422d",
+        "checkpoint_bytes": 2403446,
+        "checkpoint_sha256": "0625abe49d93e4ff46cb0a8b02088c93761a8959fcdad7339b671e5af92e3984",
+        "field_sha256": {
+          "p": "cafbea84db9052f363065aeb54c449cade0e7dd344bee279f888fd26a47bdaf2",
+          "qr": "c6852956ef3e07e7b6c4abb17dc10f5cd190f4babe65d22fad53ddfb2eb7b1c0",
+          "qv": "124dbb55e0ed780cfd64b375724e9a716b78f86a68dab250e538507962581393",
+          "rho": "5a3085a8c936b510c15dfec3d2aa853f1d8a216ff461637f80a0a1deb5a9d1f6",
+          "theta": "77f4854e1583efa3605263e9ed5edb9d17292f1befdc38e0fbd121009deef872",
+          "u": "e550a02755449608e73edadd074b2fba97267ed11e33be7a8f1e8c044dec1623",
+          "v": "3d5a808bc0587c7be2834dc80ece8584abcf0e395d16dc33a50810cfd89934ff",
+          "w": "e41f76350430661ec52dbaa42aa06201e6e21adb12541a6e7fae8518d66aa502"
+        },
+        "ledger_sha256": {
+          "budget.csv": "7116bd2127996dec51bc6f7b4856002f66f6ffe9b50ea60138ab385c9355b578",
+          "energy_budget.csv": "735c6fe291d0065c20fe23564be444f01e9b5a560cfe5da190947262f5d4b180",
+          "moisture_budget.csv": "ce3bc586d4679ad4c2199619ae8acf130c7cce5b3ffd4368f3886efbd81162e3",
+          "momentum_budget.csv": "a1b30d99779898fb9242d5a78f9f7ee1ef04cbb6de822f6aa035a8e5963a06f9",
+          "radiation_budget.csv": "f16afcab93718fc1e78d05b9187dafa6ecb3343c10f58e9a8f8dff27f27aada4",
+          "thermodynamic_source_budget.csv": "e823d2cb244001de19e0c42b6c6f5580c9f7ce1c2ee64c44a2c235b2907b3e06"
+        },
+        "log": "/private/tmp/nimbus-c6-gamma-ab-raw-20260927/pair_03_baseline/runtime.log",
+        "log_sha256": "edeaee85e346e0ce72e8b172a22d4dc71528390dc89f5f45878e4a42a992b155",
+        "microphysics_s": 0.190708,
+        "microphysics_scheme_s": 0.137597,
+        "named_wall_fraction": 0.9894842779257006,
+        "step_wall_s": 1.26192,
+        "validation_sha256": "35605449931469473d1d89e819704d1b6c71bc62018aaba2973e3fb6966350df"
+      },
+      "candidate": {
+        "avg_step_ms": 21.0447,
+        "binary_sha256": "1983524fc9536e68ea044c2c629e7f817bbb09433ace2f5782d9d03c7a138b6b",
+        "checkpoint_bytes": 2403446,
+        "checkpoint_sha256": "0625abe49d93e4ff46cb0a8b02088c93761a8959fcdad7339b671e5af92e3984",
+        "field_sha256": {
+          "p": "cafbea84db9052f363065aeb54c449cade0e7dd344bee279f888fd26a47bdaf2",
+          "qr": "c6852956ef3e07e7b6c4abb17dc10f5cd190f4babe65d22fad53ddfb2eb7b1c0",
+          "qv": "124dbb55e0ed780cfd64b375724e9a716b78f86a68dab250e538507962581393",
+          "rho": "5a3085a8c936b510c15dfec3d2aa853f1d8a216ff461637f80a0a1deb5a9d1f6",
+          "theta": "77f4854e1583efa3605263e9ed5edb9d17292f1befdc38e0fbd121009deef872",
+          "u": "e550a02755449608e73edadd074b2fba97267ed11e33be7a8f1e8c044dec1623",
+          "v": "3d5a808bc0587c7be2834dc80ece8584abcf0e395d16dc33a50810cfd89934ff",
+          "w": "e41f76350430661ec52dbaa42aa06201e6e21adb12541a6e7fae8518d66aa502"
+        },
+        "ledger_sha256": {
+          "budget.csv": "7116bd2127996dec51bc6f7b4856002f66f6ffe9b50ea60138ab385c9355b578",
+          "energy_budget.csv": "735c6fe291d0065c20fe23564be444f01e9b5a560cfe5da190947262f5d4b180",
+          "moisture_budget.csv": "ce3bc586d4679ad4c2199619ae8acf130c7cce5b3ffd4368f3886efbd81162e3",
+          "momentum_budget.csv": "a1b30d99779898fb9242d5a78f9f7ee1ef04cbb6de822f6aa035a8e5963a06f9",
+          "radiation_budget.csv": "f16afcab93718fc1e78d05b9187dafa6ecb3343c10f58e9a8f8dff27f27aada4",
+          "thermodynamic_source_budget.csv": "e823d2cb244001de19e0c42b6c6f5580c9f7ce1c2ee64c44a2c235b2907b3e06"
+        },
+        "log": "/private/tmp/nimbus-c6-gamma-ab-raw-20260927/pair_03_candidate/runtime.log",
+        "log_sha256": "ae245e8a523958a8692878e0ff3aca3a74686784cad23a65a5a16425fd7cb8fd",
+        "microphysics_s": 0.189806,
+        "microphysics_scheme_s": 0.136638,
+        "named_wall_fraction": 0.9890946241327968,
+        "step_wall_s": 1.26268,
+        "validation_sha256": "35605449931469473d1d89e819704d1b6c71bc62018aaba2973e3fb6966350df"
+      },
+      "exact_state_fields_and_ledgers": true,
+      "order": [
+        "candidate",
+        "baseline"
+      ],
+      "pair": 3,
+      "speedup_percent": -0.060384176492957506
+    },
+    {
+      "baseline": {
+        "avg_step_ms": 20.958,
+        "binary_sha256": "08b9918b3d2f2e59e77a4befaaa406948028d3ccc1421a65792a18855e23422d",
+        "checkpoint_bytes": 2403446,
+        "checkpoint_sha256": "0625abe49d93e4ff46cb0a8b02088c93761a8959fcdad7339b671e5af92e3984",
+        "field_sha256": {
+          "p": "cafbea84db9052f363065aeb54c449cade0e7dd344bee279f888fd26a47bdaf2",
+          "qr": "c6852956ef3e07e7b6c4abb17dc10f5cd190f4babe65d22fad53ddfb2eb7b1c0",
+          "qv": "124dbb55e0ed780cfd64b375724e9a716b78f86a68dab250e538507962581393",
+          "rho": "5a3085a8c936b510c15dfec3d2aa853f1d8a216ff461637f80a0a1deb5a9d1f6",
+          "theta": "77f4854e1583efa3605263e9ed5edb9d17292f1befdc38e0fbd121009deef872",
+          "u": "e550a02755449608e73edadd074b2fba97267ed11e33be7a8f1e8c044dec1623",
+          "v": "3d5a808bc0587c7be2834dc80ece8584abcf0e395d16dc33a50810cfd89934ff",
+          "w": "e41f76350430661ec52dbaa42aa06201e6e21adb12541a6e7fae8518d66aa502"
+        },
+        "ledger_sha256": {
+          "budget.csv": "7116bd2127996dec51bc6f7b4856002f66f6ffe9b50ea60138ab385c9355b578",
+          "energy_budget.csv": "735c6fe291d0065c20fe23564be444f01e9b5a560cfe5da190947262f5d4b180",
+          "moisture_budget.csv": "ce3bc586d4679ad4c2199619ae8acf130c7cce5b3ffd4368f3886efbd81162e3",
+          "momentum_budget.csv": "a1b30d99779898fb9242d5a78f9f7ee1ef04cbb6de822f6aa035a8e5963a06f9",
+          "radiation_budget.csv": "f16afcab93718fc1e78d05b9187dafa6ecb3343c10f58e9a8f8dff27f27aada4",
+          "thermodynamic_source_budget.csv": "e823d2cb244001de19e0c42b6c6f5580c9f7ce1c2ee64c44a2c235b2907b3e06"
+        },
+        "log": "/private/tmp/nimbus-c6-gamma-ab-raw-20260927/pair_04_baseline/runtime.log",
+        "log_sha256": "b9d489e832344d6aa3b2eacefad240d678cbb88c4956a0e3608e6d68b2cc7f1e",
+        "microphysics_s": 0.190506,
+        "microphysics_scheme_s": 0.137821,
+        "named_wall_fraction": 0.9899799599198397,
+        "step_wall_s": 1.25748,
+        "validation_sha256": "35605449931469473d1d89e819704d1b6c71bc62018aaba2973e3fb6966350df"
+      },
+      "candidate": {
+        "avg_step_ms": 20.9989,
+        "binary_sha256": "1983524fc9536e68ea044c2c629e7f817bbb09433ace2f5782d9d03c7a138b6b",
+        "checkpoint_bytes": 2403446,
+        "checkpoint_sha256": "0625abe49d93e4ff46cb0a8b02088c93761a8959fcdad7339b671e5af92e3984",
+        "field_sha256": {
+          "p": "cafbea84db9052f363065aeb54c449cade0e7dd344bee279f888fd26a47bdaf2",
+          "qr": "c6852956ef3e07e7b6c4abb17dc10f5cd190f4babe65d22fad53ddfb2eb7b1c0",
+          "qv": "124dbb55e0ed780cfd64b375724e9a716b78f86a68dab250e538507962581393",
+          "rho": "5a3085a8c936b510c15dfec3d2aa853f1d8a216ff461637f80a0a1deb5a9d1f6",
+          "theta": "77f4854e1583efa3605263e9ed5edb9d17292f1befdc38e0fbd121009deef872",
+          "u": "e550a02755449608e73edadd074b2fba97267ed11e33be7a8f1e8c044dec1623",
+          "v": "3d5a808bc0587c7be2834dc80ece8584abcf0e395d16dc33a50810cfd89934ff",
+          "w": "e41f76350430661ec52dbaa42aa06201e6e21adb12541a6e7fae8518d66aa502"
+        },
+        "ledger_sha256": {
+          "budget.csv": "7116bd2127996dec51bc6f7b4856002f66f6ffe9b50ea60138ab385c9355b578",
+          "energy_budget.csv": "735c6fe291d0065c20fe23564be444f01e9b5a560cfe5da190947262f5d4b180",
+          "moisture_budget.csv": "ce3bc586d4679ad4c2199619ae8acf130c7cce5b3ffd4368f3886efbd81162e3",
+          "momentum_budget.csv": "a1b30d99779898fb9242d5a78f9f7ee1ef04cbb6de822f6aa035a8e5963a06f9",
+          "radiation_budget.csv": "f16afcab93718fc1e78d05b9187dafa6ecb3343c10f58e9a8f8dff27f27aada4",
+          "thermodynamic_source_budget.csv": "e823d2cb244001de19e0c42b6c6f5580c9f7ce1c2ee64c44a2c235b2907b3e06"
+        },
+        "log": "/private/tmp/nimbus-c6-gamma-ab-raw-20260927/pair_04_candidate/runtime.log",
+        "log_sha256": "1a2ee377c4fa0ae89f851a8185620b4247502d7faa55df32cb42057eeade8c9f",
+        "microphysics_s": 0.189924,
+        "microphysics_scheme_s": 0.136808,
+        "named_wall_fraction": 0.9898725336127117,
+        "step_wall_s": 1.25994,
+        "validation_sha256": "35605449931469473d1d89e819704d1b6c71bc62018aaba2973e3fb6966350df"
+      },
+      "exact_state_fields_and_ledgers": true,
+      "order": [
+        "baseline",
+        "candidate"
+      ],
+      "pair": 4,
+      "speedup_percent": -0.19515220918026818
+    },
+    {
+      "baseline": {
+        "avg_step_ms": 21.073,
+        "binary_sha256": "08b9918b3d2f2e59e77a4befaaa406948028d3ccc1421a65792a18855e23422d",
+        "checkpoint_bytes": 2403446,
+        "checkpoint_sha256": "0625abe49d93e4ff46cb0a8b02088c93761a8959fcdad7339b671e5af92e3984",
+        "field_sha256": {
+          "p": "cafbea84db9052f363065aeb54c449cade0e7dd344bee279f888fd26a47bdaf2",
+          "qr": "c6852956ef3e07e7b6c4abb17dc10f5cd190f4babe65d22fad53ddfb2eb7b1c0",
+          "qv": "124dbb55e0ed780cfd64b375724e9a716b78f86a68dab250e538507962581393",
+          "rho": "5a3085a8c936b510c15dfec3d2aa853f1d8a216ff461637f80a0a1deb5a9d1f6",
+          "theta": "77f4854e1583efa3605263e9ed5edb9d17292f1befdc38e0fbd121009deef872",
+          "u": "e550a02755449608e73edadd074b2fba97267ed11e33be7a8f1e8c044dec1623",
+          "v": "3d5a808bc0587c7be2834dc80ece8584abcf0e395d16dc33a50810cfd89934ff",
+          "w": "e41f76350430661ec52dbaa42aa06201e6e21adb12541a6e7fae8518d66aa502"
+        },
+        "ledger_sha256": {
+          "budget.csv": "7116bd2127996dec51bc6f7b4856002f66f6ffe9b50ea60138ab385c9355b578",
+          "energy_budget.csv": "735c6fe291d0065c20fe23564be444f01e9b5a560cfe5da190947262f5d4b180",
+          "moisture_budget.csv": "ce3bc586d4679ad4c2199619ae8acf130c7cce5b3ffd4368f3886efbd81162e3",
+          "momentum_budget.csv": "a1b30d99779898fb9242d5a78f9f7ee1ef04cbb6de822f6aa035a8e5963a06f9",
+          "radiation_budget.csv": "f16afcab93718fc1e78d05b9187dafa6ecb3343c10f58e9a8f8dff27f27aada4",
+          "thermodynamic_source_budget.csv": "e823d2cb244001de19e0c42b6c6f5580c9f7ce1c2ee64c44a2c235b2907b3e06"
+        },
+        "log": "/private/tmp/nimbus-c6-gamma-ab-raw-20260927/pair_05_baseline/runtime.log",
+        "log_sha256": "97034e9bba27a0d1c014860359e8767eb93b9274779d40c6d1a2e60a89905461",
+        "microphysics_s": 0.192134,
+        "microphysics_scheme_s": 0.138966,
+        "named_wall_fraction": 0.9862857685189578,
+        "step_wall_s": 1.26438,
+        "validation_sha256": "35605449931469473d1d89e819704d1b6c71bc62018aaba2973e3fb6966350df"
+      },
+      "candidate": {
+        "avg_step_ms": 21.0286,
+        "binary_sha256": "1983524fc9536e68ea044c2c629e7f817bbb09433ace2f5782d9d03c7a138b6b",
+        "checkpoint_bytes": 2403446,
+        "checkpoint_sha256": "0625abe49d93e4ff46cb0a8b02088c93761a8959fcdad7339b671e5af92e3984",
+        "field_sha256": {
+          "p": "cafbea84db9052f363065aeb54c449cade0e7dd344bee279f888fd26a47bdaf2",
+          "qr": "c6852956ef3e07e7b6c4abb17dc10f5cd190f4babe65d22fad53ddfb2eb7b1c0",
+          "qv": "124dbb55e0ed780cfd64b375724e9a716b78f86a68dab250e538507962581393",
+          "rho": "5a3085a8c936b510c15dfec3d2aa853f1d8a216ff461637f80a0a1deb5a9d1f6",
+          "theta": "77f4854e1583efa3605263e9ed5edb9d17292f1befdc38e0fbd121009deef872",
+          "u": "e550a02755449608e73edadd074b2fba97267ed11e33be7a8f1e8c044dec1623",
+          "v": "3d5a808bc0587c7be2834dc80ece8584abcf0e395d16dc33a50810cfd89934ff",
+          "w": "e41f76350430661ec52dbaa42aa06201e6e21adb12541a6e7fae8518d66aa502"
+        },
+        "ledger_sha256": {
+          "budget.csv": "7116bd2127996dec51bc6f7b4856002f66f6ffe9b50ea60138ab385c9355b578",
+          "energy_budget.csv": "735c6fe291d0065c20fe23564be444f01e9b5a560cfe5da190947262f5d4b180",
+          "moisture_budget.csv": "ce3bc586d4679ad4c2199619ae8acf130c7cce5b3ffd4368f3886efbd81162e3",
+          "momentum_budget.csv": "a1b30d99779898fb9242d5a78f9f7ee1ef04cbb6de822f6aa035a8e5963a06f9",
+          "radiation_budget.csv": "f16afcab93718fc1e78d05b9187dafa6ecb3343c10f58e9a8f8dff27f27aada4",
+          "thermodynamic_source_budget.csv": "e823d2cb244001de19e0c42b6c6f5580c9f7ce1c2ee64c44a2c235b2907b3e06"
+        },
+        "log": "/private/tmp/nimbus-c6-gamma-ab-raw-20260927/pair_05_candidate/runtime.log",
+        "log_sha256": "2886c4bb48245681de5cacc3fdeb95ddd9d3140294f549557afeb4a00ae34b7a",
+        "microphysics_s": 0.190147,
+        "microphysics_scheme_s": 0.136635,
+        "named_wall_fraction": 0.9897044487243503,
+        "step_wall_s": 1.26171,
+        "validation_sha256": "35605449931469473d1d89e819704d1b6c71bc62018aaba2973e3fb6966350df"
+      },
+      "exact_state_fields_and_ledgers": true,
+      "order": [
+        "candidate",
+        "baseline"
+      ],
+      "pair": 5,
+      "speedup_percent": 0.2106961514734473
+    },
+    {
+      "baseline": {
+        "avg_step_ms": 21.0879,
+        "binary_sha256": "08b9918b3d2f2e59e77a4befaaa406948028d3ccc1421a65792a18855e23422d",
+        "checkpoint_bytes": 2403446,
+        "checkpoint_sha256": "0625abe49d93e4ff46cb0a8b02088c93761a8959fcdad7339b671e5af92e3984",
+        "field_sha256": {
+          "p": "cafbea84db9052f363065aeb54c449cade0e7dd344bee279f888fd26a47bdaf2",
+          "qr": "c6852956ef3e07e7b6c4abb17dc10f5cd190f4babe65d22fad53ddfb2eb7b1c0",
+          "qv": "124dbb55e0ed780cfd64b375724e9a716b78f86a68dab250e538507962581393",
+          "rho": "5a3085a8c936b510c15dfec3d2aa853f1d8a216ff461637f80a0a1deb5a9d1f6",
+          "theta": "77f4854e1583efa3605263e9ed5edb9d17292f1befdc38e0fbd121009deef872",
+          "u": "e550a02755449608e73edadd074b2fba97267ed11e33be7a8f1e8c044dec1623",
+          "v": "3d5a808bc0587c7be2834dc80ece8584abcf0e395d16dc33a50810cfd89934ff",
+          "w": "e41f76350430661ec52dbaa42aa06201e6e21adb12541a6e7fae8518d66aa502"
+        },
+        "ledger_sha256": {
+          "budget.csv": "7116bd2127996dec51bc6f7b4856002f66f6ffe9b50ea60138ab385c9355b578",
+          "energy_budget.csv": "735c6fe291d0065c20fe23564be444f01e9b5a560cfe5da190947262f5d4b180",
+          "moisture_budget.csv": "ce3bc586d4679ad4c2199619ae8acf130c7cce5b3ffd4368f3886efbd81162e3",
+          "momentum_budget.csv": "a1b30d99779898fb9242d5a78f9f7ee1ef04cbb6de822f6aa035a8e5963a06f9",
+          "radiation_budget.csv": "f16afcab93718fc1e78d05b9187dafa6ecb3343c10f58e9a8f8dff27f27aada4",
+          "thermodynamic_source_budget.csv": "e823d2cb244001de19e0c42b6c6f5580c9f7ce1c2ee64c44a2c235b2907b3e06"
+        },
+        "log": "/private/tmp/nimbus-c6-gamma-ab-raw-20260927/pair_06_baseline/runtime.log",
+        "log_sha256": "4f967da5f8d09a275c3468d0f0d459a984e61f91278ca2c14ec4a3e64a1e1e99",
+        "microphysics_s": 0.191694,
+        "microphysics_scheme_s": 0.137849,
+        "named_wall_fraction": 0.9897097875569044,
+        "step_wall_s": 1.26528,
+        "validation_sha256": "35605449931469473d1d89e819704d1b6c71bc62018aaba2973e3fb6966350df"
+      },
+      "candidate": {
+        "avg_step_ms": 21.1064,
+        "binary_sha256": "1983524fc9536e68ea044c2c629e7f817bbb09433ace2f5782d9d03c7a138b6b",
+        "checkpoint_bytes": 2403446,
+        "checkpoint_sha256": "0625abe49d93e4ff46cb0a8b02088c93761a8959fcdad7339b671e5af92e3984",
+        "field_sha256": {
+          "p": "cafbea84db9052f363065aeb54c449cade0e7dd344bee279f888fd26a47bdaf2",
+          "qr": "c6852956ef3e07e7b6c4abb17dc10f5cd190f4babe65d22fad53ddfb2eb7b1c0",
+          "qv": "124dbb55e0ed780cfd64b375724e9a716b78f86a68dab250e538507962581393",
+          "rho": "5a3085a8c936b510c15dfec3d2aa853f1d8a216ff461637f80a0a1deb5a9d1f6",
+          "theta": "77f4854e1583efa3605263e9ed5edb9d17292f1befdc38e0fbd121009deef872",
+          "u": "e550a02755449608e73edadd074b2fba97267ed11e33be7a8f1e8c044dec1623",
+          "v": "3d5a808bc0587c7be2834dc80ece8584abcf0e395d16dc33a50810cfd89934ff",
+          "w": "e41f76350430661ec52dbaa42aa06201e6e21adb12541a6e7fae8518d66aa502"
+        },
+        "ledger_sha256": {
+          "budget.csv": "7116bd2127996dec51bc6f7b4856002f66f6ffe9b50ea60138ab385c9355b578",
+          "energy_budget.csv": "735c6fe291d0065c20fe23564be444f01e9b5a560cfe5da190947262f5d4b180",
+          "moisture_budget.csv": "ce3bc586d4679ad4c2199619ae8acf130c7cce5b3ffd4368f3886efbd81162e3",
+          "momentum_budget.csv": "a1b30d99779898fb9242d5a78f9f7ee1ef04cbb6de822f6aa035a8e5963a06f9",
+          "radiation_budget.csv": "f16afcab93718fc1e78d05b9187dafa6ecb3343c10f58e9a8f8dff27f27aada4",
+          "thermodynamic_source_budget.csv": "e823d2cb244001de19e0c42b6c6f5580c9f7ce1c2ee64c44a2c235b2907b3e06"
+        },
+        "log": "/private/tmp/nimbus-c6-gamma-ab-raw-20260927/pair_06_candidate/runtime.log",
+        "log_sha256": "322d9ad0772ab3db4f0d648db480440defb13317ed4be6cffbe8ca24650713b1",
+        "microphysics_s": 0.191021,
+        "microphysics_scheme_s": 0.137161,
+        "named_wall_fraction": 0.989750311912696,
+        "step_wall_s": 1.26638,
+        "validation_sha256": "35605449931469473d1d89e819704d1b6c71bc62018aaba2973e3fb6966350df"
+      },
+      "exact_state_fields_and_ledgers": true,
+      "order": [
+        "baseline",
+        "candidate"
+      ],
+      "pair": 6,
+      "speedup_percent": -0.08772803361168972
+    },
+    {
+      "baseline": {
+        "avg_step_ms": 20.9561,
+        "binary_sha256": "08b9918b3d2f2e59e77a4befaaa406948028d3ccc1421a65792a18855e23422d",
+        "checkpoint_bytes": 2403446,
+        "checkpoint_sha256": "0625abe49d93e4ff46cb0a8b02088c93761a8959fcdad7339b671e5af92e3984",
+        "field_sha256": {
+          "p": "cafbea84db9052f363065aeb54c449cade0e7dd344bee279f888fd26a47bdaf2",
+          "qr": "c6852956ef3e07e7b6c4abb17dc10f5cd190f4babe65d22fad53ddfb2eb7b1c0",
+          "qv": "124dbb55e0ed780cfd64b375724e9a716b78f86a68dab250e538507962581393",
+          "rho": "5a3085a8c936b510c15dfec3d2aa853f1d8a216ff461637f80a0a1deb5a9d1f6",
+          "theta": "77f4854e1583efa3605263e9ed5edb9d17292f1befdc38e0fbd121009deef872",
+          "u": "e550a02755449608e73edadd074b2fba97267ed11e33be7a8f1e8c044dec1623",
+          "v": "3d5a808bc0587c7be2834dc80ece8584abcf0e395d16dc33a50810cfd89934ff",
+          "w": "e41f76350430661ec52dbaa42aa06201e6e21adb12541a6e7fae8518d66aa502"
+        },
+        "ledger_sha256": {
+          "budget.csv": "7116bd2127996dec51bc6f7b4856002f66f6ffe9b50ea60138ab385c9355b578",
+          "energy_budget.csv": "735c6fe291d0065c20fe23564be444f01e9b5a560cfe5da190947262f5d4b180",
+          "moisture_budget.csv": "ce3bc586d4679ad4c2199619ae8acf130c7cce5b3ffd4368f3886efbd81162e3",
+          "momentum_budget.csv": "a1b30d99779898fb9242d5a78f9f7ee1ef04cbb6de822f6aa035a8e5963a06f9",
+          "radiation_budget.csv": "f16afcab93718fc1e78d05b9187dafa6ecb3343c10f58e9a8f8dff27f27aada4",
+          "thermodynamic_source_budget.csv": "e823d2cb244001de19e0c42b6c6f5580c9f7ce1c2ee64c44a2c235b2907b3e06"
+        },
+        "log": "/private/tmp/nimbus-c6-gamma-ab-raw-20260927/pair_07_baseline/runtime.log",
+        "log_sha256": "ac95ca3e27696ca4cb59dd82b58288d909fc52e671652b441abe84c13bf9c070",
+        "microphysics_s": 0.189793,
+        "microphysics_scheme_s": 0.137061,
+        "named_wall_fraction": 0.9893905532977564,
+        "step_wall_s": 1.25737,
+        "validation_sha256": "35605449931469473d1d89e819704d1b6c71bc62018aaba2973e3fb6966350df"
+      },
+      "candidate": {
+        "avg_step_ms": 20.9583,
+        "binary_sha256": "1983524fc9536e68ea044c2c629e7f817bbb09433ace2f5782d9d03c7a138b6b",
+        "checkpoint_bytes": 2403446,
+        "checkpoint_sha256": "0625abe49d93e4ff46cb0a8b02088c93761a8959fcdad7339b671e5af92e3984",
+        "field_sha256": {
+          "p": "cafbea84db9052f363065aeb54c449cade0e7dd344bee279f888fd26a47bdaf2",
+          "qr": "c6852956ef3e07e7b6c4abb17dc10f5cd190f4babe65d22fad53ddfb2eb7b1c0",
+          "qv": "124dbb55e0ed780cfd64b375724e9a716b78f86a68dab250e538507962581393",
+          "rho": "5a3085a8c936b510c15dfec3d2aa853f1d8a216ff461637f80a0a1deb5a9d1f6",
+          "theta": "77f4854e1583efa3605263e9ed5edb9d17292f1befdc38e0fbd121009deef872",
+          "u": "e550a02755449608e73edadd074b2fba97267ed11e33be7a8f1e8c044dec1623",
+          "v": "3d5a808bc0587c7be2834dc80ece8584abcf0e395d16dc33a50810cfd89934ff",
+          "w": "e41f76350430661ec52dbaa42aa06201e6e21adb12541a6e7fae8518d66aa502"
+        },
+        "ledger_sha256": {
+          "budget.csv": "7116bd2127996dec51bc6f7b4856002f66f6ffe9b50ea60138ab385c9355b578",
+          "energy_budget.csv": "735c6fe291d0065c20fe23564be444f01e9b5a560cfe5da190947262f5d4b180",
+          "moisture_budget.csv": "ce3bc586d4679ad4c2199619ae8acf130c7cce5b3ffd4368f3886efbd81162e3",
+          "momentum_budget.csv": "a1b30d99779898fb9242d5a78f9f7ee1ef04cbb6de822f6aa035a8e5963a06f9",
+          "radiation_budget.csv": "f16afcab93718fc1e78d05b9187dafa6ecb3343c10f58e9a8f8dff27f27aada4",
+          "thermodynamic_source_budget.csv": "e823d2cb244001de19e0c42b6c6f5580c9f7ce1c2ee64c44a2c235b2907b3e06"
+        },
+        "log": "/private/tmp/nimbus-c6-gamma-ab-raw-20260927/pair_07_candidate/runtime.log",
+        "log_sha256": "fcf1cc4af22e3fb6c14055fdff97b4aa2408cd42ae2cbf878fb13df31592d127",
+        "microphysics_s": 0.188667,
+        "microphysics_scheme_s": 0.135591,
+        "named_wall_fraction": 0.9893200795228628,
+        "step_wall_s": 1.2575,
+        "validation_sha256": "35605449931469473d1d89e819704d1b6c71bc62018aaba2973e3fb6966350df"
+      },
+      "exact_state_fields_and_ledgers": true,
+      "order": [
+        "candidate",
+        "baseline"
+      ],
+      "pair": 7,
+      "speedup_percent": -0.010498136580766355
+    }
+  ],
+  "schema": "nimbus.c6-milbrandt-gamma-ab.v1",
+  "source": {
+    "baseline_binary": "/private/tmp/nimbus-c6-ab-baseline-20260927",
+    "baseline_sha256": "08b9918b3d2f2e59e77a4befaaa406948028d3ccc1421a65792a18855e23422d",
+    "benchmark_sha256": "07a54bd9e6305192b43932daf72659cfaa3b3f8aefab30c531316a91cf6945fc",
+    "candidate_binary": "/private/tmp/nimbus-c6-ab-candidate-20260927",
+    "candidate_sha256": "1983524fc9536e68ea044c2c629e7f817bbb09433ace2f5782d9d03c7a138b6b",
+    "config": "/Users/victortiradoegas/Desktop/PersonalProjects/Nimbus/tests/fixtures/configs/benchmark/milbrandt_science_ab.yaml",
+    "config_sha256": "c4c1da61c8b876ef1318577fd0a4f1a57dd97c035a69c6dd19aa8c4433f11f8d",
+    "timing_parser_sha256": "fe9b2153545dd06ed1958401ea6af745b0bc2dfd30d71d08561ed9406b59d81e"
+  },
+  "status": "complete"
+}

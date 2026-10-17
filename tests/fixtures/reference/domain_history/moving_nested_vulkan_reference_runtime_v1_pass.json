@@ -1,0 +1,59 @@
+{
+  "schema": "nimbus.evidence.moving_nested_vulkan_reference_runtime",
+  "schema_version": 1,
+  "status": "pass",
+  "qualification_eligible": false,
+  "scope": "same_binary_oversized_physical_vulkan_reference_runtime_before_blinded_comparison",
+  "candidate_metric_values_inspected": false,
+  "inputs": {
+    "binary_sha256": "7d1abadfbde32d1d5747779356ffe0f68893af64cfd0b99d2843b6eaa3e88457",
+    "reference_config": {
+      "path": "configs/qualification/moving_nested_supercell_reference_vulkan_v1.yaml",
+      "sha256": "5e650bbcc6c90ad97aec759176821e27e02c0c7079bff653298df36ca73b9c1c"
+    },
+    "moving_lifetime_chain": {
+      "path": "tests/artifacts/moving_nested_vulkan_lifetime_v2_20260819_chain_report.json",
+      "sha256": "5ddaec3a6cf5f17df833516e0ae324368a522dc6fa4caa8cf44df9b1a81e1212"
+    }
+  },
+  "reference_runtime": {
+    "report": {
+      "path": "tests/artifacts/moving_nested_vulkan_reference_v1_20260819/moving_nested_vulkan_reference_runtime_report.json",
+      "sha256": "7b7b0db34af37621e50501c8ecbe8bd160701fb4a8dca850e1b50f182b240631"
+    },
+    "fresh_configured_start": true,
+    "uninterrupted_single_process": true,
+    "final_time_s": 4500,
+    "model_steps": 6000,
+    "tracker_samples": 150,
+    "diagnostic_samples": 150,
+    "portable_checkpoints": 10,
+    "simulated_seconds_per_solver_wall_second": 0.985283,
+    "final_checkpoint_sha256": "89cb124a126ed4e2cfc1b587c566def069eec600edc9915ddf9c38b1f8a3c122"
+  },
+  "device_evidence": {
+    "fallback_off_physical_vulkan": true,
+    "model_steps": 6000,
+    "command_buffers": 36000,
+    "dispatches": 42000,
+    "resident_hits": 72000,
+    "resident_misses": 54000,
+    "stage_dispatches": {
+      "dynamics/cartesian_cgrid_slow_tendencies.comp.spv": 12000,
+      "smagorinsky_fused": 12000,
+      "turbulence/sgs_apply.comp.spv": 6000,
+      "microphysics/kessler_pointwise.comp.spv": 6000,
+      "microphysics/kessler_sedimentation.comp.spv": 6000
+    },
+    "host_authoritative_kessler_state_commit": true
+  },
+  "claims": {
+    "same_binary_candidate_and_reference": true,
+    "same_vulkan_backend_candidate_and_reference": true,
+    "same_comparison_level_equations": true,
+    "strict_finite_bounded_reference_outputs": true,
+    "formal_comparison_complete": false,
+    "public_moving_nest_admitted": false,
+    "device_resident_relocation": false
+  }
+}

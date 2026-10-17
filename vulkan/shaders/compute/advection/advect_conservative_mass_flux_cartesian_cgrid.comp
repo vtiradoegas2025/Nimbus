@@ -1,0 +1,84 @@
+// advect_conservative_mass_flux_cartesian_cgrid.comp
+//
+// Phase A of the conservative rho-weighted flux-form scalar transport on
+// the Cartesian Arakawa C-grid (GPU.md Phase 3.2): the face
+// MASS fluxes, computed once per step and shared by every advected scalar
+// (the CPU recomputes them per scalar; the GPU batch does not).
+// GPU equivalent of the mass-flux part of
+//   advect_scalar_conservative_3d_cartesian
+// in src/numerics/advection/advection_cartesian.cpp.
+//
+// Face convention (matches StaggeredCartesianDerivatives::div_flux_mass_*):
+// u[i], v[j], w[k] are the velocities at faces i+1/2, j+1/2, k+1/2; the
+// face rho is the arithmetic mean of the two adjacent cell centers; the
+// flux through face i+1/2 is stored in the owning cell's slot (index i).
+// Invalid faces (the last cell along each axis owns no face) store zero,
+// mirroring the CPU's zeroed scratch.
+//
+// Data layout: row-major [nx][ny][nz]. Index (i, j, k) = (i*ny + j)*nz + k.
+
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) readonly buffer UBuf   { float u_in[];   };
+layout(set = 0, binding = 1) readonly buffer VBuf   { float v_in[];   };
+layout(set = 0, binding = 2) readonly buffer WBuf   { float w_in[];   };
+layout(set = 0, binding = 3) readonly buffer RhoBuf { float rho_in[]; };
+
+layout(set = 0, binding = 4) writeonly buffer MfxBuf { float mfx[]; };
+layout(set = 0, binding = 5) writeonly buffer MfyBuf { float mfy[]; };
+layout(set = 0, binding = 6) writeonly buffer MfzBuf { float mfz[]; };
+
+// Push constants (24 bytes; mirrors AdvectMassFluxCartesianCgridPushConstants).
+layout(push_constant) uniform PushConstants {
+    int nx;
+    int ny;
+    int nz;
+    int pad0;
+    float frame_velocity_u_ms;
+    float frame_velocity_v_ms;
+};
+
+void main()
+{
+    uint gid = gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * gl_NumWorkGroups.x * gl_WorkGroupSize.x;
+    uint total = uint(nx) * uint(ny) * uint(nz);
+    if (gid >= total)
+    {
+        return;
+    }
+
+    int k = int(gid % uint(nz));
+    uint ij = gid / uint(nz);
+    int j = int(ij % uint(ny));
+    int i = int(ij / uint(ny));
+
+    uint c = gid;
+
+    float fx = 0.0;
+    if (i <= nx - 2)
+    {
+        uint c_ip = uint(((i + 1) * ny + j) * nz + k);
+        fx = 0.5 * (rho_in[c] + rho_in[c_ip])
+           * (u_in[c] - frame_velocity_u_ms);
+    }
+    mfx[c] = fx;
+
+    float fy = 0.0;
+    if (j <= ny - 2)
+    {
+        uint c_jp = uint((i * ny + (j + 1)) * nz + k);
+        fy = 0.5 * (rho_in[c] + rho_in[c_jp])
+           * (v_in[c] - frame_velocity_v_ms);
+    }
+    mfy[c] = fy;
+
+    float fz = 0.0;
+    if (k <= nz - 2)
+    {
+        uint c_kp = uint((i * ny + j) * nz + (k + 1));
+        fz = 0.5 * (rho_in[c] + rho_in[c_kp]) * w_in[c];
+    }
+    mfz[c] = fz;
+}

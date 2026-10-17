@@ -1,0 +1,48 @@
+{
+  "schema": "nimbus.qualification.moving_nested_reference_frontier.policy",
+  "schema_version": 13,
+  "policy_id": "moving-nested-reference-frontier-v13-vulkan-backend-amendment",
+  "policy_status": "ratified",
+  "scope": "same-equation 600 m moving-child versus oversized stationary reference on one physical Vulkan backend with all v12 thresholds, geometry, aperture, cadence, and movement semantics inherited unchanged",
+  "prior_policy": {
+    "path": "moving_nested_supercell_reference_frontier_v12.json",
+    "sha256": "ba4a8f76f196be809f5b036f77a27ec49880ccaa476bd151119252110890c9cc",
+    "schema_version": 12,
+    "policy_id": "moving-nested-reference-frontier-v12-parent-stencil-limit-amendment"
+  },
+  "backend_evidence": {
+    "path": "../../../docs/evidence/moving_nested_vulkan_reference_runtime_v1_pass.json",
+    "sha256": "542cd3404e223064aa45e1f19d5b27a6d309c7728c30f33d96656dd5b6ff3c85",
+    "schema_version": 1,
+    "status": "pass"
+  },
+  "ratification": {
+    "decision": "pre_comparison_vulkan_backend_identity_amendment_of_v12",
+    "review_date": "2026-08-19",
+    "reviewer_role": "independent_science_policy_audit",
+    "candidate_metric_values_inspected": false,
+    "minimum_input_series_schema_version": 2,
+    "backend_identity_amendment": {
+      "reason": "same_backend_reference_now_available",
+      "candidate_backend": "vulkan",
+      "reference_backend": "vulkan",
+      "fallback_allowed": false,
+      "same_binary_required": true,
+      "physics_signature_sha256": "7e5c77671bb7f58bee72416efc54f6753fd2a3ce67593b5ebf4c3cea0ca14ada",
+      "host_authoritative_kessler_state_commit": true,
+      "native_smagorinsky_sgs_dispatch_required": true,
+      "native_kessler_process_dispatch_required": true,
+      "numerical_thresholds_changed": false,
+      "movement_algorithm_changed": false,
+      "geometry_or_aperture_changed": false,
+      "measurement_cadence_changed": false
+    }
+  },
+  "limitations": [
+    "All 21 numerical thresholds, metric formulas, geometry, aperture, measurement cadence, and movement rules are inherited unchanged from the immutable v12 policy chain.",
+    "The Vulkan backend identity and its comparison-level numerical signature were ratified before candidate-versus-reference metric values were inspected.",
+    "Both branches must bind to binary SHA-256 7d1abadfbde32d1d5747779356ffe0f68893af64cfd0b99d2843b6eaa3e88457 and fallback-off physical Vulkan execution.",
+    "Kessler process kernels and Smagorinsky/SGS state application are native Vulkan while the authoritative Kessler state commit remains on the host.",
+    "A pass remains bounded to this exact flat Cartesian C-grid, one-way, Kessler plus 3-D Smagorinsky supercell tuple and does not establish device-resident relocation, terrain, broader physics combinations, or throughput promotion."
+  ]
+}

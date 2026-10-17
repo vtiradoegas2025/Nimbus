@@ -1,0 +1,232 @@
+// acoustic_pressure_cartesian_cgrid.comp
+//
+// Fused acoustic pressure substep on the Cartesian Arakawa C-grid:
+// conservative mass continuity -> Forward-Euler rho integration with
+// sanitization and clamps -> diagnostic pressure closure. GPU equivalent of
+//   CartesianCGrid3DScheme::compute_fast_pressure_tendencies (the drho part)
+//   + the apply_fast_pressure integration/diagnosis loop in
+//   src/core/orchestration/dynamics/dynamics.cpp.
+//
+// Formulation (EOSConservationPlan P2, the conservative closure): rho is the
+// sole conservative prognostic, advanced by flux-form continuity
+//   drho/dt = -div(rho u)
+// and p is DIAGNOSED from the updated rho and theta by the full dry EOS
+//   p = p00 * (rho * R_d * theta / p00)^gamma   (SCIENCE.md C1).
+// (This diagnostic closure replaced the retired prognostic-dp/dt
+// formulation; this shader is the current physics.)
+//
+// Field placement (Arakawa C-grid):
+//   q[i][j][k]  at cell center (rho, p, rho0_base, p0_base broadcast)
+//   u[i][j][k]  at x-face (between cells i and i+1)
+//   v[i][j][k]  at y-face (between cells j and j+1)
+//   w[i][j][k]  at z-face (between cells k and k+1)
+//
+// Mass divergence (matching StaggeredCartesianDerivatives::div_flux_mass):
+// each face flux is rho averaged from the two adjacent cell centers times
+// the face velocity; rigid-wall closures zero the +x face at i = NX-1, the
+// +y face at j = NY-1, the lid at k = NZ-1, and the ground below k = 0.
+// drho is computed for i in [1, NX-2], j in [1, NY-2], all k (zero
+// elsewhere); the integration + clamps + p-diagnosis run at EVERY cell,
+// mirroring the CPU loop (boundary cells integrate a zero tendency, then
+// re-diagnose p from their unchanged rho).
+//
+// rho0_base / p0_base are 1D profiles of length NZ uploaded as full
+// NX*NY*NZ buffers broadcast across (i, j) so they fit same-size pool
+// slots (the same trick as acoustic_momentum_cgrid.comp).
+//
+// Data layout: row-major [nx][ny][nz]. Index (i, j, k) = (i*ny + j)*nz + k.
+
+#version 450
+#extension GL_GOOGLE_include_directive : require
+
+#include "../microphysics/compensated_fma.glsl"
+#include "pressure_eos.glsl"
+#include "momentum_precision.glsl"
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+// Inputs: face-staggered velocities + cell-centered state and base profiles.
+layout(set = 0, binding = 0) readonly buffer UInBuf    { float u_in[];     };
+layout(set = 0, binding = 1) readonly buffer VInBuf    { float v_in[];     };
+layout(set = 0, binding = 2) readonly buffer WInBuf    { float w_in[];     };
+layout(set = 0, binding = 3) readonly buffer RhoInBuf  { float rho_in[];   };
+layout(set = 0, binding = 4) readonly buffer PInBuf    { float p_in[];     };
+layout(set = 0, binding = 5) readonly buffer Rho0Buf   { float rho0_b[];   };
+layout(set = 0, binding = 6) readonly buffer P0Buf     { float p0_b[];     };
+
+// theta (cell-centered, constant across the acoustic loop): input of the
+// full dry rho-theta EOS diagnosis (SCIENCE.md C1).
+layout(set = 0, binding = 7) readonly buffer ThetaInBuf { float theta_in[]; };
+
+// Outputs: integrated rho and diagnosed p. MUST be distinct buffers from
+// rho_in/p_in: every thread reads neighbor rho values, so an in-place
+// rho write would race across threads.
+layout(set = 0, binding = 8) writeonly buffer RhoOutBuf { float rho_out[]; };
+layout(set = 0, binding = 9) writeonly buffer POutBuf   { float p_out[];   };
+
+// Push constants (72 bytes; mirrors AcousticPressureCartesianCgridPushConstants).
+layout(push_constant) uniform PushConstants {
+    int   nx;
+    int   ny;
+    int   nz;
+    float dx;
+    float dy;
+    float dz_val;
+    float gamma_val;
+    float dt_small;
+    float rho_min;        // density_min_kgm3
+    float rho_max;        // density_max_kgm3
+    float p_min;          // pressure_min_pa
+    float p_max;          // pressure_max_pa
+    float p_ref_fallback; // dynamics p0 = reference_pressure_pa (1e5)
+    float pad0;
+    float frame_velocity_u_ms;
+    float frame_velocity_v_ms;
+    int preserve_unrepaired;
+    float gamma_low;
+};
+
+bool finite_f(float v)
+{
+    return !isnan(v) && !isinf(v);
+}
+
+void main()
+{
+    uint gid = gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * gl_NumWorkGroups.x * gl_WorkGroupSize.x;
+    uint total = uint(nx) * uint(ny) * uint(nz);
+    if (gid >= total)
+    {
+        return;
+    }
+
+    int k = int(gid % uint(nz));
+    uint ij = gid / uint(nz);
+    int j = int(ij % uint(ny));
+    int i = int(ij / uint(ny));
+
+    uint c = gid;
+
+    // ── Conservative mass divergence, interior columns only ──────────
+    float drho = 0.0;
+    if (i >= 1 && i <= nx - 2 && j >= 1 && j <= ny - 2)
+    {
+        // x: face fluxes with arithmetic-mean rho; +x face is a rigid
+        // wall (u[NX-1] = 0 BC) when i+1 == NX.
+        float flux_xp = 0.0;
+        if (i + 1 < nx)
+        {
+            uint c_ip = uint(((i + 1) * ny + j) * nz + k);
+            float rho_face = 0.5 * (rho_in[c] + rho_in[c_ip]);
+            flux_xp = rho_face * (u_in[c] - frame_velocity_u_ms);
+        }
+        uint c_im = uint(((i - 1) * ny + j) * nz + k);
+        float rho_face_xm = 0.5 * (rho_in[c_im] + rho_in[c]);
+        float flux_xm = rho_face_xm
+                      * (u_in[c_im] - frame_velocity_u_ms);
+        float divm_x = (flux_xp - flux_xm) * (1.0 / dx);
+
+        // y: same pattern (+y rigid wall at j+1 == NY).
+        float flux_yp = 0.0;
+        if (j + 1 < ny)
+        {
+            uint c_jp = uint((i * ny + (j + 1)) * nz + k);
+            float rho_face = 0.5 * (rho_in[c] + rho_in[c_jp]);
+            flux_yp = rho_face * (v_in[c] - frame_velocity_v_ms);
+        }
+        uint c_jm = uint((i * ny + (j - 1)) * nz + k);
+        float rho_face_ym = 0.5 * (rho_in[c_jm] + rho_in[c]);
+        float flux_ym = rho_face_ym
+                      * (v_in[c_jm] - frame_velocity_v_ms);
+        float divm_y = (flux_yp - flux_ym) * (1.0 / dy);
+
+        // z: w[NZ-1] is the explicit bulk top face. The BC sets it to zero
+        // for a rigid lid or extrapolates it for open-top flow. The exterior
+        // density is zero-gradient, hence rho_top = rho[NZ-1].
+        float flux_zp = 0.0;
+        if (k + 1 < nz)
+        {
+            uint c_kp = uint((i * ny + j) * nz + (k + 1));
+            float rho_face = 0.5 * (rho_in[c] + rho_in[c_kp]);
+            flux_zp = rho_face * w_in[c];
+        }
+        else
+        {
+            flux_zp = rho_in[c] * w_in[c];
+        }
+        float flux_zm = 0.0;
+        if (k > 0)
+        {
+            uint c_km = uint((i * ny + j) * nz + (k - 1));
+            float rho_face = 0.5 * (rho_in[c_km] + rho_in[c]);
+            flux_zm = rho_face * w_in[c_km];
+        }
+        float divm_z = (flux_zp - flux_zm) * (1.0 / dz_val);
+
+        drho = -(divm_x + divm_y + divm_z);
+        if (preserve_unrepaired != 0)
+        {
+            uint xp = c + uint(ny * nz), xm = c - uint(ny * nz);
+            uint yp = c + uint(nz), ym = c - uint(nz);
+            vec2 flux_z_high = k + 1 < nz
+                ? acoustic_precise_mass_flux(rho_in[c], rho_in[c + 1], w_in[c], 0.0)
+                : df_mul(vec2(rho_in[c], 0), vec2(w_in[c], 0));
+            vec2 flux_z_low = k > 0
+                ? acoustic_precise_mass_flux(rho_in[c - 1], rho_in[c], w_in[c - 1], 0.0) : vec2(0);
+            drho = acoustic_precise_density_rate(
+                acoustic_precise_mass_flux(rho_in[c], rho_in[xp], u_in[c], frame_velocity_u_ms),
+                acoustic_precise_mass_flux(rho_in[xm], rho_in[c], u_in[xm], frame_velocity_u_ms),
+                acoustic_precise_mass_flux(rho_in[c], rho_in[yp], v_in[c], frame_velocity_v_ms),
+                acoustic_precise_mass_flux(rho_in[ym], rho_in[c], v_in[ym], frame_velocity_v_ms),
+                flux_z_high, flux_z_low, dx, dy, dz_val);
+        }
+        if (preserve_unrepaired == 0 && !finite_f(drho))
+        {
+            drho = 0.0;
+        }
+    }
+
+    // ── Forward-Euler rho integration with the CPU's guards ──────────
+    // Base-state profiles are compact 1D [nz] buffers (GPU audit
+    // Phase 4.3): no per-(i,j) broadcast upload.
+    float rho0_k = rho0_b[k];
+    float rho_new = rho_in[c] + drho * dt_small;
+    if (preserve_unrepaired != 0)
+        rho_new = acoustic_precise_update(rho_in[c], drho, dt_small);
+    if (preserve_unrepaired == 0 && (!finite_f(rho_new) || rho_new <= 0.0))
+    {
+        rho_new = max(0.1, rho0_k);
+    }
+    // clamp_density_kgm3: non-finite -> 1.0 (already finite here), then
+    // bounds clamp.
+    float rho_stored = preserve_unrepaired != 0 ? rho_new : clamp(rho_new, rho_min, rho_max);
+    rho_out[c] = rho_stored;
+
+    // ── Diagnostic pressure: full dry rho-theta EOS (science audit C1) ──
+    // p = p00 (rho R_d theta / p00)^gamma with gamma = cp/cv. Restores
+    // the entropy degree of freedom (theta coupling); mirrors the CPU's
+    // apply path. R_d = 287, p00 = 1e5 - the same constants the theta/T
+    // conversions use; gamma arrives via push constant (cp/(cp - R_d)).
+    const float R_D_CONST  = 287.0;
+    const float P00_CONST  = 100000.0;
+    float th = theta_in[c];
+    float p_new = uintBitsToFloat(0x7fc00000u);
+    if (th > 0.0)
+    {
+        if (preserve_unrepaired != 0 && rho_stored > 0.0 && finite_f(rho_stored) && finite_f(th))
+        {
+            p_new = acoustic_pressure_eos(rho_stored, th, vec2(gamma_val, gamma_low));
+        }
+        else
+        {
+            p_new = P00_CONST
+                  * pow(rho_stored * R_D_CONST * th / P00_CONST, gamma_val);
+        }
+    }
+    if (preserve_unrepaired == 0 && (!finite_f(p_new) || p_new <= 0.0))
+    {
+        p_new = p_ref_fallback;
+    }
+    // clamp_pressure_pa bounds clamp.
+    p_out[c] = preserve_unrepaired != 0 ? p_new : clamp(p_new, p_min, p_max);
+}

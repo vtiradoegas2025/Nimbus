@@ -1,0 +1,71 @@
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+layout(std430, set = 0, binding = 0) readonly buffer UInput { float u_input[]; };
+layout(std430, set = 0, binding = 1) readonly buffer VInput { float v_input[]; };
+layout(std430, set = 0, binding = 2) readonly buffer WInput { float w_input[]; };
+layout(std430, set = 0, binding = 3) readonly buffer RhoInput { float rho_input[]; };
+layout(std430, set = 0, binding = 4) readonly buffer PInput { float p_input[]; };
+layout(std430, set = 0, binding = 5) readonly buffer ThetaInput { float theta_input[]; };
+layout(std430, set = 0, binding = 6) readonly buffer DuInput { float du_input[]; };
+layout(std430, set = 0, binding = 7) readonly buffer DvInput { float dv_input[]; };
+layout(std430, set = 0, binding = 8) readonly buffer DwInput { float dw_input[]; };
+layout(std430, set = 0, binding = 9) readonly buffer DrhoInput { float drho_input[]; };
+layout(std430, set = 0, binding = 10) readonly buffer DpInput { float dp_input[]; };
+layout(std430, set = 0, binding = 11) writeonly buffer UOutput { float u_output[]; };
+layout(std430, set = 0, binding = 12) writeonly buffer VOutput { float v_output[]; };
+layout(std430, set = 0, binding = 13) writeonly buffer WOutput { float w_output[]; };
+layout(std430, set = 0, binding = 14) writeonly buffer RhoOutput { float rho_output[]; };
+layout(std430, set = 0, binding = 15) writeonly buffer POutput { float p_output[]; };
+
+layout(push_constant) uniform Constants {
+    int nx;
+    int ny;
+    int nz;
+    uint mode;
+    float dt;
+    float padding0;
+    float padding1;
+    float padding2;
+} pc;
+
+void main() {
+    uint n = gl_GlobalInvocationID.x;
+    uint count = uint(pc.nx) * uint(pc.ny) * uint(pc.nz);
+    if (n >= count) return;
+
+    float next_u = u_input[n];
+    float next_v = v_input[n];
+    float next_w = w_input[n];
+    float next_rho = rho_input[n];
+    float next_p = p_input[n];
+    if (pc.mode == 0u) {
+        precise float du = du_input[n] * pc.dt;
+        precise float dv = dv_input[n] * pc.dt;
+        precise float dw = dw_input[n] * pc.dt;
+        precise float dp = dp_input[n] * pc.dt;
+        next_u = u_input[n] + du;
+        next_v = v_input[n] + dv;
+        next_w = w_input[n] + dw;
+        next_p = p_input[n] + dp;
+    } else if (pc.mode == 1u) {
+        precise float drho = drho_input[n] * pc.dt;
+        next_rho = rho_input[n] + drho;
+        const float rd = 287.0;
+        const float p0 = 100000.0;
+        const float gamma = 1.40027894;
+        next_p = p0 * pow(next_rho * rd * theta_input[n] / p0, gamma);
+    } else {
+        precise float du = du_input[n] * pc.dt;
+        precise float dv = dv_input[n] * pc.dt;
+        precise float dw = dw_input[n] * pc.dt;
+        next_u = u_input[n] + du;
+        next_v = v_input[n] + dv;
+        next_w = w_input[n] + dw;
+    }
+    u_output[n] = next_u;
+    v_output[n] = next_v;
+    w_output[n] = next_w;
+    rho_output[n] = next_rho;
+    p_output[n] = next_p;
+}

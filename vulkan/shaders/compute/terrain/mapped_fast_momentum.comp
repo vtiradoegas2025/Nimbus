@@ -1,0 +1,124 @@
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(std430, set = 0, binding = 0) readonly buffer Density
+{
+    float rho[];
+};
+layout(std430, set = 0, binding = 1) readonly buffer Pressure
+{
+    float pressure[];
+};
+layout(std430, set = 0, binding = 2) readonly buffer Height
+{
+    float height[];
+};
+layout(std430, set = 0, binding = 3) readonly buffer ReferencePressure
+{
+    float reference_pressure[];
+};
+layout(std430, set = 0, binding = 4) writeonly buffer UPressureForce
+{
+    float du_dt[];
+};
+layout(std430, set = 0, binding = 5) writeonly buffer VPressureForce
+{
+    float dv_dt[];
+};
+layout(std430, set = 0, binding = 6) writeonly buffer WPressureForce
+{
+    float dw_dt[];
+};
+
+layout(push_constant) uniform Constants
+{
+    int   nx;
+    int   ny;
+    int   nz;
+    int   sampled_reference;
+    float dx;
+    float dy;
+    float nominal_dz;
+    float padding1;
+}
+pc;
+
+uint index3(int i, int j, int k)
+{
+    return (uint(i) * uint(pc.ny) + uint(j)) * uint(pc.nz) + uint(k);
+}
+
+float reference_at(float z)
+{
+    if (pc.nz == 1)
+        return reference_pressure[0];
+    float fractional = z / pc.nominal_dz - 0.5;
+    int   lower      = clamp(int(floor(fractional)), 0, pc.nz - 2);
+    float weight     = fractional - float(lower);
+    return reference_pressure[lower] + weight * (reference_pressure[lower + 1] - reference_pressure[lower]);
+}
+
+float pressure_perturbation(int i, int j, int k)
+{
+    uint          n = index3(i, j, k);
+    precise float perturbation =
+        pressure[n] - (pc.sampled_reference != 0 ? reference_pressure[uint(pc.nz) + 3u * n] : reference_at(height[n]));
+    return perturbation;
+}
+
+float column_gradient(int i, int j, int k)
+{
+    if (pc.nz < 2)
+        return 0.0;
+    int lower = k == 0 ? 0 : k - 1;
+    int upper = k + 1 < pc.nz ? k + 1 : pc.nz - 1;
+    return (pressure_perturbation(i, j, upper) - pressure_perturbation(i, j, lower)) /
+           (height[index3(i, j, upper)] - height[index3(i, j, lower)]);
+}
+
+float gradient_x(int i, int j, int k)
+{
+    float computational = (pressure_perturbation(i + 1, j, k) - pressure_perturbation(i, j, k)) / pc.dx;
+    float slope         = (height[index3(i + 1, j, k)] - height[index3(i, j, k)]) / pc.dx;
+    float vertical      = 0.5 * (column_gradient(i, j, k) + column_gradient(i + 1, j, k));
+    return computational - slope * vertical;
+}
+
+float gradient_y(int i, int j, int k)
+{
+    float computational = (pressure_perturbation(i, j + 1, k) - pressure_perturbation(i, j, k)) / pc.dy;
+    float slope         = (height[index3(i, j + 1, k)] - height[index3(i, j, k)]) / pc.dy;
+    float vertical      = 0.5 * (column_gradient(i, j, k) + column_gradient(i, j + 1, k));
+    return computational - slope * vertical;
+}
+
+float gradient_z_face(int i, int j, int k)
+{
+    return (pressure_perturbation(i, j, k + 1) - pressure_perturbation(i, j, k)) /
+           (height[index3(i, j, k + 1)] - height[index3(i, j, k)]);
+}
+
+void main()
+{
+    uint n     = gl_GlobalInvocationID.x;
+    uint count = uint(pc.nx) * uint(pc.ny) * uint(pc.nz);
+    if (n >= count)
+        return;
+    int k = int(n % uint(pc.nz));
+    int j = int((n / uint(pc.nz)) % uint(pc.ny));
+    int i = int(n / (uint(pc.ny) * uint(pc.nz)));
+
+    du_dt[n] = 0.0;
+    dv_dt[n] = 0.0;
+    dw_dt[n] = 0.0;
+    if (i <= 0 || i >= pc.nx - 1 || j <= 0 || j >= pc.ny - 1 || k >= pc.nz - 1)
+        return;
+
+    float rho_x = 0.5 * (rho[n] + rho[index3(i + 1, j, k)]);
+    float rho_y = 0.5 * (rho[n] + rho[index3(i, j + 1, k)]);
+    float rho_z = 0.5 * (rho[n] + rho[index3(i, j, k + 1)]);
+    du_dt[n]    = -gradient_x(i, j, k) / rho_x;
+    dv_dt[n]    = -gradient_y(i, j, k) / rho_y;
+    dw_dt[n]    = -gradient_z_face(i, j, k) / rho_z;
+}

@@ -1,0 +1,135 @@
+schema: nimbus.v1
+
+# Small deterministic terrain runtime fixture for diagnostic-only
+# storm-feature sampling and C-grid physical-w publication. With no
+# microphysics or trigger it intentionally produces status=weak; this proves
+# the tracker does not invent a storm center before coherent
+# condensate/updraft evidence exists.
+grid:
+  coordinate_system: cartesian
+  staggering: c_grid
+  nx: 10
+  ny: 10
+  nz: 13
+  dx: 1000
+  dy: 1000
+  dz: 500
+  ztop: 6500
+
+time:
+  run_time: 1
+  dt_large: 0.1
+  acoustic_substeps: 6
+  adaptive_dt: false
+  cfl_safety: 0.7
+  output_interval: 1
+
+domain_motion:
+  tracking:
+    enabled: true
+    interval_s: 0.1
+    inner_margin_m: 2000
+    maximum_shift_cells: 8
+    minimum_confidence: 0.8
+    minimum_updraft_ms: 5
+    minimum_condensate_path_kgm2: 0.1
+    updraft_helicity_bottom_m_agl: 2000
+    updraft_helicity_top_m_agl: 5000
+    minimum_absolute_updraft_helicity_m2s2: 25
+    minimum_component_cells: 4
+    maximum_motion_speed_ms: 75
+    maximum_motion_acceleration_ms2: 0.25
+    minimum_continuity_samples: 3
+    lost_after_samples: 3
+    topology_confirmation_samples: 2
+    branch_preference: bunkers_right
+    branch_velocity_uncertainty_ms: 3
+
+dynamics:
+  scheme: klemp_wilhelmson_split_cartesian_cgrid
+  axisymmetric: false
+
+boundary_conditions:
+  lateral:
+    west: radiative
+    east: radiative
+    south: radiative
+    north: radiative
+  bottom: rigid_slip
+  top: rigid
+
+damping:
+  enabled: false
+  z_d: 3000
+  alpha: 0.00333
+  mode: explicit
+
+coriolis:
+  enabled: false
+  mode: f_plane
+  latitude_deg: 35
+
+microphysics:
+  scheme: none
+
+turbulence:
+  scheme: none
+  mode: 3d
+
+diffusion:
+  scheme: explicit
+  operator_order: 2
+  K_h: 0
+  K_v: 0
+  apply_to: scalars
+
+surface:
+  scheme: none
+  apply_fluxes: false
+
+boundary_layer:
+  scheme: none
+
+radiation:
+  scheme: none
+
+terrain:
+  scheme: bell
+  coordinate: smoothed
+  compute_derivatives: true
+  compute_metrics: true
+  smoothing_decay: 0.1
+  bell:
+    h0: 300
+    a: 2000
+    axisymmetric: true
+
+initial_conditions:
+  sounding:
+    type: parametric_cape
+    cape_jkg: 0
+    tropopause_m: 8000
+    surface_theta_k: 300
+    moisture_qv_kgkg: 0.004
+  hodograph:
+    type: wk_param
+    u_sfc_ms: 6
+    v_sfc_ms: 2
+    u_1km_ms: 6
+    v_1km_ms: 2
+    u_6km_ms: 22
+    v_6km_ms: 10
+  trigger:
+    type: none
+
+output:
+  preset: minimal
+  format: npy_3d
+  async_io: false
+  live_shm: false
+
+extensions:
+  compute:
+    backend: cpu
+  validation:
+    guard_mode: warn

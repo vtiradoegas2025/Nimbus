@@ -1,0 +1,155 @@
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(std430, set = 0, binding = 0) buffer B0 { float a0[]; };
+layout(std430, set = 0, binding = 1) buffer B1 { float a1[]; };
+layout(std430, set = 0, binding = 2) buffer B2 { float a2[]; };
+layout(std430, set = 0, binding = 3) buffer B3 { float a3[]; };
+layout(std430, set = 0, binding = 4) buffer B4 { float a4[]; };
+layout(std430, set = 0, binding = 5) buffer B5 { float a5[]; };
+layout(std430, set = 0, binding = 6) buffer B6 { float a6[]; };
+layout(std430, set = 0, binding = 7) buffer B7 { float a7[]; };
+layout(std430, set = 0, binding = 8) buffer B8 { float a8[]; };
+layout(std430, set = 0, binding = 9) buffer B9 { float a9[]; };
+layout(std430, set = 0, binding = 10) buffer B10 { float a10[]; };
+layout(std430, set = 0, binding = 11) buffer B11 { float a11[]; };
+layout(std430, set = 0, binding = 12) buffer B12 { float a12[]; };
+layout(std430, set = 0, binding = 13) buffer B13 { float a13[]; };
+layout(std430, set = 0, binding = 14) buffer B14 { float a14[]; };
+layout(std430, set = 0, binding = 15) buffer B15 { float a15[]; };
+layout(std430, set = 0, binding = 16) buffer B16 { float a16[]; };
+layout(std430, set = 0, binding = 17) buffer B17 { float a17[]; };
+
+layout(push_constant) uniform Constants {
+    int nx;
+    int ny;
+    int nz;
+    int stage;
+    float dx;
+    float dy;
+    float dzeta;
+    float gamma_value;
+    float frame_u_ms;
+    float frame_v_ms;
+    float padding0;
+    float padding1;
+    float padding2;
+    float padding3;
+    float padding4;
+    float padding5;
+} pc;
+
+uint index3(int i, int j, int k) {
+    return (uint(i) * uint(pc.ny) + uint(j)) * uint(pc.nz) + uint(k);
+}
+
+float rho_x_face(int i, int j, int k) {
+    return 0.5 * (a0[index3(i, j, k)] + a0[index3(i + 1, j, k)]);
+}
+
+float rho_y_face(int i, int j, int k) {
+    return 0.5 * (a0[index3(i, j, k)] + a0[index3(i, j + 1, k)]);
+}
+
+float rho_u_center(int i, int j, int k) {
+    return 0.5 * (rho_x_face(i - 1, j, k) * (a1[index3(i - 1, j, k)] - pc.frame_u_ms) +
+                  rho_x_face(i, j, k) * (a1[index3(i, j, k)] - pc.frame_u_ms));
+}
+
+float rho_v_center(int i, int j, int k) {
+    return 0.5 * (rho_y_face(i, j - 1, k) * (a2[index3(i, j - 1, k)] - pc.frame_v_ms) +
+                  rho_y_face(i, j, k) * (a2[index3(i, j, k)] - pc.frame_v_ms));
+}
+
+float u_center(int i, int j, int k) {
+    return 0.5 * (a1[index3(i - 1, j, k)] + a1[index3(i, j, k)]);
+}
+
+float v_center(int i, int j, int k) {
+    return 0.5 * (a2[index3(i, j - 1, k)] + a2[index3(i, j, k)]);
+}
+
+float mass_flux_x(int i, int j, int k) {
+    uint n = index3(i, j, k);
+    return a6[n] * rho_x_face(i, j, k) * (a1[n] - pc.frame_u_ms);
+}
+
+float mass_flux_y(int i, int j, int k) {
+    uint n = index3(i, j, k);
+    return a7[n] * rho_y_face(i, j, k) * (a2[n] - pc.frame_v_ms);
+}
+
+float mass_flux_zeta(int i, int j, int k) {
+    uint n = index3(i, j, k);
+    int upper = min(k + 1, pc.nz - 1);
+    float rho_w = (k + 1 < pc.nz ? 0.5 * (a0[n] + a0[index3(i, j, k + 1)]) : a0[n]) * a3[n];
+    float rho_u = k + 1 < pc.nz ? 0.5 * (rho_u_center(i, j, k) + rho_u_center(i, j, upper))
+                                 : rho_u_center(i, j, k);
+    float rho_v = k + 1 < pc.nz ? 0.5 * (rho_v_center(i, j, k) + rho_v_center(i, j, upper))
+                                 : rho_v_center(i, j, k);
+    return rho_w + a8[n] * rho_u + a9[n] * rho_v;
+}
+
+float zeta_velocity(int i, int j, int k) {
+    uint n = index3(i, j, k);
+    int upper = min(k + 1, pc.nz - 1);
+    float uf = k + 1 < pc.nz ? 0.5 * (u_center(i, j, k) + u_center(i, j, upper))
+                              : u_center(i, j, k);
+    float vf = k + 1 < pc.nz ? 0.5 * (v_center(i, j, k) + v_center(i, j, upper))
+                              : v_center(i, j, k);
+    return a3[n] + a8[n] * (uf - pc.frame_u_ms) + a9[n] * (vf - pc.frame_v_ms);
+}
+
+void main() {
+    uint n = gl_GlobalInvocationID.x;
+    uint count = uint(pc.nx) * uint(pc.ny) * uint(pc.nz);
+    if (n >= count) return;
+    int k = int(n % uint(pc.nz));
+    int j = int((n / uint(pc.nz)) % uint(pc.ny));
+    int i = int(n / (uint(pc.ny) * uint(pc.nz)));
+
+    if (pc.stage == 0) {
+        a5[n] = 0.0;
+        if (k == 0 && i > 0 && j > 0) {
+            float ground_u = 0.5 * (a0[index3(i - 1, j, 0)] + a0[n]) - pc.frame_u_ms;
+            float ground_v = 0.5 * (a1[index3(i, j - 1, 0)] + a1[n]) - pc.frame_v_ms;
+            a5[n] = ground_u * (-a3[n]) + ground_v * (-a4[n]);
+        }
+        return;
+    }
+
+    a10[n] = 0.0;
+    a11[n] = 0.0;
+    a12[n] = 0.0;
+    a13[n] = 0.0;
+    a14[n] = 0.0;
+    if (i < pc.nx - 1)
+        a12[n] = mass_flux_x(i, j, k);
+    if (j < pc.ny - 1)
+        a13[n] = mass_flux_y(i, j, k);
+    if (i > 0 && i < pc.nx - 1 && j > 0 && j < pc.ny - 1)
+        a14[n] = mass_flux_zeta(i, j, k);
+
+    if (i > 0 && i < pc.nx - 1 && j > 0 && j < pc.ny - 1) {
+        float fxp = mass_flux_x(i, j, k);
+        float fxm = mass_flux_x(i - 1, j, k);
+        float fyp = mass_flux_y(i, j, k);
+        float fym = mass_flux_y(i, j - 1, k);
+        float fzp = mass_flux_zeta(i, j, k);
+        float fzm = k > 0 ? mass_flux_zeta(i, j, k - 1) : 0.0;
+        float transformed_mass = (fxp - fxm) / pc.dx + (fyp - fym) / pc.dy +
+                                 (fzp - fzm) / pc.dzeta;
+        a10[n] = -transformed_mass / a5[n];
+
+        float vxp = a6[n] * (a1[n] - pc.frame_u_ms);
+        float vxm = a6[index3(i - 1, j, k)] * (a1[index3(i - 1, j, k)] - pc.frame_u_ms);
+        float vyp = a7[n] * (a2[n] - pc.frame_v_ms);
+        float vym = a7[index3(i, j - 1, k)] * (a2[index3(i, j - 1, k)] - pc.frame_v_ms);
+        float vzp = zeta_velocity(i, j, k);
+        float vzm = k > 0 ? zeta_velocity(i, j, k - 1) : 0.0;
+        float transformed_velocity = (vxp - vxm) / pc.dx + (vyp - vym) / pc.dy +
+                                     (vzp - vzm) / pc.dzeta;
+        a11[n] = -pc.gamma_value * a4[n] * transformed_velocity / a5[n];
+    }
+}

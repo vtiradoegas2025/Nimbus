@@ -1,0 +1,132 @@
+{
+  "schema": "nimbus.scheme-catalog.v9",
+  "catalogVersion": 9,
+  "authorityFingerprintSha256": "d834a4853fb4c6a20514ce0389d788d108c3170d745e9c51e5d2c1acaa685e27",
+  "readinessFingerprintSha256": "09d19c73bd8f91019fccefa30c7c02cc7b13fac6d7b7a24977afb118407fd2d2",
+  "moduleCount": 12,
+  "schemeCount": 38,
+  "modules": [
+    {
+      "id": "dynamics",
+      "selectionPath": "dynamics.scheme",
+      "studioMode": "form",
+      "schemes": [
+        "klemp_wilhelmson_split_cartesian_agrid",
+        "klemp_wilhelmson_split_cartesian_cgrid"
+      ]
+    },
+    {
+      "id": "advection",
+      "selectionPath": "advection.scheme",
+      "studioMode": "form",
+      "schemes": [
+        "tvd",
+        "weno5",
+        "none"
+      ]
+    },
+    {
+      "id": "diffusion",
+      "selectionPath": "diffusion.scheme",
+      "studioMode": "form",
+      "schemes": [
+        "explicit",
+        "implicit"
+      ]
+    },
+    {
+      "id": "time_stepping",
+      "selectionPath": "time.integrator",
+      "studioMode": "form",
+      "schemes": [
+        "rk3",
+        "rk4",
+        "split_explicit"
+      ]
+    },
+    {
+      "id": "microphysics",
+      "selectionPath": "microphysics.scheme",
+      "studioMode": "form",
+      "schemes": [
+        "kessler",
+        "lin",
+        "thompson",
+        "milbrandt",
+        "none"
+      ]
+    },
+    {
+      "id": "radiation",
+      "selectionPath": "radiation.scheme",
+      "studioMode": "form",
+      "schemes": [
+        "simple_grey",
+        "rrtmg",
+        "none"
+      ]
+    },
+    {
+      "id": "boundary_layer",
+      "selectionPath": "boundary_layer.scheme",
+      "studioMode": "form",
+      "schemes": [
+        "slab",
+        "ysu",
+        "mynn",
+        "none"
+      ]
+    },
+    {
+      "id": "turbulence",
+      "selectionPath": "turbulence.scheme",
+      "studioMode": "form",
+      "schemes": [
+        "smagorinsky",
+        "tke",
+        "none"
+      ]
+    },
+    {
+      "id": "chaos",
+      "selectionPath": "extensions.chaos.scheme",
+      "studioMode": "form",
+      "schemes": [
+        "none",
+        "initial_conditions",
+        "boundary_layer",
+        "full_stochastic"
+      ]
+    },
+    {
+      "id": "terrain",
+      "selectionPath": "terrain.scheme",
+      "studioMode": "form",
+      "schemes": [
+        "none",
+        "bell",
+        "schar"
+      ]
+    },
+    {
+      "id": "radar",
+      "selectionPath": "radar.products",
+      "studioMode": "product_set_v1",
+      "schemes": [
+        "reflectivity",
+        "velocity",
+        "zdr"
+      ]
+    },
+    {
+      "id": "soundings",
+      "selectionPath": "initial_conditions.sounding.file.scheme_id",
+      "studioMode": "fixed_v1",
+      "schemes": [
+        "auto",
+        "cm1",
+        "sharpy"
+      ]
+    }
+  ]
+}

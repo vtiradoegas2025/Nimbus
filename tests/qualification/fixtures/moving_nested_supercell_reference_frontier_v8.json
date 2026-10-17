@@ -1,0 +1,50 @@
+{
+  "schema": "nimbus.qualification.moving_nested_reference_frontier.policy",
+  "schema_version": 8,
+  "policy_id": "moving-nested-reference-frontier-v8-orthogonal-containment-reserve-amendment",
+  "policy_status": "ratified",
+  "scope": "same-equation 600 m moving-child versus oversized stationary Nimbus reference with inherited v7 thresholds, geometry, aperture, containment movement, balanced trusted state, and release-preserving orthogonal containment reserve",
+  "prior_policy": {
+    "path": "moving_nested_supercell_reference_frontier_v7.json",
+    "sha256": "3a058e68e1b6d04e660ab3eefae9d1d19a99e9efc1fbdef88ad720d722270fa1",
+    "schema_version": 7,
+    "policy_id": "moving-nested-reference-frontier-v7-balanced-trusted-containment-amendment"
+  },
+  "failure_evidence": {
+    "path": "../../../docs/evidence/moving_nested_reference_frontier_v7_orthogonal_reserve_failure.json",
+    "sha256": "f65bfc701a9db5464052fd5f1d42ee6a9a1bf7d2724988f2cf8fb333af8bf0c9",
+    "schema_version": 1,
+    "reason": "post_containment_orthogonal_reserve_absent"
+  },
+  "ratification": {
+    "decision": "post_failure_orthogonal_containment_reserve_amendment_of_v7_and_blinded_v2_thresholds",
+    "review_date": "2026-08-12",
+    "reviewer_role": "independent_science_policy_audit",
+    "failed_v7_orthogonal_reserve_sequence_observed": true,
+    "candidate_metric_values_inspected": false,
+    "minimum_input_series_schema_version": 2,
+    "orthogonal_containment_reserve_amendment": {
+      "reason": "fail_closed_post_containment_orthogonal_reserve_absent",
+      "algorithm": "qualified_envelope_hysteresis_v10",
+      "eligibility": "an admitted trusted-interior containment transaction with an orthogonal authoritative approach direction and whole-parent-cell slack above both immutable release faces",
+      "transaction_scope": "same_immediate_trusted_interior_containment_transaction",
+      "orthogonal_shift_objective": "maximize directional reserve using only whole-parent-cell slack above the opposite release margin",
+      "both_orthogonal_release_faces_required_after_shift": true,
+      "all_current_relaxation_faces_required_after_shift": true,
+      "maximum_shift_cap_parent_cells": 14,
+      "current_relaxation_entry_recoverable": false,
+      "standalone_reserve_movement_allowed": false,
+      "numerical_thresholds_changed": false,
+      "geometry_or_aperture_changed": false,
+      "measurement_cadence_changed": false,
+      "failed_candidate_disposition": "invalid_not_comparable"
+    }
+  },
+  "limitations": [
+    "All numerical thresholds, geometry, aperture, measurement cadence, and v9 balanced-containment rules are inherited from the immutable v7 policy chain.",
+    "No comparison metric from the invalid v7 candidate was inspected or used to alter a threshold.",
+    "The orthogonal reserve can only accompany an already-admitted trusted-containment transaction and cannot move either orthogonal face inside the immutable release margin.",
+    "No current relaxation-zone entry is recoverable, and ambiguity, topology, parent containment, finite evidence, and fail-closed trusted-interior checks remain unchanged.",
+    "A pass remains a bounded same-equation fixed-aperture comparison and does not enable public moving_nest selection or broaden supported physics/backend combinations."
+  ]
+}

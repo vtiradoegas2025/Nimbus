@@ -1,0 +1,658 @@
+\section{Configuration, executable identity and admission}
+\label{architecture-admission}
+
+The simulator accepts a document, but it executes a compiled plan. The YAML
+reader first checks syntax, field names, types and ranges. Typed configuration
+then identifies the selected grid, schemes, numerical parameters, output
+policy and backend. The configuration compiler resolves the capabilities and
+couplings those choices require. Finally, ordinary runtime admission decides
+whether this particular combination can execute. These are separate questions:
+a number can be syntactically valid yet lie outside an implemented physical
+domain, and two individually available schemes can require an unfinished
+coupling when selected together.
+
+The authoritative path is visible in the
+\href{../src/init/config/v1_loader.cpp}{typed loader},
+\href{../src/core/runtime/configuration_compiler.hpp}{configuration compiler},
+\href{../src/core/runtime/readiness.cpp}{readiness registry} and
+\href{../src/core/runtime/nimbus_sim.cpp}{executable entry point}.
+The registry distinguishes Engineering incomplete from Ready. The runtime
+word \texttt{qualified} selects an admission policy; it does not assert that
+a long campaign or external scientific review has occurred. Public Milbrandt
+triple-moment selection remains guarded while its general source and live
+thermal coupling are incomplete.
+
+Studio does not maintain a second independent scientific model of which
+configurations should work. Its frontend uses the executable's scheme catalog,
+and its Rust preflight layer checks the source document and executable identity
+again before launch. A browser snapshot provides the same catalog structure
+when no native request is being made, but that snapshot is a generated input
+with an authority fingerprint. An old snapshot must not silently authorize a
+new executable. Conversely, a valid old run does not acquire new capabilities
+merely because the currently installed Studio knows additional schemes.
+
+Some narrow admission scopes bind exact canonical configuration digests. This
+is stricter than matching a family name such as Metal or ZFP. The strict
+serializer fixes the field inventory, defaults and representation; a membership
+test then checks that canonical document against the declared scope. Separate
+manifests bind raw source identity, serialized output-block identity and the
+combined admission scope. Those hashes answer different questions. Formatting
+the serializer can change its source hash without changing its serialized
+block; changing the source-bound manifest then changes the hashes of downstream
+combined manifests. Updating a block digest to stand in for a manifest digest
+would be an identity error even if both strings are valid SHA-256 values.
+
+The C++ catalog, TypeScript validator and Rust preflight therefore have
+coordinated exact-scope checks. See
+\href{../src/core/runtime/scheme_catalog.cpp}{catalog generation},
+\href{../ui/src/lib/config/schemeCatalog.ts}{frontend validation} and
+\href{../ui/src-tauri/src/commands/config_preflight.rs}{native preflight}.
+These checks are not a substitute for numerical tests; they keep the tested
+scope, selectable scope and user-visible scope from drifting apart. A metadata
+refresh must preserve every non-hash field unless a separately justified scope
+change is intended.
+
+\section{Field storage, layout and ownership}
+\label{architecture-storage}
+
+\subsection{Contiguous fields and the cost of a traversal}
+
+\href{../include/core/field/field3d.hpp}{Field3D} owns a contiguous array of
+binary32 values. Although compatibility accessor names retain historical
+radial/angular terminology, the current atmospheric configuration is Cartesian.
+For dimensions $(n_x,n_y,n_z)$ the scalar address is
+\[
+  \operatorname{offset}(i,j,k)=(i n_y+j)n_z+k.
+\]
+The vertical index is contiguous. A vertical column sweep therefore visits
+neighboring storage, while a horizontal stencil steps by a column or a slab.
+This layout favors several column processes and permits simple full-volume
+loops. It also means that a horizontal and a vertical stencil have different
+cache behavior even on an isotropic physical grid.
+
+State is organized as separate fields rather than an array of large cell
+objects. A pressure operator can read density, theta and the required winds
+without loading every microphysical number, radiation tendency or diagnostic
+member attached to a cell. The cost is that an operator needing many fields
+streams several arrays. For $N$ stored cells and $m$ complete Float32 fields,
+the payload alone is $4mN$ bytes, before padding, geometry, snapshots, private
+state, device copies or output. At $128\times128\times180$ cells, one field is
+11.25 MiB. A seemingly minor extra read-and-write pass over ten such fields
+represents approximately 225 MiB of logical traffic, even if caches or hardware
+write policies change the actual memory-bus traffic.
+
+The allocator aligns the base to 16 KiB and rounds the allocation size to that
+alignment. This supports relevant host-memory import requirements and also
+provides a well-aligned base for CPU access. It does not make every row aligned
+to every SIMD width: the row stride still depends on $n_z$. Nor does alignment
+prove that a Vulkan device accepts importing that allocation. Device memory
+requirements, supported external-memory features, lifetime and synchronization
+must still be checked. A successful aligned host allocation is only the first
+part of such a contract.
+
+Field dimensions are checked before allocation; copying a Field3D copies its
+payload, while moving transfers its ownership. Raw pointer views do not extend
+that lifetime. Aliasing is consequently an explicit operator concern. Some
+helpers permit exact in-place input/output aliases, whereas shifted overlap
+would overwrite unread input. A \texttt{restrict}-qualified vector loop is
+only valid when its caller satisfies the non-aliasing promise. SIMD speed does
+not justify relying on accidental overlap behavior. The
+\href{../tests/core/test_simd_aliasing.cpp}{SIMD alias tests} exercise these
+distinctions.
+
+\subsection{Temporary capacity is reusable; contents are not automatically valid}
+
+The \href{../include/core/field/field_pool.hpp}{field pool} groups reusable
+buffers by shape. A normal acquisition clears recycled contents. An
+overwrite acquisition skips that fill only because its caller promises to
+write the complete required contents before reading them. Newly allocated
+vector storage is still initialized by the container, so this optimization
+removes repeated fills, not every allocation-time write. A poison mode fills
+overwrite buffers with NaNs to expose incomplete initialization in tests.
+
+The pool protects its bookkeeping with a mutex, but performs full-field fills
+and copies after releasing that lock. This keeps independent shape requests
+from serializing behind a large memory traversal. RAII guards return buffers
+on normal exit or exception unwinding. A cached buffer is still allocated
+memory: releasing a guard lowers live ownership, but does not necessarily
+lower process RSS. Peak memory, current live bytes and retained reusable
+capacity are different measurements.
+
+This pattern matters especially on unified-memory systems. CPU scratch,
+resident GPU resources, output snapshots and browser textures can compete for
+the same physical capacity even though each subsystem reports a reasonable
+local count. On a discrete system, the same workload can exhaust host RAM and
+VRAM independently. A memory estimate must count the simultaneous ownership
+graph, rather than multiply the number of prognostic variables by cell count
+and assume everything else is negligible.
+
+\subsection{Simulation state and nested contexts}
+
+\href{../include/core/runtime/simulation_state.hpp}{SimulationStorageState}
+owns the primary fields and associated runtime state. Views expose related
+prognostic fields, base-state columns, tendencies, geometry and services to
+operators. They carry access, not ownership. Compatibility entry points still
+bind a global simulation instance; the design is not a claim that all legacy
+code is free of globals. New code should use an explicit state view and the
+correct level's runtime instead of recovering a backend or geometry through an
+unrelated global.
+
+A nested child has its own dimensions, physical domain, source history and
+private scheme state. It cannot borrow a parent's buffer merely because the
+shape matches. A moving grid also changes the physical interpretation of
+array locations. Generation changes must invalidate stale geometry-dependent
+or host/device reuse claims. This is one reason a domain move is a coordinated
+transaction rather than an array shift applied independently to whichever
+fields happen to be plotted.
+
+\section{A timestep is a sequence of owned state transitions}
+
+The \href{../src/core/orchestration/dynamics/dynamics.cpp}{dynamics owner}
+connects slow tendencies, acoustic pressure/density and momentum updates,
+boundary closure, retained transport fluxes, physical sources and the final
+EOS projection. The mathematics guide derives the equations and their
+locations. The architectural requirement is that every consumer knows which
+stage its inputs represent. An old density, a newly projected pressure and
+newly created cloud water are not one coherent stage merely because their
+arrays have compatible shapes.
+
+A typical bounded operator has a preparation phase, a candidate result and
+a publication point. Preparation validates geometry, units, dimensions,
+aliasing, domains and resources. Candidate work can populate scratch fields
+or backend buffers. Publication changes the caller's authoritative fields
+and the associated reports only after the result meets the owner's contract.
+Failure atomicity is scoped to that transaction: it means that a rejected
+operator does not leave a half-updated set of owned outputs. It does not
+promise arbitrary rollback of the entire run or reverse changes made by an
+unrelated earlier timestep.
+
+Reports are outputs too. An operation changing momentum can also change
+kinetic energy, boundary exchange and a diagnostic ledger. Updating the wind
+while retaining the old report, or publishing a report before checking the
+wind, creates inconsistent state. Similarly, microphysics primary water and
+private number moments have a shared acceptance boundary. Checkpoint restart
+is the separate mechanism for returning to an earlier completed model state.
+
+Conservation diagnostics increase this coupling. A cell-centered internal
+energy inventory and a C-grid face kinetic inventory need different geometry
+and material inputs. The pressure-material reuse owner retains immutable
+cell information while pressure changes; the velocity snapshot helper can
+complete a snapshot without needlessly reconstructing unchanged thermal
+parts. These are data-reuse changes with explicit preconditions, not changes
+to physical equations. The relevant maintained sources include
+\href{../src/core/orchestration/dynamics/pressure_cell_energy.hpp}{pressure
+cell energy} and
+\href{../tests/diagnostics/test_energy_budget.cpp}{energy-budget tests}.
+
+The native fused acoustic path and the ordinary strict CPU path need not
+traverse the same implementation. Profiling a similarly named helper is not
+proof that the selected runtime calls it. An optimization must first identify
+the actual admission and call path, then preserve the observable stage
+sequence on that path. This avoids optimizing a dormant implementation while
+claiming improvement in the active solver.
+
+\section{ARM, x86 and x64 are several portability questions}
+\label{architecture-cpu-portability}
+
+\subsection{Instruction set is distinct from operating system and memory topology}
+
+In this guide x64 means x86-64, the 64-bit x86 instruction-set family; ARM64
+means AArch64. Neither term specifies the number of cores, vector width,
+memory channels, cache layout, GPU, operating system or graphics driver.
+An x86-64 host can use an integrated GPU with shared memory. An ARM64 host can
+have a discrete accelerator. Selecting a memory policy from the CPU brand or
+pointer width would conflate independent properties.
+
+A native executable must match the target instruction set and operating-system
+ABI. Object formats, calling conventions, system APIs and dynamic-library
+dependencies also matter. A generic x86-64 Linux build is not a Windows binary
+and is not an ARM64 binary. Replacing host-specific instructions does not
+automatically make a new library ABI compatible with an older operating
+system. A portable checkpoint similarly means a defined data format, not
+permission to load it into an incompatible scientific configuration.
+
+Nimbus's \href{../mk/options.mk}{build options} use
+\texttt{-march=native -mtune=native} for ordinary source builds. These permit
+the compiler to exploit the build host. \texttt{PORTABLE=1} removes those
+host-native flags and records \texttt{NIMBUS\_PORTABLE\_BUILD};
+\texttt{DISTRIBUTION=1} requires that portable choice and rejects conflicting
+host-targeting flags. The resulting baseline remains the chosen compiler and
+architecture's target. It is not a universal fat binary containing every ISA
+variant. GCC explicitly distinguishes instruction-set selection from tuning
+in its \href{https://gcc.gnu.org/onlinedocs/gcc/x86-Options.html}{x86 option
+reference}.
+
+On macOS, the build records a deployment target and distribution builds turn
+unguarded availability into errors. Windows and Linux require their own
+compiler/runtime dependencies and packaging checks. CPU-only, OpenMP-enabled
+and serial builds also differ in capability. A serial build rejects an
+explicit worker request greater than one instead of pretending that it
+created a parallel team. The maintained
+\href{SUPPORTED_PLATFORMS.md}{platform guide} states supported build evidence;
+source branches for a platform are not evidence that every combination has
+been exercised there.
+
+\subsection{The actual SIMD implementation is narrower than the CPU's feature list}
+
+\href{../include/util/simd_utils.hpp}{SIMD declarations} and
+\href{../src/core/infra/simd_utils.cpp}{vector helpers} provide scalar, SSE,
+AVX and Neon implementations for selected array operations. The implemented
+paths process four Float32 values for SSE/Neon and eight for AVX. An AVX-512
+compiler target deliberately uses the tested eight-lane AVX path in this
+utility layer; there is no separate sixteen-lane implementation there.
+Reported active width must describe that choice rather than advertising the
+maximum feature named by the processor.
+
+The code distinguishes compiled features from runtime host features. GCC/Clang
+x86 capability queries use compiler builtins; AArch64 exposes the Neon path.
+That reporting helps detect what is available, but the array implementations
+are selected by compile-time branches. A runtime feature query cannot make a
+whole translation unit compiled with unsupported instructions safe, and it
+cannot create an AVX implementation absent from a generic binary. True
+multiversioning would require separately compiled or target-attributed
+implementations and a safe dispatch boundary. It must not be inferred from
+the existence of a feature-report function.
+
+The core solver also relies on compiler vectorization and OpenMP SIMD loops.
+Therefore the helper width alone is not a census of all vector instructions in
+a binary. A particular loop may stay scalar because of control flow, aliasing,
+gather/scatter access, a function call or an unsupported transformation. The
+useful evidence is the emitted code or vectorization report for the active
+owner, accompanied by a correctness test. Wider vector instructions do not
+guarantee proportional speedup when memory bandwidth or synchronization is
+the limit.
+
+Arm's \href{https://developer.arm.com/documentation/101028/0009/Advanced-SIMD--Neon--intrinsics}{Advanced SIMD reference}
+describes fixed-width Neon operations. Nimbus's current helper does not become
+an SVE or SME implementation merely by running on a newer ARM machine.
+Likewise, generic x86-64 support and native AVX tuning are distinct tested
+artifacts. Portable correctness should be checked with an actual baseline
+object set, not by relinking a new entry point against old native objects.
+
+\section{Threads, caches and deterministic budgets}
+
+\subsection{Worker count is a policy input}
+
+Nimbus uses OpenMP for shared-memory CPU execution. The CLI gives an explicit
+\texttt{--threads} request priority and disables dynamic team sizing for that
+request. Otherwise an existing \texttt{OMP\_NUM\_THREADS} remains authoritative.
+Without either request, topology detection can prefer a detected performance
+core class or physical cores on an SMT host, bounded by the runtime's available
+thread count. It does not impose one hardcoded workstation thread count.
+See \href{../src/core/infra/hardware_info.cpp}{hardware detection} and the
+thread override in \href{../src/core/runtime/nimbus_sim.cpp}{the CLI}.
+
+The detection code uses platform facilities: Apple performance-level counts,
+Linux processor/package/core identifiers, and Windows processor topology.
+These are observations, not a guarantee of exclusive access to those cores.
+Container CPU sets, scheduler restrictions and an OpenMP runtime's processor
+group behavior can constrain execution. A topology-derived default is a
+starting policy rather than an automatic optimum for every mesh and scheme.
+
+SMT adds logical execution contexts sharing core resources. Doubling logical
+workers does not double floating-point units or memory channels. On a
+bandwidth-heavy stencil, extra workers may increase competition; on a smaller
+or latency-limited workload they may behave differently. Heterogeneous
+performance and efficiency cores pose another scheduling question: one slow
+participant can lengthen a barrier wait even if aggregate CPU utilization is
+high. These effects are reasons to measure, not reasons to forbid a topology.
+
+Nimbus records OpenMP binding and place information but does not install a
+universal affinity policy. \texttt{OMP\_PLACES} and \texttt{OMP\_PROC\_BIND}
+remain runtime controls. The OpenMP
+\href{https://www.openmp.org/spec-html/5.1/openmpse62.html}{places} and
+\href{https://www.openmp.org/spec-html/5.0/openmpse52.html}{binding}
+definitions explain that these select where threads may run and how they
+remain associated with places. A logged request is weaker evidence than the
+runtime's actual placement; some environments cannot honor a requested policy.
+
+\subsection{NUMA is a remaining measurement and placement concern}
+
+The inspected implementation does not provide an explicit NUMA allocator,
+\texttt{mbind}/\texttt{set\_mempolicy} placement policy or automatic
+cross-socket work decomposition. Host vectors use ordinary allocation, and
+their initialization and subsequent access interact with the operating
+system's memory-placement policy. Consequently, a physical-core count alone
+does not establish that a large array is close to every worker that reads it.
+It would be inaccurate to describe Nimbus as automatically NUMA-optimized.
+
+For a new multisocket or chiplet host, useful questions are which workers
+touch which slabs, where pages are placed, which cache levels are shared, and
+whether the working set saturates local or interconnect bandwidth. Changing
+first-touch behavior or affinity is a separate candidate requiring matched
+measurements. The current scalar layout and pool capacity reuse are useful
+foundations, but they do not answer these topology questions by themselves.
+
+\subsection{Reduction order is a numerical algorithm}
+
+Floating-point addition is not associative. Dividing a sum among a different
+number of workers usually changes its grouping, even if each cell contribution
+is identical. Nimbus's deterministic diagnostic path instead forms fixed
+horizontal slabs, visits each slab in a prescribed order, and merges slab
+partials in increasing index with compensated accumulation. OpenMP can assign
+the independent slabs to different workers without changing that partition.
+
+For an accumulator $s$ and an added value $x$, compensation retains an estimate
+of the low-order portion lost when $s+x$ is rounded. The implementation uses
+a magnitude-dependent correction and returns the main sum plus the correction.
+This improves the sum while fixed ordering supplies thread-count reproducibility.
+Compensation alone would not fix an arbitrary parallel reduction tree.
+The contract in
+\href{../include/diagnostics/deterministic_reduction.hpp}{deterministic reductions}
+is explicitly for one build target; it is not a blanket bitwise promise across
+all libraries, architectures and source expressions.
+
+Regular SIMD reduction helpers can use another grouping. They must not be
+substituted for a deterministic scientific budget merely because their scalar
+return type matches. Likewise, comparing two simulations requires identifying
+whether equality means exact stored bytes, fixed-build repeatability, an
+operator-specific tolerance, or a physical error bound. These are different
+tests with different failure meanings.
+
+\section{Backend dispatch, kernel ABI and memory admission}
+
+The \href{../include/compute/backend_interface.hpp}{backend interface}
+exposes operation families rather than an untyped function that accepts any
+buffer list. Family availability, typed dispatch fields and validation define
+what can execute. An absent family is unavailable; the owning runtime decides
+whether that is a permitted fallback or a native-required failure. The backend
+receives its runtime configuration before initialization so that independent
+simulation contexts need not recover device selection through globals.
+
+Each shader has a stable kernel identity and a manifest contract covering
+resource bindings, constants, precision and availability. Host constants use
+explicit integer widths, Float32 fields, padding and size assertions in
+\href{../include/compute/kernel_abi.hpp}{the kernel ABI}. A C++ compiler's
+ordinary object layout is not automatically a shader language's uniform or
+push-constant layout. The explicit structures and manifest checks prevent an
+apparently successful dispatch from interpreting an integer dimension as the
+bits of a different parameter.
+
+Ordinary native builds consume the committed SPIR-V artifacts after checking
+the exact shader-source and included-GLSL hashes, artifact identities,
+division-workaround variants, generated variant header and compiled kernel
+manifest. They do not silently regenerate numerical kernels with whichever
+shader optimizer happens to be installed on the build host. This matters
+across machines: optimizer versions can remove unused push-constant padding,
+and older SPIR-V tools may not understand an extension present in a retained
+kernel. The \href{../scripts/dev/shaders/check_artifacts.py}{asset check}
+rejects stale inputs; the separate
+\href{../scripts/dev/shaders/verify_spirv.py}{rebuild/validation workflow}
+requires a compatible toolchain and reviewed artifacts. Identity verification
+preserves the selected implementation; it does not replace device admission,
+dispatch parity or scientific validation.
+
+The \href{../include/compute/dispatch_graph.hpp}{dispatch graph} records
+read-after-write, write-after-read and write-after-write dependencies between
+named field uses. It is a hazard description, not an executable resource
+binder. A structurally valid graph still needs the correct buffers, extents,
+constant block, kernel and backend synchronization. This distinction keeps a
+graph validation pass from being misreported as successful GPU execution.
+
+Memory admission is also backend-resolved. The largest individual field must
+fit the device's storage-buffer limit, while simultaneous resident fields
+must fit an available heap budget. Those are independent constraints. The
+current dynamics envelope uses 51 field-equivalents per simultaneously resident
+level, including retained names and transients; it is a conservative planning
+envelope, not the exact number of prognostic variables. Specialized wider
+transactions retain their own limits. Saturating arithmetic reports overflow
+as invalid admission rather than wrapping a huge request into a small one.
+See \href{../include/compute/compute_memory_admission.hpp}{memory admission}
+and \href{../tests/compute/test_memory_admission.cpp}{its tests}.
+
+If $B_f=4n_xn_yn_z$ is one field payload, the simple envelope is approximately
+$51B_f$ per level before interpreting host/device duplication. A hierarchy
+must sum all levels that can be resident together. A device-local heap size is
+not necessarily its currently free budget; Nimbus distinguishes a known heap
+from a live budget when the backend exposes one. Admission can be conservative,
+but it must not invent VRAM capacity from a CPU's system-memory report.
+
+\section{Vulkan transfers, execution and failure containment}
+\label{architecture-vulkan}
+
+\subsection{Choose memory from reported types, not a GPU name}
+
+\href{../vulkan/include/compute/vulkan_memory_plan.hpp}{The Vulkan memory plan}
+inspects compatible memory types and their heaps. It identifies a primary
+device-local heap, a working allocation type and a host-visible staging type.
+For staging it prefers cached host memory, which matters for CPU readback.
+Host coherence and host caching are different flags: coherence concerns
+visibility operations, while caching affects CPU access behavior.
+
+A type that is both host-visible and device-local can describe genuinely
+shared memory, or a CPU-visible aperture into discrete VRAM. Resizable BAR
+does not turn the latter into an integrated-memory machine. Nimbus keeps a
+discrete device in an aperture/staged classification even when the visible
+aperture spans the full device heap. Direct shared mode requires compatible
+reported topology; \texttt{auto}, \texttt{direct} and \texttt{staged} controls
+select among supported plans rather than bypassing their requirements.
+The underlying distinction is described in the
+\href{https://docs.vulkan.org/guide/latest/memory_allocation.html}{Khronos
+memory-allocation guide}.
+
+The buffer pool retains capacity for repeated dispatches. In direct shared
+mode a device buffer is mapped and the staging slot can be a placeholder.
+In staged mode the pair contains host-accessible staging and device-local
+storage. Batch allocation can share a backing allocation while retaining
+separate buffer handles. Descriptor updates still bind each logical resource
+with its correct range. Retaining capacity reduces allocator work; it does
+not remove the obligation to upload newly changed data.
+
+\subsection{The staged sequence has two kinds of copies}
+
+A representative synchronous operation follows this sequence. It is a
+description of ownership stages, not pseudocode authorizing arbitrary
+barrier removal:
+
+\begin{verbatim}
+validate dispatch and obtain owned candidate buffers
+copy host input arrays into mapped staging
+flush noncoherent host writes when required
+record staging -> device copies
+barrier: transfer writes become shader-readable
+record compute dispatches and inter-kernel dependencies
+barrier: shader writes become transfer-readable
+record device -> staging copies
+submit command buffer; wait for confirmed completion
+invalidate noncoherent host mappings when required
+validate result; copy/publish accepted host outputs
+\end{verbatim}
+
+The CPU copy into staging and the GPU transfer into VRAM are separate work.
+Similarly, downloading to staging and copying into the solver's authoritative
+host arrays are separate work. Telemetry distinguishes host upload/download
+bytes from device upload/download bytes. Adding those quantities without
+stating the boundary can double-count one logical field movement, while
+omitting either can hide the actual cost paid by the process.
+
+A pipeline barrier describes ordering and memory visibility between producer
+and consumer accesses. A fence lets the host learn that submitted work has
+completed. A mapped-memory flush makes noncoherent host writes available; an
+invalidate makes completed device writes visible to a noncoherent host mapping.
+None is a synonym for the other. Host-coherent memory removes particular cache
+maintenance calls, not the need to wait before reading a result or overwriting
+in-flight input. Khronos's
+\href{https://docs.vulkan.org/guide/latest/synchronization_examples.html}{synchronization examples}
+illustrate these distinct dependencies.
+
+Nimbus aligns noncoherent ranges to the device's atom-size rules and avoids
+processing one shared allocation repeatedly through multiple handles.
+The authoritative implementation is
+\href{../vulkan/src/compute/compute_backend_vulkan.cpp}{the Vulkan backend}.
+A change that removes a copy must also update the relevant authority and
+visibility transitions; deleting \texttt{memcpy} from one branch is not a
+complete residency optimization.
+
+\input{figures/architecture-memory.tex}
+
+\subsection{An uncertain submission cannot release its buffers}
+
+The current compute owner records and submits one shared command buffer at a
+time. A successful queue submission means the queue accepted work, not that
+its outputs are ready. Completed-operation counters advance after fence
+confirmation and required visibility handling. Kernel counts are associated
+with that completed submission, so a failed or abandoned command is not
+reported as successful native science.
+
+If submission or waiting leaves execution uncertain, the backend is poisoned
+and referenced resources remain pinned until shutdown. Reusing a pool slot
+after a timeout could let the GPU write into a later unrelated operation.
+The pure \href{../vulkan/include/compute/vulkan_submission_lifecycle.hpp}{submission
+lifecycle} models this independently of real handles so fault tests can cover
+the decision. A host fallback is possible only where the enclosing runtime
+allows it and retains a separate valid host state; native-required admission
+does not become optional because a device failed.
+
+\section{Residency is a versioned authority graph}
+
+A field allocation can exist without containing the current field. Nimbus's
+\href{../include/compute/compute_residency.hpp}{residency graph} records a
+logical version, host version and device version together with host identity
+and extent. A host write advances the logical version and host version; a
+device write advances the logical version and device version. Synchronization
+copies a known version to the other side. Reuse is valid only when the side's
+version equals the authoritative version and identity/extent still match.
+
+For example, suppose both copies hold version 7. A host boundary update makes
+the host version 8 while the device remains at 7. A subsequent kernel cannot
+skip upload merely because its input pointer and allocation handle are
+unchanged. Conversely, after a device-only update produces version 9, a host
+diagnostic must not read version 8 just because the host pointer remains valid.
+The state machine exposes these mismatches; it does not itself execute a fence
+or inspect the pointed-to bytes.
+
+\href{../include/compute/resident_field_store.hpp}{ResidentFieldStore}
+combines that authority graph with named allocation claims. Replacing allocator
+callbacks while claims are live is rejected. Batch acquisition publishes no
+partial set if a candidate allocation fails, and the callbacks must outlive
+the claims that use them. The store is not thread-safe: the backend must
+serialize its transitions. Its destructor intentionally does not call an
+allocator that may already have been destroyed; owners needing individual
+release use the explicit clear path while the allocator is alive.
+
+Generation identity is especially important for restart, grid movement,
+resizing and nested contexts. Pointer reuse by a host allocator is not proof
+that an old device value still represents the same simulation field. The
+\href{../tests/compute/test_residency.cpp}{residency tests} cover state and
+allocation behavior, while full runtime tests must additionally prove that
+every actual writer announces its transition. A correct cache state machine
+cannot compensate for a producer that silently mutates storage behind it.
+
+\section{Metal follows the same ownership questions with different APIs}
+
+Metal exposes a device, command queue, buffers, pipeline states and command
+encoders rather than Vulkan's object model. Nimbus stores their session
+identity in
+\href{../metal/src/compute/internal/metal_device_context.hpp}{MetalDeviceContext}.
+Its synchronous finish path commits the command buffer, waits for completion,
+checks the final status and only then advances completion telemetry. GPU start
+and end timestamps describe the completed command; host submit/wait time is
+a different interval.
+
+Shared-storage buffers make memory CPU- and GPU-accessible on the applicable
+device, but a host vector and a Metal buffer created with
+\texttt{newBufferWithBytes} are still different owned objects. Creating that
+buffer copies bytes. Copying its contents into a solver field after completion
+is also real work. Some operators retain resident named resources; others
+still allocate or copy through their ordinary paths. A blanket statement that
+Metal avoids all transfers would obscure the actual implementation.
+
+Apple's \href{https://developer.apple.com/documentation/metal/choosing-a-resource-storage-mode-for-apple-gpus}{storage-mode guide}
+distinguishes CPU-visible shared resources from GPU-private resources. A
+private resource may require explicit transfer access when a CPU needs its
+data, while shared access still needs correct execution ordering. A private
+storage experiment does not become the production policy merely because a
+local benchmark can create such resources. Nimbus's
+\href{../metal/src/compute/backend/advection.inc}{advection owner} and
+\href{../metal/src/compute/internal/metal_resident_state.hpp}{resident state}
+show concrete copy and reuse paths.
+
+The backend also checks kernel coverage against the canonical manifest. A
+kernel demanding native Float64 arithmetic is reported as hardware-limited
+in the current Metal coverage contract; it is not secretly replaced by a
+Float32 kernel and called equivalent. Other scientific kernels use explicitly
+maintained compensated Float32 formulations. Availability of one family says
+nothing about an unrelated family's numerical requirements.
+
+\section{Floating-point semantics across CPU and GPU}
+\label{architecture-numeric-portability}
+
+\subsection{Storage precision, arithmetic precision and rounding points}
+
+Binary32 has 24 bits of significand precision, including its implicit leading
+bit for normal values; binary64 has 53. Their unit roundoffs near one are
+approximately $2^{-24}$ and $2^{-53}$ under round-to-nearest. Storing the main
+fields as Float32 therefore limits what a wider intermediate can publish.
+If a source computes a tiny increment in double precision and then stores
+\texttt{float(old + increment)}, that increment can disappear at the storage
+boundary. It is not necessarily safe to move the cast earlier, because an
+intermediate rounding can also change a threshold decision or cancellation.
+
+Nimbus's dry EOS deliberately evaluates from stored Float32 density and theta
+using wider arithmetic before storing pressure. Energy attribution distinguishes
+ideal changes from water, theta and pressure storage effects. Backend work must
+preserve the intended rounding points and constants. A tolerance patch that
+makes one Linux failure disappear without explaining the changed operation
+would conceal a numerical portability problem rather than solve it.
+
+\subsection{FMA is useful precisely because it changes rounding}
+
+A fused multiply-add evaluates $ab+c$ with one final rounding, whereas separate
+operations compute a rounded product before the sum. Schematically,
+\[
+ \operatorname{fma}(a,b,c)=\operatorname{RN}(ab+c),\qquad
+ \operatorname{RN}(\operatorname{RN}(ab)+c)
+ \text{ need not be equal.}
+\]
+The distinction is especially visible when $ab$ and $c$ nearly cancel.
+Compensated algorithms can intentionally use FMA to recover a product residual:
+if $p=\operatorname{RN}(ab)$, then $e=\operatorname{fma}(a,b,-p)$ captures the
+remaining portion under the algorithm's finite-range assumptions. Reassociating
+that expression or replacing it with an ordinary multiply and subtract defeats
+the construction.
+
+Even a helper named \texttt{fma\_vectors} needs its concrete implementation
+examined. Nimbus uses the fused AVX intrinsic when \texttt{\_\_FMA\_\_} is
+compiled, separate multiply/add in the SSE and non-FMA AVX branches, and a
+Neon fused intrinsic in its AArch64 vector branch. Scalar tails have their
+own compiler contraction behavior. Thus a name alone does not establish
+bitwise-identical evaluation on every architecture. Scientific kernels with
+stronger requirements use their own explicit arithmetic contracts.
+
+\subsection{Compensated pairs and device capability gates}
+
+Several GPU kernels represent a more accurate intermediate as a high/low
+Float32 pair. Addition and multiplication propagate low-order residuals with
+carefully ordered fused operations. This increases useful precision for a
+defined calculation, but it is not a universal replacement for IEEE binary64:
+the exponent range, subnormal behavior, transcendental functions and final
+storage conversion still need their own treatment. The
+\href{../metal/include/compute/metal/shaders/terrain/mapped_scalar_math_msl.hpp}{mapped
+scalar Metal helper} is generated from shared arithmetic sources rather than
+being separately hand-tuned into a different equation.
+
+Vulkan distinguishes ordinary Float32 kernels from those explicitly requiring
+Float32 storage with Float64 arithmetic. The latter are gated on the required
+Float64 rounding/preservation properties, strict Float64 FMA and integer
+storage-conversion capability. Compensated families also require the relevant
+Float32 signed-zero/NaN preservation and round-to-nearest controls. A device
+advertising basic compute support or a high peak throughput number does not
+thereby satisfy these scientific requirements.
+
+Tiny values introduce another issue: devices can flush subnormal arithmetic
+to zero. The maintained
+\href{../vulkan/shaders/compute/terrain/compensated_storage.glsl}{storage helper}
+scales tiny inventories before arithmetic and uses explicit integer-bit
+rounding for the subnormal storage case. That is an algorithm-specific
+representation technique with tests, not permission to add platform-specific
+epsilon clamps to every failed comparison. Metal's retained compile policy
+disables fast math for these owned shader sources; generator checks keep
+translated arithmetic synchronized.
+
+The practical validation sequence follows the contract: check invalid inputs
+and output atomicity, compare the intended operator against its independent
+reference, test native and generic CPU builds where applicable, then exercise
+the real selected backend and memory policy. Exact saved-state comparison,
+bounded numerical tolerance and scientific closure remain distinct evidence.
+Neither a portable build nor a parity test alone proves that every tracked
+configuration is Ready.

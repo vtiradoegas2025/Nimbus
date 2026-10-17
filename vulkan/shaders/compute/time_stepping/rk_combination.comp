@@ -1,0 +1,134 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_spirv_intrinsics : require
+spirv_execution_mode(extensions = ["SPV_KHR_float_controls"], capabilities = [4466], 4461, 32);
+spirv_execution_mode(extensions = ["SPV_KHR_float_controls"], capabilities = [4467], 4462, 32);
+layout(local_size_x = 64) in;
+layout(set = 0, binding = 0) readonly buffer B0
+{
+    float base[];
+};
+layout(set = 0, binding = 1) readonly buffer B1
+{
+    float current[];
+};
+layout(set = 0, binding = 2) readonly buffer B2
+{
+    float density_base[];
+};
+layout(set = 0, binding = 3) readonly buffer B3
+{
+    float density_current[];
+};
+layout(set = 0, binding = 4) readonly buffer B4
+{
+    float density_candidate[];
+};
+layout(set = 0, binding = 5) readonly buffer B5
+{
+    float rhs0[];
+};
+layout(set = 0, binding = 6) readonly buffer B6
+{
+    float rhs1[];
+};
+layout(set = 0, binding = 7) readonly buffer B7
+{
+    float rhs2[];
+};
+layout(set = 0, binding = 8) readonly buffer B8
+{
+    float rhs3[];
+};
+layout(set = 0, binding = 9) writeonly buffer B9
+{
+    float value_high[];
+};
+layout(set = 0, binding = 10) writeonly buffer B10
+{
+    float value_low[];
+};
+layout(set = 0, binding = 11) writeonly buffer B11
+{
+    float scale_high[];
+};
+layout(set = 0, binding = 12) writeonly buffer B12
+{
+    float scale_low[];
+};
+layout(push_constant) uniform PushConstants
+{
+    int   cells;
+    int   stages;
+    int   ssp;
+    int   conserved;
+    float dt_high;
+    float dt_low;
+    float weight0_high;
+    float weight0_low;
+    float weight1_high;
+    float weight1_low;
+    float weight2_high;
+    float weight2_low;
+    float weight3_high;
+    float weight3_low;
+    float fraction_high;
+    float fraction_low;
+};
+#include "../microphysics/compensated_fma.glsl"
+vec2 magnitude(vec2 v)
+{
+    return v.x < 0.0 || (v.x == 0.0 && v.y < 0.0) ? -v : v;
+}
+float tendency(int stage, uint n)
+{
+    return stage == 0 ? rhs0[n] : stage == 1 ? rhs1[n] : stage == 2 ? rhs2[n] : rhs3[n];
+}
+vec2 coefficient(int stage)
+{
+    return stage == 0   ? vec2(weight0_high, weight0_low)
+           : stage == 1 ? vec2(weight1_high, weight1_low)
+           : stage == 2 ? vec2(weight2_high, weight2_low)
+                        : vec2(weight3_high, weight3_low);
+}
+void evaluate(uint n)
+{
+    if (n >= uint(cells))
+        return;
+    vec2 initial = vec2(base[n], 0), present = vec2(current[n], 0);
+    if (conserved != 0)
+    {
+        initial = df_mul(initial, vec2(density_base[n], 0));
+        present = df_mul(present, vec2(density_current[n], 0));
+    }
+    vec2 result = initial, scale = vec2(0);
+    if (ssp != 0 && stages > 1)
+    {
+        vec2 fraction  = vec2(fraction_high, fraction_low);
+        vec2 increment = df_mul(vec2(dt_high, dt_low), vec2(tendency(stages - 1, n), 0));
+        scale          = df_mul(fraction, df_add(magnitude(present), magnitude(increment)));
+        result = df_add(df_mul(df_sub(vec2(1, 0), fraction), initial), df_mul(fraction, df_add(present, increment)));
+    }
+    else
+    {
+        for (int stage = 0; stage < stages; ++stage)
+        {
+            vec2 increment = df_mul(coefficient(stage), vec2(tendency(stage, n), 0));
+            result         = df_add(result, increment);
+            scale          = df_add(scale, magnitude(increment));
+        }
+    }
+    if (conserved != 0)
+    {
+        result = df_div(result, vec2(density_candidate[n], 0));
+        scale  = df_div(scale, vec2(density_candidate[n], 0));
+    }
+    value_high[n] = result.x;
+    value_low[n]  = result.y;
+    scale_high[n] = scale.x;
+    scale_low[n]  = scale.y;
+}
+void main()
+{
+    evaluate(gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * gl_NumWorkGroups.x * gl_WorkGroupSize.x);
+}

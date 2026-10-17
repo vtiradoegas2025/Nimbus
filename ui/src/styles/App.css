@@ -1,0 +1,101 @@
+/* The archive uses a master/detail column. Other destinations receive the
+ * full workspace instead of carrying an unrelated run list. */
+.app {
+  display: grid;
+  grid-template-columns: var(--nav-rail-width) minmax(0, 1fr);
+  height: 100vh;
+  background: var(--color-bg);
+}
+
+.app--with-run-library {
+  grid-template-columns: var(--nav-rail-width) var(--queue-panel-width) minmax(0, 1fr);
+}
+
+/*
+ * Plot on the left, rails on the right.
+ *
+ * Which side reads as "primary" depends on the screen, the hand on the
+ * trackpad, and where a second monitor sits, so it is a preference rather than
+ * a layout constant. Driven by a root data attribute that
+ * `installStudioAppearance` sets from settings.
+ *
+ * Mirroring the track order and reversing `order` keeps the DOM order — and so
+ * the tab order and screen-reader order — unchanged: navigation is still read
+ * before content. Only the visual side moves.
+ */
+:root[data-plot-side="left"] .app {
+  grid-template-columns: minmax(0, 1fr) var(--nav-rail-width);
+}
+
+:root[data-plot-side="left"] .app--with-run-library {
+  grid-template-columns: minmax(0, 1fr) var(--queue-panel-width) var(--nav-rail-width);
+}
+
+:root[data-plot-side="left"] .app > .nav-rail {
+  order: 3;
+  border-right: none;
+  border-left: 1px solid var(--color-border);
+}
+
+:root[data-plot-side="left"] .app > .queue-panel {
+  order: 2;
+  border-right: none;
+  border-left: 1px solid var(--color-border);
+}
+
+:root[data-plot-side="left"] .app > :not(.nav-rail):not(.queue-panel) {
+  order: 1;
+}
+
+.app > * {
+  min-width: 0;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Vertical separators between panels — single hairline, matches screenshot */
+.app > .nav-rail,
+.app > .queue-panel {
+  border-right: 1px solid var(--color-border);
+}
+
+.lazy-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.app-command-error {
+  position: fixed;
+  z-index: 80;
+  right: var(--space-5);
+  bottom: var(--space-5);
+  width: min(460px, calc(100vw - 32px));
+  height: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  overflow: visible;
+  color: var(--color-text);
+  background: var(--color-surface-raised);
+  border: 1px solid color-mix(in oklch, var(--color-error) 42%, var(--color-border));
+  border-left: 3px solid var(--color-error);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-raised);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-body);
+}
+
+.app-command-error span { flex: 1; }
+
+.app-command-error button {
+  flex: 0 0 auto;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+}
+
+.app-command-error button:hover { color: var(--color-text); }

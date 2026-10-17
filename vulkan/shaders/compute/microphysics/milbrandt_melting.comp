@@ -1,0 +1,252 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_spirv_intrinsics : require
+spirv_execution_mode(extensions = ["SPV_KHR_float_controls"], capabilities = [4466], 4461, 32);
+spirv_execution_mode(extensions = ["SPV_KHR_float_controls"], capabilities = [4467], 4462, 32);
+layout(local_size_x = 64) in;
+layout(set = 0, binding = 0) readonly buffer B0
+{
+    float s0[];
+};
+layout(set = 0, binding = 1) readonly buffer B1
+{
+    float s1[];
+};
+layout(set = 0, binding = 2) readonly buffer B2
+{
+    float s2[];
+};
+layout(set = 0, binding = 3) readonly buffer B3
+{
+    float s3[];
+};
+layout(set = 0, binding = 4) readonly buffer B4
+{
+    float s4[];
+};
+layout(set = 0, binding = 5) readonly buffer B5
+{
+    float s5[];
+};
+layout(set = 0, binding = 6) readonly buffer B6
+{
+    float s6[];
+};
+layout(set = 0, binding = 7) readonly buffer B7
+{
+    float s7[];
+};
+layout(set = 0, binding = 8) readonly buffer B8
+{
+    float s8[];
+};
+layout(set = 0, binding = 9) readonly buffer B9
+{
+    float s9[];
+};
+layout(set = 0, binding = 10) readonly buffer B10
+{
+    float s10[];
+};
+layout(set = 0, binding = 11) readonly buffer B11
+{
+    float s11[];
+};
+layout(set = 0, binding = 12) readonly buffer B12
+{
+    float table[];
+};
+layout(set = 0, binding = 13) writeonly buffer B13
+{
+    float o0[];
+};
+layout(set = 0, binding = 14) writeonly buffer B14
+{
+    float o1[];
+};
+layout(set = 0, binding = 15) writeonly buffer B15
+{
+    float o2[];
+};
+layout(set = 0, binding = 16) writeonly buffer B16
+{
+    float o3[];
+};
+layout(set = 0, binding = 17) writeonly buffer B17
+{
+    float o4[];
+};
+layout(set = 0, binding = 18) writeonly buffer B18
+{
+    float o5[];
+};
+layout(set = 0, binding = 19) writeonly buffer B19
+{
+    float o6[];
+};
+layout(set = 0, binding = 20) writeonly buffer B20
+{
+    float o7[];
+};
+layout(set = 0, binding = 21) writeonly buffer B21
+{
+    float o8[];
+};
+layout(set = 0, binding = 22) writeonly buffer B22
+{
+    float o9[];
+};
+layout(set = 0, binding = 23) writeonly buffer B23
+{
+    float o10[];
+};
+layout(push_constant) uniform PushConstants
+{
+    int   nx;
+    int   ny;
+    int   nz;
+    int   i_begin;
+    int   i_end;
+    int   j_begin;
+    int   j_end;
+    int   k_begin;
+    int   k_end;
+    float dt_high;
+    float dt_low;
+};
+#include "compensated_fma.glsl"
+#include "milbrandt_thermodynamics.glsl"
+float value(vec2 x)
+{
+    return x.x + x.y;
+}
+vec2 parameter(int n)
+{
+    return vec2(table[2 * n], table[2 * n + 1]);
+}
+vec2 power(vec2 x, vec2 y)
+{
+    return df_exp(df_mul(df_log(x), y));
+}
+vec2 melted(float mass,
+            float number,
+            vec2  c,
+            vec2  a,
+            vec2  b,
+            vec2  gamma_vent,
+            vec2  heat,
+            vec2  viscosity,
+            vec2  schmidt,
+            vec2  density_factor,
+            vec2  step)
+{
+    if (mass <= 0.0 || number <= 0.0 || !ml_greater(heat, vec2(0)))
+        return vec2(0);
+    vec2 log_ratio      = df_sub(df_sub(df_sub(df_log(vec2(mass, 0)), df_log(c)), df_log(vec2(number, 0))),
+                                 vec2(1.7917594909667969, -2.173874191768732e-08));
+    vec2 lambda_inverse = df_exp(df_mul(log_ratio, vec2(0.3333333432674408, -9.934107481068821e-09)));
+
+    // Cancel intercept's inverse slope and dry density before forming the ventilation product.
+    vec2 ventilation =
+        df_add(df_mul(vec2(0.77999997138977051, 2.8610229518832853e-08), lambda_inverse),
+               df_mul(df_mul(df_mul(vec2(0.30000001192092896, -1.1920928966180355e-08), schmidt),
+                             df_sqrt(df_div(df_mul(density_factor, a), viscosity))),
+                      df_mul(gamma_vent, power(lambda_inverse, df_add(vec2(1.5, 0), df_mul(vec2(0.5, 0), b))))));
+    vec2 increment = df_mul(df_div(df_mul(step, vec2(6.2831854820251465, -1.7484556025237907e-07)), vec2(334000, 0)),
+                            df_mul(df_mul(vec2(number, 0), ventilation), heat));
+    return ml_greater(increment, vec2(mass, 0)) ? vec2(mass, 0) : increment;
+}
+void evaluate(uint gid)
+{
+    if (gid >= uint(nx) * uint(ny) * uint(nz))
+        return;
+    int k = int(gid % uint(nz)), j = int(gid / uint(nz) % uint(ny)), i = int(gid / (uint(nz) * uint(ny)));
+    o0[gid]  = 0;
+    o1[gid]  = 0;
+    o2[gid]  = 0;
+    o3[gid]  = 0;
+    o4[gid]  = 0;
+    o5[gid]  = 0;
+    o6[gid]  = 0;
+    o7[gid]  = 0;
+    o8[gid]  = 0;
+    o9[gid]  = 0;
+    o10[gid] = 0;
+    if (i < i_begin || i >= i_end || j < j_begin || j >= j_end || k < k_begin || k >= k_end)
+        return;
+    vec2 tc = df_sub(vec2(s0[gid], 0), vec2(273.14999389648438, 6.1035156022626325e-06));
+    if (!ml_greater(tc, vec2(0)))
+        return;
+    vec2 step        = vec2(dt_high, dt_low);
+    vec2 diffusivity = df_div(df_mul(df_add(vec2(2.2157000785227865e-05, -7.8522786349836081e-13),
+                                            df_mul(vec2(1.5499999506118911e-07, 4.93881088742341e-15), tc)),
+                                     vec2(100000, 0)),
+                              vec2(s1[gid], 0));
+    vec2 viscosity =
+        df_div(df_mul(df_mul(vec2(1.720000000204891e-05, -2.0489083249041612e-15),
+                             df_div(vec2(393, 0), df_add(vec2(s0[gid], 0), vec2(120, 0)))),
+                      power(df_div(vec2(s0[gid], 0), vec2(273.14999389648438, 6.1035156022626325e-06)), vec2(1.5, 0))),
+               vec2(s2[gid], 0));
+    vec2 schmidt        = power(df_div(viscosity, diffusivity), vec2(0.3333333432674408, -9.9341074810688212e-09));
+    vec2 conductivity   = df_add(vec2(0.02397100068628788, -6.862878806912498e-10),
+                                 df_mul(vec2(7.7999997301958501e-05, 2.6980414972489764e-12), tc));
+    vec2 density_factor = df_sqrt(df_div(vec2(1.2250000238418579, -2.3841857821338408e-08), vec2(s2[gid], 0)));
+    vec2 deficit = df_sub(milbrandt_qsat(vec2(273.14999389648438, 6.1035156022626325e-06), s1[gid]), vec2(s3[gid], 0));
+    vec2 heat    = df_sub(df_mul(conductivity, tc), df_mul(df_mul(vec2(2500000, 0), diffusivity), deficit));
+    vec2 ice     = vec2(s4[gid], 0);
+    vec2 snow    = melted(s5[gid],
+                          s9[gid],
+                          vec2(52.359878540039062, -9.8020917960184306e-07),
+                          parameter(1),
+                          parameter(2),
+                          parameter(13),
+                          heat,
+                          viscosity,
+                          schmidt,
+                          density_factor,
+                          step);
+    vec2 graupel = melted(s6[gid],
+                          s10[gid],
+                          parameter(4),
+                          parameter(6),
+                          parameter(7),
+                          parameter(14),
+                          heat,
+                          viscosity,
+                          schmidt,
+                          density_factor,
+                          step);
+    vec2 hail    = ml_greater(tc, vec2(5, 0)) ? melted(s7[gid],
+                                                       s11[gid],
+                                                       parameter(9),
+                                                       parameter(11),
+                                                       parameter(12),
+                                                       parameter(15),
+                                                       heat,
+                                                       viscosity,
+                                                       schmidt,
+                                                       density_factor,
+                                                       step)
+                                              : vec2(0);
+    vec2 ice_number     = s4[gid] > 0.0 ? vec2(s8[gid], 0) : vec2(0);
+    vec2 snow_number    = s5[gid] > 0.0 ? df_mul(vec2(s9[gid], 0), df_div(snow, vec2(s5[gid], 0))) : vec2(0);
+    vec2 graupel_number = s6[gid] > 0.0 ? df_mul(vec2(s10[gid], 0), df_div(graupel, vec2(s6[gid], 0))) : vec2(0);
+    vec2 hail_number    = s7[gid] > 0.0 ? df_mul(vec2(s11[gid], 0), df_div(hail, vec2(s7[gid], 0))) : vec2(0);
+    vec2 total          = df_add(df_add(df_add(ice, snow), graupel), hail);
+    vec2 total_number   = df_add(df_add(df_add(ice_number, snow_number), graupel_number), hail_number);
+    o0[gid]             = -value(df_div(ice, step));
+    o1[gid]             = -value(df_div(snow, step));
+    o2[gid]             = -value(df_div(graupel, step));
+    o3[gid]             = -value(df_div(hail, step));
+    o4[gid]             = value(df_div(total, step));
+    o5[gid]             = -value(df_div(df_mul(vec2(332.6693115234375, 1.118572583891364e-05), total), step));
+    o6[gid]             = value(df_div(total_number, step));
+    o7[gid]             = -value(df_div(ice_number, step));
+    o8[gid]             = -value(df_div(snow_number, step));
+    o9[gid]             = -value(df_div(graupel_number, step));
+    o10[gid]            = -value(df_div(hail_number, step));
+}
+void main()
+{
+    evaluate(gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * gl_NumWorkGroups.x * gl_WorkGroupSize.x);
+}

@@ -1,0 +1,62 @@
+# Reproducible build products and compiler state.
+bin/
+build/
+!scripts/dev/build/
+!scripts/dev/build/**
+*.o
+*.d
+*.a
+*.dylib
+*.so
+*.dll
+*.exe
+compile_commands.json
+
+# Downloaded/generated runtime data; provisioning instructions are maintained.
+/data/
+
+# Simulation output, test output, and historical engineering material.
+/reports/
+/runs/
+/screenshots/
+/tests/artifacts/
+/docs/devDocs/
+/docs/DEVELOPMENT.md
+/docs/CM1Mapping.md
+/docs/domain.md
+/docs/WINDOWS_ACCEPTANCE.md
+/docs/latex/
+/docs/**/*.tex
+/threadHandOff.md
+/configs/custom/
+/nimbus-gate-result-*/
+/nimbus-release-manifest-*/
+/benchmarks/
+/tools/
+/examples/
+
+# Local dependencies and caches.
+.cache/
+.deps/
+.venv/
+venv/
+node_modules
+__pycache__/
+*.py[cod]
+*.tsbuildinfo
+
+# Local editor/assistant state and credentials.
+.claude/
+.codex/
+.agents/
+.cursor/
+.idea/
+.env
+.env.*
+!.env.example
+.DS_Store
+Journey.md
+
+# UI test inputs are generated or supplied explicitly, never packaged as app data.
+/ui/testdata/
+/ui/integration/

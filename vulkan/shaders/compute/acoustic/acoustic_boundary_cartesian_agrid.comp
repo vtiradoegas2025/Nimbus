@@ -1,0 +1,51 @@
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) readonly buffer P0 { float p0[]; };
+layout(set = 0, binding = 1) readonly buffer Rho0 { float rho0[]; };
+layout(set = 0, binding = 2) readonly buffer U0 { float u0[]; };
+layout(set = 0, binding = 3) readonly buffer V0 { float v0[]; };
+layout(set = 0, binding = 4) buffer U { float u[]; };
+layout(set = 0, binding = 5) buffer V { float v[]; };
+layout(set = 0, binding = 6) buffer W { float w[]; };
+layout(set = 0, binding = 7) buffer Rho { float rho[]; };
+layout(set = 0, binding = 8) buffer Pressure { float pressure[]; };
+
+layout(push_constant) uniform PushConstants { int nx; int ny; int nz; int pass; } pc;
+uint at(int i, int j, int k) { return uint((i * pc.ny + j) * pc.nz + k); }
+
+void main() {
+    uint gid = gl_GlobalInvocationID.x;
+    if (pc.pass == 0) {
+        uint count = uint(pc.ny) * uint(pc.nz); if (gid >= count) return;
+        int k = int(gid % uint(pc.nz)); int j = int(gid / uint(pc.nz));
+        for (int face = 0; face < 2; ++face) {
+            int i = face == 0 ? 0 : pc.nx - 1; int source = face == 0 ? 1 : pc.nx - 2;
+            uint n = at(i, j, k), s = at(source, j, k);
+            u[n] = 0.0; v[n] = 0.0; w[n] = 0.0; rho[n] = rho[s]; pressure[n] = pressure[s];
+        }
+    } else if (pc.pass == 1) {
+        uint count = uint(pc.nx) * uint(pc.nz); if (gid >= count) return;
+        int k = int(gid % uint(pc.nz)); int i = int(gid / uint(pc.nz));
+        for (int face = 0; face < 2; ++face) {
+            int j = face == 0 ? 0 : pc.ny - 1; int source = face == 0 ? 1 : pc.ny - 2;
+            uint n = at(i, j, k), s = at(i, source, k);
+            u[n] = 0.0; v[n] = 0.0; w[n] = 0.0; rho[n] = rho[s]; pressure[n] = pressure[s];
+        }
+    } else {
+        uint count = uint(pc.nx) * uint(pc.ny); if (gid >= count) return;
+        int j = int(gid % uint(pc.ny)); int i = int(gid / uint(pc.ny));
+        uint bottom = at(i, j, 0), bottom_source = at(i, j, 1);
+        uint top = at(i, j, pc.nz - 1), top_source = at(i, j, pc.nz - 2);
+        w[bottom] = 0.0; w[top] = 0.0;
+        u[bottom] = u0[0] + (u[bottom_source] - u0[1]);
+        v[bottom] = v0[0] + (v[bottom_source] - v0[1]);
+        u[top] = u0[pc.nz - 1] + (u[top_source] - u0[pc.nz - 2]);
+        v[top] = v0[pc.nz - 1] + (v[top_source] - v0[pc.nz - 2]);
+        rho[bottom] = rho0[0] + (rho[bottom_source] - rho0[1]);
+        rho[top] = rho0[pc.nz - 1] + (rho[top_source] - rho0[pc.nz - 2]);
+        pressure[bottom] = p0[0] + (pressure[bottom_source] - p0[1]);
+        pressure[top] = p0[pc.nz - 1] + (pressure[top_source] - p0[pc.nz - 2]);
+    }
+}

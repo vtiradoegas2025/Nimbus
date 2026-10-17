@@ -1,0 +1,70 @@
+.resize-handle {
+  width: 6px;
+  cursor: col-resize;
+  background: transparent;
+  transition: background var(--duration-fast) var(--ease-out);
+  /* Without this the handle is a thin 6 px target sitting half outside
+   * the parent. Touch-action: none keeps the OS from interpreting
+   * sideways drags as page scrolls on trackpads with hold-to-scroll. */
+  touch-action: none;
+}
+
+/* Half outside the panel's right edge, over whatever is next to it. */
+.resize-handle--overlay {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  height: 100%;
+  z-index: 20;
+}
+
+/* A track of its own in a grid or flex row, stretched by the row. */
+.resize-handle--inline {
+  position: relative;
+  align-self: stretch;
+}
+
+.resize-handle:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -1px;
+}
+
+.resize-handle::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1px;
+  height: 100%;
+  background: transparent;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.resize-handle--active::after {
+  background: var(--color-accent);
+}
+
+.resize-handle--active {
+  background: var(--color-accent-soft);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .resize-handle:hover::after {
+    background: var(--color-accent);
+  }
+
+  .resize-handle:hover {
+    background: var(--color-accent-soft);
+  }
+}
+
+@media (pointer: coarse) {
+  .resize-handle {
+    width: 44px;
+  }
+
+  .resize-handle--overlay {
+    right: -22px;
+  }
+}

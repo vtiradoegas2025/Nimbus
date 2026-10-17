@@ -1,0 +1,25 @@
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+ box/.style={draw=NimbusBlue,fill=NimbusLight,rounded corners,align=center,
+             text width=3.3cm,minimum height=14mm,font=\small},
+ flow/.style={-{Latex[length=2mm]},draw=NimbusBlue,thick},
+ node distance=14mm and 8mm]
+ \node[box] (column) {Sounding source\\file or parameters};
+ \node[box,right=of column] (wind) {Hodograph\\file, anchors or zero};
+ \node[box,right=of wind] (geometry) {Physical geometry\\heights, faces and terrain};
+ \node[box,below=of wind] (placed) {Place model state\\units and EOS};
+ \node[box,below=of placed] (trigger) {Selected trigger\\none, bubble\\or vortex};
+ \node[box,below=of trigger] (initial) {Initial state\\and inventories\\closure and validation};
+ \draw[flow] (column.south)|-(placed.west);
+ \draw[flow] (wind)--(placed);
+ \draw[flow] (geometry.south)|-(placed.east);
+ \draw[flow] (placed)--(trigger);
+ \draw[flow] (trigger)--(initial);
+\end{tikzpicture}
+\caption{Logical responsibilities in constructing an experiment. Environmental
+thermodynamics, wind and geometry are separate inputs. A prescribed trigger
+can change the initial water and energy inventories; it is not automatically
+a conservative microphysical transfer. Exact execution and admission belong
+to the initialization and configuration owners.}
+\end{figure}

@@ -1,0 +1,611 @@
+{
+  "schema": "nimbus.zfp-history-working-set.v1",
+  "experiment": "persistent_codec_workspace",
+  "generated_at_utc": "2026-08-04T19:58:08.554705+00:00",
+  "status": "accepted_lifecycle_only",
+  "comparison_contract": "same source, equations, compression parameters, strided brick views, brick order, codec, I/O, history update, config, and threads; comparator recreates ZFP stream/field controls per field and reopens the bitstream per brick instead of retaining a writer-lifetime high-water workspace",
+  "trials": 7,
+  "duration_s": 20,
+  "threads": 1,
+  "config": "configs/benchmark/zfp_history_working_set.yaml",
+  "inputs": {
+    "optimized_binary": {
+      "path": "/Users/victortiradoegas/Desktop/PersonalProjects/Nimbus/bin/nimbus_sim_zfp_workspace_phase",
+      "sha256": "825951934772a378ba6f8eab019c8cf32848921e6f90934e548a627be09a8f20"
+    },
+    "comparator_binary": {
+      "path": "/Users/victortiradoegas/Desktop/PersonalProjects/Nimbus/bin/nimbus_sim_zfp_transient_workspace_comparator",
+      "sha256": "102b7154798debf08e85a3ed45d8b65ec593f42fc083f232e00b1f3531708120"
+    },
+    "config": {
+      "path": "/Users/victortiradoegas/Desktop/PersonalProjects/Nimbus/configs/benchmark/zfp_history_working_set.yaml",
+      "sha256": "4fe11d464a3b67543c958c0707bd11eccc5a5848e38112d6a211a188773ed3bf"
+    },
+    "platform": {
+      "system": "Darwin",
+      "release": "25.5.0",
+      "machine": "arm64",
+      "python": "3.14.5"
+    },
+    "cross_reader_fixture": {
+      "path": "/Users/victortiradoegas/Desktop/PersonalProjects/Nimbus/build/qualification/zfp-codec-workspace/writer-keyframe.zfp3d",
+      "sha256": "9bf3941b496118119912178c5f2051483fa6bf0c52bbd9a08c92cc22c2a08221"
+    }
+  },
+  "history": {
+    "normalized_tree_sha256": "70ccb70de61dd315726289d459de9a8efde70da39744534a1957ed31715a97d4",
+    "zfp_payload_sha256": "5ee2537578263ee99866e5f953caf183b530b77d36f7d6dab9affe77b19ff923",
+    "file_count": 210,
+    "total_bytes": 5820135,
+    "zfp_frame_types": {
+      "keyframe": 24,
+      "simple": 24,
+      "predictive": 120
+    }
+  },
+  "pairs": [
+    {
+      "order": [
+        "optimized",
+        "comparator"
+      ],
+      "optimized": {
+        "process_wall_s": 3.026038875002996,
+        "writer_wall_s": 0.369762,
+        "snapshots": 21,
+        "reported_megabytes": 5.22712,
+        "peak_rss_bytes": 106496000,
+        "zfp_codec_workspace": {
+          "initializations": 1,
+          "bitstream_bindings": 1,
+          "bitstream_capacity_bytes": 542744
+        },
+        "zfp_instrumented_phases": {
+          "control_s": 8.4542e-05,
+          "codec_s": 0.101141,
+          "container_io_s": 0.0147844
+        },
+        "zfp_codec_provenance": {
+          "version": "zfp version 1.0.1 (December 15, 2023)",
+          "execution_policy": "serial"
+        },
+        "history": {
+          "normalized_tree_sha256": "70ccb70de61dd315726289d459de9a8efde70da39744534a1957ed31715a97d4",
+          "zfp_payload_sha256": "5ee2537578263ee99866e5f953caf183b530b77d36f7d6dab9affe77b19ff923",
+          "file_count": 210,
+          "total_bytes": 5820135,
+          "zfp_frame_types": {
+            "keyframe": 24,
+            "simple": 24,
+            "predictive": 120
+          }
+        },
+        "cross_reader_fixture_sha256": "9bf3941b496118119912178c5f2051483fa6bf0c52bbd9a08c92cc22c2a08221"
+      },
+      "comparator": {
+        "process_wall_s": 3.2140620419959305,
+        "writer_wall_s": 0.554998,
+        "snapshots": 21,
+        "reported_megabytes": 5.22712,
+        "peak_rss_bytes": 106545152,
+        "zfp_codec_workspace": {
+          "initializations": 168,
+          "bitstream_bindings": 336,
+          "bitstream_capacity_bytes": 542744
+        },
+        "zfp_instrumented_phases": {
+          "control_s": 0.000140873,
+          "codec_s": 0.10134,
+          "container_io_s": 0.0147481
+        },
+        "zfp_codec_provenance": {
+          "version": "zfp version 1.0.1 (December 15, 2023)",
+          "execution_policy": "serial"
+        },
+        "history": {
+          "normalized_tree_sha256": "70ccb70de61dd315726289d459de9a8efde70da39744534a1957ed31715a97d4",
+          "zfp_payload_sha256": "5ee2537578263ee99866e5f953caf183b530b77d36f7d6dab9affe77b19ff923",
+          "file_count": 210,
+          "total_bytes": 5820135,
+          "zfp_frame_types": {
+            "keyframe": 24,
+            "simple": 24,
+            "predictive": 120
+          }
+        },
+        "cross_reader_fixture_sha256": null
+      }
+    },
+    {
+      "order": [
+        "comparator",
+        "optimized"
+      ],
+      "comparator": {
+        "process_wall_s": 3.0698838750031427,
+        "writer_wall_s": 0.41505,
+        "snapshots": 21,
+        "reported_megabytes": 5.22712,
+        "peak_rss_bytes": 106512384,
+        "zfp_codec_workspace": {
+          "initializations": 168,
+          "bitstream_bindings": 336,
+          "bitstream_capacity_bytes": 542744
+        },
+        "zfp_instrumented_phases": {
+          "control_s": 0.000139975,
+          "codec_s": 0.101475,
+          "container_io_s": 0.0152758
+        },
+        "zfp_codec_provenance": {
+          "version": "zfp version 1.0.1 (December 15, 2023)",
+          "execution_policy": "serial"
+        },
+        "history": {
+          "normalized_tree_sha256": "70ccb70de61dd315726289d459de9a8efde70da39744534a1957ed31715a97d4",
+          "zfp_payload_sha256": "5ee2537578263ee99866e5f953caf183b530b77d36f7d6dab9affe77b19ff923",
+          "file_count": 210,
+          "total_bytes": 5820135,
+          "zfp_frame_types": {
+            "keyframe": 24,
+            "simple": 24,
+            "predictive": 120
+          }
+        },
+        "cross_reader_fixture_sha256": null
+      },
+      "optimized": {
+        "process_wall_s": 3.0648069999951986,
+        "writer_wall_s": 0.422731,
+        "snapshots": 21,
+        "reported_megabytes": 5.22712,
+        "peak_rss_bytes": 97615872,
+        "zfp_codec_workspace": {
+          "initializations": 1,
+          "bitstream_bindings": 1,
+          "bitstream_capacity_bytes": 542744
+        },
+        "zfp_instrumented_phases": {
+          "control_s": 7.4735e-05,
+          "codec_s": 0.101299,
+          "container_io_s": 0.0134641
+        },
+        "zfp_codec_provenance": {
+          "version": "zfp version 1.0.1 (December 15, 2023)",
+          "execution_policy": "serial"
+        },
+        "history": {
+          "normalized_tree_sha256": "70ccb70de61dd315726289d459de9a8efde70da39744534a1957ed31715a97d4",
+          "zfp_payload_sha256": "5ee2537578263ee99866e5f953caf183b530b77d36f7d6dab9affe77b19ff923",
+          "file_count": 210,
+          "total_bytes": 5820135,
+          "zfp_frame_types": {
+            "keyframe": 24,
+            "simple": 24,
+            "predictive": 120
+          }
+        },
+        "cross_reader_fixture_sha256": null
+      }
+    },
+    {
+      "order": [
+        "optimized",
+        "comparator"
+      ],
+      "optimized": {
+        "process_wall_s": 3.0154988750000484,
+        "writer_wall_s": 0.369282,
+        "snapshots": 21,
+        "reported_megabytes": 5.22712,
+        "peak_rss_bytes": 106414080,
+        "zfp_codec_workspace": {
+          "initializations": 1,
+          "bitstream_bindings": 1,
+          "bitstream_capacity_bytes": 542744
+        },
+        "zfp_instrumented_phases": {
+          "control_s": 7.9638e-05,
+          "codec_s": 0.101335,
+          "container_io_s": 0.0138381
+        },
+        "zfp_codec_provenance": {
+          "version": "zfp version 1.0.1 (December 15, 2023)",
+          "execution_policy": "serial"
+        },
+        "history": {
+          "normalized_tree_sha256": "70ccb70de61dd315726289d459de9a8efde70da39744534a1957ed31715a97d4",
+          "zfp_payload_sha256": "5ee2537578263ee99866e5f953caf183b530b77d36f7d6dab9affe77b19ff923",
+          "file_count": 210,
+          "total_bytes": 5820135,
+          "zfp_frame_types": {
+            "keyframe": 24,
+            "simple": 24,
+            "predictive": 120
+          }
+        },
+        "cross_reader_fixture_sha256": null
+      },
+      "comparator": {
+        "process_wall_s": 2.9972365420035203,
+        "writer_wall_s": 0.351238,
+        "snapshots": 21,
+        "reported_megabytes": 5.22712,
+        "peak_rss_bytes": 97648640,
+        "zfp_codec_workspace": {
+          "initializations": 168,
+          "bitstream_bindings": 336,
+          "bitstream_capacity_bytes": 542744
+        },
+        "zfp_instrumented_phases": {
+          "control_s": 0.000140117,
+          "codec_s": 0.101606,
+          "container_io_s": 0.0138568
+        },
+        "zfp_codec_provenance": {
+          "version": "zfp version 1.0.1 (December 15, 2023)",
+          "execution_policy": "serial"
+        },
+        "history": {
+          "normalized_tree_sha256": "70ccb70de61dd315726289d459de9a8efde70da39744534a1957ed31715a97d4",
+          "zfp_payload_sha256": "5ee2537578263ee99866e5f953caf183b530b77d36f7d6dab9affe77b19ff923",
+          "file_count": 210,
+          "total_bytes": 5820135,
+          "zfp_frame_types": {
+            "keyframe": 24,
+            "simple": 24,
+            "predictive": 120
+          }
+        },
+        "cross_reader_fixture_sha256": null
+      }
+    },
+    {
+      "order": [
+        "comparator",
+        "optimized"
+      ],
+      "comparator": {
+        "process_wall_s": 3.0068622089966084,
+        "writer_wall_s": 0.360007,
+        "snapshots": 21,
+        "reported_megabytes": 5.22712,
+        "peak_rss_bytes": 106545152,
+        "zfp_codec_workspace": {
+          "initializations": 168,
+          "bitstream_bindings": 336,
+          "bitstream_capacity_bytes": 542744
+        },
+        "zfp_instrumented_phases": {
+          "control_s": 0.000124212,
+          "codec_s": 0.101632,
+          "container_io_s": 0.0139766
+        },
+        "zfp_codec_provenance": {
+          "version": "zfp version 1.0.1 (December 15, 2023)",
+          "execution_policy": "serial"
+        },
+        "history": {
+          "normalized_tree_sha256": "70ccb70de61dd315726289d459de9a8efde70da39744534a1957ed31715a97d4",
+          "zfp_payload_sha256": "5ee2537578263ee99866e5f953caf183b530b77d36f7d6dab9affe77b19ff923",
+          "file_count": 210,
+          "total_bytes": 5820135,
+          "zfp_frame_types": {
+            "keyframe": 24,
+            "simple": 24,
+            "predictive": 120
+          }
+        },
+        "cross_reader_fixture_sha256": null
+      },
+      "optimized": {
+        "process_wall_s": 2.9937575829972047,
+        "writer_wall_s": 0.347231,
+        "snapshots": 21,
+        "reported_megabytes": 5.22712,
+        "peak_rss_bytes": 106496000,
+        "zfp_codec_workspace": {
+          "initializations": 1,
+          "bitstream_bindings": 1,
+          "bitstream_capacity_bytes": 542744
+        },
+        "zfp_instrumented_phases": {
+          "control_s": 8.9411e-05,
+          "codec_s": 0.101652,
+          "container_io_s": 0.0136944
+        },
+        "zfp_codec_provenance": {
+          "version": "zfp version 1.0.1 (December 15, 2023)",
+          "execution_policy": "serial"
+        },
+        "history": {
+          "normalized_tree_sha256": "70ccb70de61dd315726289d459de9a8efde70da39744534a1957ed31715a97d4",
+          "zfp_payload_sha256": "5ee2537578263ee99866e5f953caf183b530b77d36f7d6dab9affe77b19ff923",
+          "file_count": 210,
+          "total_bytes": 5820135,
+          "zfp_frame_types": {
+            "keyframe": 24,
+            "simple": 24,
+            "predictive": 120
+          }
+        },
+        "cross_reader_fixture_sha256": null
+      }
+    },
+    {
+      "order": [
+        "optimized",
+        "comparator"
+      ],
+      "optimized": {
+        "process_wall_s": 2.987452082998061,
+        "writer_wall_s": 0.345791,
+        "snapshots": 21,
+        "reported_megabytes": 5.22712,
+        "peak_rss_bytes": 106463232,
+        "zfp_codec_workspace": {
+          "initializations": 1,
+          "bitstream_bindings": 1,
+          "bitstream_capacity_bytes": 542744
+        },
+        "zfp_instrumented_phases": {
+          "control_s": 8.5129e-05,
+          "codec_s": 0.101326,
+          "container_io_s": 0.0135584
+        },
+        "zfp_codec_provenance": {
+          "version": "zfp version 1.0.1 (December 15, 2023)",
+          "execution_policy": "serial"
+        },
+        "history": {
+          "normalized_tree_sha256": "70ccb70de61dd315726289d459de9a8efde70da39744534a1957ed31715a97d4",
+          "zfp_payload_sha256": "5ee2537578263ee99866e5f953caf183b530b77d36f7d6dab9affe77b19ff923",
+          "file_count": 210,
+          "total_bytes": 5820135,
+          "zfp_frame_types": {
+            "keyframe": 24,
+            "simple": 24,
+            "predictive": 120
+          }
+        },
+        "cross_reader_fixture_sha256": null
+      },
+      "comparator": {
+        "process_wall_s": 2.99862091599789,
+        "writer_wall_s": 0.348971,
+        "snapshots": 21,
+        "reported_megabytes": 5.22712,
+        "peak_rss_bytes": 97632256,
+        "zfp_codec_workspace": {
+          "initializations": 168,
+          "bitstream_bindings": 336,
+          "bitstream_capacity_bytes": 542744
+        },
+        "zfp_instrumented_phases": {
+          "control_s": 0.000146003,
+          "codec_s": 0.101519,
+          "container_io_s": 0.0136072
+        },
+        "zfp_codec_provenance": {
+          "version": "zfp version 1.0.1 (December 15, 2023)",
+          "execution_policy": "serial"
+        },
+        "history": {
+          "normalized_tree_sha256": "70ccb70de61dd315726289d459de9a8efde70da39744534a1957ed31715a97d4",
+          "zfp_payload_sha256": "5ee2537578263ee99866e5f953caf183b530b77d36f7d6dab9affe77b19ff923",
+          "file_count": 210,
+          "total_bytes": 5820135,
+          "zfp_frame_types": {
+            "keyframe": 24,
+            "simple": 24,
+            "predictive": 120
+          }
+        },
+        "cross_reader_fixture_sha256": null
+      }
+    },
+    {
+      "order": [
+        "comparator",
+        "optimized"
+      ],
+      "comparator": {
+        "process_wall_s": 3.0048558750058874,
+        "writer_wall_s": 0.363046,
+        "snapshots": 21,
+        "reported_megabytes": 5.22712,
+        "peak_rss_bytes": 106463232,
+        "zfp_codec_workspace": {
+          "initializations": 168,
+          "bitstream_bindings": 336,
+          "bitstream_capacity_bytes": 542744
+        },
+        "zfp_instrumented_phases": {
+          "control_s": 0.000138541,
+          "codec_s": 0.101192,
+          "container_io_s": 0.0134637
+        },
+        "zfp_codec_provenance": {
+          "version": "zfp version 1.0.1 (December 15, 2023)",
+          "execution_policy": "serial"
+        },
+        "history": {
+          "normalized_tree_sha256": "70ccb70de61dd315726289d459de9a8efde70da39744534a1957ed31715a97d4",
+          "zfp_payload_sha256": "5ee2537578263ee99866e5f953caf183b530b77d36f7d6dab9affe77b19ff923",
+          "file_count": 210,
+          "total_bytes": 5820135,
+          "zfp_frame_types": {
+            "keyframe": 24,
+            "simple": 24,
+            "predictive": 120
+          }
+        },
+        "cross_reader_fixture_sha256": null
+      },
+      "optimized": {
+        "process_wall_s": 3.0455383749940665,
+        "writer_wall_s": 0.405971,
+        "snapshots": 21,
+        "reported_megabytes": 5.22712,
+        "peak_rss_bytes": 97648640,
+        "zfp_codec_workspace": {
+          "initializations": 1,
+          "bitstream_bindings": 1,
+          "bitstream_capacity_bytes": 542744
+        },
+        "zfp_instrumented_phases": {
+          "control_s": 7.6629e-05,
+          "codec_s": 0.101739,
+          "container_io_s": 0.0136437
+        },
+        "zfp_codec_provenance": {
+          "version": "zfp version 1.0.1 (December 15, 2023)",
+          "execution_policy": "serial"
+        },
+        "history": {
+          "normalized_tree_sha256": "70ccb70de61dd315726289d459de9a8efde70da39744534a1957ed31715a97d4",
+          "zfp_payload_sha256": "5ee2537578263ee99866e5f953caf183b530b77d36f7d6dab9affe77b19ff923",
+          "file_count": 210,
+          "total_bytes": 5820135,
+          "zfp_frame_types": {
+            "keyframe": 24,
+            "simple": 24,
+            "predictive": 120
+          }
+        },
+        "cross_reader_fixture_sha256": null
+      }
+    },
+    {
+      "order": [
+        "optimized",
+        "comparator"
+      ],
+      "optimized": {
+        "process_wall_s": 2.9959135000026436,
+        "writer_wall_s": 0.353327,
+        "snapshots": 21,
+        "reported_megabytes": 5.22712,
+        "peak_rss_bytes": 106496000,
+        "zfp_codec_workspace": {
+          "initializations": 1,
+          "bitstream_bindings": 1,
+          "bitstream_capacity_bytes": 542744
+        },
+        "zfp_instrumented_phases": {
+          "control_s": 8.28e-05,
+          "codec_s": 0.101386,
+          "container_io_s": 0.0139286
+        },
+        "zfp_codec_provenance": {
+          "version": "zfp version 1.0.1 (December 15, 2023)",
+          "execution_policy": "serial"
+        },
+        "history": {
+          "normalized_tree_sha256": "70ccb70de61dd315726289d459de9a8efde70da39744534a1957ed31715a97d4",
+          "zfp_payload_sha256": "5ee2537578263ee99866e5f953caf183b530b77d36f7d6dab9affe77b19ff923",
+          "file_count": 210,
+          "total_bytes": 5820135,
+          "zfp_frame_types": {
+            "keyframe": 24,
+            "simple": 24,
+            "predictive": 120
+          }
+        },
+        "cross_reader_fixture_sha256": null
+      },
+      "comparator": {
+        "process_wall_s": 2.9997394169986364,
+        "writer_wall_s": 0.356268,
+        "snapshots": 21,
+        "reported_megabytes": 5.22712,
+        "peak_rss_bytes": 97599488,
+        "zfp_codec_workspace": {
+          "initializations": 168,
+          "bitstream_bindings": 336,
+          "bitstream_capacity_bytes": 542744
+        },
+        "zfp_instrumented_phases": {
+          "control_s": 0.00015074,
+          "codec_s": 0.101616,
+          "container_io_s": 0.0137245
+        },
+        "zfp_codec_provenance": {
+          "version": "zfp version 1.0.1 (December 15, 2023)",
+          "execution_policy": "serial"
+        },
+        "history": {
+          "normalized_tree_sha256": "70ccb70de61dd315726289d459de9a8efde70da39744534a1957ed31715a97d4",
+          "zfp_payload_sha256": "5ee2537578263ee99866e5f953caf183b530b77d36f7d6dab9affe77b19ff923",
+          "file_count": 210,
+          "total_bytes": 5820135,
+          "zfp_frame_types": {
+            "keyframe": 24,
+            "simple": 24,
+            "predictive": 120
+          }
+        },
+        "cross_reader_fixture_sha256": null
+      }
+    }
+  ],
+  "writer_improvement_s": {
+    "samples": [
+      0.185236,
+      -0.007681000000000049,
+      -0.018044000000000004,
+      0.01277600000000001,
+      0.0031799999999999606,
+      -0.042925000000000046,
+      0.0029409999999999714
+    ],
+    "median": 0.0029409999999999714,
+    "median_absolute_deviation": 0.01062200000000002,
+    "three_mad": 0.03186600000000006
+  },
+  "process_improvement_s": {
+    "samples": [
+      0.18802316699293442,
+      0.0050768750079441816,
+      -0.01826233299652813,
+      0.013104625999403652,
+      0.011168832999828737,
+      -0.04068249998817919,
+      0.003825916995992884
+    ],
+    "median": 0.0050768750079441816,
+    "median_absolute_deviation": 0.00802775099145947,
+    "three_mad": 0.02408325297437841
+  },
+  "peak_rss_reduction_bytes": {
+    "samples": [
+      49152,
+      8896512,
+      -8765440,
+      49152,
+      -8830976,
+      8814592,
+      -8896512
+    ],
+    "median": 49152,
+    "median_absolute_deviation": 8814592,
+    "three_mad": 26443776.0
+  },
+  "deterministic_persistent_memory_reduction_bytes": 0,
+  "gate": {
+    "minimum_speedup_percent": 2.0,
+    "minimum_writer_improvement_s": 0.007200140000000001,
+    "minimum_process_improvement_s": 0.060097117500117744,
+    "minimum_peak_rss_reduction_bytes": 2129264.64,
+    "writer_pass": false,
+    "process_pass": false,
+    "peak_rss_observation_pass": false,
+    "peak_rss_required": false,
+    "passes_required_gates": false,
+    "throughput_promoted": false,
+    "memory_only_acceptance_enabled": false,
+    "lifecycle_only_acceptance_enabled": true,
+    "codec_workspace_lifecycle_pass": true,
+    "repair_accepted": true
+  }
+}

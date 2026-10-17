@@ -1,0 +1,14 @@
+import assert from "node:assert/strict";
+import { waitForCapturePaint } from "../../../../ui/src/lib/run/capturePaint.ts";
+const pending = new Map<number, FrameRequestCallback>();
+let next = 0;
+const scheduler = { requestAnimationFrame: (callback: FrameRequestCallback) => { pending.set(++next, callback); return next; }, cancelAnimationFrame: (id: number) => { pending.delete(id); } };
+const paint = () => { const [id, callback] = [...pending.entries()][0]; pending.delete(id); callback(0); };
+const finished = waitForCapturePaint(undefined, 1000, scheduler);
+paint(); assert.equal(pending.size, 1); paint(); await finished; assert.equal(pending.size, 0);
+const abort = new AbortController();
+const cancelled = waitForCapturePaint(abort.signal, 1000, scheduler); paint(); abort.abort();
+await assert.rejects(cancelled, { name: "AbortError" }); assert.equal(pending.size, 0);
+await assert.rejects(waitForCapturePaint(undefined, 5, scheduler), /presentation paused/); assert.equal(pending.size, 0);
+await assert.rejects(waitForCapturePaint(abort.signal, 1000, scheduler), { name: "AbortError" }); assert.equal(pending.size, 0);
+console.log("Capture paint settles, cancels and times out without retaining callbacks");

@@ -1,0 +1,172 @@
+// acoustic_pressure_massflux_cartesian_cgrid.comp
+//
+// Batched Cartesian C-grid acoustic pressure update with a co-produced
+// time-averaged face mass flux.  Bindings 0..9 and the pressure/density
+// calculation intentionally mirror acoustic_pressure_cartesian_cgrid.comp.
+// The extra three buffers accumulate
+//
+//   Mbar = sum_n weight * (rho_face * velocity_face),
+//
+// where the batched caller supplies weight = 1 / n_substeps.  Scalar
+// transport later consumes this exact acoustic-loop mass-flux history rather
+// than reconstructing a new flux from the final state (SCI-025).
+//
+// Every invocation owns the +x, +y, and +z faces stored at its cell index, so
+// accumulation is race-free.  Dispatches are serialized by the acoustic
+// loop's existing compute barriers.
+
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) readonly buffer UInBuf     { float u_in[];     };
+layout(set = 0, binding = 1) readonly buffer VInBuf     { float v_in[];     };
+layout(set = 0, binding = 2) readonly buffer WInBuf     { float w_in[];     };
+layout(set = 0, binding = 3) readonly buffer RhoInBuf   { float rho_in[];   };
+layout(set = 0, binding = 4) readonly buffer PInBuf     { float p_in[];     };
+layout(set = 0, binding = 5) readonly buffer Rho0Buf    { float rho0_b[];   };
+layout(set = 0, binding = 6) readonly buffer P0Buf      { float p0_b[];     };
+layout(set = 0, binding = 7) readonly buffer ThetaInBuf { float theta_in[]; };
+
+layout(set = 0, binding = 8) writeonly buffer RhoOutBuf { float rho_out[]; };
+layout(set = 0, binding = 9) writeonly buffer POutBuf   { float p_out[];   };
+
+layout(set = 0, binding = 10) buffer MassFluxXBuf { float mavg_x[]; };
+layout(set = 0, binding = 11) buffer MassFluxYBuf { float mavg_y[]; };
+layout(set = 0, binding = 12) buffer MassFluxZBuf { float mavg_z[]; };
+
+// Same 64-byte layout as AcousticPressureCartesianCgridPushConstants.  The
+// ordinary pressure shader ignores pad0; this batched-only variant uses it as
+// the averaging weight so the C++ push-constant ABI stays shared.
+layout(push_constant) uniform PushConstants {
+    int   nx;
+    int   ny;
+    int   nz;
+    float dx;
+    float dy;
+    float dz_val;
+    float gamma_val;
+    float dt_small;
+    float rho_min;
+    float rho_max;
+    float p_min;
+    float p_max;
+    float p_ref_fallback;
+    float mass_flux_weight;
+    float frame_velocity_u_ms;
+    float frame_velocity_v_ms;
+    int preserve_unrepaired;
+    float gamma_low;
+};
+
+bool finite_f(float v)
+{
+    return !isnan(v) && !isinf(v);
+}
+
+uint at(int i, int j, int k)
+{
+    return uint((i * ny + j) * nz + k);
+}
+
+void main()
+{
+    uint gid = gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * gl_NumWorkGroups.x * gl_WorkGroupSize.x;
+    uint total = uint(nx) * uint(ny) * uint(nz);
+    if (gid >= total)
+    {
+        return;
+    }
+
+    int k = int(gid % uint(nz));
+    uint ij = gid / uint(nz);
+    int j = int(ij % uint(ny));
+    int i = int(ij / uint(ny));
+    uint c = gid;
+
+    // The face convention is identical to the continuity operator: the +face
+    // of a cell is stored at that cell.  Compute these for the whole field,
+    // including boundary-owned faces used by the adjacent interior cell.
+    float flux_xp = 0.0;
+    if (i + 1 < nx)
+    {
+        uint c_ip = at(i + 1, j, k);
+        flux_xp = 0.5 * (rho_in[c] + rho_in[c_ip])
+                * (u_in[c] - frame_velocity_u_ms);
+    }
+    float flux_yp = 0.0;
+    if (j + 1 < ny)
+    {
+        uint c_jp = at(i, j + 1, k);
+        flux_yp = 0.5 * (rho_in[c] + rho_in[c_jp])
+                * (v_in[c] - frame_velocity_v_ms);
+    }
+    float flux_zp = 0.0;
+    if (k + 1 < nz)
+    {
+        uint c_kp = at(i, j, k + 1);
+        flux_zp = 0.5 * (rho_in[c] + rho_in[c_kp]) * w_in[c];
+    }
+    else
+    {
+        // Explicit C-grid top face: rigid BC supplies w=0; open BC supplies
+        // the zero-gradient normal velocity and density exterior state.
+        flux_zp = rho_in[c] * w_in[c];
+    }
+
+    mavg_x[c] += mass_flux_weight * flux_xp;
+    mavg_y[c] += mass_flux_weight * flux_yp;
+    mavg_z[c] += mass_flux_weight * flux_zp;
+
+    float drho = 0.0;
+    if (i >= 1 && i <= nx - 2 && j >= 1 && j <= ny - 2)
+    {
+        uint c_im = at(i - 1, j, k);
+        float flux_xm = 0.5 * (rho_in[c_im] + rho_in[c])
+                      * (u_in[c_im] - frame_velocity_u_ms);
+        float divm_x = (flux_xp - flux_xm) * (1.0 / dx);
+
+        uint c_jm = at(i, j - 1, k);
+        float flux_ym = 0.5 * (rho_in[c_jm] + rho_in[c])
+                      * (v_in[c_jm] - frame_velocity_v_ms);
+        float divm_y = (flux_yp - flux_ym) * (1.0 / dy);
+
+        float flux_zm = 0.0;
+        if (k > 0)
+        {
+            uint c_km = at(i, j, k - 1);
+            flux_zm = 0.5 * (rho_in[c_km] + rho_in[c]) * w_in[c_km];
+        }
+        float divm_z = (flux_zp - flux_zm) * (1.0 / dz_val);
+
+        drho = -(divm_x + divm_y + divm_z);
+        if (!finite_f(drho))
+        {
+            drho = 0.0;
+        }
+    }
+
+    float rho0_k = rho0_b[k];
+    float rho_new = rho_in[c] + drho * dt_small;
+    if (!finite_f(rho_new) || rho_new <= 0.0)
+    {
+        rho_new = max(0.1, rho0_k);
+    }
+    float rho_stored = clamp(rho_new, rho_min, rho_max);
+    rho_out[c] = rho_stored;
+
+    const float R_D_CONST = 287.0;
+    const float P00_CONST = 100000.0;
+    float th = theta_in[c];
+    float p_new = p_ref_fallback;
+    if (th > 0.0)
+    {
+        p_new = P00_CONST
+              * pow(rho_stored * R_D_CONST * th / P00_CONST, gamma_val);
+    }
+    if (!finite_f(p_new) || p_new <= 0.0)
+    {
+        p_new = p_ref_fallback;
+    }
+    p_out[c] = clamp(p_new, p_min, p_max);
+}

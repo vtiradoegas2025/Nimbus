@@ -1,0 +1,130 @@
+
+schema: nimbus.v1
+
+# Cartesian C-grid WK supercell for rendering -- the "rendered supercell" target.
+# Physics setup (sounding / hodograph / trigger / dt / damping / coriolis /
+# turbulence) is IDENTICAL to the proven tests/fixtures/configs/test/cart_cgrid_supercell_fine.yaml
+# (which stays bounded over 4500 s). Changes from that proven base, all justified:
+#   - microphysics: kessler (warm-rain). Kessler stays clean + localized on the
+#     Cartesian C-grid (max ~5-15 g/kg condensate in the storm core, median ~0),
+#     so the cloud renders as billows rather than a domain-spanning slab. The ice
+#     schemes (Lin/Thompson) produce an over-dense anvil on this grid (Lin's
+#     saturation + surface-precip conservation bugs are fixed, but its ice
+#     deposition/aggregation formulas still over-accumulate -- a follow-up). Use
+#     Kessler for clean renders until the ice microphysics is reworked.
+#   - output preset minimal -> presentation: exports reflectivity_dbz,
+#     total_condensate, vorticity_z, composite_reflectivity -- the render fields.
+#   - output_interval 0 -> 90 s: ~50 frames for a smooth video over the run.
+#   - grid 64^2 x50 / dx=600 -> 128^2 x64 / dx=400 (dz=250, ztop unchanged at
+#     16000): a presentable render. Domain 51.2 x 51.2 x 16 km is LARGER than the
+#     proven 38.4 km, so the storm has more room to organize and move. CFL is
+#     safe: advective dt limit ~8 s (dx 400 / 50 m/s) >> dt_large 1.5; acoustic
+#     substep 0.1875 s -> 64 m sound travel << 400 m (CFL ~0.16).
+# CPU or GPU: the Cartesian C-grid GPU path is built and CPU/GPU-parity-validated
+# (run with --compute-backend gpu). CPU is the default here for determinism.
+grid:
+  coordinate_system: cartesian
+  staggering: c_grid
+  nx: 128
+  ny: 128
+  nz: 64
+  dx: 400
+  dy: 400
+  dz: 250
+  ztop: 16000
+
+time:
+  run_time: 2700
+  dt_large: 1.5
+  acoustic_substeps: 8
+  adaptive_dt: false
+  cfl_safety: 0.7
+  output_interval: 90
+
+dynamics:
+  scheme: klemp_wilhelmson_split_cartesian_cgrid
+  axisymmetric: false
+
+boundary_conditions:
+  lateral:
+    west: radiative
+    east: radiative
+    south: radiative
+    north: radiative
+  bottom: rigid_slip
+  top: rigid
+
+damping:
+  enabled: true
+  z_d: 11200
+  alpha: 0.05
+  mode: explicit
+
+coriolis:
+  enabled: true
+  mode: f_plane
+  latitude_deg: 35
+
+microphysics:
+  scheme: lin
+
+turbulence:
+  scheme: smagorinsky
+  # PBL owns vertical mixing; SGS is horizontal-only to avoid double counting.
+  mode: 2d
+  Cs: 0.18
+  Pr_t: 0.7
+  Sc_t: 0.7
+
+diffusion:
+  scheme: explicit
+  operator_order: 2
+  K_h: 0
+  K_v: 0
+  apply_to: scalars
+
+surface:
+  scheme: slab
+  apply_fluxes: true
+
+boundary_layer:
+  scheme: slab
+
+radiation:
+  scheme: none
+
+initial_conditions:
+  sounding:
+    type: parametric_cape
+    cape_jkg: 4000
+    tropopause_m: 13000
+    surface_theta_k: 302
+    moisture_qv_kgkg: 0.016
+  hodograph:
+    type: wk_param
+    u_sfc_ms: 4.0
+    v_sfc_ms: 1.0
+    u_1km_ms: 14.0
+    v_1km_ms: 6.0
+    u_6km_ms: 28.0
+    v_6km_ms: 22.0
+  trigger:
+    type: bubble
+    bubble:
+      dtheta_k: 8
+      radius_km: 8.0
+      center_x_m: 25600
+      center_y_m: 25600
+      center_z_m: 1000
+
+output:
+  preset: presentation
+  format: npy_3d
+  async_io: true
+  live_shm: false
+
+extensions:
+  compute:
+    backend: cpu
+  validation:
+    guard_mode: warn

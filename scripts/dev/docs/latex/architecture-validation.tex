@@ -1,0 +1,208 @@
+\section{Performance models and the limits of measured evidence}
+\label{architecture-performance}
+
+\subsection{Count work at the boundary that is actually limiting}
+
+The Roofline model relates attainable arithmetic throughput to both compute
+capacity and data movement. With operational intensity $I=W/B$, where $W$ is
+floating-point work and $B$ is bytes transferred at a specified memory level,
+its elementary bound is
+\[
+ P\leq\min(P_{\max},\beta I),
+ \qquad
+ t\geq\max\left(\frac{W}{P_{\max}},\frac{B}{\beta}\right).
+\]
+Here $\beta$ is sustained bandwidth at that same boundary. A memory-bound loop
+does not reach twice the performance merely because arithmetic width doubles.
+Williams, Waterman and Patterson develop this reasoning in
+\href{https://www2.eecs.berkeley.edu/Pubs/TechRpts/2008/EECS-2008-134.pdf}{the
+primary Roofline report}. It is a useful bound and diagnostic model, not a
+prediction that every Nimbus loop reaches a roof.
+
+For Nimbus, the choice of $B$ matters. Counting bytes requested by source
+loads is different from measuring DRAM traffic after cache reuse. Host-to-device
+traffic is a different boundary again, and shader access to resident VRAM has
+another bandwidth. A CPU loop, a PCIe transfer, a GPU kernel and browser
+texture upload should not be placed under one unexplained bandwidth number.
+Extra validation or output scans can dominate a complete operation even when
+its inner stencil has a favorable arithmetic intensity.
+
+The end-to-end consequence follows by separating an accelerated fraction $f$
+of runtime from everything else. If that fraction becomes $s$ times faster,
+the idealized whole-program speedup is
+\[
+ S=\frac{1}{(1-f)+f/s}.
+\]
+This assumes the remaining work is unchanged and introduces no extra overhead.
+If a kernel is 5 percent of total time, even eliminating it entirely saves at
+most 5 percent under those assumptions. An actual change may add packing,
+allocation, synchronization or validation, so the measured result can be worse.
+The implication is to identify the costly owner before choosing an optimization,
+not to optimize the largest-looking loop by inspection.
+
+\subsection{Why a local speedup can disappear on another machine}
+
+The cross-architecture investigations have exposed three distinct questions:
+how much arithmetic an owner performs, how much data its consumers require,
+and when the hardware can execute that work. These questions remain useful
+without treating an early measurement on one host as a published benchmark or
+an acceptance threshold for a class of computers.
+
+For CPU execution, increasing the worker count can stop helping once a shared
+cache, memory interface or synchronization point becomes limiting. SMT workers
+share physical resources, and thread placement can change which memory and
+cache paths an operator uses. Nimbus therefore exposes explicit worker and
+OpenMP placement controls and records the execution context. Its topology
+policy is a starting point. It does not encode a particular workstation's
+best observed count as a universal x86-64 setting.
+
+Pressure-material reuse addresses a different problem: successive acoustic
+operations can need unchanged material coefficients while pressure itself
+changes. The current owners retain the immutable information under explicit
+state preconditions. That can remove repeated work in the pressure owner, but
+the complete step also includes transport, boundaries, microphysics, reports
+and synchronization. An owner-level improvement is a hypothesis about overall
+performance until the full workload is compared. Similarly, removing an upload
+is not sufficient if it adds another synchronization or shifts work to a less
+favorable point in the dependency chain.
+
+On a device with separate memory, a staged acoustic command includes upload,
+execution, download and host publication. A timer around a transfer side can
+include waits for preceding work, driver scheduling and visibility operations;
+it is not automatically an isolated measurement of PCIe bandwidth. The staged
+implementation keeps those phases explicit so they can be attributed and
+compared. It must preserve the same boundary and failure semantics as the
+shared-memory path before a transfer reduction is considered equivalent.
+
+Power state, memory clocks, link state and competing work can vary between
+runs of an identical binary. A monitor sampled at a different cadence from the
+kernel trace cannot establish which individual call experienced a particular
+state. Nimbus's measurement workflow therefore keeps uncertainty visible and
+requires repeated, matched runs. The public repository does not publish a
+personal-device baseline here. Current code documents the implemented reuse,
+precision and memory-policy choices; broad ARM64, x86-64, NUMA and discrete-GPU
+performance conclusions still require the corresponding measurements.
+
+\subsection{A useful optimization experiment preserves the scientific job}
+
+The candidate and baseline must perform the same work: same configuration,
+duration, diagnostic cadence, output selection, memory policy, worker count and
+admission requirements. Reducing scientific reports or returning fewer fields
+can be a product-mode change, but is not an equivalent implementation speedup.
+Likewise, a native-required profile cannot obtain an acceptable timing by
+silently substituting a host operation.
+
+Use an isolated owner measurement to locate cost, then evaluate the complete
+runtime path with warmup identified and repeated baseline/candidate runs.
+Alternating order helps reveal drift; a single before/after pair cannot
+separate a small change from varying load or operating state. Nested timers
+must state which intervals overlap. An acoustic sub-timer included in the
+dynamics timer is not an additional independent contribution to total time.
+
+Correctness evidence accompanies the timing: accepted field bytes or declared
+numerical comparisons, checkpoints, relevant conservation ledgers, failures,
+threading and applicable backend paths. A source-only count of removed
+allocations is a hypothesis until the active runtime and retained dataflow
+confirm it. A portable test on one generic x86-64 build demonstrates that
+artifact's behavior there; it does not prove broad performance optimality.
+
+\section{Maintaining the ownership and provenance boundaries}
+
+Several inexpensive mistakes can invalidate a technically successful change.
+A new source writer can omit a residency transition; a reused scratch array
+can leave halos unreadably stale; a serializer can change canonical output
+while catalog pins remain old; or a cancellation path can release a reservation
+while a noninterruptible native call still owns its memory. These failures are
+best understood by asking who owns each resource, which generation its values
+describe, what constitutes completion, and which outputs must change together.
+
+Maintained tests mirror those boundaries rather than relying on one aggregate
+smoke test. SIMD/alias and hardware-policy tests cover CPU representation and
+selection. Memory-plan and residency tests cover allocation and authority.
+Native backend tests cover actual dispatch, rejection and completion. Output
+and checkpoint tests cover publication and continuation. Studio tests cover
+preflight, decoding, geometry, missing data, resource lifetime and pixels.
+An analytic rendering fixture can expose an axis swap even when a storm image
+looks plausible; a hash mutation can expose a stale contract even when a UI
+control still renders successfully.
+
+Generated files require their generator's exact contract. Formatting a
+generated shader string header or an exact-scope header can break its text
+verification without changing the apparent equation. Formatting a source file
+whose raw hash is sealed changes that source identity even if serialized output
+is unchanged. Such work should be isolated, regenerated and revalidated rather
+than mixed into an unrelated scientific or repository cleanup. Archived
+evidence must retain the identities it actually tested.
+
+The repository's status vocabulary remains Engineering incomplete, Ready,
+Campaign validated, Externally reviewed and Fully qualified. Source inspection,
+bounded tests and this technical manual do not collapse those stages. In
+particular, complete bookkeeping of an energy change is not proof that the
+physical source is correct; a reproducible image is not proof of a physically
+validated storm; and a successful one-host benchmark is not a general hardware
+qualification.
+
+\section{Primary references and how they are used}
+\label{architecture-references}
+
+The references below describe methods and platform semantics. Nimbus's actual
+mode choices, ABI, implementation limits and admission remain defined by the
+linked maintained source and tests. A paper's results are not measurements of
+the current Nimbus executable.
+
+\begin{description}
+\item[Compression method.]
+Peter Lindstrom (2014), \emph{Fixed-Rate Compressed Floating-Point Arrays},
+IEEE Transactions on Visualization and Computer Graphics, 20(12), 2674--2683.
+\href{https://doi.org/10.1109/TVCG.2014.2346458}{DOI: 10.1109/TVCG.2014.2346458}.
+\href{https://vis.cs.ucdavis.edu/vis2014papers/TVCG/papers/2674_20tvcg12-lindstrom-2346458.pdf}{Primary paper PDF}.
+Used for the block-compression design; Nimbus's containers and temporal
+predictor are separately specified in the output writer.
+
+\item[Compression modes and limits.]
+ZFP 1.0.1 official documentation,
+\href{https://zfp.readthedocs.io/en/release1.0.1/modes.html}{Compression Modes}
+and \href{https://zfp.readthedocs.io/en/release1.0.1/faq.html}{FAQ}.
+Used to distinguish fixed rate, precision, accuracy and reversible operation,
+including finite-representation and pointwise-error caveats.
+
+\item[Performance model.]
+Samuel Williams, Andrew Waterman and David Patterson,
+\emph{Roofline: An Insightful Visual Performance Model for Floating-Point
+Programs and Multicore Architectures}, University of California, Berkeley
+Technical Report UCB/EECS-2008-134 (2008).
+\href{https://www2.eecs.berkeley.edu/Pubs/TechRpts/2008/EECS-2008-134.pdf}{Primary report PDF}.
+Used as an operational-intensity bound, not as a fitted Nimbus performance curve.
+
+\item[CPU instruction sets and compilation.]
+Arm, \href{https://developer.arm.com/documentation/101028/0009/Advanced-SIMD--Neon--intrinsics}{Arm C Language Extensions: Advanced SIMD intrinsics};
+Intel, \href{https://www.intel.com/content/www/us/en/developer/articles/technical/intel-sdm.html}{Intel 64 and IA-32 Architectures Software Developer Manuals};
+GCC, \href{https://gcc.gnu.org/onlinedocs/gcc/x86-Options.html}{x86 Options}
+and \href{https://gcc.gnu.org/onlinedocs/gcc/x86-Built-in-Functions.html}{x86 Built-in Functions}.
+These define architectural and compiler semantics; emitted instructions and
+Nimbus's compiled helper branches determine what a particular build uses.
+
+\item[Thread placement.]
+OpenMP Architecture Review Board.\par
+\href{https://www.openmp.org/spec-html/5.1/openmpse62.html}{OMP\_PLACES}
+and \href{https://www.openmp.org/spec-html/5.0/openmpse52.html}{OMP\_PROC\_BIND}.
+Used to distinguish worker count, places and affinity. Runtime support and
+observed placement remain necessary when interpreting a measurement.
+
+\item[Vulkan ownership and execution.]
+Khronos Group, \href{https://docs.vulkan.org/guide/latest/memory_allocation.html}{Memory Allocation},
+\href{https://docs.vulkan.org/guide/latest/synchronization_examples.html}{Synchronization Examples},
+and \href{https://docs.vulkan.org/spec/latest/chapters/pipelines.html}{Vulkan Pipelines}.
+Used for the distinction between allocation types, memory visibility,
+completion and graphics versus compute work.
+
+\item[Metal resources.]
+Apple, \href{https://developer.apple.com/documentation/metal/choosing-a-resource-storage-mode-for-apple-gpus}{Choosing a resource storage mode for Apple GPUs}.
+Used for shared/private resource semantics. The current Nimbus backend's
+resource and completion choices are documented separately above.
+
+\item[Rendering framework.]
+Kitware, \href{https://kitware.github.io/vtk-js/docs/structures.html}{VTK.js data structures}.
+The pinned framework and Nimbus's workload policy, shader adaptations and
+permanent rendering tests define actual Studio support.
+\end{description}

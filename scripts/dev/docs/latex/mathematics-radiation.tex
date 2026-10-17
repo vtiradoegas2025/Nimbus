@@ -1,0 +1,312 @@
+\chapter{Radiation: from optical properties to a thermal source}\label{radiation-theory}
+
+Radiation changes the atmosphere by moving energy across its boundaries and
+redistributing absorption and emission within it. It does not transport dry-air
+mass. The selectable Nimbus families are \texttt{none}, \texttt{simple\_grey}
+and \texttt{rrtmg}. The disabled family provides no radiative source. The other
+two make substantially different optical approximations, even though both
+ultimately provide temperature tendencies and flux diagnostics to the same
+runtime owner.
+
+\section{Define the sign, location and units before taking a divergence}
+
+Let $F^\uparrow$ and $F^\downarrow$ be nonnegative upward and downward flux
+magnitudes in $\mathrm{W\,m^{-2}}$, and define upward-positive net flux
+$F=F^\uparrow-F^\downarrow$. Fluxes live at layer interfaces. In a flat column
+with layer thickness $h_k$, the retained temperature conversion is
+\[
+ \dot T_k=-\frac{F_{k+1/2}-F_{k-1/2}}{\rho_{d,k}c_p h_k}.
+\]
+Here the runtime supplies dry density, and $c_p$ is the declared constant heat
+capacity used by this radiation interface. An increase of upward net flux
+through the layer means that energy leaves the layer, giving cooling. Reversing
+the flux sign without reversing the divergence is a physical sign error, not
+a choice of display convention.
+
+Multiplying by dry layer mass per unit horizontal area gives
+\[
+ \rho_{d,k}c_p h_k\dot T_k=F_{k-1/2}-F_{k+1/2}.
+\]
+Summing over layers cancels every interior interface. The atmospheric power per
+unit area is the bottom net flux minus the top net flux. This provides an
+independent interface-flux check on the column tendency. It does not prove the
+correctness of the optical coefficients or the chosen thermodynamic currency.
+The \href{../src/radiation/column_evaluation.cpp}{column evaluator} checks this
+closure before publishing the float theta tendency and cell power.
+
+\input{figures/mathematics-radiation.tex}
+
+The conversion supplied to the dynamics owner is
+$\dot\theta=\dot T(p_{\rm ref}/p)^{R_d/c_p}$ using pressure at the evaluated
+state. The later EOS projection still participates in the thermal path described
+in the coupling chapter. Column power, temperature tendency and the stored
+theta increment are related quantities, not interchangeable numerical arrays.
+For a terrain cell, physical heights, interface geometry, volume and surface
+area must retain their declared meaning before applying an analogous budget.
+
+\section{Optical depth summarizes an interaction along a path}
+
+At a frequency $\nu$, let $I_\nu(\boldsymbol x,\boldsymbol\Omega)$ be radiance
+in direction $\boldsymbol\Omega$. A local, stationary transfer equation with
+elastic scattering can be written schematically as
+\[
+ \boldsymbol\Omega\cdot\nabla I_\nu
+ =-\beta_{e,\nu}I_\nu+\beta_{a,\nu}B_\nu(T)
+ +\frac{\beta_{s,\nu}}{4\pi}
+    \int_{4\pi}P_\nu(\boldsymbol\Omega,\boldsymbol\Omega')
+                      I_\nu(\boldsymbol\Omega')\,d\Omega'.
+\]
+Absorption and scattering coefficients have units $\mathrm{m^{-1}}$;
+$\beta_e=\beta_a+\beta_s$. This convention normalizes the phase function so
+its angular integral is $4\pi$. The thermal term assumes local thermodynamic
+equilibrium for the emitting material. A model that drops the scattering term
+has made a different physical approximation from one that replaces its angular
+integral with a quadrature.
+
+For pure absorption along path coordinate $s$, optical depth is
+$\tau=\int\beta_a\,ds$. With no emission on that path, the solution is
+$I=I_0e^{-\tau}$. A vertical optical depth $\Delta\tau$ seen by a direct beam
+with vertical cosine $\mu_0>0$ becomes path depth $\Delta\tau/\mu_0$ in a
+plane-parallel layer. This geometric factor belongs to the beam direction.
+A diffuse hemisphere contains many path angles and cannot generally use the
+same single cosine.
+
+Nimbus's schemes reduce spectral and angular detail in different ways. The
+simple-grey scheme uses broadband optical depths. RRTMG uses spectral bands and
+reduced absorption-distribution quadrature. The underlying transfer equations
+help identify assumptions, but the code's quadrature, boundary rules and
+coefficient inputs define the numerical calculation actually performed.
+
+\section{The two simple-grey optical models}
+
+The pressure-only clear-sky model defines an interface optical-depth profile
+\[
+ \tau(p)=\tau_{\rm ref}
+       \left(\frac{p}{100000\,\mathrm{Pa}}\right)^n,
+ \qquad\Delta\tau_k=\tau(p_{k-1/2})-\tau(p_{k+1/2}).
+\]
+Longwave and shortwave have separate reference depths and exponents. Pressure
+interfaces must be finite, nonnegative and nonincreasing upward, with positive
+surface pressure. This is a prescribed broadband profile, not a calculation
+of molecular absorption from a complete gas spectrum. It deliberately provides
+a simple radiative experiment whose parameters are model assumptions.
+
+The absorbing water/cloud-path model adds absorber mass paths,
+\[
+ \Delta\tau_k^{\rm water}
+ =\rho_{d,k}h_k
+   \big(\kappa_vq_{v,k}+\kappa_lq_{c,k}+\kappa_iq_{i,k}\big).
+\]
+The mass-absorption coefficients $\kappa_x$ have units
+$\mathrm{m^2\,kg^{-1}}$, so the expression is dimensionless. Separate
+coefficients are supplied for the two broadband components. This path uses
+vapor, cloud liquid and cloud ice. It does not automatically turn rain, snow,
+graupel or hail into optical contributors merely because those categories
+exist in microphysics.
+
+The absorbing model adds this term to the pressure-profile layer depth. It is
+not a scattering cloud model: changing cloud water changes absorption, but
+does not create the cloud scattering and angular redistribution represented by
+a more elaborate optical scheme. Configuration must pair the selected optical
+model with its clear-sky setting consistently. The
+\href{../src/radiation/schemes/simple_grey/simple_grey.cpp}{simple-grey owner}
+validates those choices and requires physical column inputs.
+
+\section{Grey longwave transfer and the surface boundary}
+
+The implemented longwave calculation treats each layer as isothermal for its
+broadband source. With $\mathcal T_k=e^{-\Delta\tau_k}$, it uses recurrences
+of the form
+\[
+ \begin{aligned}
+ F^\downarrow_{k-1/2}
+ &=\mathcal T_k F^\downarrow_{k+1/2}
+   +(1-\mathcal T_k)\sigma T_k^4,\\
+ F^\uparrow_{k+1/2}
+ &=\mathcal T_k F^\uparrow_{k-1/2}
+   +(1-\mathcal T_k)\sigma T_k^4.
+ \end{aligned}
+\]
+These equations describe the code's effective optical-depth convention; no
+additional longwave diffusivity factor should be inserted when reproducing this
+particular grey calculation. They assume a broadband thermal source and neglect
+longwave scattering in this path.
+
+The top incoming longwave flux is zero. After the downward sweep reaches the
+surface, the upward lower boundary is
+\[
+ F^\uparrow_s=\epsilon\sigma T_s^4
+                 +(1-\epsilon)F^\downarrow_s.
+\]
+The second term represents reflected downwelling longwave. Omitting it would
+make a nonblack surface absorb energy that its declared emissivity does not
+permit under this opaque-surface convention. The upward sweep therefore depends
+on the completed downward sweep. Surface temperature and emissivity are explicit
+inputs; the radiation calculation does not solve a soil or land-surface energy
+balance that prognoses a new $T_s$.
+
+The recurrences and the flux-divergence conversion are separate stages in
+\href{../src/radiation/base/radiative_transfer.cpp}{radiative transfer}.
+A valid recurrence can still produce the wrong heating if layer indexing,
+interface orientation or the mass used by the conversion is inconsistent.
+
+\section{Direct sunlight and Lambertian reflection are different angular fields}
+
+For an illuminated flat column, the top incident shortwave flux is
+$F^\downarrow_{\rm top}=\mu_0 S_0$, where $S_0$ is irradiance normal to the
+solar beam. The downward grey path attenuates each layer by
+$e^{-\Delta\tau_k/\mu_0}$. The nighttime branch publishes no shortwave source
+rather than evaluating a singular or negative path length at $\mu_0\le0$.
+
+At the surface, the reflected upward flux is
+$F^\uparrow_s=\alpha F^\downarrow_s$. Nimbus treats this reflected boundary
+as Lambertian. Its radiance is direction-independent over the upward hemisphere,
+so the upward flux at cumulative optical depth $\tau$ above the surface is
+\[
+ F^\uparrow(\tau)=F^\uparrow_s\,2E_3(\tau),\qquad
+ E_3(\tau)=\int_1^\infty\frac{e^{-\tau t}}{t^3}\,dt.
+\]
+The factor follows directly from hemispheric integration:
+$2\int_0^1\mu e^{-\tau/\mu}\,d\mu=2E_3(\tau)$.
+It approaches one at zero optical depth. Applying the direct solar cosine to
+this reflected flux would give it the wrong angular distribution.
+
+This grey construction contains atmospheric absorption and a reflecting lower
+boundary but no atmospheric scattering. Albedo changes the energy partition
+between the surface and the upward radiation; it is not a source of energy.
+The implementation evaluates the exponential-integral transmission with bounded
+numerical branches and rejects nonphysical results. Tests of the thin, thick,
+black-surface and reflecting-surface limits examine different parts of this
+contract.
+
+\section{What the correlated-k approximation changes}
+
+Molecular absorption varies rapidly with frequency. Resolving every spectral
+line in every grid column would be expensive. Within a band, an absorption
+coefficient distribution can be represented by a cumulative variable $g$,
+turning a band transmission integral into an approximation such as
+\[
+ \overline{\mathcal T}(u)
+ =\int_0^1e^{-k(g)u}\,dg
+ \simeq\sum_j w_j e^{-k_j u}.
+\]
+Here $u$ is the absorber amount in the coefficient convention and the weights
+cover the distribution interval. Using correlated ordering between layers,
+combining gases and interpolating coefficients across temperature and pressure
+introduce additional modeling assumptions. This is a spectral quadrature;
+its $g$ coordinate is not gravitational acceleration or a particle-size moment.
+
+\href{https://doi.org/10.1029/97JD00237}{Mlawer et al. (1997)} develops the
+longwave correlated-k reference method, and
+\href{https://doi.org/10.1029/2008JD009944}{Iacono et al. (2008)} describes the
+AER model family and its greenhouse-gas forcing calculations. Their validation
+results do not automatically apply to Nimbus's translated implementation,
+coefficient versions, cloud assumptions or coupled runtime.
+
+Nimbus implements the calculation in C++; the AER netCDF files provide
+coefficients rather than an executable Fortran solver. Typed loading validates
+the expected coefficient schema and identity. Pressure/temperature preparation,
+major and minor gas absorption, continua, cloud optics and transfer have
+separate source owners under
+\href{../src/radiation/schemes/rrtmg/}{the RRTMG implementation}. The reduced
+spectral structure is part of those coefficient contracts, not a tunable number
+of arbitrary equal-frequency samples.
+
+\section{Gas columns, cloud optical properties and transfer closure}
+
+Nimbus constructs dry-air molecular columns from the supplied dry density and
+physical layer thickness. With dry molar mass $M_d$ in $\mathrm{kg\,mol^{-1}}$,
+\[
+ N_d=\frac{\rho_d h}{M_d}\,\frac{N_A}{10^4}
+\]
+gives molecules per square centimetre. A water dry-air mass mixing ratio is
+converted to a dry-air-relative molar ratio with
+$r_v=q_v M_d/M_v$. Gas mole fractions and their allowed totals have explicit
+validation. Pressure, temperature and molecular column amounts therefore have
+different roles; substituting a pressure-thickness formula for the actual
+$\rho_d h$ preparation without reviewing its assumptions changes the inputs.
+
+The runtime currently passes cloud liquid $q_c$ and cloud ice $q_i$ to the
+optics. In cloudy mode it uses liquid/ice mass paths
+$1000\rho_d h q_c$ and $1000\rho_d h q_i$ in $\mathrm{g\,m^{-2}}$, with
+configured effective radii in micrometres. A cell with either positive cloud
+category is assigned cloud fraction one; otherwise it is clear. There is no
+prognostic subgrid cloud fraction or general cloud-overlap model in this
+construction. Effective radii are optical inputs here, not automatically the
+radius diagnosed from every microphysics moment. Falling condensate categories
+are not silently summed into the two cloud paths.
+
+Longwave transfer includes its band-dependent diffusivity treatment. Shortwave
+transfer uses the implemented practical improved flux method (PIFM) two-stream
+layer coefficients, direct/diffuse reflection and transmission, and the
+supplied scattering/asymmetry information. A two-stream solution represents an
+angular closure, not the full radiance field at every direction. Conservative
+scattering and optically thin limits need stable numerical branches because
+algebraically equivalent expressions can suffer cancellation or singular-looking
+intermediate terms. See
+\href{../src/radiation/schemes/rrtmg/rrtmg_longwave_transfer.cpp}{longwave transfer}
+and \href{../src/radiation/schemes/rrtmg/rrtmg_shortwave_transfer.cpp}{shortwave transfer}.
+
+Interface temperatures, when not supplied, use the retained pressure-coordinate
+interpolation and endpoint rules. The physical column order and the transfer
+solver's sweep order are explicitly converted. Agreement of a single surface
+flux does not establish that all interface fluxes, layer heating and cloud/gas
+responses agree with an independent column reference.
+
+\section{Terrain adds visibility, projected area and horizontal exchange}
+
+For a unit direction toward the Sun, $\boldsymbol s$, and an upward surface
+normal $\boldsymbol n$, direct intercepted irradiance is proportional to
+$\max(0,\boldsymbol n\cdot\boldsymbol s)$. Visibility is an additional condition:
+a face aimed toward the Sun may still be shadowed by intervening terrain.
+Area measured along the slope differs from horizontal plan area. Fluxes in
+$\mathrm{W\,m^{-2}}$ must be paired with the area their definition uses before
+becoming power in watts.
+
+Nimbus has explicit terrain shortwave paths for visibility, ray traversal,
+absorbed power, reflected angular transport and spectral variants. A ray through
+several physical cells carries an energy amount; attenuation along each segment
+partitions it between absorption and outgoing power. A reflecting terrain
+boundary can redirect it into other columns. Reusing independent vertical-column
+heating while merely shading a picture would not represent that exchange.
+
+For a bounded shortwave transport calculation, an appropriate whole-domain
+partition is
+\[
+ P_{\rm in}=P_{\rm atmosphere}+P_{\rm surface}
+        +P_{\rm top\ escape}+P_{\rm lateral\ escape}+P_{\rm unresolved}.
+\]
+The unresolved term records power remaining when a declared angular/bounce or
+convergence bound is reached; it is not automatically atmospheric heating.
+Changing quadrature, reflection count or stopping tolerance changes a numerical
+approximation that must be checked independently of this bookkeeping identity.
+
+Source presence does not imply every terrain/backend combination is admitted.
+The current runtime rejects mapped RRTMG shortwave on an active accelerator
+because its native spectral-terrain owner is missing. CPU mapped spectral work
+and native column batches have separate scopes. The
+\href{../src/radiation/runtime.cpp}{radiation runtime} is the authority for the
+actual selected path and required rejection behavior.
+
+\section{Cadence, stored power and the complete coupled step}
+
+Radiation is refreshed on its declared cadence and can hold its source between
+calls. The evaluated optical state, published heating and held power must share
+one completed generation. The next dynamics interval should not combine a newly
+computed power diagnostic with an older held theta tendency. A refresh failure
+must preserve the preceding coherent runtime state and its timing.
+
+If a held atmospheric power is $P_h$ over an interval $\Delta t$, its declared
+energy input is $P_h\Delta t$. The
+\href{../src/radiation/energy_ledger.cpp}{radiation energy ledger} accounts for
+that held input and the relevant source endpoint. This is distinct from simply
+recomputing an interface-flux difference from a later atmospheric column.
+Cadence holding approximates time evolution; a smaller dynamics step does not
+by itself make a long-held radiation source current.
+
+The checks in \href{../tests/physics/test_radiation.cpp}{radiation tests} and
+\href{../tests/physics/test_radiation_runtime_state.cpp}{runtime-state tests}
+cover columns, units, invalid inputs, closure and publication behavior for their
+stated scopes. Broader coupled, terrain, restart and native paths need their own
+bounded and campaign evidence. Neither a familiar scheme name nor a finite
+flux residual replaces that validation.

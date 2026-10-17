@@ -1,0 +1,1061 @@
+/*
+ * Editor | splitter | output.
+ *
+ * The editor track is `minmax(0, <width>)` rather than the width alone so the
+ * user's stored size is a ceiling, not a floor: in a pane too narrow to honour
+ * it the editor gives way instead of pushing the output pane off the edge. The
+ * output track keeps a hard 240px minimum so dragging right can crowd it but
+ * never close it — a pane with no visible output has no way back, because the
+ * splitter is the only thing that would reopen it.
+ */
+.python-plot {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, var(--python-editor-width, 460px)) auto minmax(240px, 1fr);
+  gap: var(--space-2);
+  height: 100%;
+  min-height: 0;
+}
+
+.python-plot__btn--active {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.python-plot__editor-pane,
+.python-plot__output-pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+/*
+ * Wraps rather than overflows.
+ *
+ * The editor pane is a few hundred pixels wide and the user can now drag it
+ * narrower still. Without wrapping a control row keeps its intrinsic width and
+ * spills over the output pane next to it, where the pane's own background
+ * paints on top: Stop was rendered, reachable by keyboard, and impossible to
+ * click with a mouse. A control that ends a runaway cell is the last one that
+ * may go missing when the pane is small — which is why the row it lives on now
+ * carries three controls instead of eleven.
+ */
+.python-plot__editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  min-width: 0;
+  margin-bottom: var(--space-2);
+}
+
+.python-plot__editor-label {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.python-plot__header-actions {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.python-plot__domain-row {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  min-width: 0;
+  margin: 0 0 var(--space-2);
+  padding: var(--space-2);
+  border-block: 1px solid var(--color-border);
+  background: color-mix(in oklch, var(--color-surface-2) 42%, transparent);
+}
+
+.python-plot__domain-row:empty {
+  display: none;
+}
+
+.python-plot__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px var(--space-2);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
+}
+
+/*
+ * Hover is scoped to buttons that can actually be pressed.
+ *
+ * `:hover` matches disabled elements too, so a disabled control used to light
+ * up under the cursor exactly like a live one — same background, same border,
+ * same text colour. Against a 0.45 opacity that is not a strong enough
+ * difference to read, and the control it mattered most for was Stop: a user
+ * with a runaway cell could not tell whether Stop was refusing to work or
+ * working and failing. Two different problems, one appearance.
+ */
+.python-plot__btn:hover:not(:disabled) {
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  border-color: var(--color-border-strong);
+}
+
+.python-plot__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  /* Flattened as well as faded. Opacity alone still leaves a raised, bordered
+   * shape that reads as a button waiting to be pressed. */
+  background: transparent;
+  border-style: dashed;
+  box-shadow: none;
+}
+
+.python-plot__btn--primary {
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  border-color: var(--color-accent);
+}
+
+.python-plot__btn--primary:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+  color: var(--color-accent-contrast);
+  border-color: var(--color-accent-hover);
+}
+
+/* The forceful half of Stop, which is about to take the interpreter. */
+.python-plot__btn--danger {
+  background: color-mix(in oklch, var(--color-danger) 14%, transparent);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+.python-plot__btn--danger:hover:not(:disabled) {
+  background: var(--color-danger);
+  border-color: var(--color-danger);
+  color: var(--color-accent-contrast);
+}
+
+.python-plot__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.python-plot__status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-text-muted);
+}
+
+.python-plot__status--loading {
+  color: var(--color-warn);
+  border-color: color-mix(in oklch, var(--color-warn) 30%, transparent);
+}
+
+.python-plot__status--loading .python-plot__status-dot {
+  background: var(--color-warn);
+  animation: nimbus-pulse 1.2s ease-in-out infinite;
+}
+
+.python-plot__status--ready {
+  color: var(--color-ok);
+  border-color: color-mix(in oklch, var(--color-ok) 30%, transparent);
+}
+
+.python-plot__status--ready .python-plot__status-dot {
+  background: var(--color-ok);
+}
+
+.python-plot__status--error {
+  color: var(--color-error);
+  border-color: color-mix(in oklch, var(--color-error) 30%, transparent);
+}
+
+.python-plot__status--error .python-plot__status-dot {
+  background: var(--color-error);
+}
+
+@keyframes nimbus-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.python-plot__editor-loading {
+  flex: 1;
+  min-height: 200px;
+  padding: var(--space-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Approximates the editor's own background so swap-in isn't jarring.
+   * CodeEditor picks oneDark or CodeMirror's light theme from the resolved
+   * appearance, so this must follow the theme rather than pin oneDark. */
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.python-plot__io-status {
+  margin: var(--space-1) 0;
+  padding: 2px var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  border-left: 2px solid var(--color-accent);
+}
+
+.python-plot__io-status--error {
+  border-left-color: var(--color-error);
+  color: var(--color-error);
+}
+
+.python-plot__package-error {
+  margin: var(--space-1) 0;
+  padding: var(--space-2) var(--space-3);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  background: color-mix(in oklch, var(--color-error) 8%, transparent);
+  border: 1px solid color-mix(in oklch, var(--color-error) 30%, transparent);
+  border-radius: var(--radius-md);
+  color: var(--color-error);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  line-height: 1.45;
+}
+
+.python-plot__package-error-text {
+  flex: 1;
+  min-width: 0;
+  color: var(--color-text);
+}
+
+.python-plot__output {
+  position: relative;
+  isolation: isolate;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.python-plot__output-label {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.python-plot__display-note {
+  padding: 4px var(--space-2);
+  border-left: 2px solid var(--color-warn);
+  color: var(--color-text-muted);
+  background: color-mix(in oklch, var(--color-warn) 7%, transparent);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+}
+
+.python-plot__output-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.python-plot__output-actions input[type="range"] {
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+
+/* Python-authored HTML is isolated in a frame, so it needs an explicit box:
+   an iframe has no intrinsic content height to grow into. */
+.python-plot__html {
+  width: 100%;
+  min-height: 18rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-1, #fff);
+}
+
+/*
+ * Tab row: a scrolling strip of scripts, plus the actions that operate on
+ * whichever one is active. The row itself must not scroll — only the strip
+ * inside it — or Save and Open ride off the right edge with the tabs.
+ */
+.python-plot__tabs {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding-bottom: var(--space-1);
+  border-bottom: 1px solid var(--color-border);
+  min-width: 0;
+}
+
+.python-plot__tab-strip {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-1);
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.python-plot__tab-actions {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-1);
+}
+
+.python-plot__buffer-tab {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-2);
+}
+
+.python-plot__buffer-tab--active {
+  border-color: var(--color-accent);
+  background: color-mix(in oklch, var(--color-accent) 12%, transparent);
+}
+
+.python-plot__buffer-name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: 14rem;
+  padding: var(--space-1) var(--space-2);
+  border: none;
+  background: none;
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.python-plot__buffer-tab--active .python-plot__buffer-name {
+  color: var(--color-accent);
+}
+
+/* The unsaved marker must survive the name being ellipsised, so it is not
+   allowed to shrink with the label. */
+.python-plot__buffer-dirty {
+  flex: 0 0 auto;
+  color: var(--color-warn);
+  line-height: 1;
+}
+
+.python-plot__buffer-close,
+.python-plot__buffer-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--space-1);
+  border: none;
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.python-plot__buffer-close:hover,
+.python-plot__buffer-add:hover:not(:disabled) {
+  color: var(--color-text);
+}
+
+.python-plot__buffer-add {
+  flex: 0 0 auto;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.python-plot__buffer-add:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.python-plot__buffer-name:focus-visible,
+.python-plot__buffer-close:focus-visible,
+.python-plot__buffer-add:focus-visible,
+.python-plot__btn:focus-visible,
+.python-plot__tab:focus-visible,
+.plugin-gallery__item:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.python-plot__packages {
+  margin: var(--space-2) 0;
+  padding: var(--space-2) var(--space-3);
+  max-height: 14rem;
+  overflow-y: auto;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-xs);
+}
+
+.python-plot__packages-intro {
+  margin: 0 0 var(--space-2);
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+.python-plot__packages-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* Fourth column is the install control. Centred rather than baseline-aligned:
+   a button's baseline sits well below a bare tag's and the row reads crooked. */
+.python-plot__packages-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 7rem 5.5rem 1fr auto;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Holds the action column open for an already-loaded package so its purpose
+   text ends where every other row's does. */
+.python-plot__packages-ready {
+  min-width: var(--space-4);
+}
+
+.python-plot__packages-import {
+  color: var(--color-text);
+  font-family: var(--font-mono);
+}
+
+.python-plot__packages-tag {
+  justify-self: start;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.python-plot__packages-tag--preloaded {
+  background: color-mix(in oklch, var(--color-ok) 18%, transparent);
+  color: var(--color-ok);
+}
+
+.python-plot__packages-tag--bundled {
+  background: color-mix(in oklch, var(--color-accent) 15%, transparent);
+  color: var(--color-accent);
+}
+
+.python-plot__packages-tag--micropip {
+  background: color-mix(in oklch, var(--color-warn) 15%, transparent);
+  color: var(--color-warn);
+}
+
+/* Distinct from "preloaded": both are present, but this one is present
+   because the user asked for it. */
+.python-plot__packages-tag--loaded {
+  background: color-mix(in oklch, var(--color-ok) 26%, transparent);
+  color: var(--color-ok);
+}
+
+.python-plot__install-row {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin: var(--space-2) 0;
+}
+
+.python-plot__install-input {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+}
+
+.python-plot__install-input:focus-visible {
+  outline: 1px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.python-plot__staged-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 7rem 5.5rem 1fr auto;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* The host path is the long part and the only one safe to truncate; the name,
+   size and release control must all stay legible. */
+.python-plot__staged-item .python-plot__packages-purpose {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .python-plot__staged-item {
+    grid-template-columns: 1fr auto;
+  }
+}
+
+.python-plot__packages-purpose {
+  color: var(--color-text-muted);
+  line-height: 1.45;
+}
+
+/* Narrow panes cannot hold four columns; stack rather than clip the purpose,
+   but keep the install control on its own column so it stays reachable. */
+@media (max-width: 900px) {
+  .python-plot__packages-item {
+    grid-template-columns: 1fr auto;
+    gap: 0 var(--space-2);
+  }
+
+  .python-plot__packages-ready {
+    display: none;
+  }
+}
+
+.python-plot__missing-module {
+  margin: var(--space-2) 0;
+  padding: var(--space-2) var(--space-3);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  background: color-mix(in oklch, var(--color-warn) 10%, transparent);
+  border: 1px solid color-mix(in oklch, var(--color-warn) 40%, transparent);
+  border-radius: var(--radius-md);
+  color: var(--color-warn);
+  font-size: var(--font-size-xs);
+}
+
+.python-plot__missing-text {
+  flex: 1;
+  min-width: 0;
+  color: var(--color-text);
+}
+
+.python-plot__missing-text code {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  padding: 1px 4px;
+  background: var(--color-surface-2);
+  border-radius: var(--radius-sm);
+}
+
+/* ---------- Plugin gallery sidebar ---------- */
+
+.plugin-gallery {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.plugin-gallery__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-2);
+}
+
+.plugin-gallery__title {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.plugin-gallery__dir {
+  padding: 4px var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plugin-gallery__error {
+  margin: var(--space-2);
+  padding: var(--space-2);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  color: var(--color-error);
+  font-size: var(--font-size-xs);
+  background: color-mix(in oklch, var(--color-error) 8%, transparent);
+  border-radius: var(--radius-sm);
+}
+
+.plugin-gallery__empty {
+  padding: var(--space-4) var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  align-items: center;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.plugin-gallery__empty-hint {
+  color: var(--color-text-muted);
+  font-style: italic;
+  opacity: 0.7;
+}
+
+.plugin-gallery__list {
+  flex: 1;
+  list-style: none;
+  margin: 0;
+  padding: var(--space-1) 0;
+  overflow-y: auto;
+}
+
+/* A <button> now, so the browser's own defaults have to be undone: the entry
+ * still has to read as a row in a list, not as a control with a chrome. */
+.plugin-gallery__item {
+  width: 100%;
+  padding: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  border-left: 2px solid transparent;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  transition: background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
+}
+
+.plugin-gallery__item:hover {
+  background: var(--color-surface-2);
+}
+
+.plugin-gallery__item--active {
+  background: var(--color-surface-2);
+  border-left-color: var(--color-accent);
+}
+
+.plugin-gallery__item-name {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plugin-gallery__item-meta {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.python-plot__editor-footer {
+  margin-top: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-height: 30%;
+  overflow-y: auto;
+}
+
+.python-plot__refs {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.python-plot__refs--muted {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.python-plot__err,
+.python-plot__fatal {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: color-mix(in oklch, var(--color-error) 8%, transparent);
+  border: 1px solid color-mix(in oklch, var(--color-error) 30%, transparent);
+  color: var(--color-error);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  line-height: 1.45;
+}
+
+/* Solid rather than tinted, and carrying its own control. Nothing else in the
+ * tab can succeed while this is up, so it should not read as one more warning
+ * in a column of them. */
+.python-plot__fatal {
+  align-items: center;
+  flex-wrap: wrap;
+  background: color-mix(in oklch, var(--color-error) 16%, transparent);
+  border-color: var(--color-error);
+}
+
+.python-plot__fatal .python-plot__btn {
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+.python-plot__output-pane {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+/* Same overflow as the editor header: the frame label and the stale-code badge
+ * follow the two tabs, and in a narrow pane they ran past its right edge. */
+.python-plot__output-tabs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  min-width: 0;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.python-plot__output-tablist {
+  display: inline-flex;
+  align-items: stretch;
+}
+
+.python-plot__clear-output {
+  margin: var(--space-1) var(--space-2) var(--space-1) auto;
+}
+
+.python-plot__tab {
+  position: relative;
+  padding: var(--space-2) var(--space-3);
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out);
+}
+
+.python-plot__tab:hover {
+  background: var(--color-surface-2);
+  color: var(--color-text);
+}
+
+.python-plot__tab--active {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.python-plot__tab-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-warn);
+}
+
+/*
+ * Whatever the tab strip above it did not take.
+ *
+ * This used to be `calc(100% - 35px)`, a measurement of that strip taken once
+ * and then assumed forever. The strip wraps to a second line in a narrow pane,
+ * which put its overflow on top of the result; and now that the seam between
+ * the panes is draggable, narrow is a state the user can reach on purpose.
+ * The parent is already a flex column, so it can just be asked.
+ */
+.python-plot__result {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.python-plot__output-panel {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.python-plot__output-panel > .python-plot__empty {
+  flex: 1 1 auto;
+  height: auto;
+}
+
+/*
+ * Several outputs per run stack vertically and scroll as a unit.
+ *
+ * Must come after the base rule, and did not: both selectors weigh the same, so
+ * the later `overflow: hidden` above was silently winning over this
+ * `overflow-y: auto` and a run that drew four figures could show only the ones
+ * that happened to fit. Order is the whole fix — the declarations were already
+ * right.
+ */
+.python-plot__result--stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  overflow-y: auto;
+  align-items: stretch;
+}
+
+.python-plot__fig {
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: 70vh;
+  align-self: center;
+  object-fit: contain;
+  background: white;
+}
+
+.python-plot__empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: calc(100% - 35px);
+  padding: var(--space-4);
+  text-align: center;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  font-style: italic;
+}
+
+.python-plot__empty code {
+  font-style: normal;
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+}
+
+.python-plot__console {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-2);
+}
+
+.python-plot__console-stdout,
+.python-plot__console-stderr {
+  margin: 0 0 var(--space-2) 0;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.python-plot__console-stderr {
+  background: color-mix(in oklch, var(--color-error) 8%, transparent);
+  border-left: 2px solid var(--color-error);
+  color: var(--color-error);
+}
+
+/* Marks the text below as a partial view of a run still in progress, so a
+   truncated traceback is not mistaken for the whole story. */
+/* A traceback frame that points into the user's own script. Styled as a link
+   inside the <pre>, so it has to inherit the monospace metrics exactly --
+   anything that changed the line height would make the traceback jump around
+   as frames were linked or not. */
+.python-plot__tb-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.python-plot__tb-link:hover,
+.python-plot__tb-link:focus-visible {
+  background: color-mix(in oklch, var(--color-error) 18%, transparent);
+}
+
+/* The output on screen predates an edit to the cell it belongs to. Warn-toned
+   rather than error-toned: nothing is broken, it is just out of date. */
+.python-plot__stale {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+  background: color-mix(in oklch, var(--color-warn) 15%, transparent);
+  color: var(--color-warn);
+  font-size: var(--font-size-xs);
+  white-space: nowrap;
+}
+
+.python-plot__console-live {
+  margin-bottom: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background: color-mix(in oklch, var(--color-accent) 12%, transparent);
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+}
+
+/*
+ * Cell toolbar. Sits between the buffer tabs and the editor so the reading
+ * order matches the nesting: which file, then which cell of it, then the text.
+ */
+.python-plot__cell-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--font-size-xs);
+  flex-wrap: wrap;
+}
+
+/*
+ * Panel toggles, directly above the panels they open. Separated from the cell
+ * bar by its border rather than by another one of its own: four rows of
+ * controls each ruled off from the next reads as a stack of unrelated strips,
+ * which is the impression the single crowded row already gave.
+ */
+.python-plot__panel-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-xs);
+}
+
+.python-plot__panel-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  color: var(--color-warning, var(--color-text-muted));
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+}
+
+/*
+ * Run, Stop and Restart read as one control rather than three, because they
+ * are three answers to the same question about the same interpreter.
+ */
+.python-plot__btn-group {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding-left: var(--space-2);
+  border-left: 1px solid var(--color-border);
+}
+
+.python-plot__cell-position {
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.python-plot__cell-count {
+  color: var(--color-text-muted);
+}
+
+/* Pushed to the trailing edge and allowed to disappear first: it is a
+   reminder, and every shortcut it names has a button in the same bar. */
+.python-plot__cell-hint {
+  margin-left: auto;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.python-plot--with-gallery > .plugin-gallery {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: min(240px, 100%);
+  z-index: 8;
+  box-shadow: 4px 0 16px rgb(0 0 0 / 20%);
+}
+.python-plot__btn-group, .python-plot__tab-actions { flex-wrap: wrap; }
+
+.python-plot__output > .plot-canvas {
+  flex: 0 0 auto;
+  height: clamp(280px, 45vh, 520px);
+}
+.python-plot__output > .python-plot__empty { height: auto; }

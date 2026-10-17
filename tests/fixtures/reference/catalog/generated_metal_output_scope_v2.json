@@ -1,0 +1,30 @@
+{
+  "schema": "nimbus.generated-metal-output-scope.v2",
+  "version": 2,
+  "claimBoundary": "Exact dry flat Metal NPY/netCDF scopes and typed minimal ZFP candidate only; other retained output, numeric, boundary, motion, nesting and terrain combinations remain open.",
+  "baseManifestSha256": "85642f094c418fe95eb4c2fa0ba5a2a947aec95f8f1c43b17abcd924b0f068a0",
+  "npyNetcdfManifestSha256": "30d5fcc9494016894733ef973909849f8c58fbd04b3e0d6bb2e5e497c0c9ca99",
+  "zfpTypedOutputManifestSha256": "89ef136c9637c6e23d17cd996af20631973286447b783f1978d1471d4982c9fc",
+  "sourceTuples": 2016,
+  "outputFormats": [
+    "npy_3d",
+    "netcdf",
+    "zfp_high"
+  ],
+  "totalTuples": 6048,
+  "distinctConfigCount": 4536,
+  "writeCadenceSecondsByFormat": {
+    "npy_3d": [
+      1,
+      301
+    ],
+    "netcdf": [
+      1,
+      301
+    ],
+    "zfp_high": [
+      1
+    ]
+  },
+  "normalization": "NPY/netCDF preserve the v1 output manifest; exact typed ZFP output block normalizes to canonical minimal NPY before the base 1512-hash membership check."
+}

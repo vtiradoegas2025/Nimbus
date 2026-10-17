@@ -1,0 +1,50 @@
+{
+  "schema": "nimbus.qualification.moving_nested_reference_frontier.policy",
+  "schema_version": 7,
+  "policy_id": "moving-nested-reference-frontier-v7-balanced-trusted-containment-amendment",
+  "policy_status": "ratified",
+  "scope": "same-equation 600 m moving-child versus oversized stationary Nimbus reference with inherited v6 thresholds, geometry, aperture, containment movement, and balanced trusted-containment state",
+  "prior_policy": {
+    "path": "moving_nested_supercell_reference_frontier_v6.json",
+    "sha256": "6fb2a44972efba53f5a1549bf5f822a7c1ff68f9d8a3f7ea0aa0c020ee7390e3",
+    "schema_version": 6,
+    "policy_id": "moving-nested-reference-frontier-v6-trusted-interior-containment-amendment"
+  },
+  "failure_evidence": {
+    "path": "../../../docs/evidence/moving_nested_reference_frontier_v6_balanced_containment_probe_failure.json",
+    "sha256": "0c104fb56c3c88059b3f131f7dbe14dfd3baf23c7252a372f5806c913e574fa8",
+    "schema_version": 1,
+    "reason": "balanced_trusted_envelope_rejected_as_opposite_faces_breached"
+  },
+  "ratification": {
+    "decision": "post_probe_balanced_trusted_containment_amendment_of_v6_and_blinded_v2_thresholds",
+    "review_date": "2026-08-12",
+    "reviewer_role": "independent_science_policy_audit",
+    "failed_v6_balanced_containment_probe_observed": true,
+    "candidate_metric_values_inspected": false,
+    "minimum_input_series_schema_version": 2,
+    "balanced_trusted_containment_amendment": {
+      "reason": "fail_closed_balanced_trusted_envelope_rejected_as_opposite_faces_breached",
+      "algorithm": "qualified_envelope_hysteresis_v9",
+      "eligibility": "every inner-margin-breached axis is an opposing pair whose two faces remain outside the exact relaxation width",
+      "movement_status": "ineligible",
+      "movement_reason": "trusted_interior_contained",
+      "prognostic_state_mutation": false,
+      "diagnostic_history_mutation": true,
+      "current_trusted_interior_required": true,
+      "current_relaxation_entry_recoverable": false,
+      "ordinary_or_projected_movement_changed": false,
+      "numerical_thresholds_changed": false,
+      "geometry_or_aperture_changed": false,
+      "measurement_cadence_changed": false,
+      "failed_candidate_disposition": "diagnostic_probe_invalid_not_comparable"
+    }
+  },
+  "limitations": [
+    "All numerical thresholds, geometry, aperture, measurement cadence, and v8 containment-move rules are inherited from the immutable v6 policy chain.",
+    "The v6 failure evidence came from a cross-binary checkpoint continuation and is diagnostic-only, not a qualification candidate.",
+    "No comparison metric from the invalid v5 candidate or v6 diagnostic probe was inspected or used to alter a threshold.",
+    "The balanced state does not admit any relaxation-zone entry and does not waive ambiguity, topology, parent-containment, finite-evidence, or fail-closed trusted-interior checks.",
+    "A pass remains a bounded same-equation fixed-aperture comparison and does not enable public moving_nest selection or broaden supported physics/backend combinations."
+  ]
+}

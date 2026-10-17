@@ -1,0 +1,126 @@
+#version 450
+
+layout(local_size_x = 64) in;
+layout(set = 0, binding = 0) readonly buffer B0
+{
+    float original[];
+};
+layout(set = 0, binding = 1) readonly buffer B1
+{
+    float rhs[];
+};
+layout(set = 0, binding = 2) readonly buffer B2
+{
+    float diagonal[];
+};
+layout(set = 0, binding = 3) readonly buffer B3
+{
+    float solution[];
+};
+layout(set = 0, binding = 4) readonly buffer B4
+{
+    float residual[];
+};
+layout(set = 0, binding = 5) readonly buffer B5
+{
+    float direction[];
+};
+layout(set = 0, binding = 6) readonly buffer B6
+{
+    float image[];
+};
+layout(set = 0, binding = 7) writeonly buffer B7
+{
+    float next_solution[];
+};
+layout(set = 0, binding = 8) writeonly buffer B8
+{
+    float next_residual[];
+};
+layout(set = 0, binding = 9) writeonly buffer B9
+{
+    float next_direction[];
+};
+layout(set = 0, binding = 10) writeonly buffer B10
+{
+    float preconditioned_norm[];
+};
+layout(set = 0, binding = 11) writeonly buffer B11
+{
+    float norm[];
+};
+
+layout(push_constant) uniform PushConstants
+{
+    int   nx;
+    int   ny;
+    int   nz;
+    int   stage;
+    float alpha;
+    float beta;
+    float dt;
+    float field_scale;
+};
+
+vec2 compensated_add(vec2 sum, float value)
+{
+    float y = value - sum.y;
+    float t = sum.x + y;
+    return vec2(t, (t - sum.x) - y);
+}
+void evaluate(uint column)
+{
+    if (column >= uint(nx) * uint(ny))
+        return;
+    vec2 rz = vec2(0.0), rr = vec2(0.0);
+    for (int k = 0; k < nz; ++k)
+    {
+        uint n = column * uint(nz) + uint(k);
+        if (diagonal[n] == 0.0)
+        {
+            next_solution[n]  = 0.0;
+            next_residual[n]  = 0.0;
+            next_direction[n] = 0.0;
+            continue;
+        }
+        float x = solution[n], r = residual[n], p = direction[n];
+        if (stage == 0)
+        {
+            x = 0.0;
+            r = rhs[n];
+            p = r / diagonal[n];
+        }
+        else if (stage == 1)
+        {
+            x += alpha * p;
+            r -= alpha * image[n];
+        }
+        else if (stage == 2)
+            p = r / diagonal[n] + beta * p;
+        else if (stage == 3)
+        {
+            r = rhs[n] - image[n];
+            p = r / diagonal[n];
+        }
+        else if (stage == 4)
+        {
+            x = original[n] + field_scale * x;
+            r = (x - original[n]) / dt;
+            p = 0.0;
+        }
+        next_solution[n]  = x;
+        next_residual[n]  = r;
+        next_direction[n] = p;
+        if (stage != 4)
+        {
+            rz = compensated_add(rz, r * (r / diagonal[n]));
+            rr = compensated_add(rr, r * r);
+        }
+    }
+    preconditioned_norm[column] = rz.x;
+    norm[column]                = rr.x;
+}
+void main()
+{
+    evaluate(gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * gl_NumWorkGroups.x * gl_WorkGroupSize.x);
+}

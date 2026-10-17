@@ -1,0 +1,43 @@
+# .clang-tidy - ModularityAudit finding 9.
+#
+# Advisory, not yet a CI gate: clang-tidy needs a fresh compile_commands.json
+# (run `make compile-commands` first) and a full pass over 77k LOC is slow, so
+# it is run on demand, not on every PR. The check set is deliberately narrow and
+# aligned to what this audit is already tracking - the global-variable and
+# function-size checks intentionally surface findings 1 (god-functions) and 2
+# (global mutable state) as they are worked down, rather than flagging the whole
+# style surface at once.
+Checks: >
+  -*,
+  bugprone-*,
+  performance-*,
+  misc-unused-using-decls,
+  misc-redundant-expression,
+  readability-function-size,
+  readability-misleading-indentation,
+  readability-redundant-control-flow,
+  readability-redundant-smartptr-get,
+  cppcoreguidelines-avoid-non-const-global-variables,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-narrowing-conversions,
+  -bugprone-implicit-widening-of-multiplication-result
+
+# Keep advisory for now: nothing is promoted to a hard error until the findings
+# above are addressed. CI does not run clang-tidy yet (see the note above).
+WarningsAsErrors: ''
+HeaderFilterRegex: '^(src|include|vulkan)/'
+FormatStyle: file
+
+CheckOptions:
+  # The audit treats NLOC >= 150 as the "too big to hold in one head" threshold
+  # (finding 1). Match that here so the report tracks the same set of functions.
+  - key: readability-function-size.LineThreshold
+    value: '150'
+  - key: readability-function-size.StatementThreshold
+    value: '150'
+  - key: readability-function-size.NestingThreshold
+    value: '6'
+  # Concrete helper parameters are actionable; virtual overrides retain the
+  # complete interface contract even when a particular scheme is a no-op.
+  - key: misc-unused-parameters.IgnoreVirtual
+    value: 'true'

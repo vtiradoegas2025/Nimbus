@@ -1,0 +1,37 @@
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) readonly buffer RhoIn { float rho_in[]; };
+layout(set = 0, binding = 1) readonly buffer Theta { float theta[]; };
+layout(set = 0, binding = 2) readonly buffer Drho { float drho_dt[]; };
+layout(set = 0, binding = 3) writeonly buffer RhoOut { float rho_out[]; };
+layout(set = 0, binding = 4) writeonly buffer POut { float p_out[]; };
+
+layout(push_constant) uniform PushConstants {
+    int nx;
+    int ny;
+    int nz;
+    float dt_small;
+    float reference_pressure;
+    float gas_constant_dry_air;
+    float gamma_value;
+    float rho_min;
+    float rho_max;
+    float p_min;
+    float p_max;
+    float padding;
+} pc;
+
+void main() {
+    uint gid = gl_GlobalInvocationID.x;
+    uint count = uint(pc.nx) * uint(pc.ny) * uint(pc.nz);
+    if (gid >= count) return;
+    float next_rho = clamp(rho_in[gid] + pc.dt_small * drho_dt[gid],
+                           pc.rho_min, pc.rho_max);
+    float ratio = next_rho * pc.gas_constant_dry_air * theta[gid] /
+                  pc.reference_pressure;
+    float next_p = pc.reference_pressure * pow(ratio, pc.gamma_value);
+    rho_out[gid] = next_rho;
+    p_out[gid] = clamp(next_p, pc.p_min, pc.p_max);
+}

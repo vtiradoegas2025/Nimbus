@@ -1,0 +1,37 @@
+{
+  "cm1_history": {
+    "reason": "repository contains environmental CM1 soundings but no time-evolving CM1 history output",
+    "soundings_are_not_history_evidence": true,
+    "soundings_present": [
+      "CM1Soundings/HIGHCAPENEW_QUARTERCIRCLE",
+      "CM1Soundings/HIGHCAPENEW_SEMICIRCLE_02",
+      "CM1Soundings/MEDCAPENEW_QUARTERCIRCLE",
+      "CM1Soundings/MEDCAPENEW_SEMICIRCLE_06"
+    ],
+    "status": "unavailable"
+  },
+  "nimbus_history": {
+    "coherent_samples": 137,
+    "maximum_reorganization_recovery_samples": 4,
+    "minimum_boundary_distance_m": 27000.0,
+    "motion_available_samples": 118,
+    "path": "docs/evidence/constant_velocity_storm_lifetime.json",
+    "samples": 150,
+    "scope": "real_nimbus_evolving_history_aggregate",
+    "sha256": "2ca1cfd8a1f94363456688ca47d3ae43f78add1e61614c6f110efd108f88c8e3",
+    "status": "pass",
+    "topology_reorganization_samples": 9
+  },
+  "remaining_gate": "ingest and replay at least one real time-evolving CM1 history with declared scalar coordinates, times, winds, density, and condensate species",
+  "schema": "nimbus.qualification.storm_history_replay",
+  "schema_version": 1,
+  "status": "partial",
+  "synthetic_history": {
+    "assertions": 55,
+    "path": "tests/qualification/fixtures/storm_history_synthetic.csv",
+    "rows": 9,
+    "scope": "continuity_plus_diagnostic_movement_authority",
+    "sha256": "6ca1793835c99e03366b08b7b85c0975e63b00c56d2b1c810160a53d488751bc",
+    "status": "pass"
+  }
+}

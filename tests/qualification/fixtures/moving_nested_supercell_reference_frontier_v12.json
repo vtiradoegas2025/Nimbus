@@ -1,0 +1,63 @@
+{
+  "schema": "nimbus.qualification.moving_nested_reference_frontier.policy",
+  "schema_version": 12,
+  "policy_id": "moving-nested-reference-frontier-v12-parent-stencil-limit-amendment",
+  "policy_status": "ratified",
+  "scope": "same-equation 600 m moving-child versus oversized stationary Nimbus reference with inherited v11 thresholds, geometry, aperture, containment movement, trusted states, and exact live parent-stencil placement bounds",
+  "prior_policy": {
+    "path": "moving_nested_supercell_reference_frontier_v11.json",
+    "sha256": "9fbd879e6f3ccfd3b4968df102c5c9a6a3e2a0a26a83abc35f08d2886564e66a",
+    "schema_version": 11,
+    "policy_id": "moving-nested-reference-frontier-v11-ordinary-trusted-improvement-amendment"
+  },
+  "failure_evidence": {
+    "path": "../../../docs/evidence/moving_nested_reference_frontier_v11_parent_stencil_limit_failure.json",
+    "sha256": "1bd0b4bde252f5815e3378fe2811558693b20bbd9daa47b8c682f716db87cc17",
+    "schema_version": 1,
+    "reason": "parent_stencil_shift_bound_unrepresented"
+  },
+  "ratification": {
+    "decision": "post_failure_parent_stencil_limit_amendment_of_v11_and_blinded_v2_thresholds",
+    "review_date": "2026-08-18",
+    "reviewer_role": "independent_science_policy_audit",
+    "failed_v11_parent_stencil_limit_observed": true,
+    "candidate_metric_values_inspected": false,
+    "minimum_input_series_schema_version": 2,
+    "parent_stencil_limit_amendment": {
+      "reason": "fail_closed_live_parent_stencil_shift_bound_unrepresented",
+      "algorithm": "qualified_envelope_hysteresis_v14",
+      "legal_bounds_source": "live_one_way_nest_relationship",
+      "legal_bounds_units": "signed_parent_cells_relative_to_current_child_origin",
+      "candidate_constraint": "intersection_of_policy_cap_and_exact_legal_placement_interval",
+      "candidate_paths_constrained": [
+        "ordinary",
+        "projected_relaxation_risk",
+        "orthogonal_release_correction",
+        "trusted_containment",
+        "orthogonal_containment_reserve"
+      ],
+      "limit_state_eligibility": "an approaching inner-margin breach has a policy-bounded strictly improving shift but no legal strictly improving shift solely because the child is at the exact parent-stencil placement limit, while every selected face remains outside relaxation",
+      "limit_state_disposition": "parent_stencil_limited_contained_without_mutation",
+      "all_faces_outside_relaxation_required": true,
+      "strict_policy_bounded_improvement_required": true,
+      "legal_improvement_available": false,
+      "movement_performed": false,
+      "current_relaxation_entry_recoverable": false,
+      "malformed_live_bounds_fail_closed": true,
+      "lower_level_relationship_validation_retained": true,
+      "maximum_shift_cap_parent_cells": 14,
+      "numerical_thresholds_changed": false,
+      "geometry_or_aperture_changed": false,
+      "measurement_cadence_changed": false,
+      "failed_candidate_disposition": "invalid_not_comparable"
+    }
+  },
+  "limitations": [
+    "All numerical thresholds, geometry, aperture, measurement cadence, movement caps, and v11 trusted-improvement rules are inherited from the immutable v11 policy chain.",
+    "No comparison metric from the invalid v11 candidate was inspected or used to alter a threshold.",
+    "Every movement candidate is constrained by exact live parent-stencil placement bounds before projection or transaction.",
+    "The parent-stencil-limited state performs no mutation and is trusted only while every selected face remains outside relaxation and a policy-bounded strictly improving shift exists but the corresponding legal shift does not.",
+    "Any current relaxation-zone entry, malformed bounds, ambiguity, topology change, nonfinite evidence, or attempted out-of-bounds transaction remains fail-closed.",
+    "A pass remains a bounded same-equation fixed-aperture comparison and does not enable public moving_nest selection or broaden supported physics/backend combinations."
+  ]
+}

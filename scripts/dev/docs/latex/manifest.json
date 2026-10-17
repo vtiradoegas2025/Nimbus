@@ -1,0 +1,36 @@
+{
+  "architecture": {
+    "engine": "Tectonic 0.17.0",
+    "pdf_sha256": "702521922499e08c3887a39c4ab568f5b3b76ae4eec6cf12b884ce4aa3b84882",
+    "sources": {
+      "scripts/dev/docs/latex/architecture-execution.tex": "13b3b9c7678042daf4804ac2dd48a3780a6dd28e4430d88678734b74db5280f5",
+      "scripts/dev/docs/latex/architecture-io.tex": "4cc6f032439458b878e4077fe9dd9fb31679565391ab3abcedcc5e3bec7d267e",
+      "scripts/dev/docs/latex/architecture-solver.tex": "d3fd5ca2f792aa55c3986b31eae1f32bbfbffba8cb8de05237c5919e33adc302",
+      "scripts/dev/docs/latex/architecture-validation.tex": "3715f50163a5f9bfa6dd3b89c8bc3dbddbe8b8662069b0ed33d215ed0068349d",
+      "scripts/dev/docs/latex/architecture.tex": "860436a24b5f22a14c776ff8d20b350722be0f90e65e690318cd1facad3469f9",
+      "scripts/dev/docs/latex/figures/architecture-memory.tex": "3b3ec4289aed0c375e84c6c79fea751ce94f1097aeccd1b21b86ceb4fe546bbb",
+      "scripts/dev/docs/latex/figures/architecture.tex": "2dfe56ff5edfb49349447290f73a7b01744300796f4937285daf5b392ac7b945",
+      "scripts/dev/docs/latex/figures/rendering.tex": "4f32d3b84a9a3034b6e08a916077e4dc0133cdd5d375f2b15223a842e5b65b8a",
+      "scripts/dev/docs/latex/guide-preamble.tex": "28e91f0a12ede77e46587bbe51e2c6b8baa48677e0c55f6326af9290e4802b5a",
+      "scripts/dev/docs/latex/solver-coverage.json": "9d4b080894328ce4e6caa589f0e2d210590ebe2b8f3b40808494d9df41fc3b27"
+    }
+  },
+  "mathematics": {
+    "engine": "Tectonic 0.17.0",
+    "pdf_sha256": "cc72c73750f20447a1625bdb1a4968d15c99c281905f2e5e3eb78ba8d24cb915",
+    "sources": {
+      "scripts/dev/docs/latex/figures/mathematics-initialization.tex": "ae03272bec2bdd25496625ad3a43790175d1d5a5a84962a39523369ef88c138d",
+      "scripts/dev/docs/latex/figures/mathematics-radiation.tex": "1606f38cd817237c4dd4edc784d46854e742c61a672991ff60c1cf78ae68fe8c",
+      "scripts/dev/docs/latex/figures/staggering.tex": "a5b4801c8655a35c4da555734cbecec5afc71242f395ac8e1928c481b7fb4063",
+      "scripts/dev/docs/latex/guide-preamble.tex": "28e91f0a12ede77e46587bbe51e2c6b8baa48677e0c55f6326af9290e4802b5a",
+      "scripts/dev/docs/latex/mathematics-closures.tex": "50d06417d0989a94eb494e1e700dacc26fef35d208a8135f613251f19f33fea0",
+      "scripts/dev/docs/latex/mathematics-coupling.tex": "13078b5ed6034717f698759578ef3dabde85043809057cb408291041eb289ecd",
+      "scripts/dev/docs/latex/mathematics-coverage.tex": "dd6e3bf7d65c8aabbfa885c9c24bd4e462fb7090ac43ea5ebd77e80dd469ab7b",
+      "scripts/dev/docs/latex/mathematics-grid.tex": "ecc6069fdb15a5d84d13aab418930f1bf51ee003f9730bc58b9a137c0f3dcecc",
+      "scripts/dev/docs/latex/mathematics-initialization.tex": "aca2bb93cf8ce7224179c0566ecc9cd89257281547e73513a255adcac8ef9f97",
+      "scripts/dev/docs/latex/mathematics-radiation.tex": "e985ca6a09a1a10783e04bbd3d0dc9222491afad024ae0b6ceff71221dc07d63",
+      "scripts/dev/docs/latex/mathematics.tex": "bdba8c1d01a54847f55c412a8f43c1c06c4a91c0a42474f11e76b64058068960",
+      "scripts/dev/docs/latex/solver-coverage.json": "9d4b080894328ce4e6caa589f0e2d210590ebe2b8f3b40808494d9df41fc3b27"
+    }
+  }
+}

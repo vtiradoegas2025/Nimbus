@@ -1,0 +1,173 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+
+#include "../microphysics/compensated_fma.glsl"
+#include "signed_scalar_update.glsl"
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+layout(std430, set = 0, binding = 0) readonly buffer ScalarBegin
+{
+    float scalar_begin[];
+};
+layout(std430, set = 0, binding = 1) readonly buffer DensityBegin
+{
+    float density_begin[];
+};
+layout(std430, set = 0, binding = 2) readonly buffer DensityEnd
+{
+    float density_end[];
+};
+layout(std430, set = 0, binding = 3) readonly buffer ScalarFluxX
+{
+    float scalar_flux_x[];
+};
+layout(std430, set = 0, binding = 4) readonly buffer ScalarFluxY
+{
+    float scalar_flux_y[];
+};
+layout(std430, set = 0, binding = 5) readonly buffer ScalarFluxZeta
+{
+    float scalar_flux_zeta[];
+};
+layout(std430, set = 0, binding = 6) readonly buffer Jacobian
+{
+    float jacobian[];
+};
+layout(std430, set = 0, binding = 7) readonly buffer LimiterFactors
+{
+    float limiter_factors[];
+};
+layout(std430, set = 0, binding = 8) writeonly buffer ScalarEnd
+{
+    float scalar_end[];
+};
+
+layout(std430, set = 0, binding = 9) writeonly buffer AppliedFluxX
+{
+    float applied_flux_x[];
+};
+layout(std430, set = 0, binding = 10) writeonly buffer AppliedFluxY
+{
+    float applied_flux_y[];
+};
+layout(std430, set = 0, binding = 11) writeonly buffer AppliedFluxZ
+{
+    float applied_flux_z[];
+};
+layout(std430, set = 0, binding = 12) writeonly buffer RequestedRate
+{
+    float requested_rate[];
+};
+
+layout(std430, set = 0, binding = 13) writeonly buffer RequestedLoss
+{
+    float requested_loss[];
+};
+
+layout(push_constant) uniform Constants
+{
+    int   nx;
+    int   ny;
+    int   nz;
+    int   positive_definite;
+    float inv_dx;
+    float inv_dy;
+    float inv_dzeta;
+    float dt;
+    float density_floor;
+    float padding1;
+    float padding2;
+    float padding3;
+}
+pc;
+
+uint index3(int i, int j, int k)
+{
+    return (uint(i) * uint(pc.ny) + uint(j)) * uint(pc.nz) + uint(k);
+}
+
+float limited_flux(float flux, uint donor_low, uint donor_high)
+{
+    if (pc.positive_definite == 0 || flux == 0.0)
+        return flux;
+    return flux * limiter_factors[flux > 0.0 ? donor_low : donor_high];
+}
+
+void main()
+{
+    uint n     = gl_GlobalInvocationID.x;
+    uint count = uint(pc.nx) * uint(pc.ny) * uint(pc.nz);
+    if (n >= count)
+        return;
+    int k             = int(n % uint(pc.nz));
+    int j             = int((n / uint(pc.nz)) % uint(pc.ny));
+    int i             = int(n / (uint(pc.ny) * uint(pc.nz)));
+    applied_flux_x[n] = i + 1 < pc.nx ? limited_flux(scalar_flux_x[n], n, index3(i + 1, j, k)) : 0.0;
+    applied_flux_y[n] = j + 1 < pc.ny ? limited_flux(scalar_flux_y[n], n, index3(i, j + 1, k)) : 0.0;
+    applied_flux_z[n] = limited_flux(scalar_flux_zeta[n], n, k + 1 < pc.nz ? index3(i, j, k + 1) : n);
+    requested_rate[n] = 0.0;
+    requested_loss[n] = 0.0;
+    if (i <= 0 || i >= pc.nx - 1 || j <= 0 || j >= pc.ny - 1)
+    {
+        scalar_end[n] = scalar_begin[n];
+        return;
+    }
+    uint  west       = index3(i - 1, j, k);
+    uint  south      = index3(i, j - 1, k);
+    uint  east_cell  = index3(i + 1, j, k);
+    uint  north_cell = index3(i, j + 1, k);
+    uint  upper_cell = k + 1 < pc.nz ? index3(i, j, k + 1) : n;
+    float sx_plus    = limited_flux(scalar_flux_x[n], n, east_cell);
+    float sx_minus   = limited_flux(scalar_flux_x[west], west, n);
+    float sy_plus    = limited_flux(scalar_flux_y[n], n, north_cell);
+    float sy_minus   = limited_flux(scalar_flux_y[south], south, n);
+    float sz_plus    = limited_flux(scalar_flux_zeta[n], n, upper_cell);
+    float sz_minus   = k > 0 ? limited_flux(scalar_flux_zeta[index3(i, j, k - 1)], index3(i, j, k - 1), n) : 0.0;
+    float inv_j      = 1.0 / jacobian[n];
+    if (pc.positive_definite != 0)
+    {
+        float outgoing = 0.0;
+        float incoming = 0.0;
+        if (sx_plus >= 0.0)
+            outgoing += sx_plus * pc.inv_dx * inv_j;
+        else
+            incoming -= sx_plus * pc.inv_dx * inv_j;
+        if (sx_minus <= 0.0)
+            outgoing -= sx_minus * pc.inv_dx * inv_j;
+        else
+            incoming += sx_minus * pc.inv_dx * inv_j;
+        if (sy_plus >= 0.0)
+            outgoing += sy_plus * pc.inv_dy * inv_j;
+        else
+            incoming -= sy_plus * pc.inv_dy * inv_j;
+        if (sy_minus <= 0.0)
+            outgoing -= sy_minus * pc.inv_dy * inv_j;
+        else
+            incoming += sy_minus * pc.inv_dy * inv_j;
+        if (sz_plus >= 0.0)
+            outgoing += sz_plus * pc.inv_dzeta * inv_j;
+        else
+            incoming -= sz_plus * pc.inv_dzeta * inv_j;
+        if (k > 0)
+        {
+            if (sz_minus <= 0.0)
+                outgoing -= sz_minus * pc.inv_dzeta * inv_j;
+            else
+                incoming += sz_minus * pc.inv_dzeta * inv_j;
+        }
+        requested_rate[n] = incoming;
+        requested_loss[n] = outgoing;
+        scalar_end[n] = positive_mapped_scalar_update(
+            scalar_begin[n], density_begin[n], max(density_end[n], pc.density_floor), pc.dt, incoming, outgoing);
+    }
+    else
+    {
+        float divergence  = ((sx_plus - sx_minus) * pc.inv_dx + (sy_plus - sy_minus) * pc.inv_dy +
+                             (sz_plus - sz_minus) * pc.inv_dzeta) *
+                            inv_j;
+        requested_rate[n] = -divergence;
+        scalar_end[n] = signed_mapped_scalar_update(
+            scalar_begin[n], density_begin[n], max(density_end[n], pc.density_floor), pc.dt, divergence);
+        return;
+    }
+}

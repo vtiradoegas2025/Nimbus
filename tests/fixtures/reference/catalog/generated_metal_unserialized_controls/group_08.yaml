@@ -1,0 +1,286 @@
+# Nimbus v1 configuration (machine-generated)
+# Mirrors docs/CM1Mapping.md §20. CM1 namelist groups noted per section.
+schema: nimbus.v1
+
+# CM1 &param0 / &param11 — Grid setup
+grid:
+  coordinate_system: cartesian
+  staggering: c_grid
+  nx: 18
+  ny: 18
+  nz: 18
+  dx: 500
+  dy: 500
+  dz: 250
+  ztop: 4500
+
+# CM1 &param1 / &param2 — Time control + output cadence
+time:
+  integrator: split_explicit
+  run_time: 2
+  dt_large: 0.1
+  acoustic_substeps: 6
+  adaptive_dt: false
+  cfl_safety: 0.7
+  output_interval: 1
+
+# Nimbus horizontal domain-frame and lifetime-planning contract
+domain_motion:
+  mode: stationary
+  frame_velocity:
+    u_ms: 0
+    v_ms: 0
+  lifetime_planning:
+    enabled: false
+    action: error
+    motion_source: bunkers_right
+    explicit_u_ms: 0
+    explicit_v_ms: 0
+    upstream_buffer_m: 0
+    downstream_buffer_m: 0
+    cross_track_buffer_m: 0
+    motion_uncertainty_ms: 0
+  tracking:
+    enabled: false
+    recycle_domain: false
+    interval_s: 60
+    inner_margin_m: 0
+    maximum_shift_cells: 0
+    cooldown_s: 300
+    minimum_confidence: 0.8
+    minimum_updraft_ms: 5
+    minimum_condensate_path_kgm2: 0.1
+    updraft_helicity_bottom_m_agl: 2000
+    updraft_helicity_top_m_agl: 5000
+    minimum_absolute_updraft_helicity_m2s2: 25
+    minimum_component_cells: 4
+    minimum_core_area_m2: 1000000
+    maximum_motion_speed_ms: 75
+    maximum_motion_acceleration_ms2: 0.25
+    minimum_continuity_samples: 3
+    lost_after_samples: 3
+    topology_confirmation_samples: 2
+    branch_preference: continuity
+    branch_velocity_uncertainty_ms: 5
+  nesting:
+    enabled: false
+    parent_ratio_x: 3
+    parent_ratio_y: 3
+    parent_time_step_ratio: 3
+    child_origin_parent_cell_i: 0
+    child_origin_parent_cell_j: 0
+    child_cells_x: 0
+    child_cells_y: 0
+    relaxation_width_child_cells: 0
+    boundary_stencil_parent_cells: 1
+    relaxation_e_folding_time_s: 2
+    feedback: one_way
+
+# Dynamics core (one solver; CM1 calls this Klemp-Wilhelmson split-explicit)
+dynamics:
+  scheme: klemp_wilhelmson_split_cartesian_cgrid
+  axisymmetric: false
+
+# CM1 &param3 — Boundary conditions
+boundary_conditions:
+  lateral:
+    west: rigid
+    east: rigid
+    south: rigid
+    north: rigid
+  bottom: rigid_slip
+  top: rigid
+
+# CM1 &param7 — Rayleigh damping (top sponge)
+damping:
+  enabled: false
+  z_d: 4500
+  alpha: 0
+  mode: explicit
+
+# CM1 &param12 — Coriolis
+coriolis:
+  enabled: false
+  mode: f_plane
+  latitude_deg: 35
+
+# CM1 &param4 — Microphysics
+microphysics:
+  scheme: none
+
+# CM1 &param5 — SGS turbulence
+turbulence:
+  scheme: none
+  mode: 2d
+  filter_width: cubic_root
+  user_filter_width_m: 0
+  dynamic_coefficient: false
+  stability_correction: none
+  Cs: 0.18
+  Pr_t: 0.7
+  Sc_t: 0.7
+
+# Nimbus scalar face reconstruction
+advection:
+  scheme: tvd
+
+# CM1 &param6 — Numerical diffusion
+diffusion:
+  scheme: explicit
+  operator_order: 2
+  K_h: 0
+  K_v: 0
+  apply_to: scalars
+  coefficient_source: constant
+
+# CM1 &param9 — Surface
+surface:
+  scheme: none
+  apply_fluxes: false
+  z0m_m: 0.1
+  z0h_m: 0.01
+  albedo: 0.2
+  emissivity: 0.95
+
+# Boundary-layer mixing (Nimbus addition; not in CM1)
+boundary_layer:
+  scheme: ysu
+  pbl_top_method: ri
+  cadence_s: 60
+  clear_sky_only: true
+
+# CM1 &param8 — Radiation with explicit idealized solar forcing
+radiation:
+  scheme: none
+  solar_forcing: idealized_diurnal
+  latitude_deg: 35
+  declination_deg: 15
+  local_solar_time_at_start_h: 0
+  do_lw: true
+  do_sw: true
+  cadence_s: 300
+  clear_sky_only: true
+  tau_lw_ref: 6
+  tau_sw_ref: 0.22
+  n_lw: 4
+  n_sw: 2
+  terrain_sw_cosine_nodes: 4
+  terrain_sw_azimuth_nodes: 8
+  terrain_sw_maximum_bounces: 32
+  terrain_sw_relative_residual_tolerance: 1e-10
+  terrain_sw_absolute_residual_tolerance_w: 1e-09
+
+# Terrain lower boundary and coordinate mapping
+terrain:
+  scheme: none
+  coordinate: btf
+  horizontal_placement: grid_attached
+  compute_derivatives: true
+  compute_metrics: true
+  smoothing_decay: 0.1
+  bell:
+    h0: 1000
+    a: 5000
+    axisymmetric: false
+  schar:
+    H: 1000
+    a: 5000
+    ell: 4000
+
+# CM1 iinit family — Initial conditions
+initial_conditions:
+  sounding:
+    type: parametric_cape
+    cape_jkg: 0
+    tropopause_m: 8000
+    surface_theta_k: 300
+    moisture_qv_kgkg: 0.004
+  hodograph:
+    type: wk_param
+    u_sfc_ms: 0
+    v_sfc_ms: 0
+    u_1km_ms: 0
+    v_1km_ms: 0
+    u_6km_ms: 0
+    v_6km_ms: 0
+  trigger:
+    type: bubble
+    bubble:
+      dtheta_k: 2
+      cloud_water_kgkg: 0
+      radius_km: 1.5
+      center_x_m: 4500
+      center_y_m: 4500
+      center_z_m: 1500
+    vortex_seed:
+      r_max_m: 6000
+      v_max_ms: 40
+      z_top_m: 6000
+      center_x_m: 0
+      center_y_m: 0
+      center_z_m: 3000
+
+# Synthetic radar
+radar:
+  enabled: false
+  products: []
+  reflectivity_tier: fast_da
+  velocity_sampling: point
+  zdr_tier: polarimetric_fo
+  location:
+    x_m: 0
+    y_m: 0
+    z_m: 0
+  apply_scatterer_correction: true
+
+# Output
+output:
+  preset: minimal
+  format: npy_3d
+  async_io: false
+  live_shm: false
+  live_shm_fields: [w, reflectivity_dbz, vorticity_z]
+  live_shm_interval_s: 1
+  live_shm_full_rate: false
+  trajectories: false
+  trajectory_seed_time_s: 0
+  trajectory_count: 5
+  trajectory_sample_interval_s: 0
+  trajectory_max_samples_per_parcel: 16384
+
+# Nimbus extensions (additive — not part of CM1)
+extensions:
+  compute:
+    backend: metal
+    memory_admission: warn
+    allow_fallback: false
+    validate_parity: false
+    gpu_apply_microphysics: false
+    gpu_apply_slow: false
+    gpu_apply_sgs: false
+  chaos:
+    scheme: initial_conditions
+    seed: 0
+    member_id: 0
+    native_generation_required: false
+    sigma_ic:
+      qc: 0
+      qr: 0
+      qv: 0.0005
+      theta: 0.5
+      u: 0.5
+      v: 0.5
+      w: 0.1
+    alpha_tend:
+      diffusion: 0.1
+      microphysics: 0.3
+      pbl: 0.2
+  execution:
+    mode: qualified
+  checkpoint:
+    every_s: 1
+  validation:
+    guard_mode: error
+  diagnostics:
+    scientific_every_steps: 1
+    deterministic_reductions: true

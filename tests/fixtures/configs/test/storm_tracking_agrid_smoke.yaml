@@ -1,0 +1,133 @@
+# Flat Cartesian A-grid runtime fixture for the same diagnostic-only storm
+# evidence path exercised by storm_tracking_smoke.yaml on mapped C-grid.
+schema: nimbus.v1
+
+grid:
+  coordinate_system: cartesian
+  staggering: collocated
+  nx: 10
+  ny: 10
+  nz: 16
+  dx: 1000
+  dy: 1000
+  dz: 500
+  ztop: 8000
+
+time:
+  run_time: 1
+  dt_large: 0.1
+  acoustic_substeps: 6
+  adaptive_dt: false
+  cfl_safety: 0.7
+  output_interval: 1
+
+domain_motion:
+  tracking:
+    enabled: true
+    interval_s: 0.1
+    inner_margin_m: 2000
+    maximum_shift_cells: 8
+    minimum_confidence: 0.8
+    minimum_updraft_ms: 5
+    minimum_condensate_path_kgm2: 0.1
+    updraft_helicity_bottom_m_agl: 2000
+    updraft_helicity_top_m_agl: 5000
+    minimum_absolute_updraft_helicity_m2s2: 25
+    minimum_component_cells: 4
+    maximum_motion_speed_ms: 75
+    maximum_motion_acceleration_ms2: 0.25
+    minimum_continuity_samples: 3
+    lost_after_samples: 3
+    topology_confirmation_samples: 2
+    branch_preference: bunkers_right
+    branch_velocity_uncertainty_ms: 3
+
+dynamics:
+  scheme: klemp_wilhelmson_split_cartesian_agrid
+  axisymmetric: false
+
+boundary_conditions:
+  lateral:
+    west: rigid
+    east: rigid
+    south: rigid
+    north: rigid
+  bottom: rigid_slip
+  top: rigid
+
+damping:
+  enabled: false
+  z_d: 7000
+  alpha: 0
+  mode: explicit
+  lateral_width: 0
+  lateral_alpha: 0
+  lateral_sponge_enabled: false
+  w_only_top_sponge: false
+  w_only_depth_cells: 0
+  w_only_alpha_max: 0
+
+coriolis:
+  enabled: false
+  mode: f_plane
+  latitude_deg: 35
+
+microphysics:
+  scheme: none
+
+turbulence:
+  scheme: none
+  mode: 3d
+
+diffusion:
+  scheme: explicit
+  operator_order: 2
+  K_h: 0
+  K_v: 0
+  apply_to: scalars
+
+surface:
+  scheme: none
+  apply_fluxes: false
+
+boundary_layer:
+  scheme: none
+
+radiation:
+  scheme: none
+
+terrain:
+  scheme: none
+
+initial_conditions:
+  sounding:
+    type: parametric_cape
+    cape_jkg: 0
+    tropopause_m: 8000
+    surface_theta_k: 300
+    moisture_qv_kgkg: 0.004
+  hodograph:
+    type: wk_param
+    u_sfc_ms: 0
+    v_sfc_ms: 0
+    u_1km_ms: 0
+    v_1km_ms: 0
+    u_6km_ms: 16
+    v_6km_ms: 8
+  trigger:
+    type: none
+
+output:
+  preset: minimal
+  format: npy_3d
+  async_io: false
+  live_shm: false
+
+extensions:
+  execution:
+    mode: exploratory
+    acknowledge_maturity_limits: false
+  compute:
+    backend: cpu
+  validation:
+    guard_mode: error

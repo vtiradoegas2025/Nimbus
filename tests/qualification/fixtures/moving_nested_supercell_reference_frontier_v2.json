@@ -1,0 +1,143 @@
+{
+  "schema": "nimbus.qualification.moving_nested_reference_frontier.policy",
+  "schema_version": 2,
+  "policy_id": "moving-nested-reference-frontier-v2-ratified",
+  "policy_status": "ratified",
+  "scope": "same-equation 600 m moving-child versus oversized stationary Nimbus reference",
+  "required_metric_families": [
+    "path",
+    "intensity",
+    "cold_pool",
+    "precipitation"
+  ],
+  "expected_contract": {
+    "coordinate_frame": "earth_absolute",
+    "detector_algorithm": "updraft_core_watershed_condensate_rotation_branches_v5",
+    "continuity_algorithm": "fixed_window_temporal_branch_association_v5",
+    "moving_tracking_source": "synchronized_nested_child",
+    "reference_tracking_source": "oversized_stationary_reference",
+    "moving_movement_algorithm": "qualified_envelope_hysteresis_v5",
+    "comparison_region": "moving_child_trusted_interior",
+    "relaxation_exclusion_cells": 8,
+    "trusted_region_cell_count": 9600,
+    "trusted_region_shape_cells": {
+      "x": 100,
+      "y": 96
+    },
+    "horizontal_grid_spacing_m": {
+      "x": 600.0,
+      "y": 600.0
+    },
+    "grid_phase_origin_m": {
+      "x": 0.0,
+      "y": 0.0
+    },
+    "physics_signature_sha256": "88b4a995bc1c86d96d5f323d019fa7eee27b3b3aedfd7382d3fd93e7ebdbdb0f",
+    "sample_start_s": 30.0,
+    "sample_interval_s": 30.0,
+    "duration_s": 4500.0
+  },
+  "coverage_thresholds": {
+    "minimum_paired_selected_fraction": 0.95,
+    "maximum_consecutive_unpaired_samples": 2,
+    "require_final_paired_sample": true
+  },
+  "metric_thresholds": {
+    "path": {
+      "rmse_m": 6000.0,
+      "p95_m": 10000.0,
+      "maximum_m": 15000.0,
+      "final_m": 10000.0
+    },
+    "intensity": {
+      "maximum_updraft_normalized_rmse": 0.25,
+      "maximum_updraft_peak_relative_error": 0.30,
+      "maximum_updraft_peak_time_error_s": 300.0,
+      "maximum_absolute_uh_normalized_rmse": 0.30,
+      "maximum_absolute_uh_peak_relative_error": 0.35,
+      "maximum_absolute_uh_peak_time_error_s": 300.0,
+      "updraft_scale_floor_ms": 5.0,
+      "uh_scale_floor_m2s2": 25.0
+    },
+    "cold_pool": {
+      "area_normalized_rmse": 0.30,
+      "integrated_deficit_normalized_rmse": 0.30,
+      "minimum_theta_rho_perturbation_rmse_k": 2.0,
+      "centroid_rmse_m": 6000.0,
+      "area_scale_floor_m2": 1000000.0,
+      "integrated_deficit_scale_floor_k_m2": 1000000.0,
+      "minimum_active_samples": 75
+    },
+    "precipitation": {
+      "final_accumulated_mass_relative_error": 0.30,
+      "footprint_area_normalized_rmse": 0.35,
+      "p95_depth_normalized_rmse": 0.35,
+      "maximum_depth_normalized_rmse": 0.40,
+      "mass_scale_floor_kg": 1.0,
+      "area_scale_floor_m2": 1000000.0,
+      "depth_scale_floor_mm": 0.1
+    }
+  },
+  "derived_definitions": {
+    "cold_pool": {
+      "id": "surface_density_potential_temperature_deficit_v1",
+      "level": "first_physical_scalar_center",
+      "required_fields": ["theta", "qv", "qc", "qr", "qi", "qs", "qg", "qh"],
+      "theta_rho_formula": "theta * (1 + qv / epsilon) / (1 + qv + qc + qr + qi + qs + qg + qh), epsilon=Rd/Rv",
+      "environment_reference": "horizontally_homogeneous_initial_theta_rho_at_same_level",
+      "cold_pool_threshold_k": -2.0,
+      "integrated_deficit_definition": "sum(max(0,-theta_rho_perturbation_k) * coincident_cell_area_m2)",
+      "centroid_weight": "max(0,-theta_rho_perturbation_k)"
+    },
+    "precipitation": {
+      "id": "earth_aligned_accumulated_rainfall_v1",
+      "required_fields": ["accumulated_rainfall"],
+      "effective_depth_definition": "published accumulated_rainfall_mm, including the authoritative accumulation residual",
+      "accumulated_mass_definition": "sum(effective_depth_mm * coincident_cell_area_m2)",
+      "footprint_threshold_mm": 1.0
+    }
+  },
+  "ratification": {
+    "decision": "ratified_before_candidate_observation",
+    "review_date": "2026-08-11",
+    "reviewer_role": "independent_science_policy_audit",
+    "candidate_4500_outputs_observed": false,
+    "minimum_input_series_schema_version": 2,
+    "reviewed_sources": [
+      {
+        "path": "../../../docs/evidence/constant_velocity_storm_lifetime.json",
+        "sha256": "2ca1cfd8a1f94363456688ca47d3ae43f78add1e61614c6f110efd108f88c8e3",
+        "purpose": "prior 4500-second same-storm lifetime and intensity scale"
+      },
+      {
+        "path": "../../../docs/evidence/moving_nested_supercell_v5_restart.json",
+        "sha256": "05e5dd7955512e8fd368d30974c3b343f7aafdc22ce7f97df1a8f150f1374a5a",
+        "purpose": "pre-candidate 1350-second v5 trusted-interior movement and restart evidence"
+      },
+      {
+        "path": "../../../docs/evidence/moving_nested_reference_sparse_smoke.json",
+        "sha256": "83bd2774c64c1590b79d3eb38b5bc3d32cb3e90e44910a8ebac50fe7a574a946",
+        "purpose": "pre-candidate sparse 30-second publication and numerical-signature evidence"
+      },
+      {
+        "path": "moving_nested_supercell_reference_frontier_v1.json",
+        "sha256": "b0747e4f40cc71290c1278aa68ec7e309a5aa4337d8afae8c3389d08d8db64d7",
+        "purpose": "original blinded measurement-only threshold draft"
+      }
+    ],
+    "threshold_rationale": {
+      "coverage": "At 30-second cadence, 95 percent paired mature selections and at most two consecutive misses limit unresolved track gaps to 60 seconds; the final sample must be paired.",
+      "path": "The 6 km RMSE is ten 600 m cells; the 10/15 km tail limits prevent a small number of branch or phase errors from being hidden by the mean over a chaotic 75-minute storm.",
+      "intensity": "The 5 m/s and 25 m2/s2 floors equal the detector's material updraft and rotation scales. The 25-35 percent amplitude envelopes and 300-second peak-time cap test storm-class evolution without asserting trajectory identity.",
+      "cold_pool": "Area and integrated-deficit errors are capped at 30 percent, minimum density-potential-temperature perturbation at 2 K RMS, and centroid at 6 km. At least 75 of 150 declared samples must have a cold pool in both runs so centroid agreement cannot pass from one incidental sample.",
+      "precipitation": "The 30-40 percent bounds cover final trusted-window water, footprint, and distribution tails under intermittent Kessler fallout while remaining strict enough to reject order-one loss or relocation corruption.",
+      "truncation": "Both inputs must share the exact 600 m, 0.75 s effective numerical signature, Earth phase, detector, cadence, and 9600-cell trusted region. The comparison therefore measures nesting/interface divergence, not a resolution or timestep change."
+    }
+  },
+  "limitations": [
+    "Ratification occurred before inspection of any 4500-second moving/reference candidate output.",
+    "A pass is a bounded same-equation trusted-window comparison, not CM1, observational, ensemble, or climatological validation.",
+    "Precipitation metrics cover the coincident moving trusted window and do not establish complete storm-lifetime precipitation over the retired Earth swath.",
+    "The policy does not enable public moving_nest selection, live-storm Vulkan, device-resident relocation, terrain, throughput, or broader physics combinations."
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "archived_run_config_sha256": "b707dd70a560f13f757782ccdcd45bd8cfcced4ebe83161a63fa8f20da4a12a8",
+  "evidence": [
+    {
+      "path": "docs/evidence/moving_nested_supercell_900s_pilot.json",
+      "sha256": "a8bc7dc9574cb6081432ec1cd2c53ebcfb468e1d90dea67dd2f1f15fcb901ff2"
+    },
+    {
+      "path": "docs/evidence/moving_nested_supercell_restart.json",
+      "sha256": "32d557aa358a16ff14fef61bbe0ca1db80d158a8d78c95583f8fdc5d42ce3042"
+    }
+  ],
+  "finding": "SCI-324",
+  "frozen_semantic_fixture": {
+    "child_physical_cells": [84, 76],
+    "child_storage_shape": [86, 78, 50],
+    "path": "tests/qualification/fixtures/moving_nested_supercell_sci324.yaml",
+    "sha256": "ea74737eeb8c04279805cb0e30a57a1ad975ca31208476df6b94a826de08d491"
+  },
+  "limitations": [
+    "The frozen YAML preserves the typed SCI-324 campaign values but is not the original source-byte artifact.",
+    "The archived run config SHA-256 remains authoritative for the exact YAML bytes used by the physical campaign.",
+    "This binding records historical evidence only and does not promote SCI-325 or public moving_nest selection."
+  ],
+  "schema": "nimbus.qualification.historical_fixture_binding",
+  "schema_version": 1,
+  "status": "historical_evidence_binding"
+}

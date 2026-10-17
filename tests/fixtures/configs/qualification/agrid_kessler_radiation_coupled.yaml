@@ -1,0 +1,162 @@
+# Sustained moist coupled-physics qualification for the selectable Cartesian
+# A-grid CPU path. This combines every retained physics operator currently
+# admitted on collocated storage: Kessler warm rain and simple-grey radiation.
+#
+# Periodic lateral boundaries, rigid vertical boundaries, zero explicit
+# diffusion, zero Coriolis, and no sponge isolate dynamics/microphysics/
+# radiation accounting. The deliberately low cloud-to-rain threshold makes
+# conversion, sedimentation, and surface fallout observable in this compact
+# fixture without using a hidden qualification-only source.
+schema: nimbus.v1
+
+grid:
+  coordinate_system: cartesian
+  staggering: collocated
+  nx: 12
+  ny: 12
+  nz: 16
+  dx: 1000
+  dy: 1000
+  dz: 250
+  ztop: 4000
+
+time:
+  run_time: 120
+  dt_large: 0.2
+  acoustic_substeps: 6
+  adaptive_dt: false
+  cfl_safety: 0.7
+  output_interval: 120
+
+dynamics:
+  scheme: klemp_wilhelmson_split_cartesian_agrid
+  axisymmetric: false
+
+boundary_conditions:
+  lateral:
+    west: periodic
+    east: periodic
+    south: periodic
+    north: periodic
+  bottom: rigid_slip
+  top: rigid
+
+damping:
+  enabled: false
+  z_d: 4000
+  alpha: 0
+  mode: explicit
+  lateral_width: 0
+  lateral_alpha: 0
+  lateral_sponge_enabled: false
+  w_only_top_sponge: false
+  w_only_depth_cells: 0
+  w_only_alpha_max: 0
+
+coriolis:
+  enabled: false
+  mode: f_plane
+  latitude_deg: 35
+
+microphysics:
+  scheme: kessler
+  shared:
+    cloud_water_threshold_kgkg: 0.00001
+    autoconversion_rate_s_inv: 0.02
+  kessler:
+    accretion_coefficient: 2.2
+    evaporation_efficiency: 1.0
+
+turbulence:
+  scheme: none
+  mode: 3d
+  Cs: 0.18
+  Pr_t: 0.7
+  Sc_t: 0.7
+
+diffusion:
+  scheme: explicit
+  operator_order: 2
+  K_h: 0
+  K_v: 0
+  apply_to: scalars
+
+surface:
+  scheme: none
+  apply_fluxes: false
+  z0m_m: 0.1
+  z0h_m: 0.01
+  albedo: 0.2
+  emissivity: 0.96
+  tsk_k: 290
+
+boundary_layer:
+  scheme: none
+
+radiation:
+  scheme: simple_grey
+  solar_forcing: idealized_diurnal
+  latitude_deg: 35
+  declination_deg: 15
+  local_solar_time_at_start_h: 0
+  do_lw: true
+  do_sw: false
+  cadence_s: 10
+  clear_sky_only: true
+  tau_lw_ref: 2.5
+  tau_sw_ref: 0.22
+  n_lw: 1
+  n_sw: 2
+
+initial_conditions:
+  sounding:
+    type: parametric_cape
+    cape_jkg: 1000
+    tropopause_m: 8000
+    surface_theta_k: 300
+    # The source caps the undisturbed column at 95% RH. This value keeps that
+    # cap active through the compact lower column; the cold perturbation below
+    # then crosses saturation without adding artificial water.
+    moisture_qv_kgkg: 0.022
+  hodograph:
+    type: wk_param
+    u_sfc_ms: 5
+    v_sfc_ms: 2
+    u_1km_ms: 5
+    v_1km_ms: 2
+    u_6km_ms: 5
+    v_6km_ms: 2
+  trigger:
+    type: bubble
+    bubble:
+      # Parametric soundings intentionally cap RH at 95%. A localized cold
+      # perturbation crosses saturation without inventing water and provides a
+      # controlled, physically interpretable condensation trigger.
+      dtheta_k: -2
+      radius_km: 2.5
+      center_x_m: 6000
+      center_y_m: 6000
+      center_z_m: 1000
+
+output:
+  preset: minimal
+  format: npy_3d
+  async_io: false
+  live_shm: false
+
+extensions:
+  execution:
+    mode: qualified
+  compute:
+    backend: cpu
+    allow_fallback: false
+    gpu_apply_microphysics: false
+    gpu_apply_slow: false
+    gpu_apply_sgs: false
+  checkpoint:
+    every_s: 60
+  diagnostics:
+    scientific_every_steps: 1
+    deterministic_reductions: true
+  validation:
+    guard_mode: error

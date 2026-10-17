@@ -1,0 +1,250 @@
+/* Overlays for the 3D (VTK) plots. The host is the canvas container, made
+   position: relative so the badge / colorbar anchor to its corners. */
+.plot3d-overlay-host {
+  position: relative;
+  container-type: size;
+}
+
+/*
+ * The single owner of the top-right corner.
+ *
+ * The colorbar and the discrete legend were both `position: absolute;
+ * right: 8px; top: 8px`, so a plot showing both — an isosurface in signed-pair
+ * mode does — drew them on top of each other. The studio's "Exit immersive"
+ * button lands in that same corner, which is what makes the exit control look
+ * like it is painting over a legend bar.
+ *
+ * Stacking in one flex column means N legends coexist by construction rather
+ * than by each picking a different magic offset. `--plot3d-overlay-top` lets
+ * the studio reserve room for chrome it owns (the exit button) without this
+ * file needing to know that button exists.
+ */
+.plot3d-overlay-stack {
+  position: absolute;
+  right: 8px;
+  top: calc(8px + var(--plot3d-overlay-top, 0px));
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  /* A tall stack of legends must not run off the bottom of the canvas. */
+  max-height: calc(100% - 16px - var(--plot3d-overlay-top, 0px));
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Inside the stack, position comes from the stack. The children keep their own
+   corner rules so each still works standalone outside one. */
+.plot3d-overlay-stack > .plot3d-colorbar,
+.plot3d-overlay-stack > .plot3d-discrete-legend {
+  position: static;
+  right: auto;
+  top: auto;
+}
+
+.plot3d-badge {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 4px 27px 4px 7px;
+  border-radius: 4px;
+  background: var(--scene-scrim);
+  color: var(--scene-ink);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+  pointer-events: none;
+  user-select: none;
+}
+
+.plot3d-badge--collapsed {
+  padding: 2px;
+}
+
+.plot3d-badge__toggle {
+  position: absolute;
+  right: 4px;
+  top: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 19px;
+  height: 19px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--scene-ink-muted);
+  cursor: pointer;
+  pointer-events: auto;
+  transition: background-color 100ms ease, color 100ms ease, transform 80ms ease;
+}
+
+.plot3d-badge--collapsed .plot3d-badge__toggle {
+  position: static;
+}
+
+.plot3d-badge__toggle:hover {
+  background: var(--scene-chip);
+  color: var(--scene-ink);
+}
+
+.plot3d-badge__toggle:active {
+  transform: scale(0.94);
+}
+
+.plot3d-badge__toggle:focus-visible {
+  outline: 2px solid var(--scene-accent);
+  outline-offset: 1px;
+}
+
+.plot3d-badge__sub {
+  color: var(--scene-ink-muted);
+  font-size: var(--font-size-xs);
+}
+
+.plot3d-badge__mode {
+  margin-bottom: 2px;
+  color: var(--scene-ink);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+}
+
+.plot3d-badge__mode--presentation {
+  color: var(--scene-accent);
+}
+
+.plot3d-colorbar {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 5px 6px;
+  border-radius: 4px;
+  background: var(--scene-scrim);
+  color: var(--scene-ink);
+  font-size: var(--font-size-xs);
+  pointer-events: none;
+  user-select: none;
+}
+
+.plot3d-colorbar__title {
+  max-width: 96px;
+  font-size: var(--font-size-xs);
+  color: var(--scene-ink);
+}
+
+.plot3d-colorbar__body {
+  display: flex;
+  gap: 4px;
+  height: clamp(80px, 18cqh, 120px);
+}
+
+.plot3d-colorbar__bar {
+  width: 12px;
+  height: 100%;
+  border-radius: 2px;
+  border: 1px solid var(--scene-hairline);
+}
+
+.plot3d-colorbar__ticks {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-variant-numeric: tabular-nums;
+}
+
+
+.plot3d-discrete-legend {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 180px;
+  padding: 6px 7px;
+  border-radius: 4px;
+  background: var(--scene-scrim);
+  color: var(--scene-ink);
+  font-size: var(--font-size-xs);
+  line-height: 1.25;
+  pointer-events: none;
+  user-select: none;
+}
+
+.plot3d-discrete-legend__title {
+  margin-bottom: 1px;
+  color: var(--scene-ink);
+  font-weight: 600;
+}
+
+.plot3d-discrete-legend__item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.plot3d-discrete-legend__swatch {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
+  border: 1px solid var(--scene-hairline);
+  border-radius: 2px;
+}
+
+/* Axis tick numbers for the domain box. Pointer-transparent like every other
+   overlay so they never intercept a camera drag. Each item is centred on its
+   projected anchor, which is why the translate is -50% on both axes. */
+.plot3d-axis-labels {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  user-select: none;
+  overflow: hidden;
+}
+
+.plot3d-axis-labels__item {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+  color: var(--scene-ink-muted);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  /* The scene behind a label is arbitrary geometry; a scrim would box every
+     number, so lift them off the render with a soft halo instead. */
+  text-shadow:
+    0 0 3px var(--scene-scrim),
+    0 0 3px var(--scene-scrim);
+}
+
+.plot3d-axis-labels__item--axis {
+  color: var(--scene-ink);
+  font-weight: 500;
+}
+
+.plot3d-motion-readout {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 2;
+  pointer-events: none;
+  padding: 6px 9px;
+  border-radius: 5px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font: var(--font-size-xs) var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}

@@ -1,0 +1,509 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_spirv_intrinsics : require
+spirv_execution_mode(extensions = ["SPV_KHR_float_controls"], capabilities = [4466], 4461, 32);
+spirv_execution_mode(extensions = ["SPV_KHR_float_controls"], capabilities = [4467], 4462, 32);
+layout(local_size_x = 64) in;
+layout(set = 0, binding = 0) readonly buffer Field0
+{
+    float temperature[];
+};
+layout(set = 0, binding = 1) readonly buffer Field1
+{
+    float pressure[];
+};
+layout(set = 0, binding = 2) readonly buffer Field2
+{
+    float density[];
+};
+layout(set = 0, binding = 3) readonly buffer Field3
+{
+    float vapor[];
+};
+layout(set = 0, binding = 4) readonly buffer Field4
+{
+    float cloud[];
+};
+layout(set = 0, binding = 5) readonly buffer Field5
+{
+    float rain[];
+};
+layout(set = 0, binding = 6) readonly buffer Field6
+{
+    float cloud_number[];
+};
+layout(set = 0, binding = 7) readonly buffer Field7
+{
+    float rain_number[];
+};
+layout(set = 0, binding = 8) readonly buffer Field8
+{
+    float aerosol[];
+};
+layout(set = 0, binding = 9) readonly buffer Field9
+{
+    float cloud_vapor_change[];
+};
+layout(set = 0, binding = 10) readonly buffer Field10
+{
+    float cloud_number_source[];
+};
+layout(set = 0, binding = 11) readonly buffer Field11
+{
+    float cloud_aerosol_source[];
+};
+layout(set = 0, binding = 12) readonly buffer CloudVaporChangeLow
+{
+    float cloud_vapor_change_low[];
+};
+layout(set = 0, binding = 13) readonly buffer Coefficients
+{
+    float coefficients[];
+};
+layout(set = 0, binding = 14) writeonly buffer Field12
+{
+    float cloud_loss_high[];
+};
+layout(set = 0, binding = 15) writeonly buffer Field13
+{
+    float cloud_loss_low[];
+};
+layout(set = 0, binding = 16) writeonly buffer Field14
+{
+    float evaporation_high[];
+};
+layout(set = 0, binding = 17) writeonly buffer Field15
+{
+    float evaporation_low[];
+};
+layout(set = 0, binding = 18) writeonly buffer Field16
+{
+    float heating_high[];
+};
+layout(set = 0, binding = 19) writeonly buffer Field17
+{
+    float heating_low[];
+};
+layout(set = 0, binding = 20) writeonly buffer Field18
+{
+    float next_cloud_tendency[];
+};
+layout(set = 0, binding = 21) writeonly buffer Field19
+{
+    float next_rain_tendency[];
+};
+layout(set = 0, binding = 22) writeonly buffer Field20
+{
+    float next_aerosol_tendency[];
+};
+layout(set = 0, binding = 23) writeonly buffer Field21
+{
+    float status[];
+};
+layout(push_constant) uniform PushConstants
+{
+    int   nx;
+    int   ny;
+    int   nz;
+    int   i_begin;
+    int   i_end;
+    int   j_begin;
+    int   j_end;
+    int   k_begin;
+    int   k_end;
+    float dt_high;
+    float dt_low;
+};
+#include "thompson_compensated.glsl"
+#include "thompson_warm_math.glsl"
+
+vec2 df_min(vec2 a, vec2 b)
+{
+    return df_sub(a, b).x < 0.0 ? a : b;
+}
+vec2 df_max(vec2 a, vec2 b)
+{
+    return df_sub(a, b).x > 0.0 ? a : b;
+}
+vec2 df_power(vec2 a, int exponent)
+{
+    vec2 result = vec2(1.0, 0.0);
+    for (int i = 0; i < exponent; ++i)
+    {
+        result = df_mul(result, a);
+    }
+    return result;
+}
+vec2 df_real_power(vec2 a, vec2 exponent)
+{
+    return df_exp(df_mul(exponent, df_log(a)));
+}
+vec2 df_root6(vec2 a)
+{
+    return a.x <= 0.0 ? vec2(0.0) : df_sqrt(df_cbrt(a));
+}
+bool finite_pair(vec2 a)
+{
+    return !isnan(a.x) && !isnan(a.y) && !isinf(a.x) && !isinf(a.y);
+}
+vec2 collection_efficiency(vec2 rain_mvd, vec2 cloud_mvd)
+{
+    int low  = 0;
+    int high = 100;
+    while (high - low > 1)
+    {
+        int  middle = (low + high) / 2;
+        vec2 edge   = vec2(coefficients[20000 + middle * 2], coefficients[20001 + middle * 2]);
+        if (df_sub(rain_mvd, edge).x >= 0.0)
+        {
+            low = middle;
+        }
+        else
+        {
+            high = middle;
+        }
+    }
+    int cloud_bin = df_sub(cloud_mvd, vec2(4.9999998736893758e-05, 1.2631062442183295e-12)).x >= 0.0
+                        ? 49
+                        : clamp(nonnegative_floor(df_mul(cloud_mvd, vec2(1000000, 0))), 1, 100) - 1;
+    int offset    = 2 * (low * 100 + cloud_bin);
+    return vec2(coefficients[offset], coefficients[offset + 1]);
+}
+
+bool conversion(vec2 rho, vec2 q, vec2 r, vec2 nc, vec2 nr, out vec2 water, out vec2 cloud_loss, out vec2 rain_change)
+{
+    if (!finite_pair(rho) || !finite_pair(q) || !finite_pair(r) || !finite_pair(nc) || !finite_pair(nr))
+    {
+        return false;
+    }
+    vec2 step_dt         = vec2(dt_high, dt_low);
+    vec2 coefficient     = df_div(df_mul(vec2(3.1415927410125732, -8.7412573179790343e-08), vec2(1000, 0)), vec2(6, 0));
+    vec2 rain_slope      = vec2(0.0);
+    vec2 rain_mvd        = vec2(0.0);
+    vec2 rain_intercept  = vec2(0.0);
+    vec2 self_collection = vec2(0.0);
+    if (df_sub(r, vec2(9.999999960041972e-13, 3.9958027796366288e-21)).x > 0.0)
+    {
+        if (nr.x <= 0.0)
+        {
+            return false;
+        }
+        rain_slope     = df_cbrt(df_div(df_mul(df_mul(coefficient, vec2(6, 0)), nr), r));
+        rain_mvd       = df_div(vec2(3.6719999313354492, 6.8664550934016688e-08), rain_slope);
+        rain_intercept = df_mul(nr, rain_slope);
+        if (df_sub(rain_mvd, vec2(4.9999998736893758e-05, 1.2631062442183295e-12)).x > 0.0)
+        {
+            self_collection = df_mul(
+                df_mul(df_mul(df_sub(vec2(1, 0),
+                                     df_exp(df_mul(
+                                         vec2(2300, 0),
+                                         df_sub(rain_mvd, vec2(0.0019499999471008778, 5.2899122148647448e-11))))),
+                              vec2(2, 0)),
+                       nr),
+                r);
+        }
+    }
+    vec2 auto_mass       = vec2(0.0);
+    vec2 auto_cloud      = vec2(0.0);
+    vec2 auto_rain       = vec2(0.0);
+    vec2 accretion       = vec2(0.0);
+    vec2 accretion_cloud = vec2(0.0);
+    if (df_sub(q, vec2(9.999999960041972e-13, 3.9958027796366288e-21)).x > 0.0)
+    {
+        if (nc.x <= 0.0)
+        {
+            return false;
+        }
+        vec2 coordinate = df_div(vec2(1000000000, 0), nc);
+        int  shape = coordinate.x >= 13.0 ? 15 : clamp(nonnegative_floor(df_add(coordinate, vec2(0.5, 0))) + 2, 2, 15);
+        vec2 m3    = vec2(float((shape + 1) * (shape + 2) * (shape + 3)), 0.0);
+        vec2 m6    = vec2(float((shape + 4) * (shape + 5) * (shape + 6)), 0.0);
+        vec2 shape_value = vec2(float(shape), 0.0);
+        vec2 slope       = df_cbrt(df_div(df_mul(df_mul(nc, coefficient), m3), q));
+        vec2 cloud_mvd =
+            df_max(vec2(9.9999999747524271e-07, 2.5247572468697606e-15),
+                   df_min(vec2(4.9999998736893758e-05, 1.2631062442183295e-12),
+                          df_div(df_add(shape_value, vec2(3.6719999313354492, 6.8664550934016688e-08)), slope)));
+        if (df_sub(q, vec2(9.9999997473787516e-06, 2.5262124918247909e-13)).x > 0.0)
+        {
+            vec2 characteristic =
+                df_max(vec2(1, 0), df_mul(df_cbrt(df_div(q, df_mul(coefficient, nc))), vec2(1000000, 0)));
+            vec2 gamma_diameter = df_mul(df_div(df_cbrt(m6), slope), vec2(1000000, 0));
+            vec2 breadth        = df_root6(df_max(
+                vec2(0, 0),
+                df_sub(df_mul(df_power(characteristic, 3), df_power(gamma_diameter, 3)), df_power(characteristic, 6))));
+            vec2 zeta           = df_mul(
+                df_mul(vec2(0.027000000700354576, -7.0035457641615118e-10), q),
+                df_max(df_sub(df_mul(df_mul(vec2(6.2499998421117198e-06, 1.5788828052729119e-13), characteristic),
+                                     df_power(breadth, 3)),
+                              vec2(0.40000000596046448, -5.960464455334602e-09)),
+                       vec2(0, 0)));
+            vec2 tau   = df_div(vec2(3.7200000286102295, -2.8610229296788248e-08),
+                                df_mul(q,
+                                       df_add(df_max(df_sub(df_mul(vec2(0.5, 0), breadth), vec2(7.5, 0)), vec2(0, 0)),
+                                              vec2(9.999999960041972e-13, 3.9958027796366288e-21))));
+            auto_mass  = df_min(df_div(q, step_dt), df_div(zeta, tau));
+            auto_rain  = df_div(auto_mass,
+                                df_mul(df_mul(df_mul(coefficient, shape_value), vec2(10, 0)),
+                                       df_power(vec2(4.9999998736893758e-05, 1.2631062442183295e-12), 3)));
+            auto_cloud = df_min(df_div(nc, step_dt), df_div(auto_mass, df_mul(coefficient, df_power(cloud_mvd, 3))));
+        }
+        if (df_sub(r, vec2(9.999999960041972e-13, 3.9958027796366288e-21)).x > 0.0 &&
+            df_sub(rain_mvd, vec2(4.9999998736893758e-05, 1.2631062442183295e-12)).x > 0.0 &&
+            df_sub(cloud_mvd, vec2(9.9999999747524271e-07, 2.5247572468697606e-15)).x > 0.0)
+        {
+            vec2 efficiency = collection_efficiency(rain_mvd, cloud_mvd);
+            vec2 factor     = df_div(
+                df_mul(df_mul(df_mul(df_mul(df_mul(df_mul(df_sqrt(df_div(df_div(vec2(101325, 0),
+                                                                                df_mul(vec2(287.04998779296875,
+                                                                                            1.2207031261368684e-05),
+                                                                                       vec2(298, 0))),
+                                                                         rho)),
+                                                          vec2(3.1415927410125732, -8.7412573179790343e-08)),
+                                                   vec2(0.25, 0)),
+                                            vec2(4854, 0)),
+                                     vec2(6, 0)),
+                              efficiency),
+                       rain_intercept),
+                df_power(df_add(rain_slope, vec2(195, 0)), 4));
+            accretion       = df_min(df_div(q, step_dt), df_mul(factor, q));
+            accretion_cloud = df_min(df_div(nc, step_dt), df_mul(factor, nc));
+        }
+    }
+    if (!finite_pair(auto_mass) || !finite_pair(auto_cloud) || !finite_pair(auto_rain) || !finite_pair(accretion) ||
+        !finite_pair(accretion_cloud) || !finite_pair(self_collection))
+    {
+        return false;
+    }
+    vec2 sink  = df_add(auto_mass, accretion);
+    vec2 scale = vec2(1.0, 0.0);
+    if (df_sub(sink, df_div(q, step_dt)).x > 0.0)
+    {
+        scale = df_div(q, df_mul(sink, step_dt));
+    }
+    water       = df_mul(sink, scale);
+    cloud_loss  = df_mul(df_add(auto_cloud, accretion_cloud), scale);
+    rain_change = df_sub(df_mul(auto_rain, scale), df_min(df_div(nr, step_dt), self_collection));
+    return finite_pair(water) && finite_pair(cloud_loss) && finite_pair(rain_change);
+}
+
+bool evaporate(int      n,
+               vec2     rho,
+               vec2     vapor_mass,
+               vec2     rain_mass,
+               vec2     number,
+               out vec2 water,
+               out vec2 number_return,
+               out vec2 heating)
+{
+    water         = vec2(0.0);
+    number_return = vec2(0.0);
+    heating       = vec2(0.0);
+    if (df_sub(rain_mass, vec2(9.999999960041972e-13, 3.9958027796366288e-21)).x <= 0.0)
+    {
+        return true;
+    }
+    vec2 sat = liquid_saturation(n);
+    vec2 ss  = df_sub(df_div(vapor_mass, sat), vec2(1, 0));
+    if (df_sub(ss, -vec2(1.0000000036274937e-15, -3.627493647833322e-24)).x >= 0.0)
+    {
+        return true;
+    }
+    if (number.x <= 0.0)
+    {
+        return false;
+    }
+    vec2 p         = vec2(pressure[n], 0.0);
+    vec2 t         = vec2(temperature[n], 0.0);
+    vec2 step_dt   = vec2(dt_high, dt_low);
+    vec2 tc        = df_sub(t, vec2(273.14999389648438, 6.1035156022626325e-06));
+    vec2 slope     = df_cbrt(df_div(
+        df_mul(df_mul(df_div(df_mul(vec2(3.1415927410125732, -8.7412573179790343e-08), vec2(1000, 0)), vec2(6, 0)),
+                      vec2(6, 0)),
+               number),
+        rain_mass));
+    vec2 intercept = df_mul(number, slope);
+    vec2 rhof      = df_sqrt(
+        df_div(df_div(vec2(101325, 0), df_mul(vec2(287.04998779296875, 1.2207031261368684e-05), vec2(298, 0))), rho));
+    vec2 diffusivity = df_mul(df_mul(vec2(2.1100000594742596e-05, -5.9474259488079793e-13),
+                                     df_real_power(df_div(t, vec2(273.14999389648438, 6.1035156022626325e-06)),
+                                                   vec2(1.940000057220459, -5.7220459037665705e-08))),
+                              df_div(vec2(101325, 0), p));
+    vec2 viscosity   = df_add(vec2(1.718000054359436, -5.4359436063577959e-08),
+                              df_mul(vec2(0.0049000000581145287, -5.811452881421264e-11), tc));
+    if (tc.x < 0.0)
+    {
+        viscosity = df_sub(viscosity, df_mul(vec2(1.2000000424450263e-05, -4.2445026307699404e-13), df_power(tc, 2)));
+    }
+    viscosity          = df_mul(viscosity, vec2(9.9999997473787516e-06, 2.5262124918247909e-13));
+    vec2 ventilation   = df_sqrt(df_div(rho, viscosity));
+    vec2 latent        = df_sub(vec2(2500000, 0), df_mul(vec2(2112, 0), tc));
+    vec2 conductivity  = df_mul(df_mul(df_add(vec2(5.690000057220459, -5.7220458593576495e-08),
+                                              df_mul(vec2(0.01679999940097332, 5.9902667895461725e-10), tc)),
+                                       vec2(9.9999997473787516e-06, 2.5262124918247909e-13)),
+                                vec2(418.93600463867188, -4.6386718963731255e-06));
+    vec2 inverse_t     = df_div(vec2(1, 0), t);
+    vec2 vapor_density = df_mul(rho, sat);
+    vec2 factor        = df_mul(inverse_t, df_sub(df_div(df_mul(latent, inverse_t), vec2(461.5, 0)), vec2(1, 0)));
+    vec2 derivative    = df_mul(vapor_density, factor);
+    vec2 second =
+        df_mul(vapor_density,
+               df_add(df_sub(df_power(factor, 2),
+                             df_div(df_mul(df_mul(vec2(2, 0), latent), df_power(inverse_t, 3)), vec2(461.5, 0))),
+                      df_power(inverse_t, 2)));
+    vec2 gamma = df_mul(df_div(df_mul(latent, diffusivity), conductivity), derivative);
+    vec2 alpha = df_max(
+        vec2(9.9999997171806854e-10, 2.8281931525706872e-17),
+        df_div(
+            df_mul(df_div(df_mul(df_mul(vec2(0.5, 0), df_power(df_div(gamma, df_add(vec2(1, 0), gamma)), 2)), second),
+                          derivative),
+                   vapor_density),
+            derivative));
+    vec2 deficit = df_min(-vec2(9.9999997171806854e-10, 2.8281931525706872e-17), ss);
+    vec2 ef      = df_div(df_mul(df_mul(vec2(2, 0), vec2(3.1415927410125732, -8.7412573179790343e-08)),
+                                 df_sub(df_add(df_sub(vec2(1, 0), df_mul(alpha, deficit)),
+                                               df_mul(df_mul(vec2(2, 0), df_power(alpha, 2)), df_power(deficit, 2))),
+                                        df_mul(df_mul(vec2(5, 0), df_power(alpha, 3)), df_power(deficit, 3)))),
+                          df_add(vec2(1, 0), gamma));
+    if (df_sub(df_div(vapor_mass, sat), vec2(0.94999998807907104, 1.1920928910669204e-08)).x < 0.0 &&
+        df_sub(df_div(rain_mass, rho), vec2(9.9999999392252903e-09, 6.0774709918447105e-17)).x <= 0.0)
+    {
+        water = df_div(rain_mass, step_dt);
+    }
+    else
+    {
+        vec2 v2  = df_mul(df_mul(df_mul(vec2(0.30799999833106995, 1.6689300497141346e-09),
+                                        df_cbrt(vec2(0.63200002908706665, -2.9087066644173376e-08))),
+                                 df_sqrt(vec2(4854, 0))),
+                          vec2(2, 0));
+        vec2 raw = df_mul(
+            df_mul(df_mul(df_mul(df_mul(ef, diffusivity), -ss), intercept), vapor_density),
+            df_add(df_div(vec2(0.77999997138977051, 2.8610229518832853e-08), df_power(slope, 2)),
+                   df_div(df_mul(df_mul(v2, ventilation), df_sqrt(rhof)), df_power(df_add(slope, vec2(97.5, 0)), 3))));
+        if (!finite_pair(raw) || raw.x < 0.0)
+        {
+            return false;
+        }
+        water = df_min(df_min(df_div(rain_mass, step_dt), df_div(df_mul(rho, df_sub(sat, vapor_mass)), step_dt)), raw);
+    }
+    number_return = df_min(df_div(df_mul(vec2(0.99000000953674316, -9.5367431729442842e-09), number), step_dt),
+                           df_div(df_mul(water, number), rain_mass));
+    heating       = df_div(
+        df_mul(
+            df_div(-latent,
+                   df_mul(vec2(1004, 0),
+                          df_add(vec2(1, 0), df_mul(vec2(0.88700002431869507, -2.4318695057701234e-08), vapor_mass)))),
+            water),
+        rho);
+    return finite_pair(water) && finite_pair(number_return) && finite_pair(heating) && water.x >= 0.0;
+}
+
+float projected_cloud_tendency(float initial, vec2 content, vec2 rho, float rate)
+{
+    vec2 candidate = df_add(vec2(initial, 0), df_mul(vec2(dt_high, dt_low), vec2(rate, 0)));
+    vec2 normalized = df_max(vec2(0), candidate);
+    if (df_sub(content, vec2(9.999999960041972e-13, 3.9958027796366288e-21)).x > 0.0)
+        normalized = df_div(normalize_cloud(content, df_mul(rho, normalized)), rho);
+    float rounding = 9.5367431640625e-7 * max(1.0, max(abs(scalar(candidate)), abs(scalar(normalized))));
+    if (candidate.x < 0 || df_sub(df_mul(rho, candidate), vec2(1999000064, -64)).x > 0 ||
+        abs(scalar(df_sub(normalized, candidate))) > rounding)
+        return stored_tendency(initial, normalized);
+    return rate;
+}
+
+void evaluate(uint gid)
+{
+    if (gid >= uint(nx * ny * nz))
+    {
+        return;
+    }
+    int n                    = int(gid);
+    cloud_loss_high[n]       = 0.0;
+    cloud_loss_low[n]        = 0.0;
+    evaporation_high[n]      = 0.0;
+    evaporation_low[n]       = 0.0;
+    heating_high[n]          = 0.0;
+    heating_low[n]           = 0.0;
+    next_cloud_tendency[n]   = 0.0;
+    next_rain_tendency[n]    = 0.0;
+    next_aerosol_tendency[n] = 0.0;
+    status[n]                = 0.0;
+    int k                    = n % nz;
+    int j                    = (n / nz) % ny;
+    int i                    = n / (ny * nz);
+    if (i < i_begin || i >= i_end || j < j_begin || j >= j_end || k < k_begin || k >= k_end)
+    {
+        return;
+    }
+    status[n]    = -1.0;
+    vec2 rho     = vec2(density[n], 0.0);
+    vec2 step_dt = vec2(dt_high, dt_low);
+    vec2 q       = df_sub(vec2(cloud[n], 0.0), vec2(cloud_vapor_change[n], cloud_vapor_change_low[n]));
+    vec2 r       = vec2(rain[n], 0.0);
+    vec2 v       = df_add(vec2(vapor[n], 0.0), vec2(cloud_vapor_change[n], cloud_vapor_change_low[n]));
+    vec2 nc      = df_add(vec2(cloud_number[n], 0.0), df_mul(step_dt, vec2(cloud_number_source[n], 0.0)));
+    vec2 nr      = vec2(rain_number[n], 0.0);
+    if (df_sub(df_mul(rho, r), vec2(9.999999960041972e-13, 3.9958027796366288e-21)).x > 0.0)
+    {
+        nr = df_div(normalize_rain(df_mul(rho, r), df_mul(rho, nr)), rho);
+    }
+    vec2 mass_rate, nc_loss, nr_change;
+    if (!conversion(
+            rho, df_mul(rho, q), df_mul(rho, r), df_mul(rho, nc), df_mul(rho, nr), mass_rate, nc_loss, nr_change))
+    {
+        return;
+    }
+    vec2 transfer      = df_min(q, df_div(df_mul(step_dt, mass_rate), rho));
+    q                  = df_sub(q, transfer);
+    r                  = df_add(r, transfer);
+    float nc_rate      = cloud_number_source[n] - scalar(df_div(nc_loss, rho));
+    float nr_rate      = scalar(df_div(nr_change, rho));
+    vec2  nr_candidate = df_add(vec2(rain_number[n], 0.0), df_mul(step_dt, vec2(nr_rate, 0.0)));
+    nr_candidate       = df_max(vec2(0.0), nr_candidate);
+    if (df_sub(df_mul(rho, r), vec2(9.999999960041972e-13, 3.9958027796366288e-21)).x > 0.0)
+    {
+        nr_candidate = df_div(normalize_rain(df_mul(rho, r), df_mul(rho, nr_candidate)), rho);
+    }
+    float unprojected_cloud_rate = nc_rate;
+    nc_rate = projected_cloud_tendency(cloud_number[n], df_mul(rho, q), rho, nc_rate);
+    float aerosol_source = cloud_aerosol_source[n];
+    if (cloud_vapor_change[n] + cloud_vapor_change_low[n] > 0.0)
+    {
+        float baseline_rate = -scalar(df_div(nc_loss, rho));
+        float projected_baseline_rate = projected_cloud_tendency(cloud_number[n],
+            df_mul(rho, df_max(vec2(0), df_sub(vec2(cloud[n], 0), transfer))), rho, baseline_rate);
+        vec2 baseline_loss = df_max(vec2(0), df_sub(vec2(baseline_rate, 0), vec2(projected_baseline_rate, 0)));
+        vec2 actual_loss = df_max(vec2(0), df_sub(vec2(unprojected_cloud_rate, 0), vec2(nc_rate, 0)));
+        aerosol_source = scalar(df_add(vec2(aerosol_source, 0), df_max(vec2(0), df_sub(actual_loss, baseline_loss))));
+    }
+    nr_rate = stored_tendency(rain_number[n], nr_candidate);
+    nr      = df_add(vec2(rain_number[n], 0.0), df_mul(step_dt, vec2(nr_rate, 0.0)));
+    vec2 evaporation, returned, heating;
+    if (!evaporate(n, rho, v, df_mul(rho, r), df_mul(rho, nr), evaporation, returned, heating))
+    {
+        return;
+    }
+    vec2 evaporated = df_min(r, df_div(df_mul(step_dt, evaporation), rho));
+    vec2 heat       = df_mul(step_dt, heating);
+    nr_rate         = stored_tendency(rain_number[n], df_sub(nr, df_div(df_mul(step_dt, returned), rho)));
+    float na_rate   = aerosol_source + scalar(df_div(returned, rho));
+    if (!finite_pair(transfer) || !finite_pair(evaporated) || !finite_pair(heat) || isnan(nc_rate) || isinf(nc_rate) ||
+        isnan(nr_rate) || isinf(nr_rate) || isnan(na_rate) || isinf(na_rate))
+    {
+        return;
+    }
+    cloud_loss_high[n]       = transfer.x;
+    cloud_loss_low[n]        = transfer.y;
+    evaporation_high[n]      = evaporated.x;
+    evaporation_low[n]       = evaporated.y;
+    heating_high[n]          = heat.x;
+    heating_low[n]           = heat.y;
+    next_cloud_tendency[n]   = nc_rate;
+    next_rain_tendency[n]    = nr_rate;
+    next_aerosol_tendency[n] = na_rate;
+    status[n]                = 0.0;
+}
+void main()
+{
+    evaluate(gl_GlobalInvocationID.x);
+}

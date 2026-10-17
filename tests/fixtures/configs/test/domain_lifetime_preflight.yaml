@@ -1,0 +1,124 @@
+schema: nimbus.v1
+
+# Launch-preflight fixture, not a completed storm-lifetime science reference.
+# The 1,800 s YAML duration fits. Tests may supply --duration 7200 to prove
+# ordinary startup evaluates the effective override and fails before 3-D
+# allocation.
+grid:
+  coordinate_system: cartesian
+  staggering: c_grid
+  nx: 200
+  ny: 160
+  nz: 50
+  dx: 600
+  dy: 600
+  dz: 320
+  ztop: 16000
+
+time:
+  run_time: 1800
+  dt_large: 1.5
+  acoustic_substeps: 8
+  adaptive_dt: false
+  cfl_safety: 0.7
+  output_interval: 0
+
+domain_motion:
+  mode: stationary
+  lifetime_planning:
+    enabled: true
+    action: error
+    motion_source: bunkers_right
+    explicit_u_ms: 0
+    explicit_v_ms: 0
+    upstream_buffer_m: 10000
+    downstream_buffer_m: 20000
+    cross_track_buffer_m: 15000
+    motion_uncertainty_ms: 3
+
+dynamics:
+  scheme: klemp_wilhelmson_split_cartesian_cgrid
+  axisymmetric: false
+
+boundary_conditions:
+  lateral:
+    west: radiative
+    east: radiative
+    south: radiative
+    north: radiative
+  bottom: rigid_slip
+  top: rigid
+
+damping:
+  enabled: true
+  z_d: 11200
+  alpha: 0.05
+  mode: explicit
+
+coriolis:
+  enabled: true
+  mode: f_plane
+  latitude_deg: 35
+
+microphysics:
+  scheme: kessler
+
+turbulence:
+  scheme: smagorinsky
+  mode: 2d
+  Cs: 0.18
+  Pr_t: 0.7
+  Sc_t: 0.7
+
+diffusion:
+  scheme: explicit
+  operator_order: 2
+  K_h: 0
+  K_v: 0
+  apply_to: scalars
+
+surface:
+  scheme: slab
+  apply_fluxes: true
+
+boundary_layer:
+  scheme: slab
+
+radiation:
+  scheme: none
+
+initial_conditions:
+  sounding:
+    type: parametric_cape
+    cape_jkg: 3000
+    tropopause_m: 12000
+    surface_theta_k: 301
+    moisture_qv_kgkg: 0.012
+  hodograph:
+    type: wk_param
+    u_sfc_ms: 4.0
+    v_sfc_ms: 1.0
+    u_1km_ms: 14.0
+    v_1km_ms: 6.0
+    u_6km_ms: 28.0
+    v_6km_ms: 22.0
+  trigger:
+    type: bubble
+    bubble:
+      dtheta_k: 4
+      radius_km: 4
+      center_x_m: 40000
+      center_y_m: 40000
+      center_z_m: 1500
+
+output:
+  preset: minimal
+  format: npy_3d
+  async_io: false
+  live_shm: false
+
+extensions:
+  compute:
+    backend: cpu
+  validation:
+    guard_mode: warn

@@ -1,0 +1,233 @@
+{
+  "schema": "nimbus.qualification.moving_nested_reference_frontier.movement_failure",
+  "schema_version": 1,
+  "status": "invalid",
+  "qualification_disposition": "incomplete",
+  "qualification_eligible": false,
+  "reason": "relaxation_zone_entry_after_confirmation_pending",
+  "scope": "ratified-v3 fixed-aperture same-equation frontier",
+  "campaign_root": "/private/tmp/nimbus_moving_reference_frontier_v3_tracer_v40_20260811",
+  "comparison_performed": false,
+  "candidate_metric_values_inspected": false,
+  "distinct_from": [
+    {
+      "path": "moving_nested_reference_frontier_geometry_failure.json",
+      "sha256": "dd020dd0d1c83850a3074d52e4928bd040a7d10f7ac597dffb9d62e6dfaf9cb4",
+      "reason": "the earlier v2 candidate failed at 3090 seconds because its admitted child could not resolve a breached face"
+    },
+    {
+      "path": "moving_nested_reference_frontier_v3_reference_failure.json",
+      "sha256": "f3ca60c9912455dcc3af2dca23620a2da0738c6f46db6669f5732e8a96bd0e50",
+      "reason": "the earlier v3 reference failed strict tracer validation at 3501.75 seconds before a moving branch began"
+    }
+  ],
+  "frozen_inputs": {
+    "binary": {
+      "path": "/private/tmp/nimbus_frontier_v3_tracer_v40_20260811",
+      "bytes": 6163472,
+      "sha256": "6fc25932faa0275142c7fce70860447ff97340dbf801335bf7e1bdff1c6dce63"
+    },
+    "moving_config_snapshot": {
+      "path": "/private/tmp/nimbus_moving_reference_frontier_v3_tracer_v40_20260811/moving_child/qualification_input.yaml",
+      "bytes": 3461,
+      "sha256": "c86663caaee2c1217d300809713fd5e3856ae141561aae256437267c8f2287f0"
+    },
+    "reference_config_snapshot": {
+      "path": "/private/tmp/nimbus_moving_reference_frontier_v3_tracer_v40_20260811/oversized_reference/qualification_input.yaml",
+      "bytes": 3706,
+      "sha256": "df57ab348dcb742177a9e3ae4740ebeed6ee18540cb26e296db8604c3b1f8925"
+    },
+    "policy": {
+      "path": "../../tests/qualification/fixtures/moving_nested_supercell_reference_frontier_v3.json",
+      "sha256": "c39190880d0ad278b8fab063b9cf4d236b0cbef425af7ad5cb10716960305da1",
+      "schema_version": 3,
+      "policy_id": "moving-nested-reference-frontier-v3-geometry-amendment",
+      "policy_status": "ratified"
+    },
+    "threshold_policy": {
+      "path": "../../tests/qualification/fixtures/moving_nested_supercell_reference_frontier_v2.json",
+      "sha256": "130f39702e3c2d05823c98b6ba40dab5efe42d745e3766ffe55099fe32e76229",
+      "schema_version": 2,
+      "policy_id": "moving-nested-reference-frontier-v2-ratified"
+    },
+    "geometry_plan": {
+      "path": "../../tests/qualification/fixtures/moving_nested_supercell_geometry_plan_v1.json",
+      "sha256": "59ba6ddbb2f17e27f0287d565b28d814420dce87c9152a904e555a8cb0fd559c",
+      "schema_version": 1,
+      "plan_id": "moving_nested_reference_geometry_v1"
+    },
+    "qualification_aperture": {
+      "path": "../../tests/qualification/fixtures/moving_nested_supercell_qualification_aperture_v1.json",
+      "sha256": "969ae21f9369d8d414fe9eea18208c3586a31faf21596125f7288a0c0779f6a9",
+      "schema_version": 1,
+      "aperture_id": "moving_nested_fixed_100x96_v1"
+    },
+    "extractor": {
+      "path": "../../scripts/extract_moving_nested_reference_series.py",
+      "bytes": 55969,
+      "sha256": "364c2745ffc87033100f93c1139f232c02f46a52527f5a7a3e9881117f3ca408"
+    },
+    "comparator": {
+      "path": "../../scripts/compare_moving_nested_supercell_reference.py",
+      "bytes": 77007,
+      "sha256": "fc8f1f1287c374b2290bd8848bebbbe6f7ad68eb8292a8b8479e4e150a79003e"
+    }
+  },
+  "completed_reference": {
+    "run": "/private/tmp/nimbus_moving_reference_frontier_v3_tracer_v40_20260811/oversized_reference",
+    "duration_s": 4500,
+    "tracker_samples": 150,
+    "diagnostic_samples": 150,
+    "run_manifest_sha256": "0e19be9bd0bb419baec72a0cbf9bfec83af246ce93b67b4a6e0e26406a704f3a",
+    "runtime_log_sha256": "a09122163050caf987007456f51e4122987400b192bd2e2270bfec27922c8815",
+    "final_tracker_sha256": "1ddf100b255036eaadc201c2ffeaa0c285862c506fd42980e3ffba0e84a07335",
+    "final_diagnostic_manifest_sha256": "63a2d0f0f84c01e9915e026684b5e600d12f924be142195bf76e3026f004bf2c",
+    "final_checkpoint": {
+      "simulation_time_s": 4500,
+      "completed_steps": 6000,
+      "bytes": 431767130,
+      "sha256": "be12944ca2c9eb81b61ee02a6e795dd6dd8ae61afe82a7c58547de1c8dd5e543",
+      "fnv1a64": "1ba477d4eda51009",
+      "sidecar_sha256": "04324b876fa01a0346709442fbc3ade994a1e0a28ca394144ea2f7a6cd577222"
+    },
+    "passive_tracer_roundoff": {
+      "policy": "negative_binary32_subnormal_to_positive_zero_v1",
+      "warning_records": 1,
+      "physical_inventory_correction_kg_as_logged": 1.20145e-36,
+      "negative_subnormal_count": 1,
+      "negative_zero_count": 0,
+      "closure_canonicalization_count": 0,
+      "thermodynamic_energy_correction_j": 0
+    }
+  },
+  "moving_failure": {
+    "run": "/private/tmp/nimbus_moving_reference_frontier_v3_tracer_v40_20260811/moving_child",
+    "runtime_log": {
+      "bytes": 14075009,
+      "sha256": "cde2bd3fe596038ef0d61c5c081766607ee9746f23afff1c82bae45110f6071d"
+    },
+    "run_manifest": {
+      "bytes": 298,
+      "sha256": "acb684ca3c5a4c6c71b30e5f121be7d55a270404107cf7a2fafabc1b4f06972d",
+      "publication_state": "failed"
+    },
+    "scientific_invalidity": {
+      "path": "/private/tmp/nimbus_moving_reference_frontier_v3_tracer_v40_20260811/moving_child/moving_nest_scientific_validity.json",
+      "bytes": 369,
+      "sha256": "5cf2d35c2305b59f6074b99a1e40c5be5f552facd1e7a618b2e2ffa9ce8323d3",
+      "simulation_time_s": 3540,
+      "completed_step": 2360,
+      "reason": "relaxation_zone_entry"
+    },
+    "published_coverage": {
+      "tracker_samples": 118,
+      "tracker_last_time_s": 3540,
+      "diagnostic_samples": 117,
+      "diagnostic_last_time_s": 3510,
+      "missing_tracker_samples": 32,
+      "missing_diagnostic_samples": 33,
+      "invalid_step_history_or_checkpoint_published": false
+    },
+    "latest_restart_safe_checkpoint": {
+      "simulation_time_s": 3150,
+      "completed_steps": 2100,
+      "bytes": 253294210,
+      "sha256": "2de075f446990a842c86171e80e675d9c0e8cde1dff206d59308d78371640e1a",
+      "fnv1a64": "59dd8d1ead013469",
+      "sidecar_sha256": "a1f62d51926719bc610f65c1da53474d4427e51543afeb947d22c29aa4d82608"
+    }
+  },
+  "forensic_sequence": [
+    {
+      "simulation_time_s": 3480,
+      "tracker_sha256": "daf86f990064769f70b64cb59b50141fdc2a17feaa12a279152d0db3e81a7850",
+      "continuity_status": "tracking",
+      "topology": "single",
+      "topology_reorganization": false,
+      "candidate_component_count": 3,
+      "selected_component_cells": 1718,
+      "selected_envelope_faces_m": {"west": 69600, "east": 105000, "south": 40200, "north": 82800},
+      "selected_clearance_m": {"west": 33600, "east": 24600, "south": 37800, "north": 19200},
+      "movement_status": "ineligible",
+      "movement_reason": "no_approaching_breach",
+      "note": "a separate unselected rank-2 component touched the east boundary and had zero previous-partition overlap"
+    },
+    {
+      "simulation_time_s": 3510,
+      "tracker_sha256": "99fc0271e8a60d737986f601e9b06ae78551dcce7db0fb0cade4593b878acca3",
+      "continuity_status": "tracking",
+      "topology": "single",
+      "topology_reorganization": false,
+      "selected_previous_partition_overlap_fraction": 0.9423748544819558,
+      "candidate_component_count": 2,
+      "selected_component_cells": 2573,
+      "selected_envelope_faces_m": {"west": 70200, "east": 118200, "south": 40200, "north": 92400},
+      "selected_clearance_m": {"west": 34200, "east": 11400, "south": 37800, "north": 9600},
+      "signed_face_velocity_ms": {"west": 20, "east": 440, "south": 0, "north": 320},
+      "face_motion_interval_s": 30,
+      "projected_next_clearance_m": {"east": -1800, "north": 0},
+      "relaxation_width_m": {"x": 4800, "y": 4800},
+      "movement_status": "pending_confirmation",
+      "movement_reason": "confirmation_pending",
+      "requested_shift_parent_cells": {"i": 9, "j": 12},
+      "confirmation_count": 1,
+      "post_shift_clearance_m": {"west": 23400, "east": 22200, "south": 23400, "north": 24000},
+      "diagnostic_manifest_sha256": "feb62481f2a1acccd9ea41c9d64c91767a57cbf457d69ca336bf43ece4433652"
+    },
+    {
+      "simulation_time_s": 3540,
+      "tracker_sha256": "c73c34f93f4a69a42f87d3b4e561ce33115e394726e38c0f4763565ed769a84c",
+      "continuity_status": "tracking",
+      "topology": "single",
+      "topology_reorganization": false,
+      "selected_previous_partition_overlap_fraction": 0.9735717061795569,
+      "candidate_component_count": 1,
+      "selected_component_cells": 4654,
+      "selected_envelope_faces_m": {"west": 70800, "east": 129600, "south": 40800, "north": 95400},
+      "selected_clearance_m": {"west": 34800, "east": 0, "south": 38400, "north": 6600},
+      "signed_face_velocity_ms": {"west": 20, "east": 380, "south": 20, "north": 100},
+      "movement_status": "requested",
+      "movement_reason": "emergency_containment",
+      "requested_shift_parent_cells": {"i": 14, "j": 13},
+      "confirmation_count": 2,
+      "movement_committed": false,
+      "scientific_status": "invalid",
+      "scientific_reason": "relaxation_zone_entry"
+    }
+  ],
+  "geometry_assessment": {
+    "operational_geometry_insufficient_at_failure": false,
+    "planned_child_physical_extent_m": {"x": 93600, "y": 99600},
+    "observed_selected_span_m_at_failure": {"x": 58800, "y": 54600},
+    "reference_plan_maximum_span_m": {"x": 58200, "y": 64200},
+    "one_cell_x_span_exceedance_m": 600,
+    "feasible_3510_post_shift_origin_parent_cell": {"i": 38, "j": 13},
+    "feasible_3540_post_shift_origin_parent_cell": {"i": 43, "j": 14},
+    "plan_maximum_origin_parent_cell": {"i": 54, "j": 22},
+    "note": "the event engages the plan's explicit morphology non-guarantee but both observed shifts fit the admitted child and parent containment"
+  },
+  "failure_classification": {
+    "class": "movement_confirmation_cadence_under_rapid_selected_envelope_growth",
+    "continuity_branch_jump": false,
+    "declared_topology_reorganization": false,
+    "morphology_connectivity_consolidation_observed": true,
+    "current_emergency_at_3540_is_scientifically_recoverable": false,
+    "intended_repair": "an authoritative inner-margin breach with signed face motion that projects any face below its exact relaxation width before the next sample may bypass ordinary confirmation only when the complete release box and parent containment are feasible"
+  },
+  "campaign_progress_report": {
+    "path": "/private/tmp/nimbus_moving_reference_frontier_v3_tracer_v40_20260811/campaign_report.json",
+    "bytes": 19723,
+    "sha256": "6a033223bd783ff5f6ec929edc54a7bf9ac1a2c826dcf152fa64ee28bf989fc9",
+    "campaign_payload_sha256": "3378caf592fc2b76c1f597d9e8386cdb353b439a2e768a81514965ec77d13a3b",
+    "status": "running",
+    "qualification_eligible": false,
+    "completed_branches": ["oversized_reference"],
+    "note": "this is a sealed progress record, not a final comparison disposition"
+  },
+  "limitations": [
+    "The moving branch is invalid and incomplete; the complete reference cannot make it comparable.",
+    "No moving/reference series or comparison report was produced, and no candidate metric value was inspected.",
+    "The diagnostic 3540-second tracker record documents the fail-closed decision but cannot authorize history or checkpoint publication for that step.",
+    "This evidence does not alter the immutable v2 thresholds or v3 geometry/aperture policy and does not enable public moving_nest, Vulkan movement, device-resident relocation, terrain, throughput, or a storm-lifetime claim."
+  ]
+}

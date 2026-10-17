@@ -1,0 +1,68 @@
+{
+  "artifacts": {
+    "checkpoint_count": 10,
+    "checkpoint_times_s": [
+      450.0,
+      900.0,
+      1350.0,
+      1800.0,
+      2250.0,
+      2700.0,
+      3150.0,
+      3600.0,
+      4050.0,
+      4500.0
+    ],
+    "final_checkpoint": "tests/artifacts/moving_nested_vulkan_reference_v1_20260819/checkpoints/checkpoint_step_000006000.nimbus",
+    "final_checkpoint_sha256": "89cb124a126ed4e2cfc1b587c566def069eec600edc9915ddf9c38b1f8a3c122",
+    "run_directory": "tests/artifacts/moving_nested_vulkan_reference_v1_20260819",
+    "runtime_log": "tests/artifacts/moving_nested_vulkan_reference_v1_20260819/qualification_run.log",
+    "runtime_log_sha256": "a29aae5355cd39bb89cb2c63ef555b77e02f5639903f268a0205e7be4cd233d7"
+  },
+  "claims": {
+    "fallback_off_physical_vulkan": true,
+    "formal_comparison_complete": false,
+    "host_authoritative_kessler_state_commit": true,
+    "native_kessler_process_dispatch": true,
+    "native_smagorinsky_sgs_dispatch": true,
+    "same_binary_as_moving_vulkan_lifetime": true,
+    "strict_finite_bounded_outputs": true
+  },
+  "inputs": {
+    "binary": "bin/nimbus_sim_internal_qualification",
+    "binary_sha256": "7d1abadfbde32d1d5747779356ffe0f68893af64cfd0b99d2843b6eaa3e88457",
+    "config": "configs/qualification/moving_nested_supercell_reference_vulkan_v1.yaml",
+    "config_sha256": "5e650bbcc6c90ad97aec759176821e27e02c0c7079bff653298df36ca73b9c1c",
+    "duration_s": 4500,
+    "moving_lifetime_chain": "tests/artifacts/moving_nested_vulkan_lifetime_v2_20260819_chain_report.json",
+    "moving_lifetime_chain_sha256": "5ddaec3a6cf5f17df833516e0ae324368a522dc6fa4caa8cf44df9b1a81e1212"
+  },
+  "qualification_eligible": false,
+  "runtime": {
+    "diagnostic_samples": 150,
+    "gpu_telemetry": {
+      "command_buffers": 36000,
+      "dispatches": 42000,
+      "model_steps": 6000,
+      "resident_hits": 72000,
+      "resident_misses": 54000,
+      "stage_dispatches": {
+        "dynamics/cartesian_cgrid_slow_tendencies.comp.spv": 12000,
+        "microphysics/kessler_pointwise.comp.spv": 6000,
+        "microphysics/kessler_sedimentation.comp.spv": 6000,
+        "smagorinsky_fused": 12000,
+        "turbulence/sgs_apply.comp.spv": 6000
+      }
+    },
+    "measured_simulated_seconds": 4500.0,
+    "measured_steps": 6000,
+    "process_wall_seconds": 4595.919876500004,
+    "simulated_seconds_per_solver_wall_second": 0.985283,
+    "solver_step_wall_seconds": 4567.22,
+    "tracker_samples": 150
+  },
+  "schema": "nimbus.diagnostic.moving_nested_vulkan_reference_runtime",
+  "schema_version": 1,
+  "scope": "same_binary_oversized_physical_vulkan_reference_runtime",
+  "status": "pass"
+}

@@ -1,0 +1,231 @@
+// advect_conservative_update_cartesian_cgrid.comp
+//
+// Phase B-2 of the conservative rho-weighted flux-form scalar transport on
+// the Cartesian Arakawa C-grid (GPU.md Phase 3.2): assemble the
+// mass and scalar flux divergences and recover the updated scalar.  Two
+// explicit modes share this kernel:
+//
+// Standalone transport (legacy/direct kernel calls):
+//   rho_check = rho - dt * div(MF)
+//   q_new     = (rho*q - dt * div(SF)) / max(rho_check, rho_floor)
+//
+// Coupled split-acoustic transport (SCI-025): rho is the density already
+// retained by dynamics and MF is the time-averaged mass flux from the same
+// acoustic substeps. rho_begin is supplied explicitly from the state paired
+// with q, avoiding a second roundoff-sensitive density evolution:
+//   q_new = (rho_begin*q - dt*div(SF_avg)) / max(rho_end, rho_floor)
+// GPU equivalent of the assembly loop of
+//   advect_scalar_conservative_3d_cartesian
+// in src/numerics/advection/advection_cartesian.cpp.
+//
+// Because the scalar face flux is the mass flux times the upwind face value
+// of q, a spatially constant q factors out of both divergences and the
+// recovery returns that constant (free-stream preservation, to float
+// round-off here vs the CPU's double round-off).
+//
+// Interior cells only (i, j in [1, n-2], all k, with the ground/lid flux
+// closures at k = 0 / k = nz-1); boundary cells pass q through unchanged,
+// mirroring the CPU's seed_destination_from_source.
+//
+// Data layout: row-major [nx][ny][nz]. Index (i, j, k) = (i*ny + j)*nz + k.
+
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) readonly buffer QBuf   { float q_in[];   };
+layout(set = 0, binding = 1) readonly buffer RhoBuf { float rho_in[]; };
+layout(set = 0, binding = 2) readonly buffer MfxBuf { float mfx[];    };
+layout(set = 0, binding = 3) readonly buffer MfyBuf { float mfy[];    };
+layout(set = 0, binding = 4) readonly buffer MfzBuf { float mfz[];    };
+layout(set = 0, binding = 5) readonly buffer SfxBuf { float sfx[];    };
+layout(set = 0, binding = 6) readonly buffer SfyBuf { float sfy[];    };
+layout(set = 0, binding = 7) readonly buffer SfzBuf { float sfz[];    };
+
+layout(set = 0, binding = 8) writeonly buffer QOutBuf { float q_out[]; };
+// Per-cell positive-definite renormalization factors (SCIENCE.md M5)
+// from advect_pd_limiter_cartesian_cgrid.comp; read only when use_pd != 0.
+layout(set = 0, binding = 9) readonly buffer RBuf { float r_lim[]; };
+layout(set = 0, binding = 10) readonly buffer RhoBeginBuf {
+    float rho_begin[];
+};
+
+layout(set = 0, binding = 11) writeonly buffer InterfaceBuf { float interface_flux[]; };
+
+layout(set = 0, binding = 12) writeonly buffer RequestedBuf { float requested_update[]; };
+
+// Push constants (76 bytes; mirrors AdvectUpdateCartesianCgridPushConstants).
+// inv_dx/inv_dy/inv_dz are divided in fp64 on the host and rounded once
+// (the dp0_dz lesson, GPU audit section 2.3).
+layout(push_constant) uniform PushConstants {
+    int   nx;
+    int   ny;
+    int   nz;
+    int   use_pd;
+    float inv_dx;
+    float inv_dy;
+    float inv_dz;
+    float dt_step;
+    float rho_floor;
+    int   use_coupled_mass;
+    int capture_offset;
+    int capture_i_begin;
+    int capture_i_end;
+    int capture_j_begin;
+    int capture_j_end;
+    int capture_k_begin;
+    int capture_k_end;
+    int report_offset;
+    int weno;
+};
+
+void main()
+{
+    uint gid = gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * gl_NumWorkGroups.x * gl_WorkGroupSize.x;
+    uint total = uint(nx) * uint(ny) * uint(nz);
+    if (gid >= total)
+    {
+        return;
+    }
+
+    int k = int(gid % uint(nz));
+    uint ij = gid / uint(nz);
+    int j = int(ij % uint(ny));
+    int i = int(ij / uint(ny));
+
+    uint c = gid;
+
+    if (report_offset >= 0)
+        requested_update[gid] = 0;
+    // Boundary columns pass through (the CPU seeds dst from src).
+    if (i < 1 || i > nx - 2 || j < 1 || j > ny - 2)
+    {
+        q_out[c] = q_in[c];
+        return;
+    }
+
+    uint c_im = uint(((i - 1) * ny + j) * nz + k);
+    uint c_jm = uint((i * ny + (j - 1)) * nz + k);
+    uint c_km = uint((i * ny + j) * nz + (k - 1));
+
+    float mx = mfx[c] - mfx[c_im];
+    float my = mfy[c] - mfy[c_jm];
+    float mz_top = mfz[c];
+    float mz_bot = (k >= 1) ? mfz[c_km] : 0.0;
+    float mass_div = mx * inv_dx + my * inv_dy + (mz_top - mz_bot) * inv_dz;
+
+    // Donor-scaled scalar fluxes (positive-definite renormalization,
+    // SCIENCE.md M5): each face's flux is scaled by the r of the
+    // cell it LEAVES. use_pd == 0 keeps the raw fluxes (theta).
+    float sfx_c, sfx_m, sfy_c, sfy_m, sfz_c, sfz_m;
+    if (use_pd != 0)
+    {
+        uint c_ip = uint(((i + 1) * ny + j) * nz + k);
+        uint c_jp = uint((i * ny + (j + 1)) * nz + k);
+        uint c_kp = (k < nz - 1)
+            ? uint((i * ny + j) * nz + (k + 1)) : c;
+        sfx_c = sfx[c]    * ((sfx[c]    > 0.0) ? r_lim[c]    : r_lim[c_ip]);
+        sfx_m = sfx[c_im] * ((sfx[c_im] > 0.0) ? r_lim[c_im] : r_lim[c]);
+        sfy_c = sfy[c]    * ((sfy[c]    > 0.0) ? r_lim[c]    : r_lim[c_jp]);
+        sfy_m = sfy[c_jm] * ((sfy[c_jm] > 0.0) ? r_lim[c_jm] : r_lim[c]);
+        sfz_c = sfz[c]
+            * ((sfz[c] > 0.0) ? r_lim[c] : r_lim[c_kp]);
+        sfz_m = (k >= 1)
+            ? sfz[c_km] * ((sfz[c_km] > 0.0) ? r_lim[c_km] : r_lim[c]) : 0.0;
+    }
+    else
+    {
+        sfx_c = sfx[c];
+        sfx_m = sfx[c_im];
+        sfy_c = sfy[c];
+        sfy_m = sfy[c_jm];
+        sfz_c = sfz[c];
+        sfz_m = (k >= 1) ? sfz[c_km] : 0.0;
+    }
+    if (capture_offset >= 0 && k >= capture_k_begin && k < capture_k_end)
+    {
+        int nk = capture_k_end - capture_k_begin;
+        int x_size = (capture_j_end - capture_j_begin) * nk;
+        int y_size = (capture_i_end - capture_i_begin) * nk;
+        int kk = k - capture_k_begin;
+        if (j >= capture_j_begin && j < capture_j_end)
+        {
+            int bin = capture_offset + (j - capture_j_begin) * nk + kk;
+            if (i == capture_i_begin)
+                interface_flux[bin] = sfx_m;
+            if (i == capture_i_end - 1)
+                interface_flux[bin + x_size] = sfx_c;
+        }
+        if (i >= capture_i_begin && i < capture_i_end)
+        {
+            int bin = capture_offset + 2 * x_size + (i - capture_i_begin) * nk + kk;
+            if (j == capture_j_begin)
+                interface_flux[bin] = sfy_m;
+            if (j == capture_j_end - 1)
+                interface_flux[bin + y_size] = sfy_c;
+        }
+    }
+    if (report_offset >= 0)
+    {
+        int xs = (ny - 2) * nz;
+        int ys = (nx - 2) * nz;
+        int xb = report_offset + (j - 1) * nz + k;
+        int yb = report_offset + 2 * xs + (i - 1) * nz + k;
+        if (i == 1) interface_flux[xb] = sfx_m;
+        if (i == nx - 2) interface_flux[xb + xs] = sfx_c;
+        if (j == 1) interface_flux[yb] = sfy_m;
+        if (j == ny - 2) interface_flux[yb + ys] = sfy_c;
+        if (k == nz - 1)
+            interface_flux[report_offset + 2 * (xs + ys) + (i - 1) * (ny - 2) + j - 1] = sfz_c;
+    }
+    float rho_end       = rho_in[c];
+    float rho_begin_eff = (use_coupled_mass != 0)
+        ? rho_begin[c]
+        : rho_end;
+    float rho_check = rho_end - dt_step * mass_div;
+    float rho_phi;
+    if (use_pd != 0)
+    {
+        // Budget form of the same shared-face conservative update.  Keeping
+        // outgoing and incoming rates separate avoids signed-divergence
+        // cancellation when an active limiter intentionally exhausts a
+        // sparse donor cell.
+        float outgoing = 0.0;
+        float incoming = 0.0;
+
+        if (sfx_c >= 0.0) { outgoing += sfx_c * inv_dx; }
+        else              { incoming -= sfx_c * inv_dx; }
+        if (sfx_m <= 0.0) { outgoing -= sfx_m * inv_dx; }
+        else              { incoming += sfx_m * inv_dx; }
+
+        if (sfy_c >= 0.0) { outgoing += sfy_c * inv_dy; }
+        else              { incoming -= sfy_c * inv_dy; }
+        if (sfy_m <= 0.0) { outgoing -= sfy_m * inv_dy; }
+        else              { incoming += sfy_m * inv_dy; }
+
+        if (sfz_c >= 0.0) { outgoing += sfz_c * inv_dz; }
+        else              { incoming -= sfz_c * inv_dz; }
+        if (sfz_m <= 0.0) { outgoing -= sfz_m * inv_dz; }
+        else              { incoming += sfz_m * inv_dz; }
+
+        if (report_offset >= 0)
+            requested_update[gid] = incoming - outgoing;
+        rho_phi = (rho_begin_eff * q_in[c] - dt_step * outgoing)
+                  + dt_step * incoming;
+    }
+    float rho_den = (use_coupled_mass != 0) ? rho_end : rho_check;
+    float denom   = (rho_den > rho_floor) ? rho_den : rho_floor;
+    if (use_pd == 0)
+    {
+        float scalar_div = (sfx_c - sfx_m) * inv_dx + (sfy_c - sfy_m) * inv_dy + (sfz_c - sfz_m) * inv_dz;
+        // Recover the increment without rounding a large background mass product.
+        float increment = ((rho_begin_eff - denom) * q_in[c] - dt_step * scalar_div) / denom;
+        if (report_offset >= 0)
+            requested_update[gid] = increment;
+        q_out[c] = q_in[c] + increment;
+    }
+    else
+    {
+        q_out[c] = rho_phi / denom;
+    }
+}

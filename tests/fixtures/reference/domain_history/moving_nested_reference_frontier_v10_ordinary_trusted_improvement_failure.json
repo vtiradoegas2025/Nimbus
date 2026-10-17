@@ -1,0 +1,132 @@
+{
+  "schema": "nimbus.qualification.moving_nested_reference_frontier.movement_failure",
+  "schema_version": 1,
+  "status": "invalid",
+  "qualification_disposition": "incomplete",
+  "qualification_eligible": false,
+  "reason": "ordinary_trusted_improvement_unrecognized",
+  "scope": "ratified-v10 fixed-aperture same-equation frontier",
+  "campaign_root": "tests/artifacts/moving_nested_reference_frontier_v10_20260814",
+  "comparison_performed": false,
+  "candidate_metric_values_inspected": false,
+  "frozen_inputs": {
+    "binary": {
+      "bytes": 6163968,
+      "sha256": "9c9c34f9cf4e946db2f8afa6ab43e636b64682befec899943ea42d88f28b1061",
+      "movement_algorithm": "qualified_envelope_hysteresis_v12"
+    },
+    "moving_config_sha256": "c86663caaee2c1217d300809713fd5e3856ae141561aae256437267c8f2287f0",
+    "reference_config_sha256": "df57ab348dcb742177a9e3ae4740ebeed6ee18540cb26e296db8604c3b1f8925",
+    "policy": {
+      "path": "../../tests/qualification/fixtures/moving_nested_supercell_reference_frontier_v10.json",
+      "sha256": "2b42d72fe746859715781a0b22a807660e3cf413bd78d911a12d12a2be156ec7",
+      "schema_version": 10,
+      "policy_id": "moving-nested-reference-frontier-v10-quantized-trusted-balance-amendment"
+    },
+    "extractor_sha256": "6f903c7521d19c8c81b623291b1b6d5f773bc98c8fd9b4bbcd1d1263f03316fe",
+    "comparator_sha256": "5940248fc1a66a1eab6d3760183d1d2b034bc8321d5f8463829f5ce6ac245f52",
+    "runner_sha256": "ee0e768c9de248701c30d7f5ddc5ac0419f30f001a6196d7deb9b3202cffc79c"
+  },
+  "completed_reference": {
+    "source_run": "tests/artifacts/moving_nested_reference_frontier_v10_20260814/oversized_reference",
+    "execution_mode": "fresh_complete_run_with_binary_and_config_identity_validated",
+    "duration_s": 4500,
+    "tracker_samples": 150,
+    "diagnostic_samples": 150,
+    "runtime_log_sha256": "485dce12dcf46204b59acdf66adb116cea1ec519179295ae7b78db5cab39fb8e",
+    "run_manifest_sha256": "76435f925d85539eb2a4e5980d84bb9f28e51a840ef0adf95382feb369dc3137",
+    "final_checkpoint": {
+      "simulation_time_s": 4500,
+      "completed_steps": 6000,
+      "bytes": 431767130,
+      "sha256": "d8e3458110f5604165d1197c30b30c115fdcdc2a7fe15d6261feda682b9c1f86",
+      "fnv1a64": "74be80108745c32a",
+      "sidecar_sha256": "8661c3fd2261ba17bf1fe0a5e06c6b442bdf7b14b53162a058a42931cd515431"
+    }
+  },
+  "moving_failure": {
+    "runtime_log": {
+      "bytes": 16556568,
+      "sha256": "818f6e84cc2314146972c07126d0a700cacf1520daf4247c00d414595dc1e6fd"
+    },
+    "scientific_invalidity": {
+      "bytes": 372,
+      "sha256": "ed8876a62a0112a25222874786111888c79dafda665ed36df39b9134742f06d7",
+      "simulation_time_s": 4140,
+      "completed_step": 2760,
+      "reason": "unresolved_breached_face"
+    },
+    "failed_output_manifest": {
+      "bytes": 298,
+      "sha256": "f8310e83e163f023c1e4f5b3f782b27319e8fa387606bdfa1335a27847252794",
+      "publication_state": "failed"
+    },
+    "published_coverage": {
+      "tracker_samples": 138,
+      "tracker_last_time_s": 4140,
+      "diagnostic_samples": 137,
+      "diagnostic_last_time_s": 4110,
+      "invalid_step_history_or_checkpoint_published": false
+    },
+    "latest_restart_safe_checkpoint": {
+      "simulation_time_s": 2250,
+      "completed_steps": 1500,
+      "bytes": 253294210,
+      "sha256": "ab5ba64959be3479bf4991a852557a1ad7f3addd1f0bdee532b1f7dc578da8a4",
+      "fnv1a64": "e774aab43a9b8c33",
+      "sidecar_sha256": "871ece22504f753b12e26490a0e708513b746edc23157cc8c017726a36e076d1"
+    }
+  },
+  "forensic_sequence": [
+    {
+      "simulation_time_s": 4080,
+      "tracker_sha256": "298325b7bc6997d6aeda9802e3418734e1d2f49c87a54930785997c08ac8642b",
+      "selected_clearance_m": {"west": 15600, "east": 15600, "south": 18600, "north": 20400},
+      "movement_status": "cooldown",
+      "movement_reason": "cooldown_active",
+      "scientific_status": "valid"
+    },
+    {
+      "simulation_time_s": 4110,
+      "tracker_sha256": "73243ba34f472d042b081dbfd96695e70bb9a21f0171a9037f9652d2dcd158e8",
+      "selected_clearance_m": {"west": 16200, "east": 15000, "south": 19200, "north": 19800},
+      "movement_status": "ineligible",
+      "movement_reason": "trusted_interior_contained",
+      "scientific_status": "valid"
+    },
+    {
+      "simulation_time_s": 4140,
+      "tracker_sha256": "4fb77d5bfb9ca20133dad959636a562aaba671c26c7880e8ee8cb2aae3c6884d",
+      "selected_clearance_m": {"west": 16200, "east": 13800, "south": 19200, "north": 19200},
+      "signed_face_velocity_ms": {"west": 0, "east": 40, "south": 0, "north": 20},
+      "selected_motion_ms": {"x": 18.263856395226902, "y": 13.743802762445267},
+      "movement_status": "ineligible",
+      "movement_reason": "opposite_release_margin_insufficient",
+      "scientific_status": "invalid",
+      "scientific_reason": "unresolved_breached_face"
+    }
+  ],
+  "failure_classification": {
+    "class": "ordinary_approaching_breach_has_strictly_improving_trusted_shift_but_unattainable_release_margin",
+    "v12_quantized_balance_state_succeeded": true,
+    "v11_receding_trusted_face_state_succeeded": true,
+    "v10_orthogonal_reserve_succeeded": true,
+    "current_relaxation_zone_entry": false,
+    "4140_breached_face": "east",
+    "4140_breached_face_clearance_m": 13800,
+    "4140_opposite_face_clearance_m": 16200,
+    "4140_relaxation_margin_m": 4800,
+    "current_axis_minimum_clearance_m": 13800,
+    "approaching_one_cell_shift_clearance_m": {"west": 15000, "east": 15000},
+    "approaching_one_cell_shift_axis_minimum_clearance_m": 15000,
+    "strict_minimum_clearance_improvement_m": 1200,
+    "attainable_inner_release_margin_m": 15600,
+    "intended_repair": "when an ordinary confirmed approaching breach cannot recover the grid-attainable release margin, use the existing bounded trusted-containment optimizer to admit only a whole-parent-cell shift that strictly improves the axis minimum and keeps every face outside relaxation; retain ordinary two-sample confirmation, preserve no-mutation quantized balance when no strict improvement exists, and preserve current-relaxation, ambiguity, topology, parent-containment, finite-evidence, and shift-cap fail-closed gates"
+  },
+  "limitations": [
+    "The moving branch is scientifically invalid and incomplete; the completed reference cannot make it comparable.",
+    "No moving/reference series or comparison report was produced, and no candidate comparison metric value was inspected.",
+    "The proposed ordinary trusted-improvement path retains two-sample confirmation and may move only when the legal shift strictly improves the weaker axis clearance while every face remains outside relaxation.",
+    "This evidence does not alter numerical thresholds, geometry, aperture, cadence, current-relaxation ownership, movement caps, or public moving_nest status."
+  ]
+}

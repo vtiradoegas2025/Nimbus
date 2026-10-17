@@ -1,0 +1,173 @@
+#version 450
+
+/**
+ * Kessler point-wise warm-rain microphysics.
+ *
+ * One qh input plus qg/qh tendency bindings are retained as inert ABI
+ * compatibility slots. Binding 5 now supplies the live dry-air density used
+ * by evaporation. Kessler consumes and produces qv/qc/qr only.
+ *
+ * One invocation per grid cell (i, j, k).
+ */
+
+layout(local_size_x = 64) in;
+
+// ── Input fields (readonly) ─────────────────────────────────────────
+layout(set = 0, binding = 0)  readonly buffer Temperature { float temperature[]; };
+layout(set = 0, binding = 1)  readonly buffer Pressure    { float pressure[];    };
+layout(set = 0, binding = 2)  readonly buffer QV  { float qv[];  };
+layout(set = 0, binding = 3)  readonly buffer QC  { float qc[];  };
+layout(set = 0, binding = 4)  readonly buffer QR  { float qr[];  };
+layout(set = 0, binding = 5)  readonly buffer RhoD { float rho_d[]; };
+layout(set = 0, binding = 6)  readonly buffer QH  { float qh[];  };
+
+// ── Output tendency fields (writeonly) ──────────────────────────────
+layout(set = 0, binding = 7)  writeonly buffer DTheta { float dtheta_dt[]; };
+layout(set = 0, binding = 8)  writeonly buffer DQV    { float dqv_dt[];    };
+layout(set = 0, binding = 9)  writeonly buffer DQC    { float dqc_dt[];    };
+layout(set = 0, binding = 10) writeonly buffer DQR    { float dqr_dt[];    };
+layout(set = 0, binding = 11) writeonly buffer DQG    { float dqg_dt[];    };
+layout(set = 0, binding = 12) writeonly buffer DQH    { float dqh_dt[];    };
+
+// ── Push constants ──────────────────────────────────────────────────
+layout(push_constant) uniform PushConstants
+{
+    int   nr;
+    int   nth;
+    int   nz;
+    int   i_begin;
+    int   i_end;
+    int   j_begin;
+    int   j_end;
+    int   k_begin;
+    int   k_end;
+    float qc0;
+    float c_auto;
+    float c_accr;
+    float evaporation_efficiency;
+    float Lv_cp;      // L_v / cp  (precomputed on CPU)
+    float T0;         // freezing temperature (273.15 K)
+    float dt_step;    // microphysics step
+} pc;
+
+// ── Saturation mixing ratio functions ───────────────────────────────
+
+float saturation_vapor_pressure_water(float T)
+{
+    // Buck water equation at ALL temperatures (valid supercooled); the
+    // old sub-freezing ice-form branch deleted the WBF band
+    // (SCIENCE.md M7). Mirrors the CPU.
+    float T_c = T - pc.T0;
+    return 611.21 * exp((18.678 - T_c / 234.5) * T_c / (257.14 + T_c));
+}
+
+float saturation_mixing_ratio_water(float T, float p_val)
+{
+    float e_sat = saturation_vapor_pressure_water(T);
+    float denom = max(p_val - e_sat, 1.0);
+    return clamp(0.62198 * e_sat / denom, 0.0, 0.2);
+}
+
+void main()
+{
+    uint gid = gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * gl_NumWorkGroups.x * gl_WorkGroupSize.x;
+    uint total = uint(pc.nr) * uint(pc.nth) * uint(pc.nz);
+    if (gid >= total)
+    {
+        return;
+    }
+
+    uint nz = uint(pc.nz);
+    uint nth = uint(pc.nth);
+    int k = int(gid % nz);
+    uint column = gid / nz;
+    int j = int(column % nth);
+    int i = int(column / nth);
+    if (i < pc.i_begin || i >= pc.i_end
+        || j < pc.j_begin || j >= pc.j_end
+        || k < pc.k_begin || k >= pc.k_end)
+    {
+        // Output buffers are write-only and may not have an uploaded host
+        // image. Publish exact zero in boundary-closure storage.
+        dtheta_dt[gid] = 0.0;
+        dqv_dt[gid] = 0.0;
+        dqc_dt[gid] = 0.0;
+        dqr_dt[gid] = 0.0;
+        dqg_dt[gid] = 0.0;
+        dqh_dt[gid] = 0.0;
+        return;
+    }
+
+    float T      = temperature[gid];
+    float p_val  = pressure[gid];
+    float qv_val = qv[gid];
+    float qc_val = qc[gid];
+    float qr_val = qr[gid];
+    float rho_val = rho_d[gid];
+
+    // Accumulate tendencies locally
+    float d_theta = 0.0;
+    float d_qv    = 0.0;
+    float d_qc    = 0.0;
+    float d_qr    = 0.0;
+    float d_qg    = 0.0;
+    float d_qh    = 0.0;
+
+    // ── Warm rain processes ─────────────────────────────────────────
+
+    // Kessler/COMMAS finite-step production. Implicit accretion prevents
+    // timestep-dependent overdrawing of cloud water.
+    float production_rate = 0.0;
+    if (pc.dt_step > 0.0 && qc_val > 0.0)
+    {
+        float factor = 1.0 /
+            (1.0 + pc.c_accr * pc.dt_step * pow(max(qr_val, 0.0), 0.875));
+        float amount = qc_val * (1.0 - factor)
+            + factor * pc.c_auto * pc.dt_step * max(qc_val - pc.qc0, 0.0);
+        amount = clamp(amount, 0.0, qc_val);
+        production_rate = amount / pc.dt_step;
+        d_qc -= production_rate;
+        d_qr += production_rate;
+    }
+
+    // Evaporation of rain in sub-saturated air
+    if (qr_val > 0.0 || production_rate > 0.0)
+    {
+        float qvsat = saturation_mixing_ratio_water(T, p_val);
+        if (qvsat > 0.0 && qv_val < qvsat &&
+            rho_val > 0.0 && p_val > 0.0)
+        {
+            float qr_available = qr_val + production_rate * pc.dt_step;
+            float rcgs = 1.0e-3 * rho_val;
+            float rain_content = rcgs * max(qr_available, 0.0);
+            float ventilation =
+                (1.6 + 124.9 * pow(rain_content, 0.2046))
+                * pow(rain_content, 0.525);
+            float resistance = 2.55e8 / (p_val * qvsat) + 5.4e5;
+            float raw_rate = pc.evaporation_efficiency
+                * (ventilation / resistance)
+                * ((qvsat - qv_val) / (rcgs * qvsat));
+            const float LV = 2.5e6;
+            const float RV = 461.5;
+            float gamma_sat =
+                pc.Lv_cp * (LV / RV) * qvsat / max(T * T, 1.0);
+            float saturation_bound =
+                (qvsat - qv_val) / (1.0 + gamma_sat);
+            float evap_rate = clamp(
+                raw_rate, 0.0,
+                min(saturation_bound / pc.dt_step,
+                    qr_available / pc.dt_step));
+            d_qv    += evap_rate;
+            d_qr    -= evap_rate;
+            d_theta -= pc.Lv_cp * evap_rate;
+        }
+    }
+
+    // ── Write outputs ───────────────────────────────────────────────
+    dtheta_dt[gid] = d_theta;
+    dqv_dt[gid]    = d_qv;
+    dqc_dt[gid]    = d_qc;
+    dqr_dt[gid]    = d_qr;
+    dqg_dt[gid]    = d_qg;
+    dqh_dt[gid]    = d_qh;
+}

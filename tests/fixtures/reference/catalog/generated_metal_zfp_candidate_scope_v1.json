@@ -1,0 +1,32 @@
+{
+  "schema": "nimbus.generated-metal-zfp-candidate-scope.v1",
+  "version": 1,
+  "claimBoundary": "Exact exploratory flat dry C-grid Metal ZFP projection of 2016 canonical solver tuples; not qualified public admission or Ready.",
+  "sourceTupleCount": 2016,
+  "distinctConfigCount": 1512,
+  "baseScopeManifestSha256": "85642f094c418fe95eb4c2fa0ba5a2a947aec95f8f1c43b17abcd924b0f068a0",
+  "canonicalNpyOutputBlockSha256": "c91ce4b8e1bbadc3fdec2d77eab4cb68ac6b86e02def13d4b3239ca919582a97",
+  "zfpOutputBlockSha256": "2cacac7008506ce5dcc1e81a235c99488b9bab0e4f1ffc910b0abf60d03421fd",
+  "zfpCandidateFixtureSha256": "2015fb0777c876d8e6927eb896117cfeaa6bfa3f2e209659aff51ea9ff8c908f",
+  "outputFormat": "zfp_high",
+  "outputPreset": "minimal",
+  "asyncIo": true,
+  "zfpMode": "accuracy",
+  "keyframeInterval": 4,
+  "predictiveDelta": true,
+  "fieldExecution": "serial",
+  "perFieldAbsoluteTolerance": {
+    "p": 0.05,
+    "qr": 1e-08,
+    "qv": 1e-08,
+    "rho": 1e-06,
+    "theta": 0.001,
+    "u": 0.0001,
+    "v": 0.0001,
+    "w": 0.0001
+  },
+  "keepLastFrames": 3,
+  "minimumFreeSpaceMib": 4096,
+  "maximumRetainedHistoryFiles": 256,
+  "normalization": "Replace the complete versioned ZFP output block with the canonical NPY block and exploratory mode with qualified, then require exact source Metal YAML SHA-256."
+}

@@ -1,0 +1,197 @@
+#version 450
+
+// Production collocated continuity. Every physical density tendency is formed
+// from the same momentum-weighted face flux exported for retained scalar
+// transport. Pressure/EOS state integration remains a shared CPU owner.
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) readonly buffer UBuf   { float u[]; };
+layout(set = 0, binding = 1) readonly buffer VBuf   { float v[]; };
+layout(set = 0, binding = 2) readonly buffer WBuf   { float w[]; };
+layout(set = 0, binding = 3) readonly buffer RhoBuf { float rho[]; };
+layout(set = 0, binding = 4) readonly buffer PBuf   { float p[]; };
+layout(set = 0, binding = 5) readonly buffer P0Buf  { float p0[]; };
+layout(set = 0, binding = 6) writeonly buffer DrhoBuf { float drho_dt[]; };
+layout(set = 0, binding = 7) buffer MfxBuf { float mass_flux_x[]; };
+layout(set = 0, binding = 8) buffer MfyBuf { float mass_flux_y[]; };
+layout(set = 0, binding = 9) buffer MfzBuf { float mass_flux_z[]; };
+
+layout(push_constant) uniform PushConstants {
+    int nx;
+    int ny;
+    int nz;
+    float dx;
+    float dy;
+    float dz;
+    float dt_small;
+    int lateral_bc_west;
+    int lateral_bc_east;
+    int lateral_bc_south;
+    int lateral_bc_north;
+    int top_bc;
+    int accumulate_mass_flux;
+    float mass_flux_weight;
+    float frame_velocity_u_ms;
+    float frame_velocity_v_ms;
+} pc;
+
+uint index3(int i, int j, int k) {
+    return uint((i * pc.ny + j) * pc.nz + k);
+}
+
+bool closed_lateral(int bc) { return bc == 2 || bc == 3; }
+
+int periodic_physical_index(int value, int extent) {
+    if (value < 1) return extent - 2;
+    if (value > extent - 2) return 1;
+    return value;
+}
+
+float corrected_x_velocity(int face, int j, int k) {
+    int lo = face;
+    int hi = face + 1;
+    bool periodic_face =
+        (face == 0 && pc.lateral_bc_west == 0) ||
+        (face == pc.nx - 2 && pc.lateral_bc_east == 0);
+    if (periodic_face) { lo = pc.nx - 2; hi = 1; }
+    float rho_lo = rho[index3(lo, j, k)];
+    float rho_hi = rho[index3(hi, j, k)];
+    float rho_face = 0.5 * (rho_lo + rho_hi);
+    float velocity_face = 0.5 * (u[index3(lo, j, k)] + u[index3(hi, j, k)]);
+    int lom = periodic_face ? periodic_physical_index(lo - 1, pc.nx) : lo - 1;
+    int lop = periodic_face ? periodic_physical_index(lo + 1, pc.nx) : lo + 1;
+    int him = periodic_face ? periodic_physical_index(hi - 1, pc.nx) : hi - 1;
+    int hip = periodic_face ? periodic_physical_index(hi + 1, pc.nx) : hi + 1;
+    float grad_lo = (p[index3(lop, j, k)] - p[index3(lom, j, k)]) / (2.0 * pc.dx);
+    float grad_hi = (p[index3(hip, j, k)] - p[index3(him, j, k)]) / (2.0 * pc.dx);
+    float accel_cells = -0.5 * (grad_lo / rho_lo + grad_hi / rho_hi);
+    float accel_face = -(p[index3(hi, j, k)] - p[index3(lo, j, k)]) / (pc.dx * rho_face);
+    return velocity_face + pc.dt_small * (accel_face - accel_cells);
+}
+
+float corrected_y_velocity(int i, int face, int k) {
+    int lo = face;
+    int hi = face + 1;
+    bool periodic_face =
+        (face == 0 && pc.lateral_bc_south == 0) ||
+        (face == pc.ny - 2 && pc.lateral_bc_north == 0);
+    if (periodic_face) { lo = pc.ny - 2; hi = 1; }
+    float rho_lo = rho[index3(i, lo, k)];
+    float rho_hi = rho[index3(i, hi, k)];
+    float rho_face = 0.5 * (rho_lo + rho_hi);
+    float velocity_face = 0.5 * (v[index3(i, lo, k)] + v[index3(i, hi, k)]);
+    int lom = periodic_face ? periodic_physical_index(lo - 1, pc.ny) : lo - 1;
+    int lop = periodic_face ? periodic_physical_index(lo + 1, pc.ny) : lo + 1;
+    int him = periodic_face ? periodic_physical_index(hi - 1, pc.ny) : hi - 1;
+    int hip = periodic_face ? periodic_physical_index(hi + 1, pc.ny) : hi + 1;
+    float grad_lo = (p[index3(i, lop, k)] - p[index3(i, lom, k)]) / (2.0 * pc.dy);
+    float grad_hi = (p[index3(i, hip, k)] - p[index3(i, him, k)]) / (2.0 * pc.dy);
+    float accel_cells = -0.5 * (grad_lo / rho_lo + grad_hi / rho_hi);
+    float accel_face = -(p[index3(i, hi, k)] - p[index3(i, lo, k)]) / (pc.dy * rho_face);
+    return velocity_face + pc.dt_small * (accel_face - accel_cells);
+}
+
+float pprime(int i, int j, int k) { return p[index3(i, j, k)] - p0[k]; }
+
+float corrected_z_velocity(int i, int j, int face) {
+    int lo = face;
+    int hi = face + 1;
+    float rho_lo = rho[index3(i, j, lo)];
+    float rho_hi = rho[index3(i, j, hi)];
+    float rho_face = 0.5 * (rho_lo + rho_hi);
+    float velocity_face = 0.5 * (w[index3(i, j, lo)] + w[index3(i, j, hi)]);
+    float grad_lo = (pprime(i, j, lo + 1) - pprime(i, j, lo - 1)) / (2.0 * pc.dz);
+    float grad_hi = (pprime(i, j, hi + 1) - pprime(i, j, hi - 1)) / (2.0 * pc.dz);
+    float accel_cells = -0.5 * (grad_lo / rho_lo + grad_hi / rho_hi);
+    float accel_face = -(pprime(i, j, hi) - pprime(i, j, lo)) / (pc.dz * rho_face);
+    return velocity_face + pc.dt_small * (accel_face - accel_cells);
+}
+
+float x_face(int face, int j, int k) {
+    if (face == 0) {
+        if (closed_lateral(pc.lateral_bc_west)) return 0.0;
+        if (pc.lateral_bc_west == 0) {
+            return 0.5 * (rho[index3(pc.nx - 2, j, k)] + rho[index3(1, j, k)]) *
+                   (corrected_x_velocity(face, j, k) - pc.frame_velocity_u_ms);
+        }
+        return rho[index3(0, j, k)] * (u[index3(0, j, k)] - pc.frame_velocity_u_ms);
+    }
+    if (face == pc.nx - 2) {
+        if (closed_lateral(pc.lateral_bc_east)) return 0.0;
+        if (pc.lateral_bc_east == 0) {
+            return 0.5 * (rho[index3(pc.nx - 2, j, k)] + rho[index3(1, j, k)]) *
+                   (corrected_x_velocity(face, j, k) - pc.frame_velocity_u_ms);
+        }
+        return rho[index3(pc.nx - 1, j, k)] *
+               (u[index3(pc.nx - 1, j, k)] - pc.frame_velocity_u_ms);
+    }
+    return 0.5 * (rho[index3(face, j, k)] + rho[index3(face + 1, j, k)]) *
+           (corrected_x_velocity(face, j, k) - pc.frame_velocity_u_ms);
+}
+
+float y_face(int i, int face, int k) {
+    if (face == 0) {
+        if (closed_lateral(pc.lateral_bc_south)) return 0.0;
+        if (pc.lateral_bc_south == 0) {
+            return 0.5 * (rho[index3(i, pc.ny - 2, k)] + rho[index3(i, 1, k)]) *
+                   (corrected_y_velocity(i, face, k) - pc.frame_velocity_v_ms);
+        }
+        return rho[index3(i, 0, k)] * (v[index3(i, 0, k)] - pc.frame_velocity_v_ms);
+    }
+    if (face == pc.ny - 2) {
+        if (closed_lateral(pc.lateral_bc_north)) return 0.0;
+        if (pc.lateral_bc_north == 0) {
+            return 0.5 * (rho[index3(i, pc.ny - 2, k)] + rho[index3(i, 1, k)]) *
+                   (corrected_y_velocity(i, face, k) - pc.frame_velocity_v_ms);
+        }
+        return rho[index3(i, pc.ny - 1, k)] *
+               (v[index3(i, pc.ny - 1, k)] - pc.frame_velocity_v_ms);
+    }
+    return 0.5 * (rho[index3(i, face, k)] + rho[index3(i, face + 1, k)]) *
+           (corrected_y_velocity(i, face, k) - pc.frame_velocity_v_ms);
+}
+
+float z_face(int i, int j, int face) {
+    if (face == 0) return 0.0;
+    if (face == pc.nz - 2) {
+        if (pc.top_bc != 2) return 0.0;
+        return rho[index3(i, j, pc.nz - 1)] * w[index3(i, j, pc.nz - 1)];
+    }
+    return 0.5 * (rho[index3(i, j, face)] + rho[index3(i, j, face + 1)]) *
+           corrected_z_velocity(i, j, face);
+}
+
+void main() {
+    uint gid = gl_GlobalInvocationID.x;
+    uint total = uint(pc.nx) * uint(pc.ny) * uint(pc.nz);
+    if (gid >= total) return;
+    int k = int(gid % uint(pc.nz));
+    uint ij = gid / uint(pc.nz);
+    int j = int(ij % uint(pc.ny));
+    int i = int(ij / uint(pc.ny));
+
+    float fx = i < pc.nx - 1 ? x_face(i, j, k) : 0.0;
+    float fy = j < pc.ny - 1 ? y_face(i, j, k) : 0.0;
+    float fz = k < pc.nz - 1 ? z_face(i, j, k) : 0.0;
+    if (pc.accumulate_mass_flux != 0) {
+        mass_flux_x[gid] += pc.mass_flux_weight * fx;
+        mass_flux_y[gid] += pc.mass_flux_weight * fy;
+        mass_flux_z[gid] += pc.mass_flux_weight * fz;
+    } else {
+        mass_flux_x[gid] = fx;
+        mass_flux_y[gid] = fy;
+        mass_flux_z[gid] = fz;
+    }
+
+    if (i == 0 || i == pc.nx - 1 || j == 0 || j == pc.ny - 1 ||
+        k == 0 || k == pc.nz - 1) {
+        drho_dt[gid] = 0.0;
+        return;
+    }
+    float divergence =
+        (x_face(i, j, k) - x_face(i - 1, j, k)) / pc.dx +
+        (y_face(i, j, k) - y_face(i, j - 1, k)) / pc.dy +
+        (z_face(i, j, k) - z_face(i, j, k - 1)) / pc.dz;
+    drho_dt[gid] = -divergence;
+}

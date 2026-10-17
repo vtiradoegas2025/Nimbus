@@ -1,0 +1,26 @@
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+  box/.style={draw=NimbusBlue,fill=NimbusLight,rounded corners=2pt,
+              text width=3.2cm,minimum height=12mm,align=center,font=\small},
+  arrow/.style={-{Latex[length=2mm]},draw=NimbusBlue,thick},
+  node distance=18mm and 9mm]
+  \node[box] (host) {Authoritative host fields\\version $v$};
+  \node[box,right=of host] (staging) {Mapped staging\\CPU-visible transfer bytes};
+  \node[box,right=of staging] (device) {Device candidate\\bound buffers and kernel};
+  \node[box,below=of host] (commit) {Validate and publish\\host version $v+1$};
+  \node[box,below=of staging] (readback) {Completed readback\\visibility established};
+  \node[box,below=of device] (done) {GPU output\\fence-confirmed completion};
+  \draw[arrow] (host)--node[above,font=\scriptsize]{copy}(staging);
+  \draw[arrow] (staging)--node[above,font=\scriptsize]{copy}(device);
+  \draw[arrow] (device)--node[right,font=\scriptsize]{dispatch}(done);
+  \draw[arrow] (done)--node[below,font=\scriptsize]{copy}(readback);
+  \draw[arrow] (readback)--node[below,font=\scriptsize]{copy}(commit);
+\end{tikzpicture}
+\caption{A representative staged-memory compute transaction. Direct shared
+memory can remove the separate staging transfer, but still requires ordered
+access and an authoritative version transition. The placement of validation
+and commit is an operator contract; uncertain GPU execution cannot release
+the resources it may still reference.}
+\label{fig:architecture-staged-memory}
+\end{figure}
