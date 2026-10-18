@@ -265,6 +265,7 @@ def manifest_payload(shader_entries: list[dict[str, Any]]) -> dict[str, Any]:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--verbose", action="store_true", help="report each artifact before invoking native tools")
     parser.add_argument(
         "--refresh",
         action="store_true",
@@ -280,6 +281,8 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix="nimbus-spirv-") as raw_temp:
         temp = pathlib.Path(raw_temp)
         for source in shader_sources:
+            if args.verbose:
+                print(f"Verifying {source.relative_to(ROOT)}", flush=True)
             artifact = source.with_name(source.name + ".spv")
             if not artifact.is_file():
                 failures.append(f"missing artifact: {artifact.relative_to(ROOT)}")
@@ -303,6 +306,8 @@ def main() -> int:
         library = division_workaround.build_library(helper, temp)
         variants = []
         for source in shader_sources:
+            if args.verbose:
+                print(f"Verifying division variant for {source.relative_to(ROOT)}", flush=True)
             original = source.with_name(source.name + ".spv")
             generated = temp / "division-variants" / original.relative_to(SHADER_ROOT)
             count = division_workaround.lower(original, library, generated, temp)

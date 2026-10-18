@@ -69,12 +69,19 @@ const measure = (page: import("@playwright/test").Page) => page.evaluate(() => {
     const rect = element.getBoundingClientRect();
     return { width: Math.round(rect.width), height: Math.round(rect.height), right: Math.round(rect.right) };
   };
+  const action = document.querySelector<HTMLButtonElement>(".run-detail__view-plots")!;
+  const reference = action.cloneNode(true) as HTMLButtonElement;
+  Object.assign(reference.style, { position: "absolute", visibility: "hidden", width: "max-content", flex: "none" });
+  action.parentElement!.append(reference);
+  const intrinsicActionWidth = Math.round(reference.getBoundingClientRect().width);
+  reference.remove();
   return {
     section: box("section.run-detail__log"),
     panel: box(".log-stream"),
     titleRowRight: box(".run-detail__title-row").right,
     lastActionRight: box(".run-detail__view-plots").right,
     lastActionWidth: box(".run-detail__view-plots").width,
+    intrinsicActionWidth,
     // Guards the harness itself: if the stylesheets fail to load every box
     // below would still measure, but as block layout, and the assertions
     // would pass or fail for the wrong reason.
@@ -116,5 +123,6 @@ test("a long run name ellipsizes instead of clipping the action buttons", async 
 
   expect(m.lastActionRight).toBeLessThanOrEqual(m.titleRowRight);
   // The button keeps its intrinsic width rather than being squeezed.
-  expect(m.lastActionWidth).toBeGreaterThan(80);
+  expect(m.intrinsicActionWidth).toBeGreaterThan(0);
+  expect(m.lastActionWidth).toBe(m.intrinsicActionWidth);
 });

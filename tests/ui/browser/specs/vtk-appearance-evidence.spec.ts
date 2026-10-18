@@ -168,7 +168,7 @@ test("analytic volume fixtures capture the transfer and ray state that governs f
       expect(Array.isArray(colorRange)).toBe(true);
       expect(typeof opacityMaximum).toBe("number");
       if (Array.isArray(colorRange) && typeof opacityMaximum === "number") {
-        expect(opacityMaximum).toBeGreaterThan(Number(colorRange[1]));
+        expect(opacityMaximum).toBe(Number(colorRange[1]));
       }
       expect(visibleVolumes.some((layer) =>
         layer.shade === true && layer.ambient === 0.6 && layer.diffuse === 0.4

@@ -489,7 +489,7 @@ export function SlicePlot({
     ],
   );
 
-  const fieldMissing = !!fieldName && !fieldsForStep.includes(fieldName);
+  const fieldMissing = currentStep != null && !!fieldName && !fieldsForStep.includes(fieldName);
 
   return (
     <>
@@ -709,7 +709,7 @@ export function SlicePlot({
             )}
           </>
         )}
-        {!field && !loading && !error && fieldName && !fieldsForStep.includes(fieldName) && (
+        {!field && !loading && !error && fieldMissing && (
           <div className="plot-overlay plot-overlay--error">
             <Icon name="warning" size={12} />
             <span>{describeUnexportedField(fieldName)}</span>

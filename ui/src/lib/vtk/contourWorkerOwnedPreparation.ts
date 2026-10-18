@@ -665,7 +665,8 @@ export class ContourWorkerOwnedPreparationService {
     this.activeExtraction = job;
     job.requestId = ++this.requestSequence;
     job.attempts += 1;
-    if (!job.condensate && this.loaded === job.primary && this.loadedPairIdentity == null) {
+    if (!job.condensate && this.loaded === job.primary && this.loadedPairIdentity == null
+        && job.pairDatasetId === job.primary.datasetId) {
       this.loadedPairIdentity = job.pairIdentity;
     }
     const needsRebuild = this.loadedPairIdentity !== job.pairIdentity;

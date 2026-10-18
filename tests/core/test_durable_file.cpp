@@ -75,6 +75,7 @@ TEST_CASE("sync_file_to_disk flushes a written file and preserves its bytes",
     const std::string round_trip((std::istreambuf_iterator<char>(in)),
                                  std::istreambuf_iterator<char>());
     REQUIRE(round_trip == "payload-bytes");
+    in.close();
     std::filesystem::remove_all(dir);
 }
 
@@ -175,6 +176,7 @@ TEST_CASE("atomic replacement publishes a new file without a visibility gap",
     const std::string round_trip((std::istreambuf_iterator<char>(in)),
                                  std::istreambuf_iterator<char>());
     REQUIRE(round_trip == "new-generation");
+    in.close();
     std::filesystem::remove_all(dir);
 }
 

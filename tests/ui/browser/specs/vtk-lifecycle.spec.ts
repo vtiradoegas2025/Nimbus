@@ -978,10 +978,11 @@ test("coarse supercell uses bounded disclosed reconstruction", async ({ page }, 
   await waitForWorkers(page);
   await expect(page.locator(".volume-render__quality-badge")).toBeHidden();
 
-  await expect(page.locator(".plot3d-badge__sub")).toContainText(
-    "linear 3×3×2 reconstruction · aggregate suspended condensate · single-pass volume · physical opacity per 1 km · subtle volume edge",
-  );
-  await expect(page.locator(".plot3d-badge__sub")).toContainText("mass-preserving detail");
+  for (const disclosure of ["linear 3×3×2 reconstruction", "Cloud detail: source", "native samples",
+    "linear display reconstruction", "aggregate suspended condensate", "single-pass volume",
+    "physical opacity per 1 km", "subtle volume edge"]) {
+    await expect(page.locator(".plot3d-badge__sub")).toContainText(disclosure);
+  }
   await expect(page.locator(".plot3d-badge__mode")).toContainText("Presentation");
 
   await page.locator(".plot3d-control-tab", { hasText: "Vortex" }).click();
@@ -1520,22 +1521,21 @@ test("two large supercell panes sustain cloud flow vortex and condensate layers"
   await expect(scenes).toHaveCount(2);
   await expect(page.locator('.volume-render__canvas-wrap[data-vortex-core-enabled="true"]')).toHaveCount(2);
   await expect(page.locator('.volume-render__canvas-wrap[data-tornadic-condensation-enabled="true"]')).toHaveCount(2);
-  await expect(page.locator('.volume-render__canvas-wrap[data-flow-preparation-loading="false"]'))
-    .toHaveCount(2, { timeout: 90_000 });
-  await expect(page.locator('.volume-render__canvas-wrap[data-flow-extraction-loading="false"]'))
-    .toHaveCount(2, { timeout: 90_000 });
-  await expect(page.locator('.volume-render__canvas-wrap[data-flow-contour-loading="false"]'))
-    .toHaveCount(2, { timeout: 180_000 });
-  await expect(page.locator('.volume-render__canvas-wrap[data-vortex-preparation-loading="false"]'))
-    .toHaveCount(2, { timeout: 90_000 });
-  await expect(page.locator('.volume-render__canvas-wrap[data-condensate-preparation-loading="false"]'))
-    .toHaveCount(2, { timeout: 90_000 });
-  await expect(page.locator('.volume-render__canvas-wrap[data-vortex-extraction-loading="false"]'))
-    .toHaveCount(2, { timeout: 30_000 });
-  await expect(page.locator('.volume-render__canvas-wrap[data-vortex-contour-loading="false"]'))
-    .toHaveCount(2, { timeout: 180_000 });
-  await expect(page.locator('.volume-render__canvas-wrap[data-scene-frame-commit-pending="false"]'))
-    .toHaveCount(2, { timeout: 180_000 });
+  const waitForLayer = (attribute: string, timeout: number) => page.waitForFunction((name) => {
+    const errors = [...document.querySelectorAll<HTMLElement>(".volume-render__overlay--error")]
+      .filter((element) => element.getClientRects().length > 0)
+      .map((element) => element.textContent);
+    if (errors.length > 0) throw new Error(`Supercell layer failed: ${errors.join("; ")}`);
+    return document.querySelectorAll(`.volume-render__canvas-wrap[${name}="false"]`).length === 2;
+  }, attribute, { timeout });
+  await waitForLayer("data-flow-preparation-loading", 90_000);
+  await waitForLayer("data-flow-extraction-loading", 90_000);
+  await waitForLayer("data-flow-contour-loading", 180_000);
+  await waitForLayer("data-vortex-preparation-loading", 90_000);
+  await waitForLayer("data-condensate-preparation-loading", 90_000);
+  await waitForLayer("data-vortex-extraction-loading", 30_000);
+  await waitForLayer("data-vortex-contour-loading", 180_000);
+  await waitForLayer("data-scene-frame-commit-pending", 180_000);
   await expect(page.locator(".volume-render__overlay--error")).toHaveCount(0);
   await expect(page.locator(".harness-scene canvas")).toHaveCount(2);
   const mounted = await snapshot(page);
@@ -1758,9 +1758,9 @@ test("paired fine/coarse supercells remain distinct across time and display scal
   await waitForWorkers(page);
   await expect(page.locator(".plot3d-badge__mode")).toContainText("Presentation");
   await expect(page.locator(".plot3d-badge__sub")).toContainText("linear 3×3×2 reconstruction");
-  await expect(page.locator(".plot3d-badge__sub")).toContainText(
-    "resolved-flow mass-preserving detail · 60s cross-fade",
-  );
+  for (const disclosure of ["Cloud detail: source", "native samples", "linear display reconstruction"]) {
+    await expect(page.locator(".plot3d-badge__sub")).toContainText(disclosure);
+  }
   await expect(page.locator(".volume-render__quality-badge")).toBeHidden();
   const coarsePath = testInfo.outputPath("paired-coarse-step-0.png");
   const coarsePng = await scene.screenshot({ path: coarsePath });
@@ -1769,9 +1769,9 @@ test("paired fine/coarse supercells remain distinct across time and display scal
   await setStep(page, 8);
   await waitForDisplayedFrame(page, "supercell", 8);
   await waitForWorkers(page);
-  await expect(page.locator(".plot3d-badge__sub")).toContainText(
-    "resolved-flow mass-preserving detail · 60s cross-fade",
-  );
+  for (const disclosure of ["Cloud detail: source", "native samples", "linear display reconstruction"]) {
+    await expect(page.locator(".plot3d-badge__sub")).toContainText(disclosure);
+  }
   await expect(page.locator(".volume-render__quality-badge")).toBeHidden();
   const temporalPath = testInfo.outputPath("paired-coarse-step-8.png");
   const temporalPng = await scene.screenshot({ path: temporalPath });

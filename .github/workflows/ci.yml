@@ -35,7 +35,7 @@ jobs:
 
   vulkan-software:
     name: Vulkan dispatch + parity (lavapipe)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
@@ -48,7 +48,8 @@ jobs:
             mesa-vulkan-drivers spirv-tools vulkan-tools
 
       - name: Restore pinned GLSL and SPIR-V tools
-        uses: actions/cache@v4
+        id: shader-tools
+        uses: actions/cache/restore@v4
         with:
           path: .cache/shader-toolchain-16.2.0-2026.1
           key: shader-toolchain-16.2.0-2026.1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/dev/shaders/build_spirv_tools.sh') }}
@@ -57,6 +58,13 @@ jobs:
         run: |
           bash scripts/dev/shaders/build_spirv_tools.sh .cache/shader-toolchain-16.2.0-2026.1
           echo "$GITHUB_WORKSPACE/.cache/shader-toolchain-16.2.0-2026.1/bin" >> "$GITHUB_PATH"
+
+      - name: Cache the completed shader toolchain
+        if: steps.shader-tools.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .cache/shader-toolchain-16.2.0-2026.1
+          key: ${{ steps.shader-tools.outputs.cache-primary-key }}
 
       - name: Restore C++ compiler cache
         uses: actions/cache@v4
@@ -79,7 +87,11 @@ jobs:
         run: vulkaninfo --summary
 
       - name: Rebuild and verify every SPIR-V artifact
-        run: make verify-shaders
+        run: |
+          free -h
+          python3 scripts/dev/shaders/test_division_workaround.py
+          /usr/bin/time -v python3 scripts/dev/shaders/verify_spirv.py --verbose
+          python3 scripts/dev/shaders/verify_kernel_manifest.py
 
       - name: Verify memory topology without a physical GPU
         run: |
@@ -112,7 +124,7 @@ jobs:
 
   ui-contracts:
     name: UI unit and type contracts
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -157,7 +169,7 @@ jobs:
       matrix:
         project: [chromium-swiftshader, webkit-standard, webkit-retina]
         shard: [1, 2, 3, 4]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
@@ -317,7 +329,7 @@ jobs:
       matrix:
         include:
           - arch: x64
-            runner: ubuntu-latest
+            runner: ubuntu-24.04
           - arch: arm64
             runner: ubuntu-24.04-arm
     steps:
@@ -612,7 +624,7 @@ jobs:
     name: Packaged visualization evidence matrix
     if: ${{ always() }}
     needs: [studio-macos-package, studio-linux-package, studio-windows-package]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -647,7 +659,7 @@ jobs:
 
   build-and-test:
     name: Build + test (Ubuntu, CPU)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -704,7 +716,7 @@ jobs:
 
   format:
     name: clang-format (changed lines)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:

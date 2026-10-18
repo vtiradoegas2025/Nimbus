@@ -34,6 +34,10 @@
 #include <string>
 #include <unordered_map>
 
+// Telemetry supplies these overloads even when libc++ omits sized-delete declarations.
+void operator delete(void* pointer, std::size_t bytes, std::align_val_t alignment) noexcept;
+void operator delete[](void* pointer, std::size_t bytes, std::align_val_t alignment) noexcept;
+
 namespace
 {
 

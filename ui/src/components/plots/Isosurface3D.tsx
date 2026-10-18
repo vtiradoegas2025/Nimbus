@@ -1124,6 +1124,13 @@ export function Isosurface3D({
       appearance.background,
     ));
     scene.renderWindow.getRenderWindow().render();
+    const committed = committedAppearanceRef.current;
+    if (committed) committedAppearanceRef.current = { ...committed, parameters: {
+      ...committed.parameters,
+      background: appearance.backgroundHex,
+      lighting: appearance.lighting,
+      lightingControls: appearance.lightingOptions,
+    } };
   }, [sceneAppearance.resolved, pairedContours, color, vtkLifecycleGeneration, panePresentation.pending]);
 
   // ---------- Per-field centerline update ----------

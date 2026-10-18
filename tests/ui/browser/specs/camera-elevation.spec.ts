@@ -20,6 +20,7 @@ async function openVolume(page: Page): Promise<void> {
   await page.getByRole("button", { name: "Volume", exact: true }).click();
   await expect(page.locator(".volume-render__controls")).toBeVisible({ timeout: 30_000 });
   await page.locator(".plot3d-control-tab", { hasText: "Scene" }).click();
+  await expect(heightSlider(page)).toBeEnabled();
 }
 
 /**

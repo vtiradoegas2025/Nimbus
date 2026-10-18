@@ -1,12 +1,13 @@
 import vtkMacro from "@kitware/vtk.js/macros.js";
-import vtkOpenGLRenderWindow from "@kitware/vtk.js/Rendering/OpenGL/RenderWindow";
+import vtkOpenGLRenderWindow from "@kitware/vtk.js/Rendering/OpenGL/RenderWindow.js";
 import vtkForwardPass from "@kitware/vtk.js/Rendering/OpenGL/ForwardPass.js";
-import { registerViewConstructor } from "@kitware/vtk.js/Rendering/Core/RenderWindow";
+import { registerViewConstructor } from "@kitware/vtk.js/Rendering/Core/RenderWindow.js";
 import { createFramebuffer } from "./sharedVolumeFramebuffer";
+import { protectVtkTraversal } from "./vtkTraversalGuard";
 
 function extend(api: object, state: object, initialValues: object = {}): void {
   vtkOpenGLRenderWindow.extend(api, state, { ...initialValues, renderPasses: [] });
-  const view = api as { delete(): void };
+  const view = api as { delete(): void; traverseAllPasses(...args: unknown[]): unknown };
   const model = state as { renderPasses: Array<{ delete(): void }> };
   model.renderPasses.forEach(pass => pass.delete());
   const framebuffer = createFramebuffer();
@@ -22,6 +23,8 @@ function extend(api: object, state: object, initialValues: object = {}): void {
     model.renderPasses.forEach(pass => pass.delete());
     dispose();
   };
+  // VTK freezes views after construction; one factory must install both ownership and traversal guards.
+  protectVtkTraversal(view);
 }
 
 const create = vtkMacro.newInstance(extend, "vtkOpenGLRenderWindow");

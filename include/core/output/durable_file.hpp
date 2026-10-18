@@ -65,6 +65,22 @@ inline bool flush_windows_path(const std::filesystem::path& path,
         error = describe_windows_error(what, path, GetLastError());
         return false;
     }
+    if (!flush_handle)
+    {
+        BY_HANDLE_FILE_INFORMATION information{};
+        if (GetFileInformationByHandle(handle, &information) == 0)
+        {
+            error = describe_windows_error("failed to inspect directory", path, GetLastError());
+            CloseHandle(handle);
+            return false;
+        }
+        if ((information.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0)
+        {
+            error = describe_windows_error("expected a directory", path, ERROR_DIRECTORY);
+            CloseHandle(handle);
+            return false;
+        }
+    }
     // FlushFileBuffers requires a handle opened with GENERIC_WRITE. Windows
     // does not expose a supported directory-fsync equivalent, so directory
     // calls validate/open the directory while publication itself uses

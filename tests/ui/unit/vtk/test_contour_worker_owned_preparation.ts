@@ -200,6 +200,40 @@ await previousExtraction;
 const rebuiltLease = await service.prepare(request);
 check(worker.requests.length === 2, "a contour-rebuilt field satisfies later preparation without another copy");
 check(rebuiltLease.handle.id === lease.handle.id, "a second pane shares the contour-rebuilt field handle");
+const displacedAgain = service.prepare({
+  ...request,
+  field: { ...request.field, data: request.field.data.map((value) => value + 4) },
+});
+await flushHandoff();
+worker.succeed(2);
+const displacedAgainLease = await displacedAgain;
+const revisited = service.prepare(request);
+await flushHandoff();
+worker.succeed(3);
+const revisitedLease = await revisited;
+check(worker.requests[3].datasetId !== worker.requests[0].datasetId,
+  "re-preparing a displaced scalar assigns a new worker dataset identity");
+const revisitedExtraction = service.extract(revisitedLease.handle, null, {
+  ...parameters, thresholds: { ...parameters.thresholds, core: 2 },
+});
+await flushHandoff();
+const revisitedMessage = worker.extractions[4];
+check(revisitedMessage.preparation != null
+    || revisitedMessage.datasetId === worker.requests[3].datasetId,
+  "revisited scalar either rebuilds its cached pair identity or names the actual resident dataset");
+worker.succeedExtraction(4, contourResult);
+check(await revisitedExtraction === contourResult, "revisited scalar completes its changed-threshold extraction");
+const oldLeaseExtraction = service.extract(lease.handle, null, {
+  ...parameters, thresholds: { ...parameters.thresholds, core: 3 },
+});
+await flushHandoff();
+check(worker.extractions[5].preparation == null
+    && worker.extractions[5].datasetId === revisitedMessage.datasetId,
+  "an older equivalent lease reuses the verified rebuilt worker dataset");
+worker.succeedExtraction(5, contourResult);
+await oldLeaseExtraction;
+revisitedLease.release();
+displacedAgainLease.release();
 rebuiltLease.release();
 nextLease.release();
 lease.release();

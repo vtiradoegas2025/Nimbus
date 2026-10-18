@@ -15,6 +15,9 @@ for (const plot of ["slice", "vertical"] as const) {
       })).toEqual([0, 0, 0, 0]);
       const cancelled = await page.evaluate(() => window.__nimbusRegularHarness!.snapshot().ownership.cancelledReadIds);
       expect(cancelled).toEqual(expect.arrayContaining(pending));
+      if (action === "deselected" && plot === "slice") {
+        await expect(page.getByText("No data to plot.", { exact: true })).toBeVisible();
+      }
       await expect(page.locator(".plot-overlay--error")).toHaveCount(0);
     });
   }

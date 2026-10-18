@@ -998,6 +998,13 @@ export function Streamlines3D({
     scene.forwardArrowActor.getProperty().setColor(...markerColor);
     scene.backwardArrowActor.getProperty().setColor(...markerColor);
     scene.renderWindow.getRenderWindow().render();
+    const committed = committedAppearanceRef.current;
+    if (committed) committedAppearanceRef.current = { ...committed, parameters: {
+      ...committed.parameters,
+      background: appearance.backgroundHex,
+      lighting: appearance.lighting,
+      lightingControls: appearance.lightingOptions,
+    } };
   }, [sceneAppearance.resolved, uniformColor, vtkLifecycleGeneration, panePresentation.pending]);
 
   // ---------- Field loading: (u, v, w) ----------

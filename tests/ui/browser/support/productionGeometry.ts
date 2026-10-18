@@ -1,4 +1,3 @@
-import vortexContourWorkerUrl from "@nimbus/lib/vtk/vortexContour.worker.ts?worker&url";
 import streamlineExtractionWorkerUrl from "@nimbus/lib/vtk/streamlineExtraction.worker.ts?worker&url";
 import vtkPreparationWorkerUrl from "@nimbus/lib/vtk/vtkPreparation.worker.ts?worker&url";
 import type {
@@ -6,10 +5,7 @@ import type {
   VtkPreparationRequest,
   VtkPreparationResult,
 } from "@nimbus/lib/vtk/vtkPreparation";
-import type {
-  VortexContourWorkerReply,
-  VortexContourWorkerRequest,
-} from "@nimbus/lib/vtk/vortexContourProtocol";
+import { SharedVortexContourDatasetService } from "@nimbus/lib/vtk/vortexContourClient";
 import type {
   StreamlineWorkerReply,
   StreamlineWorkerRequest,
@@ -168,33 +164,12 @@ export async function qualifyProductionGeometryWorkers(): Promise<ProductionGeom
   }
   const prepared = preparation.result.result as PreparedVtkImage;
   const preparedScalarBytes = prepared.values.byteLength;
-  const contourRequest: VortexContourWorkerRequest = {
-    kind: "extract",
-    requestId: 1,
-    datasetId: 1,
-    image: {
-      shape: prepared.shape,
-      spacing: prepared.spacing,
-      origin: prepared.origin,
-      values: prepared.values,
-    },
+  const contourService = new SharedVortexContourDatasetService(prepared, null);
+  const contour = await withWatchdog(contourService.enqueue({
     thresholds: { core: 0, opposite: null, mesocyclone: null },
     anchor: [12_800, 12_800, 7_950],
-  };
-  const contour = await withWatchdog(runWorker<
-    VortexContourWorkerRequest,
-    VortexContourWorkerReply
-  >(
-    vortexContourWorkerUrl,
-    "nimbus-production-contour-qualification",
-    contourRequest,
-    [prepared.values.buffer],
-  ));
-  if (contour.result.kind !== "result" || !contour.result.ok) {
-    throw new Error(contour.result.kind === "result"
-      ? contour.result.error
-      : "contour qualification returned no result");
-  }
+    condensateFloor: null,
+  })).finally(() => contourService.shutdown());
 
   const workerOwnedContourService = new ContourWorkerOwnedPreparationService();
   const workerOwnedContourStarted = performance.now();
@@ -248,43 +223,23 @@ export async function qualifyProductionGeometryWorkers(): Promise<ProductionGeom
     scalarOriginM: [0, 0, 0] as [number, number, number],
   };
   const combinedPairStarted = performance.now();
-  const combinedPair = await withWatchdog(runWorker<
-    VortexContourWorkerRequest,
-    VortexContourWorkerReply
-  >(
-    vortexContourWorkerUrl,
-    "nimbus-combined-contour-pair-qualification",
-    {
-      kind: "extract",
-      requestId: 1,
-      datasetId: 1,
-      preparation: {
-        kind: "scalar",
-        field: { shape: pairShape, data: pairPrimary },
-        grid: pairGrid,
-        maxVoxels: pairVoxels,
-        featureSign: 1,
-        datasetHandoff: "shared-geometry",
-      },
-      condensatePreparation: {
-        kind: "scalar",
-        field: { shape: pairShape, data: pairCondensate },
-        grid: pairGrid,
-        maxVoxels: pairVoxels,
-        datasetHandoff: "shared-geometry",
-      },
-      thresholds: { core: 0.02, opposite: null, mesocyclone: 0.005 },
-      anchor: [7_000, 7_000, 100],
-      condensateFloor: 0.00001,
-    },
-    [],
-  ));
+  const pairService = new ContourWorkerOwnedPreparationService();
+  const combinedPair = await withWatchdog((async () => {
+    const primary = await pairService.prepare({ kind: "scalar", field: { shape: pairShape, data: pairPrimary },
+      grid: pairGrid, maxVoxels: pairVoxels, featureSign: 1, datasetHandoff: "shared-geometry" });
+    try {
+      const condensate = await pairService.prepare({ kind: "scalar", field: { shape: pairShape, data: pairCondensate },
+        grid: pairGrid, maxVoxels: pairVoxels, datasetHandoff: "shared-geometry" });
+      try {
+        return await pairService.extract(primary.handle, condensate.handle, {
+          thresholds: { core: 0.02, opposite: null, mesocyclone: 0.005 },
+          anchor: [7_000, 7_000, 100], condensateFloor: 0.00001,
+        });
+      } finally { condensate.release(); }
+    } finally { primary.release(); }
+  })()).finally(() => pairService.shutdown());
   const combinedContourPairElapsedMs = performance.now() - combinedPairStarted;
-  if (combinedPair.result.kind !== "result" || !combinedPair.result.ok) {
-    throw new Error(combinedPair.result.kind === "result"
-      ? combinedPair.result.error
-      : "combined contour pair qualification returned no result");
-  }
+  if (combinedPair.result.usage.triangles <= 0) throw new Error("combined contour pair returned no crossing surface");
   const combinedContourPairBytes = pairPrimary.byteLength + pairCondensate.byteLength;
 
   const vectorValues = new Float32Array(voxels * 3);
@@ -372,10 +327,10 @@ export async function qualifyProductionGeometryWorkers(): Promise<ProductionGeom
     workerOwnedPreparedVectorBytes,
     workerOwnedPreparationElapsedMs,
     preparationElapsedMs,
-    contourTriangles: contour.result.result.usage.triangles,
-    contourBytes: contour.result.result.usage.bytes,
-    contourKnownScratchBytes: contour.result.result.knownScratchBytes,
-    contourElapsedMs: contour.result.result.elapsedMs,
+    contourTriangles: contour.result.usage.triangles,
+    contourBytes: contour.result.usage.bytes,
+    contourKnownScratchBytes: contour.result.knownScratchBytes,
+    contourElapsedMs: contour.result.elapsedMs,
     streamlineIntegratedPoints: streamline.result.result.integratedPoints,
     streamlineKnownScratchBytes: streamline.result.result.knownScratchBytes,
     streamlineElapsedMs: streamline.result.result.elapsedMs,
