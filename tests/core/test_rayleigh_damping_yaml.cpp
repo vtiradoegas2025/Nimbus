@@ -1141,10 +1141,13 @@ TEST_CASE("rayleigh damping can operate on an explicit local state",
         local_time,
         {}, nullptr, nullptr, nullptr, nullptr, &local_rayleigh_runtime};
 
-    global_damping_enabled = true;
-    global_damping_z_d = 1000.0;
-    global_damping_alpha = 0.5;
-    global_w_only_top_sponge = false;
+    RuntimeConfigurationState local_configuration;
+    local_configuration.damping_enabled   = true;
+    local_configuration.damping_z_d       = 1000.0;
+    local_configuration.damping_alpha     = 0.5;
+    local_configuration.w_only_top_sponge = false;
+    local_state.configuration             = &local_configuration;
+    local_state.domain_frame              = &local_configuration.domain_frame;
     reset_rayleigh_damping(local_rayleigh_runtime);
 
     apply_rayleigh_damping(local_state, 1.0);
@@ -1176,6 +1179,9 @@ TEST_CASE("rayleigh damping can operate on an explicit local state",
         local_coriolis,
         local_time,
         {}, nullptr, nullptr, nullptr, nullptr, &other_rayleigh_runtime};
+
+    other_state.configuration = &local_configuration;
+    other_state.domain_frame  = &local_configuration.domain_frame;
 
     const std::vector<double> local_profile =
         rayleigh_alpha_profile(local_state);
@@ -1281,19 +1287,15 @@ TEST_CASE("C-grid upper sponge uses vertical-face height and closes energy",
     f.tke.resize(nr, nth, nz, 0.0f);
     storage.base.theta0.assign(nz, 300.0);
 
-    global_damping_enabled = true;
-    global_damping_z_d = 2500.0;
-    global_damping_alpha = 0.2;
-    global_w_only_top_sponge = false;
-    global_lateral_sponge_enabled = false;
-    global_lateral_bc_west =
-        tmv::init::config::LateralBC::Rigid;
-    global_lateral_bc_east =
-        tmv::init::config::LateralBC::Rigid;
-    global_lateral_bc_south =
-        tmv::init::config::LateralBC::Rigid;
-    global_lateral_bc_north =
-        tmv::init::config::LateralBC::Rigid;
+    storage.configuration.damping_enabled        = true;
+    storage.configuration.damping_z_d            = 2500.0;
+    storage.configuration.damping_alpha          = 0.2;
+    storage.configuration.w_only_top_sponge      = false;
+    storage.configuration.lateral_sponge_enabled = false;
+    storage.configuration.lateral_bc_west        = tmv::init::config::LateralBC::Rigid;
+    storage.configuration.lateral_bc_east        = tmv::init::config::LateralBC::Rigid;
+    storage.configuration.lateral_bc_south       = tmv::init::config::LateralBC::Rigid;
+    storage.configuration.lateral_bc_north       = tmv::init::config::LateralBC::Rigid;
     reset_rayleigh_damping(storage.runtime.rayleigh);
     SimulationStateView state = make_simulation_state_view(storage);
 
@@ -1410,10 +1412,10 @@ TEST_CASE("terrain Rayleigh sponge follows physical height within each column",
                     ground + (static_cast<double>(k) + 0.5) * thickness;
         }
 
-    global_damping_enabled = true;
-    global_damping_z_d = 2500.0;
-    global_damping_alpha = 0.5;
-    global_w_only_top_sponge = false;
+    storage.configuration.damping_enabled   = true;
+    storage.configuration.damping_z_d       = 2500.0;
+    storage.configuration.damping_alpha     = 0.5;
+    storage.configuration.w_only_top_sponge = false;
     reset_rayleigh_damping(storage.runtime.rayleigh);
     SimulationStateView state = make_simulation_state_view(storage);
 
@@ -1424,7 +1426,7 @@ TEST_CASE("terrain Rayleigh sponge follows physical height within each column",
     REQUIRE(storage.fields.theta(1, 1, 2) == Approx(305.0f));
     const double fraction = 375.0 / 1500.0;
     const double sine = std::sin(0.5 * 3.14159265358979323846 * fraction);
-    const double alpha = global_damping_alpha * sine * sine;
+    const double alpha    = storage.configuration.damping_alpha * sine * sine;
     const double expected = 300.0 + 5.0 * std::exp(-alpha);
     REQUIRE(storage.fields.theta(2, 1, 2) ==
             Approx(expected).epsilon(1.0e-6));
@@ -1479,9 +1481,9 @@ TEST_CASE("terrain lateral sponge samples references at staggered physical heigh
                     ground + (static_cast<double>(k) + 0.5) * thickness;
         }
 
-    global_lateral_sponge_enabled = true;
-    global_lateral_sponge_width = 1;
-    global_lateral_sponge_alpha = 0.5;
+    storage.configuration.lateral_sponge_enabled = true;
+    storage.configuration.lateral_sponge_width   = 1;
+    storage.configuration.lateral_sponge_alpha   = 0.5;
     reset_rayleigh_damping(storage.runtime.rayleigh);
     SimulationStateView state = make_simulation_state_view(storage);
 

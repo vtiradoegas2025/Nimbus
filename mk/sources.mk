@@ -390,6 +390,7 @@ BACKEND_COMMON_SRCS := $(COMPUTE_CORE_SRCS) \
 	src/core/infra/hardware_info.cpp \
 	src/core/infra/simd_utils.cpp \
 	src/numerics/advection/advection_cartesian.cpp \
+	src/numerics/advection/advection_perf.cpp \
 	$(TERRAIN_TRANSPORT_SRC) \
 	$(VULKAN_BACKEND_SRCS)
 

@@ -10,6 +10,9 @@
  */
 #ifndef TWOBLUECUBES_SINGLE_INCLUDE_CATCH_HPP_INCLUDED
 #define TWOBLUECUBES_SINGLE_INCLUDE_CATCH_HPP_INCLUDED
+// Catch2 v2 needs explicit allocation declarations with newer libc++.
+#include <new>
+
 // start catch.hpp
 
 

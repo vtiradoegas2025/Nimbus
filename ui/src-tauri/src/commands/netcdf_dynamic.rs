@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard};
 
 use libloading::Library;
+use once_cell::sync::OnceCell;
 
 use super::datasets::{
     build_netcdf_cf_decode, decode_netcdf_cf_value, is_qualified_cm1_history_variable,
@@ -22,6 +23,13 @@ const NC_MAX_VAR_DIMS: c_int = 1024;
 
 // The C library's process-global state includes initialization and unloading.
 static NATIVE_NETCDF_ACCESS: Mutex<()> = Mutex::new(());
+// HDF5 retains process/thread cleanup callbacks after a file closes. Unloading
+// its code between reads can leave those callbacks pointing at unmapped memory.
+static NATIVE_NETCDF_API: OnceCell<Api> = OnceCell::new();
+
+fn native_api() -> AppResult<&'static Api> {
+    NATIVE_NETCDF_API.get_or_try_init(Api::load)
+}
 
 fn lock_native_netcdf(access: &Mutex<()>) -> AppResult<MutexGuard<'_, ()>> {
     access.lock().map_err(|_| AppError::Invalid(
@@ -55,8 +63,7 @@ type NcGetVarDouble = unsafe extern "C" fn(c_int, c_int, *mut f64) -> c_int;
 type NcStrError = unsafe extern "C" fn(c_int) -> *const c_char;
 
 struct Api {
-    /// Never read — held so the library outlives the symbols transmuted from
-    /// it and is closed when `Api` drops.
+    /// Owns the loaded library for the same lifetime as its function pointers.
     #[allow(dead_code)]
     handle: Library,
     open: NcOpen,
@@ -468,7 +475,7 @@ fn inventory(api: &Api, file: &FileHandle<'_>, path: &str) -> AppResult<Inventor
 
 pub fn inspect(path: &str) -> AppResult<NetcdfMetadata> {
     let _native_access = lock_native_netcdf(&NATIVE_NETCDF_ACCESS)?;
-    let api = Api::load()?;
+    let api = native_api()?;
     let file = open(&api, path)?;
     Ok(inventory(&api, &file, path)?.metadata)
 }
@@ -488,7 +495,7 @@ fn axis(name: &str) -> Option<usize> {
 
 pub fn read_field(path: &str, variable: &str, record: u64) -> AppResult<(Vec<usize>, Vec<f32>)> {
     let _native_access = lock_native_netcdf(&NATIVE_NETCDF_ACCESS)?;
-    let api = Api::load()?;
+    let api = native_api()?;
     let file = open(&api, path)?;
     let inv = inventory(&api, &file, path)?;
     let index = inv
@@ -605,7 +612,7 @@ pub fn read_field_window(
     control: &NetcdfReadControl,
 ) -> AppResult<NetcdfWindowPayload> {
     let _native_access = lock_native_netcdf(&NATIVE_NETCDF_ACCESS)?;
-    let api = Api::load()?;
+    let api = native_api()?;
     let file = open(&api, path)?;
     let inv = inventory(&api, &file, path)?;
     let index = inv
@@ -748,7 +755,7 @@ pub fn read_f64_sampled_window(
         ));
     }
     let _native_access = lock_native_netcdf(&NATIVE_NETCDF_ACCESS)?;
-    let api = Api::load()?;
+    let api = native_api()?;
     let file = open(&api, path)?;
     let inv = inventory(&api, &file, path)?;
     let index = inv
@@ -869,7 +876,7 @@ pub fn read_f64_sampled_window(
 pub fn read_values(path: &str, variable: &str) -> AppResult<Vec<f64>> {
     const MAX_COORDINATE_VALUES: u64 = 1_000_000;
     let _native_access = lock_native_netcdf(&NATIVE_NETCDF_ACCESS)?;
-    let api = Api::load()?;
+    let api = native_api()?;
     let file = open(&api, path)?;
     let inv = inventory(&api, &file, path)?;
     let index = inv
@@ -904,6 +911,95 @@ pub fn read_values(path: &str, variable: &str) -> AppResult<Vec<f64>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn native_library_survives_repeated_reads_and_process_cleanup() {
+        const CHILD: &str = "NIMBUS_NETCDF_LIFETIME_CHILD";
+        if std::env::var_os(CHILD).is_some() {
+            for _ in 0..3 {
+                assert!(inspect("lifetime-fixture").unwrap().variables.is_empty());
+            }
+            return;
+        }
+        let directory = std::env::temp_dir().join(format!(
+            "nimbus-netcdf-lifetime-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir(&directory).unwrap();
+        struct Cleanup(PathBuf);
+        impl Drop for Cleanup {
+            fn drop(&mut self) {
+                let _ = std::fs::remove_dir_all(&self.0);
+            }
+        }
+        let _cleanup = Cleanup(directory.clone());
+        let source = directory.join("library.c");
+        std::fs::write(
+            &source,
+            include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../../tests/ui/native/netcdf_library_lifetime.c"
+            )),
+        )
+        .unwrap();
+        let filename = if cfg!(target_os = "macos") {
+            "libnetcdf.dylib"
+        } else {
+            "libnetcdf.so"
+        };
+        let output = std::process::Command::new("cc")
+            .args(if cfg!(target_os = "macos") {
+                vec!["-dynamiclib"]
+            } else {
+                vec!["-shared", "-fPIC"]
+            })
+            .arg(&source)
+            .arg("-o")
+            .arg(directory.join(filename))
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let marker = directory.join("events");
+        let search_key = if cfg!(target_os = "macos") {
+            "DYLD_LIBRARY_PATH"
+        } else {
+            "LD_LIBRARY_PATH"
+        };
+        let mut search = vec![directory.clone()];
+        if let Some(existing) = std::env::var_os(search_key) {
+            search.extend(std::env::split_paths(&existing));
+        }
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "commands::netcdf_dynamic::tests::native_library_survives_repeated_reads_and_process_cleanup", "--nocapture"])
+            .env(CHILD, "1").env("NIMBUS_NETCDF_LIFETIME_MARKER", &marker)
+            .env(search_key, std::env::join_paths(search).unwrap()).output().unwrap();
+        let events = std::fs::read_to_string(marker).unwrap_or_default();
+        assert!(
+            output.status.success(),
+            "reader exited with {:?}; events={events}; {}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(
+            events.starts_with("LOCOCOC"),
+            "library unloaded between reads: {events}"
+        );
+        assert_eq!(events.matches('L').count(), 1, "{events}");
+        assert_eq!(
+            events.matches('E').count(),
+            1,
+            "cleanup callback did not complete: {events}"
+        );
+    }
 
     #[test]
     fn native_netcdf_access_fails_closed_after_guard_poisoning() {

@@ -19,6 +19,7 @@
 #include "core/output/step_manifest.hpp"
 #include "core/field/field_snapshot.hpp"
 #include "core/infra/allocation_telemetry.hpp"
+#include "core/infra/physical_constants.hpp"
 
 #include <array>
 #include <cmath>
@@ -35,6 +36,33 @@
 
 namespace
 {
+
+TEST_CASE("Allocation telemetry preserves over-aligned allocation ownership", "[core][allocation]")
+{
+    constexpr std::size_t bytes     = 137;
+    constexpr auto        alignment = std::align_val_t{128};
+    for (bool array : {false, true})
+    {
+        for (bool sized : {false, true})
+        {
+            tmv::allocation_telemetry::begin_measurement();
+            void*      pointer     = array ? ::operator new[](bytes, alignment) : ::operator new(bytes, alignment);
+            const auto allocations = tmv::allocation_telemetry::end_measurement();
+            CHECK(reinterpret_cast<std::uintptr_t>(pointer) % 128 == 0);
+            CHECK(allocations.heap_allocations == 1);
+            CHECK(allocations.heap_requested_bytes == bytes);
+            std::memset(pointer, 0x5a, bytes);
+            if (array && sized)
+                ::operator delete[](pointer, bytes, alignment);
+            else if (array)
+                ::operator delete[](pointer, alignment);
+            else if (sized)
+                ::operator delete(pointer, bytes, alignment);
+            else
+                ::operator delete(pointer, alignment);
+        }
+    }
+}
 
 std::filesystem::path make_tmp_dir(const std::string& name)
 {
@@ -444,10 +472,10 @@ std::vector<float> make_smooth_field(int dim0, int dim1, int dim2, float base, f
     std::vector<float> data(n);
     for (int i = 0; i < dim0; ++i)
     {
-        const float si = std::sin(static_cast<float>(M_PI) * i / dim0);
+        const float si = std::sin(static_cast<float>(physical_constants::pi) * i / dim0);
         for (int j = 0; j < dim1; ++j)
         {
-            const float cj = std::cos(static_cast<float>(M_PI) * j / dim1);
+            const float cj = std::cos(static_cast<float>(physical_constants::pi) * j / dim1);
             for (int k = 0; k < dim2; ++k)
             {
                 const float       zfrac = static_cast<float>(k) / dim2;

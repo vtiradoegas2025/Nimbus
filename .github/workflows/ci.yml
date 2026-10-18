@@ -261,7 +261,9 @@ jobs:
         run: npm ci
 
       - name: Qualify native netCDF and ZFP publication
-        run: make qualify-io REQUIRE_FULL_STACK=1
+        run: |
+          bash scripts/dependencies/fetch_rrtmg_coefficients.sh
+          make qualify-io REQUIRE_FULL_STACK=1
 
       - name: Exercise the native macOS Studio bridge
         working-directory: ui/src-tauri
@@ -333,7 +335,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            build-essential libomp-dev libvulkan-dev glslang-tools pkg-config \
+            build-essential cmake libclang-dev libomp-dev libvulkan-dev glslang-tools pkg-config \
             libzfp-dev libnetcdf-dev netcdf-bin ffmpeg \
             libwebkit2gtk-4.1-dev librsvg2-dev libssl-dev xvfb \
             libayatana-appindicator3-dev libxdo-dev patchelf file
@@ -346,7 +348,9 @@ jobs:
         run: npm ci
 
       - name: Qualify native netCDF and ZFP publication
-        run: make qualify-io REQUIRE_FULL_STACK=1
+        run: |
+          bash scripts/dependencies/fetch_rrtmg_coefficients.sh
+          make qualify-io REQUIRE_FULL_STACK=1
 
       - name: Exercise the native Linux Studio bridge
         working-directory: ui/src-tauri
@@ -651,8 +655,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            build-essential ccache libomp-dev libvulkan-dev \
-            libzfp-dev libnetcdf-dev netcdf-bin
+            build-essential ccache cmake libclang-dev pkg-config libomp-dev libvulkan-dev \
+            libzfp-dev libnetcdf-dev netcdf-bin \
+            libwebkit2gtk-4.1-dev librsvg2-dev libssl-dev libayatana-appindicator3-dev libxdo-dev
 
       - uses: dtolnay/rust-toolchain@1.77.2
 

@@ -481,7 +481,8 @@ def require_radar_zfp_public(
             log.write_text(result.stdout + "\n" + result.stderr,
                            encoding="utf-8")
             if result.returncode != 0:
-                fail(f"{preset} ordinary public {mode} failed: {log}")
+                fail(f"{preset} ordinary public {mode} failed ({result.returncode}): {log}\n"
+                     f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
             logs[mode] = sha256(log)
         expected_radar = set(RADAR_PRODUCTS[preset])
         npy_fields = published_fields(npy_output)
@@ -501,7 +502,8 @@ def require_radar_zfp_public(
         reader_log.write_text(result.stdout + "\n" + result.stderr,
                               encoding="utf-8")
         if result.returncode != 0 or "All tests passed" not in result.stdout:
-            fail(f"{preset} ordinary public native decoded-field reader failed: {reader_log}")
+            fail(f"{preset} ordinary public native decoded-field reader failed: {reader_log}\n"
+                 f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
         rows.append({
             "preset": preset,
             "selectedProducts": list(RADAR_PRODUCTS[preset]),

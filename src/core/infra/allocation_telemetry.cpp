@@ -5,6 +5,10 @@
 #include <cstdlib>
 #include <new>
 
+#ifdef _WIN32
+#include <malloc.h>
+#endif
+
 namespace
 {
 
@@ -51,11 +55,26 @@ void* allocate_unaligned(std::size_t bytes)
 void* allocate_aligned(std::size_t bytes, std::size_t alignment)
 {
     const std::size_t requested = bytes == 0 ? 1 : bytes;
+#ifdef _WIN32
+    void* pointer = _aligned_malloc(requested, alignment);
+    if (!pointer)
+        throw std::bad_alloc();
+#else
     void* pointer = nullptr;
     if (posix_memalign(&pointer, alignment, requested) != 0 || !pointer)
         throw std::bad_alloc();
+#endif
     tmv::allocation_telemetry::record_heap_allocation(requested);
     return pointer;
+}
+
+void free_aligned(void* pointer) noexcept
+{
+#ifdef _WIN32
+    _aligned_free(pointer);
+#else
+    std::free(pointer);
+#endif
 }
 
 } // namespace
@@ -265,22 +284,22 @@ void* operator new[](std::size_t bytes, std::align_val_t alignment)
 
 void operator delete(void* pointer, std::align_val_t) noexcept
 {
-    std::free(pointer);
+    free_aligned(pointer);
 }
 
 void operator delete[](void* pointer, std::align_val_t) noexcept
 {
-    std::free(pointer);
+    free_aligned(pointer);
 }
 
 void operator delete(
     void* pointer, std::size_t, std::align_val_t) noexcept
 {
-    std::free(pointer);
+    free_aligned(pointer);
 }
 
 void operator delete[](
     void* pointer, std::size_t, std::align_val_t) noexcept
 {
-    std::free(pointer);
+    free_aligned(pointer);
 }
