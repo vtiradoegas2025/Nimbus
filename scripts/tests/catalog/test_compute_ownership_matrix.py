@@ -45,7 +45,7 @@ def expected_owner(record: dict[str, object]) -> dict[str, str]:
         microphysics_owner = "inactive"
     elif not apply["microphysics"]:
         microphysics_owner = "host"
-    elif microphysics in ("kessler", "lin", "thompson"):
+    elif microphysics in ("kessler", "lin", "thompson", "milbrandt"):
         microphysics_owner = "device"
     else:
         microphysics_owner = "unsupported"
@@ -129,7 +129,7 @@ def validate(matrix: dict[str, object]) -> None:
         "unsupported": unsupported,
     }
     if matrix.get("summary") != expected_summary or expected_summary != {
-        "evaluated": 960, "supported": 912, "unsupported": 48,
+        "evaluated": 960, "supported": 960, "unsupported": 0,
     }:
         raise RuntimeError(f"compute ownership summary drifted: {matrix.get('summary')}")
 
@@ -179,7 +179,7 @@ def main() -> int:
 
     print(
         "[compute-ownership-matrix] PASS: 960 state-commit combinations; "
-        f"supported=912; unsupported=48; binary_sha256={binary_sha256}"
+        f"supported=960; unsupported=0; binary_sha256={binary_sha256}"
     )
     return 0
 

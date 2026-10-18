@@ -275,7 +275,7 @@ def main():
     p.add_argument('--simulator', type=Path)
     p.add_argument('--runtime-prefix', type=Path)
     p.add_argument('--extra-library', type=Path, action='append', default=[])
-    p.add_argument('--minimum-macos', default='11.0')
+    p.add_argument('--minimum-macos', default='12.0')
     a = p.parse_args()
     app = a.app.resolve(strict=True)
     target = version(a.minimum_macos)

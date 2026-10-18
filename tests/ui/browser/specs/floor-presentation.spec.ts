@@ -14,8 +14,12 @@ for (const plot of ["volume", "isosurface", "streamlines"] as const) test(`${plo
   await page.locator(".plot3d-control-tab", { hasText: "Radar" }).click();
   await page.getByRole("group", { name: "Radar floor", exact: true }).getByRole("button").first().click();
   await page.getByRole("button", { name: "Column max", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Column max", exact: true })).toHaveClass(/pill--active/);
+  await expect(page.locator(".plot3d-colorbar", { hasText: "floor" })).toHaveCount(1);
   await ready();
   const before = await page.evaluate(() => window.__nimbusVtkHarness!.captureAppearance());
+  expect(before!.evidence.layers.some(layer => layer.kind === "actor" && layer.visible
+    && layer.pointCount === 4 && layer.cellCount === 2)).toBe(true);
   await page.evaluate(() => {
     const state = { held: 0, released: false, release: () => {} };
     Object.assign(window, { floorEncodeHold: state });

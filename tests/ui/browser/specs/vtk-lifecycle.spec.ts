@@ -1848,6 +1848,7 @@ test("rapid isosurface supersession terminates stale worker geometry", async ({ 
   await page.waitForFunction(() => Boolean(window.__nimbusVtkHarness));
   await setPlot(page, "isosurface");
   await waitForWorkers(page);
+  await waitForDisplayedFrame(page, "isosurface", (await snapshot(page)).step);
   const maxWatchdogDelay = await page.evaluate(async () => {
     let maximum = 0;
     let previous = performance.now();
@@ -1964,6 +1965,7 @@ test("production VTK scenes survive lifecycle, field, context, resize, and conto
   // against the removed JSON-spec isosurface widget.
   await setPlot(page, "isosurface");
   await waitForWorkers(page);
+  await waitForDisplayedFrame(page, "isosurface", (await snapshot(page)).step);
   const maxWatchdogDelay = await page.evaluate(async () => {
     let maxDelay = 0;
     let previous = performance.now();

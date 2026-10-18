@@ -128,6 +128,15 @@ ParityCoverage coverage_for(K id)
     case K::AcousticPressureMassFluxCartesianCgrid:
         return hardware_coverage("rho,p,mass_flux_x,mass_flux_y,mass_flux_z",
                                  acoustic, accumulated);
+    case K::AcousticRetainedFluxFp64:
+        return {"mass_flux_x,mass_flux_y,mass_flux_z",
+                nullptr,
+                "tests/vulkan/test_acoustic_input_reuse.cpp",
+                nullptr,
+                accumulated,
+                ReplayOwner::HardwareFixture,
+                RequiredHardware::Vulkan,
+                nullptr};
     case K::AcousticContinuityMassFluxCartesianAgrid:
         return hardware_coverage(
             "drho_dt,mass_flux_x,mass_flux_y,mass_flux_z", gpu);
@@ -556,10 +565,13 @@ bool validate_registry(const std::vector<ParityEntry>& entries,
                 return fail("active parity entry must declare checked outputs");
             if (!runtime && !hardware)
                 return fail("active parity entry needs runtime or hardware coverage");
-            if (entry.coverage.required_hardware !=
-                    RequiredHardware::VulkanAndMetal)
-                return fail("active GPU kernel must require Vulkan and Metal qualification");
-            if (!metal_hardware)
+            const bool vulkan_only = nimbus::compute::kernel_manifest()[i].id == K::AcousticRetainedFluxFp64;
+            const auto required    = vulkan_only ? RequiredHardware::Vulkan : RequiredHardware::VulkanAndMetal;
+            if (entry.coverage.required_hardware != required)
+                return fail("active GPU kernel must require its implemented physical backends");
+            if (vulkan_only && (!vulkan_hardware || metal_hardware))
+                return fail("FP64 retained flux requires a Vulkan fixture and no Metal fixture");
+            if (!vulkan_only && !metal_hardware)
                 return fail("active GPU kernel needs a Metal hardware fixture");
             if (present(entry.coverage.waiver) ||
                 entry.coverage.replay_owner == ReplayOwner::Waived)

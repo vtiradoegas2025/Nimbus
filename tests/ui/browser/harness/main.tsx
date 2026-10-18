@@ -733,7 +733,12 @@ function Harness() {
         const element = document.querySelector<HTMLElement>(".volume-render__canvas")!;
         const canvas = element.querySelector("canvas")!;
         const abort = new AbortController();
+        const started = performance.now();
+        const record = (done: number) => console.info("NIMBUS_VIEWPOINT_PROGRESS "
+          + JSON.stringify({ done, count, elapsedMs: performance.now() - started }));
+        record(0);
         const bytes = await captureViewpoints(element, { width: canvas.width, height: canvas.height }, count, "Portable storm fixture", { frameIndex: step }, { signal: abort.signal }, done => {
+          record(done);
           if (cancelAfter && done >= cancelAfter) abort.abort();
         });
         return new TextDecoder().decode(bytes);

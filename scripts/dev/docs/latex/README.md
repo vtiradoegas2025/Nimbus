@@ -1,7 +1,8 @@
 # Building the technical PDFs
 
-The canonical sources are [mathematics.tex](mathematics.tex) and
-[architecture.tex](architecture.tex). They share the typography in
+The canonical sources are [mathematics.tex](mathematics.tex),
+[architecture.tex](architecture.tex) and [studio.tex](studio.tex).
+They share the typography in
 [guide-preamble.tex](guide-preamble.tex) and vector diagrams under `figures/`.
 Edit these LaTeX sources rather than maintaining a second Markdown version.
 
@@ -22,8 +23,9 @@ For example, Homebrew provides Tectonic with `brew install tectonic`. Its first
 build downloads the required TeX packages/fonts into its cache. Nimbus does not
 vendor a TeX distribution. No Markdown conversion step is required.
 
-The PDFs are published as [MATHEMATICS.pdf](../../../../docs/MATHEMATICS.pdf) and
-[ARCHITECTURE.pdf](../../../../docs/ARCHITECTURE.pdf). Intermediate files and logs go into the
+The PDFs are published as [MATHEMATICS.pdf](../../../../docs/MATHEMATICS.pdf),
+[ARCHITECTURE.pdf](../../../../docs/ARCHITECTURE.pdf) and
+[STUDIO.pdf](../../../../docs/STUDIO.pdf). Intermediate files and logs go into the
 ignored `build/docs/` directory. The build rejects missing glyphs, overflowing
 lines and unresolved references, then records source/PDF hashes in
 `manifest.json`. Commit the updated source, manifest and PDF together.

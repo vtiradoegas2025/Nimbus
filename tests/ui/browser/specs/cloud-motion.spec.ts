@@ -1,7 +1,9 @@
 import { test, expect } from "@playwright/test";
+import { advanceCloudMotionClock, armCloudMotionClock, installCloudMotionClock, resumeCloudMotionClock, waitForCloudMotionFrame } from "../support/cloudMotionClock";
 
 test("cloud interpolation preserves endpoints, reports intermediate time, and reuses textures", async ({ page }, info) => {
   test.setTimeout(120_000);
+  await installCloudMotionClock(page);
   const errors: string[] = [];
   const readDiagnostics: unknown[] = [];
   page.on("console", message => {
@@ -73,8 +75,10 @@ test("cloud interpolation preserves endpoints, reports intermediate time, and re
   try {
     await page.evaluate(() => window.__nimbusVtkHarness!.setPlayback(true, false, 2500));
     await page.waitForTimeout(100);
+    await armCloudMotionClock(page);
     await page.evaluate(() => window.__nimbusVtkHarness!.setStep(1));
     await page.waitForFunction(() => document.querySelector<HTMLElement>(".plot3d-overlay-host")?.dataset.cloudMotionActive === "true", undefined, { timeout: 30_000 });
+    await waitForCloudMotionFrame(page);
   } catch (error) {
     await info.attach("failed-cloud-field-read", { body: JSON.stringify(readDiagnostics, null, 2), contentType: "application/json" });
     throw error;
@@ -85,49 +89,59 @@ test("cloud interpolation preserves endpoints, reports intermediate time, and re
   });
   const first = await page.evaluate(() => window.__nimbusVtkHarness!.captureAppearance());
   const before = await page.evaluate(() => window.__nimbusVtkHarness!.snapshot());
-  await page.waitForTimeout(180);
+  const a = first!.evidence.descriptor.parameters!.cloudMotion as { fraction: number; timeS: number };
+  await advanceCloudMotionClock(page, 180);
+  await page.waitForFunction((fraction) => Number(document.querySelector<HTMLElement>(".plot3d-overlay-host")?.dataset.cloudMotionFraction) > fraction, a.fraction);
   const second = await page.evaluate(() => window.__nimbusVtkHarness!.captureAppearance());
   const after = await page.evaluate(() => window.__nimbusVtkHarness!.snapshot());
   expect(first!.evidence.descriptor.frameIndex).toBeNull();
   expect(second!.evidence.descriptor.frameIndex).toBeNull();
-  const a = first!.evidence.descriptor.parameters!.cloudMotion as { fraction: number; timeS: number };
   const b = second!.evidence.descriptor.parameters!.cloudMotion as { fraction: number; timeS: number };
   expect(b.fraction).toBeGreaterThan(a.fraction);
   expect(b.timeS).toBeGreaterThan(a.timeS);
   expect(b.timeS).toBeLessThan(30);
   expect(after.texture3DUploads).toBe(before.texture3DUploads);
+  await resumeCloudMotionClock(page);
   await ready(1);
   expect(await page.evaluate(() => window.__nimbusVtkHarness!.inspectVolumeInputs().fingerprints)).toEqual(endpoint);
+  await armCloudMotionClock(page);
   await page.evaluate(() => window.__nimbusVtkHarness!.setStep(2));
   await page.waitForFunction(() => document.querySelector<HTMLElement>(".plot3d-overlay-host")?.dataset.cloudMotionActive === "true");
   await page.evaluate(() => window.__nimbusVtkHarness!.setPlayback(false, true));
   await ready(2);
+  await resumeCloudMotionClock(page);
   await assertExactTime(60);
   expect(await page.locator(".plot3d-overlay-host").getAttribute("data-cloud-motion-active")).toBe("false");
   await page.evaluate(() => window.__nimbusVtkHarness!.setPlayback(true, false, 2500));
   await page.waitForTimeout(100);
+  await armCloudMotionClock(page);
   await page.evaluate(() => window.__nimbusVtkHarness!.setStep(3));
   await page.waitForFunction(() => document.querySelector<HTMLElement>(".plot3d-overlay-host")?.dataset.cloudMotionActive === "true");
   expect(await page.evaluate(() => window.__nimbusVtkHarness!.captureSavedFrame())).toMatch(/^data:image\/png/);
   await ready(3);
+  await resumeCloudMotionClock(page);
   await assertExactTime(90);
   expect(await page.locator(".plot3d-overlay-host").getAttribute("data-cloud-motion-active")).toBe("false");
   await page.evaluate(() => window.__nimbusVtkHarness!.setStep(0)); await ready(0);
+  await armCloudMotionClock(page);
   await page.evaluate(() => window.__nimbusVtkHarness!.setStep(1));
   await page.waitForFunction(() => document.querySelector<HTMLElement>(".plot3d-overlay-host")?.dataset.cloudMotionActive === "true");
   await page.locator(".plot3d-control-tab", { hasText: "Precip" }).click();
   await page.getByRole("group", { name: "Precipitation", exact: true }).getByRole("button").first().click();
   await ready(1);
+  await resumeCloudMotionClock(page);
   expect(await page.locator(".plot3d-overlay-host").getAttribute("data-cloud-motion-active")).toBe("false");
   await page.getByRole("group", { name: "Precipitation", exact: true }).getByRole("button").first().click();
   await ready(1);
   await page.evaluate(() => window.__nimbusVtkHarness!.setStep(0)); await ready(0);
+  await armCloudMotionClock(page);
   await page.evaluate(() => window.__nimbusVtkHarness!.setStep(1));
   await page.waitForFunction(() => document.querySelector<HTMLElement>(".plot3d-overlay-host")?.dataset.cloudMotionActive === "true");
   const cameraBefore = (await page.evaluate(() => window.__nimbusVtkHarness!.captureAppearance()))!.evidence.camera;
   const canvas = (await page.locator(".volume-render__canvas canvas").boundingBox())!;
   await page.mouse.move(canvas.x + canvas.width * 0.5, canvas.y + canvas.height * 0.5);
   await page.mouse.down();
+  await resumeCloudMotionClock(page);
   await page.mouse.move(canvas.x + canvas.width * 0.5 + 20, canvas.y + canvas.height * 0.5, { steps: 4 });
   await page.mouse.up(); await ready(1);
   await assertExactTime(30);
@@ -144,6 +158,7 @@ test("cloud interpolation preserves endpoints, reports intermediate time, and re
 });
 
 test("graphics-context loss disables interpolation and restores exact saved frames", async ({ page }) => {
+  await installCloudMotionClock(page);
   await page.goto("/harness/index.html?fidelity=presentation");
   await page.waitForFunction(() => Boolean(window.__nimbusVtkHarness));
   await page.evaluate(() => window.__nimbusVtkHarness!.setSize(512, 384));
@@ -158,11 +173,13 @@ test("graphics-context loss disables interpolation and restores exact saved fram
   await page.locator(".plot3d-control-tab", { hasText: "Cloud" }).click();
   await page.evaluate(() => window.__nimbusVtkHarness!.setPlayback(true, false, 2500));
   await page.waitForTimeout(100);
+  await armCloudMotionClock(page);
   await page.evaluate(() => window.__nimbusVtkHarness!.setStep(1));
   await page.waitForFunction(() => document.querySelector<HTMLElement>(".plot3d-overlay-host")?.dataset.cloudMotionActive === "true");
   expect(await page.evaluate(() => window.__nimbusVtkHarness!.loseContext())).toBe(true);
   await expect(page.getByText("3D graphics context lost", { exact: false })).toBeVisible();
   await ready(1);
+  await resumeCloudMotionClock(page);
   await page.locator(".plot3d-control-tab", { hasText: "Cloud" }).click();
   await expect(page.getByRole("button", { name: "Saved frames", exact: true })).toHaveClass(/pill--active/);
   await page.locator(".plot3d-control-tab", { hasText: "Cloud" }).click();

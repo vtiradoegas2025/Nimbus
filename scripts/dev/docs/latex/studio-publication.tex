@@ -1,0 +1,169 @@
+\section{Exporting figures and recordings}
+\subsection{Choose the product to match the question}
+A screenshot is a view of pixels. A numeric export preserves values and shape.
+A recipe records how a view or analysis was requested. A complete reproducible
+experiment also needs the source data, executable/configuration identity and
+scientific inputs. These products complement one another; none silently
+substitutes for all the others.
+
+Plotly's figure controls provide image export for applicable figures. Python
+numeric results support NPY and bounded CSV export; CSV is deliberately limited
+because a large text expansion can consume much more memory than the array and
+cannot represent arbitrary dimensionality without a declared layout. NPY
+remains a supported numeric export. Use the native application for filesystem
+save operations and retain meaningful filenames, units and source context.
+
+\subsection{Exact-frame recording}
+The Studio recorder offers GIF, MP4, current-frame PNG and portable HTML
+viewpoints where the active renderer supports the required capture. The main
+recording gate currently tracks exact rendered identities for Slice, Vector
+field, Volume, Isosurface, Streamlines and Rendered supercell. The button is
+disabled when the selected frame has not completed or when the active view lacks
+that contract. Comparison, ensemble, investigation and research workspaces have
+their own publication paths rather than borrowing an unrelated plot's receipt.
+
+Recording selects saved-frame bounds, an output rate and a saved-frame stride.
+The recorder advances to each selected frame, waits for its exact completed
+identity and captures it. It does not obtain scientific correctness by sleeping
+for an arbitrary fixed interval and assuming the renderer caught up. If the
+source changes, the required frame is unavailable or preparation fails, the
+capture operation reports the failure instead of silently repeating stale pixels.
+
+GIF encoding is bounded: the current implementation limits encoded output to
+32 MiB, 2,000 frames and a $4096\times2160$ pixel budget per frame. These are
+application safeguards, not recommended scientific resolutions. Shorter ranges,
+larger saved-frame strides or smaller figures can make an export fit. MP4 uses
+an available FFmpeg executable, optionally selected in Settings; it is not
+provided by choosing a solver GPU backend.
+
+Portable HTML viewpoints package a finite set of captured views for another
+reader to rotate among. They are not a live arbitrary-camera volume viewer or
+the original three-dimensional simulation data. They are useful when the
+recipient needs an accessible visual explanation without installing Studio,
+provided the discretized viewpoint and source assumptions are retained.
+
+\subsection{Capture must preserve appearance as well as time}
+The frame receipt binds publication and step. A three-dimensional capture also
+needs its camera, sampling and appearance settings. Lighting-only redraws
+refresh the committed material description after success while preserving the
+scientific endpoint. A changed shadow depth, fill tint or other material setting
+must not export new pixels with a previous lighting recipe.
+
+Legends, floors, annotations and source disclosures are part of the explanatory
+image. The capture path must wait for their corresponding scene state rather
+than collecting whichever DOM elements happen to exist when an asynchronous
+canvas read finishes. Before sharing a figure, verify that its units, saved
+time, color limits and sampling disclosure describe the claim made in its caption.
+
+\section{Remote computation and remote workspaces}
+\subsection{Run remotely, inspect locally}
+The direct SSH compute workflow launches Nimbus on a named Linux connection.
+The viewing computer needs OpenSSH. The remote node needs Python 3.8 or newer,
+the selected Nimbus executable with the current catalog contract and an existing
+writable work directory. Set up key authentication and host-key trust with the
+SSH client first; Studio does not provide password or first-host-trust prompts.
+
+Save a connection in \textbf{Settings → Compute nodes} using an SSH alias or
+\texttt{user@host}, an absolute executable path and an absolute work directory.
+Check connection verifies the executable and catalog. Each configuration begins
+with \textbf{This computer} selected; choosing a saved node makes validation,
+preflight, checkpoint inspection and launch operate on that target. Removing or
+changing the selected connection cannot silently redirect a launch locally.
+
+Optional input mappings stage local files into a job's private directory at
+relative paths used by its YAML. Existing absolute mappings under the configured
+remote work directory are verified against the local input rather than
+overwritten. The staged YAML bytes are preserved. This prevents a successful
+remote launch from quietly using a different file merely because its basename
+matches an input on the viewing machine.
+
+Confirmed completed, failed and stopped histories are received into the local
+Runs directory for plotting and continuation. \emph{Receiving results} is a
+separate phase, with cancellation for the transfer. A received frame is published
+only after its files pass byte-count and SHA-256 checks. Transfer failure does
+not erase the remote files. This workflow does not provide live streaming of
+remote frames into the local viewer.
+
+\subsection{Session ownership is deliberate}
+Direct SSH runs belong to the active Studio session. Keep the viewer awake and
+connected while a run is active. Quitting or losing the connection retires the
+remote job through its ownership lease. This is not a detached batch-scheduler
+submission workflow. An unreachable node produces an explicit error; a stop
+whose outcome cannot be confirmed is reported as unconfirmed and offers retry
+when connectivity returns.
+
+A successful local Stop request is not proof that a remote process terminated.
+The distinction matters when reconnecting or deciding whether another run may
+use the same resources. Studio reports confirmation state rather than assume
+that a network interruption implies either continued execution or completed
+termination.
+
+\subsection{A remote desktop is a separate feature}
+Remote workspaces forward an existing remote browser-accessible service through
+an owned SSH tunnel and open its local URL. The connection specifies host, port
+and a validated URL path. Studio checks that the remote service responds; it
+does not install that service or provision a remote desktop on demand.
+
+Disconnecting this tunnel closes the viewing transport. Jobs managed within the
+remote desktop remain governed by that remote environment. This differs from
+the session-owned direct compute workflow above, whose launch and termination
+leases are part of Studio's process contract. Choose the workflow according to
+the intended owner of the remote processes, not merely because both use SSH.
+
+\section{Diagnosing a problem without changing the science}
+Start from the observed symptom and identify its owner. An I/O admission error,
+a missing field, an unavailable graphics capability and a scientific runtime
+rejection need different repairs. Repeatedly increasing unrelated limits can
+hide the useful signal while increasing memory pressure.
+
+\begin{longtable}{@{}p{0.29\textwidth}p{0.65\textwidth}@{}}
+\toprule
+Observed state & Interpretation and useful next action\\
+\midrule
+\endhead
+Empty Runs or Open data on first launch & Expected without saved simulations.
+Open a supported history or prepare a validated run. Opening the application
+does not generate a demonstration storm.\\[0.6em]
+No data to plot after deselection & Expected empty selection. Choose a field;
+do not edit the output configuration solely because a field is off.\\[0.6em]
+Field or plot unavailable & Inspect available fields, rank, units and required
+geometry. A 2-D product cannot satisfy a 3-D view, and missing physical coordinates
+must not be replaced by invented metre axes.\\[0.6em]
+I/O request exceeds limit & Inspect the required bytes and active I/O setting.
+Apply an admissible larger limit or reduce the source window. Applicable reads
+retry after the changed budget is applied.\\[0.6em]
+Reads waiting for memory & Other native reads own reservations. Wait, cancel
+unused requests or adjust concurrency. A queue is different from a single
+request that can never fit.\\[0.6em]
+3-D scene is blank or faint & Check source support, finite values, opacity,
+threshold, camera and graphics error state. Use a scalar slice to distinguish
+absent data from a view that makes them transparent or occluded.\\[0.6em]
+Blocky appearance at zoom & Inspect native spacing and sampling disclosure.
+Refine a bounded view where supported. Smooth display can improve shading but
+cannot create source resolution or fill missing support.\\[0.6em]
+Selected time differs from image & Preparation is still running or failed.
+Read the displayed-frame status; exact capture remains unavailable until the
+selected publication is drawn.\\[0.6em]
+Recording is disabled & The active view may lack exact-frame reporting, or its
+frame is not complete. Use its supported figure/package export rather than
+treat an arbitrary canvas as a verified recorder source.\\[0.6em]
+MP4 encoder unavailable & Check FFmpeg discovery or its explicit path preference.
+GIF and PNG have different requirements and limits.\\[0.6em]
+Graphics context loss & Allow the owned scene to reconstruct; only a completed
+restored render is current. Persistent failure needs inspection of scene size,
+driver/webview and the reported graphics backend.\\[0.6em]
+Remote termination unconfirmed & Restore connectivity and retry Stop. Do not
+infer process termination from a broken network connection.\\[0.6em]
+Python package import failure & Check the pinned Pyodide package path, network
+availability and WebAssembly compatibility. A system-Python package installation
+does not automatically populate the embedded runtime.\\
+\bottomrule
+\end{longtable}
+
+A useful defect report includes application/source revision, operating system
+and architecture, active graphics API, field format, domain shape, selected
+plot and layers, source/frame identity, exact error text, preferences and a
+small reproducible input where possible. Record whether the problem occurs on
+initial load, after changing a field, during playback or during export. These
+details locate the failing ownership transition more effectively than a lone
+screenshot of an empty canvas.

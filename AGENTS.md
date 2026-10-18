@@ -28,13 +28,14 @@ process/output interfaces. Studio rendering is separate from solver compute.
   historical reference is not a receipt qualifying the current executable.
 - `configs/` contains public configuration. `scripts/` and `mk/` contain build,
   provisioning, validation and release automation.
-- `docs/` contains reader-facing Markdown guides and the mathematics and
-  architecture PDFs. Their editable LaTeX sources, figures and source/PDF hash
-  manifest live in `scripts/dev/docs/latex/`.
+- `docs/` contains reader-facing Markdown guides and the mathematics,
+  architecture and Studio PDFs. Their editable LaTeX sources, figures and
+  source/PDF hash manifest live in `scripts/dev/docs/latex/`.
 
 Start with [README.md](README.md), [docs/BUILDING.md](docs/BUILDING.md),
-[CONTRIBUTING.md](CONTRIBUTING.md), [the mathematics guide](docs/MATHEMATICS.pdf)
-and [the architecture guide](docs/ARCHITECTURE.pdf). Consult
+[CONTRIBUTING.md](CONTRIBUTING.md), [the mathematics guide](docs/MATHEMATICS.pdf),
+[the architecture guide](docs/ARCHITECTURE.pdf) and
+[the Studio guide](docs/STUDIO.pdf). Consult
 [the namelist](docs/NAMELIST.md) for the complete strict-v1 configuration and
 legacy-reader inventory. Read the nearest module
 README and the actual implementation before changing a scientific assumption.

@@ -1,0 +1,183 @@
+\section{Comparison and the research workspace}
+\subsection{Comparing datasets without losing their identities}
+Comparison views bring scalar slices, composites, vectors, volumes and metric
+series into a common workspace. Their useful starting point is an explicit
+alignment decision: which saved times are paired, which physical region is
+compared, whether units agree and whether the selected operation requires equal
+grid geometry. Keep each dataset's identity in the resulting publication.
+
+Cellwise subtraction requires a compatible common representation. A difference
+between two native cells at different physical locations has no automatic
+interpretation. Ensemble statistics similarly require a declared membership,
+time alignment and missing-data policy. The number of finite contributing
+members can be as important as a mean or spread.
+
+For unequal grids, the research Resolution studies view offers native-grid
+response statistics rather than pretending that arbitrary cells correspond.
+This can answer how a distribution or threshold volume changes across
+experiments without silently interpolating every member onto one mesh. It does
+not replace a controlled convergence study with matching physics, domains,
+initial conditions and sampling intervals.
+
+\subsection{Research views are explicit analysis recipes}
+The research workspace provides seven linked analysis tabs. It stores the
+selected source, saved frame, parameters, titles, citations, bookmarks and view
+ranges in a recipe. Running an analysis produces panels, numerical tables and
+notes describing what was computed. Changing settings makes an old result
+non-current until the analysis is run again. Publication waits for the current
+panels to finish rendering.
+
+These views should be read with their displayed notes and exported tables.
+Their labels do not establish a complete physical attribution. In particular,
+an observed feature, a threshold classification and a dynamically closed budget
+are different scientific claims. The retained recipe states the calculation;
+independent interpretation still belongs to the researcher.
+
+\begin{longtable}{@{}p{0.22\textwidth}p{0.72\textwidth}@{}}
+\toprule
+View & Implemented analysis and important interpretation\\
+\midrule
+\endhead
+Linked sections & A plan locator, a chosen transect, linked scalar sections and
+profiles. Endpoint and probe choices define what is sampled. A 3-D context panel
+locates the section; it does not add unmeasured structure.\\[0.6em]
+Environment & Profile overlays, current-minus-reference profiles, soundings and
+Earth-relative or explicitly storm-relative hodographs. Layer summaries retain
+finite coverage and the source columns used.\\[0.6em]
+Parcel cohorts & Filters on first and last saved heights, displayed parcel paths,
+selected-parcel histories and integrals of saved tendency terms. ``Origin'' means
+first finite saved position, not an inferred air-mass source.\\[0.6em]
+Cold pools & A declared anomaly threshold, native-level footprint, distributions,
+linked section and optional history of threshold area and anomaly. Threshold and
+selected level are part of the definition.\\[0.6em]
+Pressure & Linked pressure and vertical-motion sections. These views do not by
+themselves perform a pressure-Poisson decomposition or establish force closure.\\[0.6em]
+Hydrometeors / radar & Height--frequency distributions, conditional profiles,
+joint distributions and available precipitation histories. Masks, bins, units
+and finite counts remain explicit.\\[0.6em]
+Resolution studies & Native-grid distributions, responses against declared
+resolution, physical threshold volumes where geometry supports them, and saved
+time histories. No unequal-grid cellwise subtraction is invented.\\
+\bottomrule
+\end{longtable}
+
+\subsection{Counts, weights and physical measures}
+A histogram of native cells weights each admitted cell once. A physical volume
+weights each cell by its saved physical volume. A hydrometeor mass additionally
+needs the correct density carrier and mixing-ratio units. These are different
+quantities even when their curves look similar. On a stretched grid, many small
+cells can dominate a count while contributing little physical volume.
+
+For a mixing ratio $q$ per unit dry-air mass, the inventory over cells is
+\begin{equation}
+ M=\sum_i \rho_{d,i}\,V_i\,q_i.
+\end{equation}
+Replacing dry density $\rho_d$ with another density convention changes this
+definition. If exact volumes or the required carrier are unavailable, an
+analysis cannot claim this inventory merely by summing the array. Research
+results report unavailable physical measures and retain finite, missing and
+masked sample counts rather than converting missing data to zeros.
+
+Resolution comparisons admit whole cells by their saved centers within the
+selected common physical box. Boundary cells are not partially clipped.
+Nominal cell length, such as $(\Delta x\Delta y\Delta z)^{1/3}$, is descriptive
+for a stretched mesh rather than a complete characterization of its resolution.
+Saved times match within an explicit tolerance; the analysis retains actual
+member times and does not manufacture temporal interpolation.
+
+\subsection{Parcel attribution has a finite information budget}
+The parcel analysis trapezoid-integrates the saved tilting, stretching and
+baroclinic terms at the saved parcel cadence. Gaps and non-increasing times break
+the integral; a new finite segment starts from zero. Comparing this integral
+with observed vorticity change is informative, but three saved terms do not
+establish a complete vorticity budget. Unsaved forces, mixing terms and behavior
+between output times are not reconstructed.
+
+Interactive parcel analysis retains at most 64 MiB of saved values. Larger
+histories need a bounded parcel export for this path. The overview can thin
+displayed paths and saved samples while retaining the stated cohort definition
+for its summaries. The notes disclose these display strides so a sparse drawing
+cannot be mistaken for the complete set of selected parcels.
+
+\subsection{Publishing a research result}
+A research figure package contains PNG panels, a recipe, numerical CSV tables
+and SHA-256 provenance. The export binds the current result and view settings;
+changing them during publication invalidates the in-progress export. Restoring
+a recipe verifies its source bindings and requires the referenced saved frame.
+It restores the calculation request, then runs the analysis against the exact
+available source data; it does not certify a stale image as a new result.
+
+\section{Python and derived fields}
+\subsection{A Python runtime inside the application}
+The Python workspace uses Pyodide in a worker. It is a WebAssembly Python runtime
+with its own memory and package environment, not the system Python executable.
+NumPy and Matplotlib are preloaded; the pinned runtime has a package catalog for
+additional scientific libraries. A package being known to the catalog is
+different from it already being loaded, cached or usable without network access.
+Pure-Python package installation can work through micropip; arbitrary native
+desktop wheels are not interchangeable with Pyodide packages.
+
+Scripts can use bound field arrays, numeric results and Matplotlib figures.
+The workspace supports cells, saved source, output, completion and traceback
+presentation. Field references bind data from the selected dataset and frame.
+The script's operations and assumptions remain the author's responsibility:
+the application can validate shape and source identity, but it cannot infer that
+an arbitrary formula has the intended atmospheric meaning.
+
+Stopping an analysis must prevent late results from replacing the active result.
+Some stop paths retire or reset the worker; preserve useful scripts rather than
+rely on in-memory Python globals as permanent storage. A persistent workspace
+recipe or exported script is more reproducible than an undocumented sequence of
+interactive assignments.
+
+\subsection{Units and coordinate bindings}
+Use \texttt{coordinate\_units} with \texttt{x\_coordinates},
+\texttt{y\_coordinates} and \texttt{z\_coordinates} to inspect the grid's actual
+axes. The convenience arrays \texttt{x\_m}, \texttt{y\_m} and \texttt{z\_m}
+contain only physical metre coordinates; an unavailable physical axis is empty.
+Cylindrical angles are available as \texttt{theta\_rad}. Index-only geometry
+remains in index units. Terrain levels remain model-level indices unless the
+loading path explicitly remaps them to physical height.
+
+The \texttt{dataset()} helper preserves these units and supplied scalar
+coordinates, including nonuniform spacing and translated origins. Inspect them
+before computing a derivative or integral. A finite-difference expression using
+one nominal spacing is not generally valid on a nonuniform or mapped grid.
+Likewise, a gradient of a cell-centered scalar and a face-centered velocity
+require compatible location and metric conventions.
+
+\subsection{Full numeric result versus bounded preview}
+The Python workspace retains the full supported numeric result for export.
+A large array plot uses a bounded preview and refines the visible samples when
+zooming. This separates the amount of data drawn from the array actually
+computed. Heatmap colors retain the full result's finite range across zooms so
+that changing the viewport does not silently redefine the colors.
+
+The preview remains limited by the result's real sample spacing. It cannot
+reconstruct values discarded by a script or increase the scientific resolution
+of a coarse calculation. Matplotlib figures follow the author's plotting and
+sampling decisions instead of the automatic numeric-array preview policy.
+
+Numeric-array export and image export are therefore different products. Use
+numeric export when another analysis needs the values; use a figure when the
+intended product is the visual explanation. Preserve coordinates, units and
+script provenance with numeric results so shape alone is not their only meaning.
+
+\subsection{Built-in, expression and external derived fields}
+Derived fields extend the available data without rewriting the solver output.
+Built-in diagnostics use registered input and unit requirements. Expression
+fields evaluate an explicit formula over admitted inputs. They inherit the
+source's time and geometry; combining arrays of the same length is not sufficient
+if their publications or locations differ.
+
+The external-provider interface adds explicit definitions, input aliases,
+expected units, output shape policy, source identity and permission requirements.
+A Python provider runs only after its source digest and permissions are checked.
+An enabled definition makes it catalog-visible; it does not bypass a missing
+input, unit disagreement or unavailable runtime. Provider results retain their
+provenance so a field is not presented as a native solver export.
+
+Native-plugin provider declarations remain unavailable until a compatible host
+adapter is connected. The presence of their schema or management controls is
+not a functioning native execution path. This is separate from the local Python
+snippet discovery feature, which lists scripts for use in the Python workspace.

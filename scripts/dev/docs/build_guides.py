@@ -13,7 +13,8 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[3]
-GUIDES = {'mathematics': 'MATHEMATICS.pdf', 'architecture': 'ARCHITECTURE.pdf'}
+GUIDES = {'mathematics': 'MATHEMATICS.pdf', 'architecture': 'ARCHITECTURE.pdf',
+          'studio': 'STUDIO.pdf'}
 
 
 def identity(path: Path) -> str:

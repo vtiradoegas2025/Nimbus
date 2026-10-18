@@ -26,7 +26,7 @@ Usage: bash scripts/build_native_app.sh [options]
   -h, --help     Show this message.
 
 On macOS, this builds pinned runtime libraries and a portable simulator for
-macOS 11 before bundling. NIMBUS_MACOS_RUNTIME_WORK selects the dependency cache;
+macOS 12 before bundling. NIMBUS_MACOS_RUNTIME_WORK selects the dependency cache;
 NIMBUS_BUILD_JOBS sets its build worker count (default 8).
 On other platforms the simulator must already exist at ../bin/nimbus_sim.
 USAGE
@@ -99,7 +99,7 @@ if [[ "$PLATFORM" == "macos" ]]; then
         echo "The verified macOS runtime must be assembled as an app before creating other release containers." >&2
         exit 1
     }
-    export MACOSX_DEPLOYMENT_TARGET=11.0
+    export MACOSX_DEPLOYMENT_TARGET=12.0
     RUNTIME_WORK="${NIMBUS_MACOS_RUNTIME_WORK:-$ROOT_DIR/build/macos-runtime}"
     BUILD_JOBS="${NIMBUS_BUILD_JOBS:-8}"
     python3 "$ROOT_DIR/scripts/dependencies/build_macos_runtime.py" \
@@ -112,7 +112,7 @@ if [[ "$PLATFORM" == "macos" ]]; then
         exit 1
     }
     make -C "$ROOT_DIR" -j"$BUILD_JOBS" PORTABLE=1 DISTRIBUTION=1 REQUIRE_FULL_STACK=1 \
-        MACOSX_DEPLOYMENT_TARGET=11.0 BUILDDIR=build/macos-release BIN=bin/nimbus_sim_macos \
+        MACOSX_DEPLOYMENT_TARGET=12.0 BUILDDIR=build/macos-release BIN=bin/nimbus_sim_macos \
         LIBOMP_PATH="$RUNTIME_PREFIX" ZFP_PREFIX="$RUNTIME_PREFIX" \
         NETCDF_CONFIG="$RUNTIME_PREFIX/bin/nc-config"
     cp "$ROOT_DIR/bin/nimbus_sim_macos" "$SIMULATOR"
@@ -197,7 +197,7 @@ validate_embedded_payload()
         return 1
     fi
     python3 "$SCRIPT_DIR/macos_runtime.py" verify --app "$app" \
-        --simulator "$SIMULATOR" --minimum-macos 11.0
+        --simulator "$SIMULATOR" --minimum-macos 12.0
 }
 
 strip_unsealed_bundle_metadata()
@@ -215,7 +215,7 @@ strip_unsealed_bundle_metadata()
 validate_bundle "$SOURCE_APP" "$UI_DIR/src-tauri/target/release/bundle/macos"
 python3 "$SCRIPT_DIR/macos_runtime.py" prepare --app "$SOURCE_APP" \
     --simulator "$SIMULATOR" --runtime-prefix "$RUNTIME_PREFIX" \
-    --extra-library "$MOLTENVK_PREFIX/lib/libMoltenVK.dylib" --minimum-macos 11.0
+    --extra-library "$MOLTENVK_PREFIX/lib/libMoltenVK.dylib" --minimum-macos 12.0
 ditto "$RUNTIME_PREFIX/share/nimbus-runtime-licenses" "$SOURCE_APP/Contents/Resources/runtime-licenses"
 mkdir -p "$SOURCE_APP/Contents/Resources/runtime-licenses/MoltenVK"
 cp "$MOLTENVK_PREFIX/LICENSE" "$SOURCE_APP/Contents/Resources/runtime-licenses/MoltenVK/LICENSE"

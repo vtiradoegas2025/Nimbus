@@ -14,9 +14,13 @@ The source setup scripts provide Homebrew, Debian/Ubuntu, Fedora and Arch
 package-manager routes. Windows setup selects an architecture-native MSYS2 and
 Rust stack. The project does not target 32-bit CPUs or mobile products.
 
-The macOS packaging minimum is 11.0, but that deployment setting does not prove
-runtime or WebView acceptance on macOS 11. Native library dependencies and
-actual installed-application tests are required. Intel, ARM64 and x86-64 builds
+The macOS packaging minimum is 12.0, matching the pinned MoltenVK 1.4.2 runtime's
+[upstream deployment target](https://github.com/KhronosGroup/MoltenVK/blob/v1.4.2/MoltenVK/MoltenVK.xcodeproj/project.pbxproj).
+That setting does not prove runtime or WebView acceptance on macOS 12. The
+package verifier checks the deployment metadata of bundled Mach-O files;
+actual installed-application tests are still required. A standalone solver's
+lower source-build target does not lower the desktop package's dependency floor.
+Intel, ARM64 and x86-64 builds
 must each be tested as the architecture they claim; emulation is separate
 information. Hardware-specific performance claims require measurements on that
 hardware and configuration.

@@ -811,7 +811,7 @@ KERNEL_OWNERSHIP_METAL_HEADERS := metal/src/compute/internal/metal_source_catalo
     $(wildcard metal/include/compute/metal/shaders/*.hpp metal/include/compute/metal/shaders/*/*.hpp)
 
 bin/nimbus_kernel_ownership: tests/compute/kernel_ownership_main.cpp tests/compute/support/kernel_ownership_catalog.cpp tests/compute/support/parity_registry.cpp tests/compute/support/parity_registry_microphysics_anchors.cpp src/compute/kernel_manifest.cpp $(KERNEL_OWNERSHIP_METAL_HEADERS) | bin
-	$(CXX_COMPILE) $(TEST_CXXFLAGS) $(CPPFLAGS) -I metal/src $(filter %.cpp,$^) $(LDLIBS) -o $@
+	$(CXX_COMPILE) $(TEST_CXXFLAGS) $(CPPFLAGS) -I metal/src -I metal/include $(filter %.cpp,$^) $(LDLIBS) -o $@
 
 # Vulkan implementation tests
 bin/test_vulkan_startup_plan: tests/test_main.cpp tests/vulkan/test_kernel_startup_plan.cpp tests/vulkan/test_kernel_startup_profile_loader.cpp src/compute/kernel_manifest.cpp src/init/config/v1_loader.cpp $(CONFIG_CODEC_SRCS) src/core/runtime/yaml_helpers.cpp src/core/infra/coordinate_system.cpp $(TEST_HDRS) $(TEST_FLAGS_STAMP) | bin

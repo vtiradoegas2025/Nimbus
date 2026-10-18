@@ -632,16 +632,23 @@ TEST_CASE("parity registry lists every compute shader", "[compute][parity]")
             const std::string shader = e.shader;
             REQUIRE((
                 shader == "dynamics/acoustic_bc_face_cartesian_cgrid.comp" ||
+                shader == "dynamics/conservative_reduction.comp" ||
                 shader == "acoustic/acoustic_continuity_massflux_cartesian_agrid.comp" ||
-                shader == "diffusion/diffusion.comp" || shader == "diffusion/implicit_diffusion_stencil.comp" ||
+                shader == "acoustic/acoustic_retained_flux_fp64.comp" || shader == "diffusion/diffusion.comp" ||
+                shader == "diffusion/implicit_diffusion_stencil.comp" ||
                 shader == "diffusion/implicit_diffusion_vector.comp" || shader == "turbulence/tke_closure.comp" ||
                 shader == "turbulence/tke_tendency.comp" ||
                 shader == "microphysics/thompson_moment_sedimentation.comp" ||
                 shader == "microphysics/thompson_cloud_adjustment.comp" ||
                 shader == "microphysics/thompson_warm_rain.comp" || shader == "microphysics/milbrandt_warm_rain.comp" ||
                 shader == "microphysics/milbrandt_cloud_adjustment.comp" ||
-                shader == "microphysics/milbrandt_cold.comp" || shader == "time_stepping/rk_combination.comp" || shader == "time_stepping/rk_tendency.comp" || shader == "boundary_layer/slab_column.comp" || shader == "radiation/simple_grey.comp" || shader == "terrain/held_sources.comp" || shader == "terrain/column_remap.comp" || shader == "terrain/reference_atmosphere.comp" || shader == "terrain/moving_energy.comp" || shader == "terrain/moving_momentum.comp" || shader == "terrain/earth_geometry.comp" || shader == "terrain/conservative_remap.comp" || shader == "turbulence/collocated_sgs.comp" ||
-                shader == "microphysics/milbrandt_sedimentation.comp" ||
+                shader == "microphysics/milbrandt_cold.comp" || shader == "time_stepping/rk_combination.comp" ||
+                shader == "time_stepping/rk_tendency.comp" || shader == "boundary_layer/slab_column.comp" ||
+                shader == "radiation/simple_grey.comp" || shader == "terrain/held_sources.comp" ||
+                shader == "terrain/column_remap.comp" || shader == "terrain/reference_atmosphere.comp" ||
+                shader == "terrain/moving_energy.comp" || shader == "terrain/moving_momentum.comp" ||
+                shader == "terrain/earth_geometry.comp" || shader == "terrain/conservative_remap.comp" ||
+                shader == "turbulence/collocated_sgs.comp" || shader == "microphysics/milbrandt_sedimentation.comp" ||
                 shader == "microphysics/milbrandt_melting.comp" || shader == "microphysics/thompson_cloud_phase.comp" ||
                 shader == "microphysics/thompson_freezing.comp" || shader == "microphysics/thompson_deposition.comp" ||
                 shader == "microphysics/thompson_completion.comp" ||
@@ -649,7 +656,6 @@ TEST_CASE("parity registry lists every compute shader", "[compute][parity]")
                 shader == "chaos/earth_control_evolution.comp" ||
                 shader == "acoustic/acoustic_pressure_eos_cartesian_agrid.comp" ||
                 shader == "acoustic/acoustic_momentum_cartesian_agrid.comp" ||
-                shader == "acoustic/acoustic_null_mode_constraint_cartesian_agrid.comp" ||
                 shader == "acoustic/acoustic_boundary_cartesian_agrid.comp" ||
                 shader == "terrain/mapped_mass_continuity.comp" || shader == "terrain/mapped_fast_momentum.comp" ||
                 shader == "terrain/mapped_slow_tendencies.comp" || shader == "terrain/mapped_scalar_update.comp" ||
@@ -671,17 +677,15 @@ TEST_CASE("parity registry lists every compute shader", "[compute][parity]")
     // Two Thompson shaders and the removed transport point filter are
     // compiled provenance artifacts but never wired into execution.
     REQUIRE(orphans == 3);
-    // The model is Cartesian-only. Every constructible compute operation has
-    // both physical Vulkan and Metal coverage.
     REQUIRE(active > 0);
     REQUIRE(deferred == 0);
     // Boundary ownership, native diffusion, recycling, and mapped state/flux
     // transactions are compared over the complete field.
-    REQUIRE(full_field == 50);
+    REQUIRE(full_field == 52);
     REQUIRE(runtime_covered > 0);
     REQUIRE(hardware_covered > 0);
-    REQUIRE(metal_hardware_covered == active);
-    REQUIRE(accumulated_horizon == 8);
+    REQUIRE(metal_hardware_covered + 1 == active);
+    REQUIRE(accumulated_horizon == 9);
 
     const auto find_shader = [&](const char* shader) -> const par::ParityEntry& {
         const auto it = std::find_if(reg.begin(), reg.end(), [&](const auto& e) {
@@ -747,4 +751,39 @@ TEST_CASE("active parity entries cannot lose all coverage",
     REQUIRE(reason != nullptr);
     REQUIRE(std::string(reason) ==
             "active parity entry needs runtime or hardware coverage");
+}
+
+TEST_CASE("FP64 retained-flux coverage keeps the Vulkan-only boundary explicit", "[compute][parity][coverage]")
+{
+    auto       entries = par::registry();
+    const auto fp64    = std::find_if(
+        entries.begin(),
+        entries.end(),
+        [](const auto& entry) { return std::string(entry.shader) == "acoustic/acoustic_retained_flux_fp64.comp"; });
+    REQUIRE(fp64 != entries.end());
+    REQUIRE(fp64->coverage.required_hardware == par::RequiredHardware::Vulkan);
+    REQUIRE(fp64->coverage.metal_hardware_test == nullptr);
+    REQUIRE(std::string(fp64->coverage.hardware_test) == "tests/vulkan/test_acoustic_input_reuse.cpp");
+    REQUIRE(par::validate_registry(entries));
+
+    SECTION("the FP64 helper cannot claim Metal coverage")
+    {
+        fp64->coverage.metal_hardware_test = "tests/metal/test_metal_compute_backend.cpp";
+        REQUIRE_FALSE(par::validate_registry(entries));
+    }
+    SECTION("other kernels cannot drop their Metal requirement")
+    {
+        const auto shared =
+            std::find_if(entries.begin(),
+                         entries.end(),
+                         [](const auto& entry)
+                         {
+                             return entry.status == par::ShaderStatus::Active &&
+                                    entry.coverage.required_hardware == par::RequiredHardware::VulkanAndMetal;
+                         });
+        REQUIRE(shared != entries.end());
+        shared->coverage.required_hardware   = par::RequiredHardware::Vulkan;
+        shared->coverage.metal_hardware_test = nullptr;
+        REQUIRE_FALSE(par::validate_registry(entries));
+    }
 }

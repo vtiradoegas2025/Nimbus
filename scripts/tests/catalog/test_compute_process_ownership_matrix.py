@@ -13,6 +13,7 @@ import subprocess
 ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_BINARY = ROOT / "bin/nimbus_sim"
 QUALIFICATION = ROOT / "tests/fixtures/configs/qualification"
+EXPECTED_FIXTURE_COUNTS = {"vulkan": 186, "metal": 182}
 
 SCHEMES = {
     "dynamics": (
@@ -50,11 +51,16 @@ GPU_DEVICE = {
     ("diffusion", "explicit"),
     ("diffusion", "implicit"),
     ("time_stepping", "split_explicit"),
+    ("time_stepping", "rk3"),
+    ("time_stepping", "rk4"),
     ("microphysics", "kessler"),
     ("microphysics", "lin"),
     ("microphysics", "thompson"),
+    ("microphysics", "milbrandt"),
+    ("radiation", "simple_grey"),
     ("radiation", "rrtmg"),
     ("boundary_layer", "mynn"),
+    ("boundary_layer", "slab"),
     ("turbulence", "smagorinsky"),
     ("turbulence", "tke"),
     ("terrain", "bell"),
@@ -63,19 +69,13 @@ GPU_DEVICE = {
 
 GPU_HOST = {
     ("advection", "tvd"),
-    ("radiation", "simple_grey"),
-    ("boundary_layer", "slab"),
     ("boundary_layer", "ysu"),
     ("chaos", "initial_conditions"),
     ("chaos", "boundary_layer"),
     ("chaos", "full_stochastic"),
 }
 
-GPU_UNSUPPORTED = {
-    ("time_stepping", "rk3"),
-    ("time_stepping", "rk4"),
-    ("microphysics", "milbrandt"),
-}
+GPU_UNSUPPORTED: set[tuple[str, str]] = set()
 
 
 def sha256_file(path: Path) -> str:
@@ -160,8 +160,8 @@ def validate_process_matrix(matrix: dict[str, object]) -> dict[tuple[str, str, s
             f"missing={len(expected_identities - set(owners))}, "
             f"extra={len(set(owners) - expected_identities)}"
         )
-    summary = {"evaluated": 64, "supported": 61, "unsupported": 3}
-    if matrix.get("summary") != summary or supported != 61 or unsupported != 3:
+    summary = {"evaluated": 64, "supported": 64, "unsupported": 0}
+    if matrix.get("summary") != summary or supported != 64 or unsupported != 0:
         raise RuntimeError(f"compute process ownership summary drifted: {matrix.get('summary')}")
     return owners
 
@@ -239,6 +239,8 @@ def accelerator_fixtures(
             scheme = values.get(selection_path, default)
             if scheme is None:
                 raise RuntimeError(f"{path.name} omits required {selection_path}")
+            if module == "time_stepping" and scheme == "ssprk3":
+                scheme = "rk3"
             if scheme not in SCHEMES[module]:
                 raise RuntimeError(f"{path.name} selects unknown {module} scheme {scheme}")
             owner = process_owners[(module, scheme, "gpu")]
@@ -273,7 +275,7 @@ def accelerator_fixtures(
         backend: sum(fixture["backend"] == backend for fixture in fixtures)
         for backend in ("vulkan", "metal")
     }
-    if len(fixtures) != 46 or backend_counts != {"vulkan": 25, "metal": 21}:
+    if len(fixtures) != sum(EXPECTED_FIXTURE_COUNTS.values()) or backend_counts != EXPECTED_FIXTURE_COUNTS:
         raise RuntimeError(
             f"maintained accelerator fixture inventory drifted: total={len(fixtures)}, "
             f"backends={backend_counts}"
@@ -313,11 +315,11 @@ def main() -> int:
             "maintainedAcceleratorFixtures": fixtures,
             "summary": {
                 "processRecords": 64,
-                "supportedProcessRecords": 61,
-                "unsupportedProcessRecords": 3,
-                "acceleratorFixtures": 46,
-                "vulkanFixtures": 25,
-                "metalFixtures": 21,
+                "supportedProcessRecords": 64,
+                "unsupportedProcessRecords": 0,
+                "acceleratorFixtures": len(fixtures),
+                "vulkanFixtures": EXPECTED_FIXTURE_COUNTS["vulkan"],
+                "metalFixtures": EXPECTED_FIXTURE_COUNTS["metal"],
             },
         }
         temporary = output.with_name(output.name + ".tmp")
@@ -326,8 +328,9 @@ def main() -> int:
 
     print(
         "[compute-process-ownership] PASS: 64 descriptor-backed process records "
-        "(61 supported, 3 unsupported); 46 maintained accelerator fixtures "
-        f"bound (25 Vulkan, 21 Metal); binary_sha256={binary_sha256}"
+        f"(64 supported, 0 unsupported); {len(fixtures)} maintained accelerator fixtures "
+        f"bound ({EXPECTED_FIXTURE_COUNTS['vulkan']} Vulkan, {EXPECTED_FIXTURE_COUNTS['metal']} Metal); "
+        f"binary_sha256={binary_sha256}"
     )
     return 0
 

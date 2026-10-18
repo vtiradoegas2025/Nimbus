@@ -223,7 +223,11 @@ in its \href{https://gcc.gnu.org/onlinedocs/gcc/x86-Options.html}{x86 option
 reference}.
 
 On macOS, the build records a deployment target and distribution builds turn
-unguarded availability into errors. Windows and Linux require their own
+unguarded availability into errors. The desktop packaging route targets macOS
+12.0 to match the pinned MoltenVK runtime and checks bundled Mach-O deployment
+metadata. This floor is distinct from a standalone solver's source-build
+default and does not itself prove installed application or WebView acceptance
+on macOS 12. Windows and Linux require their own
 compiler/runtime dependencies and packaging checks. CPU-only, OpenMP-enabled
 and serial builds also differ in capability. A serial build rejects an
 explicit worker request greater than one instead of pretending that it
@@ -573,6 +577,8 @@ in the current Metal coverage contract; it is not secretly replaced by a
 Float32 kernel and called equivalent. Other scientific kernels use explicitly
 maintained compensated Float32 formulations. Availability of one family says
 nothing about an unrelated family's numerical requirements.
+
+\input{architecture-cuda-interop.tex}
 
 \input{architecture-multigpu.tex}
 

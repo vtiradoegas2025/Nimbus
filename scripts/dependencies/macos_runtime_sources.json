@@ -1,5 +1,5 @@
 {
-  "minimum_macos": "11.0",
+  "minimum_macos": "12.0",
   "components": {
     "libomp": {
       "version": "22.1.1",

@@ -140,7 +140,7 @@ std::string serialize_kernel_ownership_catalog_json()
         records << ",\"owners\":{\"cpu\":\"reference\",\"vulkan\":";
         append_json_string(records, is_active ? "device" : "unavailable");
         records << ",\"metal\":";
-        append_json_string(records, is_active ? "device" : "unavailable");
+        append_json_string(records, is_active && metal_library != nullptr ? "device" : "unavailable");
         records << "},\"cpuReference\":";
         append_json_string(records, kernel.cpu_reference);
         records << ",\"vulkan\":{\"artifact\":";

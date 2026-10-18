@@ -1,0 +1,249 @@
+\section{Vulkan and CUDA: existing assistance and a future hybrid}
+\label{architecture-cuda-interop}
+
+Nimbus can explore NVIDIA-specific computation without making NVIDIA hardware
+a prerequisite for its portable solver. There are two different technical
+routes: launching a limited PTX kernel from a Vulkan command buffer, which the
+source already implements for retained acoustic flux, and sharing explicit
+resources between Vulkan and the CUDA runtime, which would require additional
+engineering. Neither route establishes an arbitrary CUDA solver backend or
+multi-GPU domain decomposition.
+
+Performance work should examine a specific operation and the workload around
+it. CUDA may reduce the work required, provide a better implementation or make
+a suitable library available while preserving Nimbus's numerical and ownership
+contracts. Crossing an API boundary also adds dispatch and synchronization
+costs. Complete-step measurements must establish whether the combined design
+improves the actual simulation.
+
+\subsection{The narrow path already present in Nimbus}
+The strict-v1 selector \path{extensions.compute.cuda_assist} defaults to false
+and requires the Vulkan backend. It does not add \texttt{cuda} to the supported
+backend names. Its
+\href{../vulkan/include/compute/vulkan_cuda_kernel.hpp}{kernel owner}
+loads the retained-flux PTX module, obtains the function entry point and records
+its dispatch inside a Vulkan command buffer using
+\texttt{vkCmdCudaLaunchKernelNV}. The strict retained-flux path uses Vulkan
+buffer device addresses for its density, wind and flux buffers. The rest of the
+solver's scientific profile and native ownership requirements remain in force.
+
+Initialization checks the selected NVIDIA device, Vulkan extension availability,
+buffer-device-address support and the CUDA-launch feature. The current helper
+requires compute capability 7.5 or newer. Missing header/API support, unavailable
+entry points or module creation failure rejects that backend initialization.
+The general runtime can disclose a CPU recovery when the profile permits
+\path{extensions.compute.allow_fallback}; native-required execution must have
+effective fallback disabled. Merely requesting assist is therefore not proof of
+its execution. The active path logs the retained-flux PTX digest, and its manifest
+identity includes that digest.
+
+The readiness registry names this limited retained-flux capability separately.
+Its source and bounded evidence are not a statement that every operator can run
+through CUDA, that a long hardware campaign has passed, or that a broader hybrid
+has completed scientific review. The
+\href{https://docs.vulkan.org/refpages/latest/refpages/source/VK_NV_cuda_kernel_launch.html}{Khronos extension description}
+explains that this mechanism dispatches PTX through Vulkan without creating the
+usual Vulkan/CUDA context-interoperability path. It is a provisional,
+NVIDIA-specific extension, so driver and header availability remain part of
+admission and release maintenance.
+
+\subsection{A different future route: shared external resources}
+A more general hybrid could keep Vulkan as the owner of ordinary solver
+dispatch and use a CUDA runtime stream for a selected operation or library.
+The proposed first scope is one process, one physical NVIDIA GPU and explicitly
+shared buffers. It is not implemented by the existing assist flag. A future
+implementation would need a distinct, opt-in public capability and an exact
+supported profile before users could select it as a normal execution path.
+
+NVIDIA's
+\href{https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/graphics-interop.html}{Vulkan interoperability guide}
+describes importing exported memory and synchronization handles into CUDA on
+the same physical device, identified by matching device UUIDs. An ordinal such
+as device zero is insufficient because the two APIs can enumerate devices
+differently. On a laptop, Studio's webview may render on another adapter from
+the solver. This proposed sharing concerns solver allocations; it does not give
+the separate Studio process direct access to them.
+
+The aim would be to avoid a full device-to-host-to-device round trip around the
+selected operation. The shared allocation remains GPU-accessible while the two
+APIs exchange permission to use its current contents. ``Shared'' does not mean
+that both may write simultaneously or that a completed host API call proves
+the device work finished. A producer/consumer protocol is still necessary.
+
+\input{figures/architecture-cuda-interop.tex}
+
+\subsection{Admission must query the actual allocation contract}
+A proposed interop session would first identify the same physical device in
+both APIs and check the supported operating-system handle types. It would then
+query the intended resource, not just the device's marketing identity.
+Khronos's
+\href{https://docs.vulkan.org/refpages/latest/refpages/source/VkPhysicalDeviceExternalBufferInfo.html}{external-buffer query}
+includes the buffer's usage, creation flags and external handle type. The
+\href{https://docs.vulkan.org/refpages/latest/refpages/source/VkExternalMemoryProperties.html}{returned memory properties}
+describe export/import features and compatible handle types. A valid design
+must honor dedicated-allocation requirements as well as ordinary alignment and
+memory-type requirements.
+
+For Nimbus, the imported object's record would need allocation size, field byte
+range, element precision, strides, alignment, domain generation and owner. A
+suballocation offset cannot be dropped simply because two APIs refer to the
+same underlying memory. The CUDA import's dedicated-resource flag must agree
+with how Vulkan actually allocated the resource. CUDA buffer mappings and
+image mappings are different interfaces: a tiled image cannot be assumed to
+have a linear row layout merely because its logical shape matches a field.
+An initial buffer-only scope would reduce the number of layout assumptions
+that need to be proved.
+
+The
+\href{https://docs.nvidia.com/cuda/cuda-runtime-api/cuda_runtime_api/group__CUDART__EXTRES__INTEROP.html}{CUDA external-resource API reference}
+specifies mapping offsets and alignment, separate release of mapped buffers,
+and handle ownership. Successful opaque-FD imports transfer descriptor ownership
+to CUDA; ordinary Win32 NT handles retain application-managed handle lifetime.
+Outstanding semaphore operations must finish before their objects are destroyed.
+Nimbus would need separate unwind paths for failure before import, after import,
+after mapping and after submitted work, so an error does not leak an allocation
+or close a handle twice.
+
+An external-memory handle also does not make host access automatically coherent.
+If the selected policy maps the allocation on the CPU, the required noncoherent
+flush/invalidate operations and barriers still apply. The runtime API documents
+this requirement for CPU-mapped Vulkan memory. A host diagnostic or output
+writer needs a published, completed endpoint, just as it does in the existing
+Vulkan residency design.
+
+\subsection{Ordering two APIs without serializing the whole device}
+The proposed operation would have an explicit dependency chain: Vulkan produces
+the input range and releases the required ownership; an exported semaphore
+signals that endpoint; the CUDA stream waits, executes the selected operation
+and signals completion; Vulkan waits and reacquires the resource before its
+next consumer. The exact barriers, stage/access scopes and any image layouts
+must follow the resource type and external-ownership rules. The
+\href{https://docs.vulkan.org/spec/latest/chapters/synchronization.html}{Vulkan synchronization specification}
+distinguishes execution order, memory visibility and queue-family ownership.
+One of those requirements cannot stand in for all the others.
+Where the sharing contract requires external ownership transfer, the barrier
+uses the applicable external queue-family identity, such as
+\texttt{VK\_QUEUE\_FAMILY\_EXTERNAL}; a CUDA device ordinal is not a Vulkan
+queue-family index. Image layout and ownership must be tracked separately.
+
+The
+\href{https://docs.vulkan.org/refpages/latest/refpages/source/VkExternalSemaphoreProperties.html}{external-semaphore capability query}
+must admit the selected semaphore and handle type. Binary semaphores need a
+correct signal/wait reuse protocol; a timeline design additionally needs support
+for its exported handle and a consistent monotonically advancing value scheme.
+The CUDA guide describes both cases and their cross-API signal/wait ordering.
+For Nimbus, a timeline value would be associated with a concrete field generation
+and integrator stage rather than treated as an unexplained global counter.
+
+CUDA's asynchronous external-semaphore signal is ordered in its specified
+stream after earlier work in that stream. A library operation on another
+stream is not thereby complete. The hybrid owner would set the library's stream
+explicitly or insert the required cross-stream dependency before signaling.
+Similarly, submitting a Vulkan command buffer does not establish that the
+CUDA wait has completed. Full-device idle waits can provide a simple diagnostic
+baseline, but using them around every operation could erase the benefit of
+interoperability. Any later overlap optimization must retain the same dependency
+graph and failure semantics.
+
+\subsection{Which computations might justify the additional path?}
+Candidate work should be chosen from measured solver costs. A substantial
+well-defined numerical operation with stable input/output buffers is a better
+initial experiment than repeatedly switching APIs around tiny pointwise kernels.
+A batched operation can amortize launch and handoff overhead; a long sequence
+of small transfers can instead increase latency and duplicate scratch storage.
+
+NVIDIA provides
+\href{https://docs.nvidia.com/cuda/cublas/index.html}{cuBLAS} for dense linear
+algebra, \href{https://docs.nvidia.com/cuda/cusparse/index.html}{cuSPARSE} for
+sparse operations and \href{https://docs.nvidia.com/cuda/cufft/index.html}{cuFFT}
+for Fourier transforms. These are possible building blocks, not evidence that
+Nimbus currently needs or calls them. Mapping a stencil, column solve or
+diagnostic to a library routine is worthwhile only when its formulation,
+boundary conditions, precision and data-layout costs fit the actual algorithm.
+Introducing a spectral method, for example, changes more than the dispatch API
+if the original operation was not mathematically spectral.
+
+CUDA can also provide a useful development environment for a specialized
+kernel. That does not automatically make its generated arithmetic faster on
+the target GPU, nor remove the need to maintain the portable Vulkan, Metal and
+CPU implementations. The maintenance cost includes another compiler/runtime
+matrix, library versions, failure paths, scientific parity and hardware tests.
+A future optional path should leave builds without the CUDA toolkit functional.
+
+\subsection{Memory topology and multiple devices}
+The benefit of avoiding host round trips can be especially relevant when a
+discrete GPU has its own memory and a finite host interconnect. On a unified
+system, copies and synchronization still have measurable costs, and the two API
+contexts do not automatically share every allocation. Unified CPU/GPU memory,
+CUDA managed memory and explicitly exported Vulkan memory are distinct
+mechanisms. This NVIDIA-specific proposal does not establish CUDA support on
+Apple GPUs or turn ARM64 into a proxy for unified-memory behavior.
+
+Same-device resource sharing also does not establish peer access. Two installed
+GPUs need their own device identities, import/transfer capabilities, synchronization
+and ownership. An allocation imported for one device is not a promise that
+another device can use it. The
+\hyperref[architecture-multigpu]{multi-GPU proposal} adds physical-domain
+partitioning, halo exchange, reductions and continuation ownership beyond this
+single-device experiment. A CUDA-aware communication library would require
+evidence for the actual imported allocation and transport; its name alone does
+not validate arbitrary Vulkan buffers.
+
+\subsection{Scientific and failure-atomicity requirements}
+A future hybrid operation would consume the same stage, carrier, physical domain,
+boundary state and private moments as the existing owner. It would produce the
+same declared outputs and accounting. Duplicating only the main visible field
+while leaving a private reservoir or diagnostic on an old endpoint would not
+be an implementation of the original operation.
+
+Precision must be explicit across the boundary. NVIDIA's
+\href{https://docs.nvidia.com/cuda/floating-point/index.html}{floating-point
+white paper} explains why fused operations, intermediate rounding and reduction
+order can change results even with IEEE arithmetic. Nimbus would retain its
+declared storage and intermediate types, FMA contract, denormal behavior and
+reduction requirements. Library math modes or reduced-precision accelerators
+could not be enabled merely to obtain a faster timing. Any intentional numerical
+change would need its own scientific justification and tests.
+
+Tests would include direct references, limiting and positivity, conservation or
+closure, invalid inputs, threading behavior and CPU/Vulkan/Metal parity where
+applicable to the declared profile. They would also exercise an error after
+Vulkan production but before CUDA completion, and an error before Vulkan
+reacquisition. A rejected transaction must leave the previous committed state,
+private fields, reports and generation ownership consistent. Restart must
+capture the full continuation endpoint after both APIs finish, not a snapshot
+taken between them.
+
+The public configuration, catalog, readiness record and runtime dispatch report
+would need to identify the composite path and its exact supported scope.
+Dispatch evidence should name the selected operation, device UUID, kernel or
+library identity, precision, shared/staged transfer path and synchronization
+outcome. Unsupported imports or capabilities should reject an explicitly
+required hybrid profile. An intentionally permitted fallback must be disclosed;
+it cannot count as a successful native hybrid experiment.
+
+\subsection{An experiment needs a complete cost model}
+For a proposed operation, an illustrative break-even condition is
+\begin{equation}
+ T_{\mathrm{Vulkan\ operation}} >
+ T_{\mathrm{CUDA\ operation}}+T_{\mathrm{handoff}}+
+ T_{\mathrm{layout}}+T_{\mathrm{extra\ synchronization}}.
+\end{equation}
+The right-hand terms include real preparation and ownership work. Persistent
+mapping can amortize setup over many steps, but its retained memory and teardown
+still count. A steady-state measurement that excludes compilation or import
+must report those startup costs separately.
+
+The bounded performance gate should compare the same source/configuration,
+scientific endpoint, grid and output cadence on the same hardware. Record
+compiler flags, driver and library versions, clock/power conditions, CPU worker
+settings, memory topology, warmup and repeated-trial variation. Measure the
+selected operation, complete solver step, host synchronization, output/restart
+cost and peak memory. A faster kernel that moves the bottleneck to publication
+or increases memory pressure can lose end to end.
+
+Only after ordinary public selection, admission, engineering and bounded tests
+are complete would this new capability be Ready for its required long campaigns.
+Campaign validation and independent scientific review remain separate steps
+toward Fully Qualified. The present design analysis supplies a path to test,
+not a speedup promise or a declaration that external-resource interop is shipped.

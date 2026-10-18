@@ -88,6 +88,12 @@ jobs:
 
       - name: Rebuild and verify every SPIR-V artifact
         run: |
+          # Optimizing the reviewed Thompson completion shader can exceed 16 GiB.
+          shader_swap="$RUNNER_TEMP/nimbus-shader.swap"
+          sudo fallocate -l 8G "$shader_swap"
+          sudo chmod 600 "$shader_swap"
+          sudo mkswap "$shader_swap"
+          sudo swapon "$shader_swap"
           free -h
           python3 scripts/dev/shaders/test_division_workaround.py
           /usr/bin/time -v python3 scripts/dev/shaders/verify_spirv.py --verbose
@@ -293,11 +299,12 @@ jobs:
             --output build/qualification/packaged-visualization-macos-${{ matrix.arch }}.json
 
       - name: Upload packaged visualization evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: packaged-visualization-macos-${{ matrix.arch }}
-          path: ui/build/qualification/packaged-visualization-macos-${{ matrix.arch }}.json
-          if-no-files-found: error
+          path: ui/build/qualification/packaged-visualization-macos-${{ matrix.arch }}.json*
+          if-no-files-found: warn
           retention-days: 30
 
       - name: Require the complete bundled application
@@ -380,11 +387,12 @@ jobs:
             --output build/qualification/packaged-visualization-linux-${{ matrix.arch }}.json
 
       - name: Upload packaged visualization evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: packaged-visualization-linux-${{ matrix.arch }}
-          path: ui/build/qualification/packaged-visualization-linux-${{ matrix.arch }}.json
-          if-no-files-found: error
+          path: ui/build/qualification/packaged-visualization-linux-${{ matrix.arch }}.json*
+          if-no-files-found: warn
           retention-days: 30
 
       - name: Require one executable AppImage
@@ -553,11 +561,12 @@ jobs:
             -Output "build\qualification\packaged-visualization-windows-${{ matrix.arch }}.json"
 
       - name: Upload packaged visualization evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: packaged-visualization-windows-${{ matrix.arch }}
-          path: ui/build/qualification/packaged-visualization-windows-${{ matrix.arch }}.json
-          if-no-files-found: error
+          path: ui/build/qualification/packaged-visualization-windows-${{ matrix.arch }}.json*
+          if-no-files-found: warn
           retention-days: 30
 
       - name: Require the simulator, ffmpeg, netCDF and installer payloads

@@ -1,0 +1,170 @@
+\section{What Studio does and where it stops}
+Nimbus Studio is the desktop workspace for setting up atmospheric experiments,
+launching the Nimbus executable, inspecting saved fields, comparing datasets and
+publishing figures. It gives one experiment a common place for its configuration,
+run status, data sources, plots and analysis recipes. The intent is to make careful
+experimentation practical on ordinary computers without requiring each researcher
+to rewrite a model or build a separate visualization application.
+
+The atmospheric solver and Studio are independent programs. The solver advances
+the equations; Studio displays products the solver has published. A camera move,
+color change or Python analysis does not advance or modify the simulated state.
+Closing a plot does not delete the simulation's output. Conversely, a pleasing
+render is not evidence that its source experiment satisfies a conservation,
+convergence or scientific-validation requirement.
+
+Nimbus was independently developed from the beginning. CM1 appears in Studio as a
+read-only dataset and configuration-interchange source, not as the engine behind
+Nimbus. Similar variable names or familiar controls do not imply identical
+equations, initial conditions, closures or numerics. Use the
+\href{MATHEMATICS.pdf}{mathematics guide} for those assumptions and the
+\href{ARCHITECTURE.pdf}{architecture guide} for solver ownership and execution.
+
+This guide follows the ordinary application paths. It describes implemented
+features and their admission checks, including intentionally unavailable paths.
+It does not certify every machine, renderer, field combination or scientific
+interpretation. The terms Ready and Fully Qualified retain the repository's
+meaning: bounded tests, completed long campaigns and independent scientific
+review are distinct evidence. A successful image is only one part of that chain.
+
+\input{figures/studio-pipeline.tex}
+
+\subsection{The first launch has no storm to display}
+A fresh checkout and fresh Studio profile contain no pre-run simulations. The
+Runs view may be empty; the Plots workspace offers \textbf{Open data}. These are
+normal states. Studio can open, show configuration controls and report its
+preferences without running the solver or downloading scientific runtime tables.
+The \href{BUILDING.md}{build guide} describes a build-and-open-only check for
+Windows, Linux and macOS. This is the appropriate first check on a new machine.
+
+There are then two ordinary ways to obtain a dataset. Open an existing Nimbus
+run or supported CM1 history through Open data, or configure and launch a Nimbus
+experiment. A run directory is the useful unit of Nimbus data: its metadata and
+completion records give meaning to the field files. Selecting an arbitrary array
+without that context cannot reconstruct its coordinate system, units, valid
+domain or simulation time.
+
+The native desktop application provides filesystem access, process launch and
+native readers. The development browser frontend can exercise rendering and
+synthetic harnesses, but its mocked native operations are not a replacement for
+the installed application. Browser rendering evidence and native application
+evidence should be reported separately.
+
+\subsection{The main working areas}
+\textbf{Configure} holds the experiment draft and its launch controls.
+\textbf{Runs} exposes launched or discovered histories, status and logs.
+\textbf{Plots} opens a data source and builds a viewing workspace. Settings
+contains local paths, appearance, loading performance and remote connections.
+Projects and investigation workspaces retain related source and view choices so
+the user can return to an analysis without treating one transient screen as the
+whole experiment.
+
+Preferences such as text size, light or dark appearance and which side holds the
+plot affect the desktop workspace. They are not solver configuration. Similarly,
+the Loading workers preference controls Studio's field-loading concurrency,
+whereas the solver's threading and compute-backend settings belong to the run.
+Keep these two kinds of tuning separate when diagnosing performance.
+
+Saved preferences and recent-dataset entries are conveniences, not archives of
+the underlying data. Moving or deleting a source can make a saved project
+unresolvable. Preserve the source history, configuration and any external inputs
+alongside a project when reproducibility matters. Exported investigation and
+research packages add explicit recipes and provenance; they do not silently turn
+every linked source into an embedded simulation archive.
+
+\section{Configuration, launch and data discovery}
+\subsection{A draft must agree with the executable}
+The configuration editor combines a structured form with YAML. Public templates
+provide starting experiments; they are not certificates for a storm, a resolution
+or an arbitrary set of physics choices. The
+\href{NAMELIST.md}{complete namelist reference} inventories strict-v1 settings,
+omission defaults, units, aliases and restrictions, including options not exposed
+as form controls and legacy-reader compatibility.
+
+Studio obtains a scheme catalog from the selected Nimbus executable. The catalog
+describes its selectors and admission constraints. A UI label alone does not
+establish that the executable implements the requested combination. Validation
+and preflight check the actual draft, target, executable identity, required
+inputs and configuration dependencies before launch. A configuration can contain
+individually recognizable schemes while their coupling is still rejected.
+
+Scientific tables are separate runtime inputs. Thompson and RRTMG requirements
+are described in the build guide; opening Studio does not imply that these
+tables have been installed. Provisioning a canonical table set and checking its
+identity prevents compiler-dependent reconstruction from silently substituting
+different input bytes. A missing input should be repaired at its reported path,
+not bypassed by changing an unrelated numerical tolerance.
+
+The binary-path preference selects an executable when automatic discovery is
+not the intended build. The runs-directory preference selects the library root
+for newly launched histories. Inspect these settings when several checkouts or
+installed versions coexist: the source tree being edited and the executable
+being launched are not necessarily the same build.
+
+\subsection{Run status and continuation}
+Launching creates a separate solver process. Studio collects status and log
+information; run progress and saved-frame availability are different signals.
+A process may be advancing while no new output frame is complete. Conversely,
+a finished process can leave useful completed frames even when a later operation
+failed. Read the reported outcome and logs rather than interpreting the presence
+of a directory as success.
+
+Checkpoint inspection belongs to continuation, not to plotting. A history frame
+contains display products; a valid continuation must retain all state required
+by the selected runtime. Do not assume that being able to plot a time means it
+is a restart endpoint. The executable's checkpoint and configuration checks
+remain authoritative when preparing a continuation.
+
+\subsection{Nimbus histories and imported histories}
+Nimbus output readers support the maintained NPY, ZFP and netCDF history paths.
+NPY remains supported while the required netCDF replacement scope is being
+completed and qualified. ZFP is a storage codec, not a new coordinate system or
+a guarantee of losslessness: retain the output's compression provenance when
+comparing values. Opening a compressed field should not erase how its values
+were encoded.
+
+A published output hierarchy can provide checksummed levels of detail and
+bounded native reads. Without such a hierarchy, level zero still has its native
+read contract; Studio must not invent a published coarse product merely because
+it can produce a smaller display. Source selection records whether a plot uses
+a published level, a bounded source window, a reduction or display reconstruction.
+
+CM1 import can inspect history files, a case directory, namelist information and
+an input sounding. Its compatibility and decision views distinguish direct
+mechanical mappings from unresolved scientific decisions. Translation can produce
+a partial draft that still needs interpretation. Nimbus does not install or run
+CM1, and importing CM1 data does not make Nimbus a CM1 fork.
+
+An adapter records source kind, locator, geometry and availability. Rank matters:
+a two-dimensional column product cannot enable a three-dimensional renderer just
+because its field name looks atmospheric. Vector views also require physically
+matched components. The plot picker therefore uses dataset capabilities rather
+than presenting every plot as if every file could satisfy it.
+
+\subsection{Health and alignment are part of opening data}
+Dataset health checks expose missing fields, shape or coordinate disagreements,
+time-axis problems and incomplete products. Treat a missing value as missing,
+not as calm wind, dry air or zero precipitation. A finite array value is not by
+itself proof that the location lies inside the physical domain: halos and boundary
+closure planes are excluded according to the saved geometry.
+
+For comparisons, inspect the alignment report before interpreting a difference.
+Time, physical coordinates, units, component meaning and valid-domain support
+must match the requested operation. A common shape is insufficient: two arrays
+can have equal dimensions but different origins, spacings, model frames or units.
+When an operation requires aligned grids, a rejected mismatch is useful feedback,
+not a reason to strip the metadata.
+
+\subsection{A practical first inspection}
+Open a completed history and start with one scalar Slice. Check its field name,
+units, saved time, axis labels, slice location and source disclosure. Move to a
+second completed frame and confirm that both the values and time label change.
+Then add a vertical profile or cross section through an identifiable feature.
+Only after those coordinate checks should a volume or composite storm scene be
+used to explain the feature's three-dimensional appearance.
+
+This sequence makes a dense 3-D view easier to interpret. An opaque volume can
+hide an interior maximum; a threshold surface omits everything below its chosen
+level; a derived diagnostic can require fields that were never exported. A simple
+slice provides a direct way to distinguish a data problem from a camera,
+transfer-function or feature-selection problem.

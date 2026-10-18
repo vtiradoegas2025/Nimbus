@@ -6,6 +6,8 @@ Tauri's Rust shell owns process control, filesystem access and native readers.
 Plotly and VTK provide plotting, and Pyodide runs the Python workspace. The
 simulator is a separate C++ executable.
 
+Read [the Studio guide](../docs/STUDIO.pdf) for detailed workflows, every plot
+family, analysis, rendering, resource ownership and publication limits.
 Read [the build guide](../docs/BUILDING.md) for toolchains and packaging, and
 [the architecture guide](../docs/ARCHITECTURE.pdf) for ownership and publication
 boundaries. Scientific assumptions are documented in

@@ -149,8 +149,8 @@ browser tests validate useful contracts but do not measure physical-device
 throughput or all driver and native-WebView combinations.
 
 Recording requires an exact completed-frame identity and immutable capture
-semantics. The \href{../ui/src/lib/plot/plotRegistry.ts}{plot registry} currently
-declares that contract for slice, composite, vector, volume, isosurface,
+semantics. The \href{../ui/src/components/studio/PlotStudio.tsx}{active Studio
+capture gate} currently admits slice, vector, volume, isosurface,
 streamlines and supercell views. A plot being visible and interactive does
 not automatically make it eligible for recorded playback. Extending recording
 to another family requires its frame-readiness and export owner. MP4 export

@@ -240,7 +240,10 @@ Portable describes CPU instruction selection within one architecture. It does
 not remove dynamic-library requirements. In particular, a local macOS build can
 link to Homebrew libraries that require a newer OS than the application's
 minimum deployment setting. The macOS packaging path builds a separate pinned
-runtime stack; an ordinary development binary is current-host evidence.
+runtime stack and targets macOS 12.0, matching its MoltenVK dependency floor.
+Bundled Mach-O deployment metadata is checked; the setting alone does not prove
+runtime acceptance on macOS 12. An ordinary development binary is current-host
+evidence. See [platform compatibility](SUPPORTED_PLATFORMS.md).
 
 ## Provision scientific inputs
 
@@ -360,7 +363,7 @@ products; inspect its target before deleting unrelated working data.
 
 ## Rebuild the technical documents
 
-The mathematical and architectural guides are LaTeX PDFs. Their maintained
+The mathematics, architecture and Studio guides are LaTeX PDFs. Their maintained
 sources live with the [document build scripts](../scripts/dev/docs/latex/README.md);
 `docs/` holds the published PDFs and reader-facing Markdown guides.
 Install Tectonic and run:

@@ -17,6 +17,7 @@ ORPHAN_OPERATIONS = {
     "archive.legacy_thompson_lin_pointwise",
     "archive.legacy_thompson_lin_sedimentation",
 }
+VULKAN_ONLY_OPERATIONS = {"dynamics.acoustic_retained_flux_fp64"}
 
 
 def sha256_file(path: Path) -> str:
@@ -101,14 +102,19 @@ def validate(catalog: dict[str, object]) -> None:
 
         availability = record.get("availability")
         if availability == "active":
-            if owners != {"cpu": "reference", "vulkan": "device", "metal": "device"}:
+            vulkan_only = operation in VULKAN_ONLY_OPERATIONS
+            if owners != {"cpu": "reference", "vulkan": "device", "metal": "unavailable" if vulkan_only else "device"}:
                 raise RuntimeError(f"active kernel {operation} has incomplete backend ownership")
-            if not isinstance(metal.get("library"), str) or not isinstance(metal.get("sourceFnv1a64"), str):
-                raise RuntimeError(f"active kernel {operation} lacks Metal source identity")
-            if len(metal["sourceFnv1a64"]) != 16:
-                raise RuntimeError(f"active kernel {operation} has malformed Metal source hash")
-            if not isinstance(metal.get("preciseMathRequired"), bool):
-                raise RuntimeError(f"active kernel {operation} omits its Metal compiler math policy")
+            if vulkan_only:
+                if any(metal.get(key) is not None for key in ("library", "sourceFnv1a64", "preciseMathRequired", "hardwareTest")):
+                    raise RuntimeError(f"Vulkan-only kernel {operation} claims a Metal implementation")
+            else:
+                if not isinstance(metal.get("library"), str) or not isinstance(metal.get("sourceFnv1a64"), str):
+                    raise RuntimeError(f"active kernel {operation} lacks Metal source identity")
+                if len(metal["sourceFnv1a64"]) != 16:
+                    raise RuntimeError(f"active kernel {operation} has malformed Metal source hash")
+                if not isinstance(metal.get("preciseMathRequired"), bool):
+                    raise RuntimeError(f"active kernel {operation} omits its Metal compiler math policy")
             if operation in ("advection.conservative_mass_flux_cartesian_cgrid",
                              "advection.conservative_update_cartesian_cgrid",
                              "terrain.mapped_scalar_limiter",
@@ -117,8 +123,8 @@ def validate(catalog: dict[str, object]) -> None:
                 raise RuntimeError(f"kernel {operation} requires precise Metal math")
             if not isinstance(qualification.get("outputs"), str) or not qualification["outputs"]:
                 raise RuntimeError(f"active kernel {operation} lacks checked outputs")
-            if qualification.get("requiredHardware") != "vulkan_and_metal":
-                raise RuntimeError(f"active kernel {operation} does not require both physical backends")
+            if qualification.get("requiredHardware") != ("vulkan" if vulkan_only else "vulkan_and_metal"):
+                raise RuntimeError(f"active kernel {operation} does not require its implemented physical backends")
             if qualification.get("waiver") is not None:
                 raise RuntimeError(f"active kernel {operation} unexpectedly has a waiver")
             runtime_sample = qualification.get("runtimeSample")
@@ -129,7 +135,10 @@ def validate(catalog: dict[str, object]) -> None:
                 raise RuntimeError(f"active kernel {operation} lacks Vulkan runtime/hardware coverage")
             if vulkan_test is not None:
                 require_file(vulkan_test, f"kernel {operation} Vulkan hardware test")
-            require_file(metal.get("hardwareTest"), f"kernel {operation} Metal hardware test")
+            if not vulkan_only:
+                require_file(metal.get("hardwareTest"), f"kernel {operation} Metal hardware test")
+            elif vulkan_test is None:
+                raise RuntimeError(f"Vulkan-only kernel {operation} lacks a physical Vulkan fixture")
         elif availability == "orphan":
             observed_orphans.add(operation)
             if owners != {"cpu": "reference", "vulkan": "unavailable", "metal": "unavailable"}:
@@ -144,6 +153,8 @@ def validate(catalog: dict[str, object]) -> None:
             raise RuntimeError(f"unexpected kernel availability {availability!r} for {operation}")
     if observed_orphans != ORPHAN_OPERATIONS:
         raise RuntimeError(f"orphan kernel set drifted: {observed_orphans}")
+    if not VULKAN_ONLY_OPERATIONS.issubset(operations):
+        raise RuntimeError("Vulkan-only kernel inventory is incomplete")
     summary = {
         "operations": len(records),
         "active": sum(record["availability"] == "active" for record in records),
@@ -211,7 +222,7 @@ def main() -> int:
     print(
         f"[kernel-ownership-catalog] PASS: {catalog['summary']['operations']} operations; "
         f"{catalog['summary']['active']} active with CPU references, "
-        "Vulkan artifacts, Metal source identities, and backend qualification anchors; "
+        "Vulkan artifacts, applicable Metal source identities, and backend qualification anchors; "
         f"{catalog['summary']['orphan']} orphan; binary_sha256={binary_sha256}; tool_sha256={tool_sha256}"
     )
     return 0

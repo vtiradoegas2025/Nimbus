@@ -70,8 +70,10 @@ verified runtime compatibility.
 ## Using Nimbus
 
 Studio opens configurations, launches local or remote runs and reads completed
-output for plotting. [The Studio guide](ui/README.md) covers development,
-remote compute and its checks. The simulator remains usable independently:
+output for plotting. [The Studio guide](docs/STUDIO.pdf) explains the workflows,
+plots, analysis, rendering, resource controls and publication contracts.
+[The Studio source README](ui/README.md) covers development and checks.
+The simulator remains usable independently:
 
 ```sh
 ./bin/nimbus_sim --help
@@ -90,6 +92,8 @@ are part of that combination.
   numerical approximations, closure choices and limits.
 - [Architecture](docs/ARCHITECTURE.pdf): configuration, state ownership,
   backend memory, publication and Studio boundaries.
+- [Nimbus Studio](docs/STUDIO.pdf): using and interpreting plots, Python and
+  research analysis, worker and memory settings, capture and remote workflows.
 - [Scientific references](docs/foundationalScience.md): primary literature
   and its relationship to the implementation.
 - [Namelist and configuration reference](docs/NAMELIST.md): every strict-v1

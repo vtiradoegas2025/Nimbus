@@ -161,8 +161,8 @@ for platform_name, platform_config in (("macOS", MACOS_CONFIG), ("Linux", LINUX_
 
 runtime_sources = json.loads((ROOT / "scripts/dependencies/macos_runtime_sources.json").read_text())
 require(
-    MACOS_CONFIG["bundle"]["macOS"]["minimumSystemVersion"] == runtime_sources["minimum_macos"] == "11.0",
-    "the macOS bundle and pinned runtime builds must agree on macOS 11",
+    MACOS_CONFIG["bundle"]["macOS"]["minimumSystemVersion"] == runtime_sources["minimum_macos"] == "12.0",
+    "the macOS bundle and pinned runtime builds must agree on macOS 12",
 )
 for contract in ("build_macos_runtime.py", '"$SCRIPT_DIR/macos_runtime.py" prepare',
                  '"$SCRIPT_DIR/macos_runtime.py" verify', "PORTABLE=1 DISTRIBUTION=1 REQUIRE_FULL_STACK=1"):

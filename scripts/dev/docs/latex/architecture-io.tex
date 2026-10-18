@@ -180,8 +180,11 @@ The native command checks source dimensions, range, stride, output count,
 arithmetic overflow and byte limits before serving the request. Its current
 window limits distinguish 64 MiB of returned field data from a larger bounded
 source working set. A shared native I/O reservation budgets source bytes plus
-twice the output bytes under a 512 MiB aggregate ceiling, then releases the
-claim through RAII when the last owner drops it. This models simultaneous
+twice the output bytes under a user-adjustable aggregate limit, then releases
+the claim through RAII when the last owner drops it. The automatic policy uses
+reported RAM; Settings exposes the applied limit, current reservations and
+waiting reads. A budget change applies without leaving the plot, and applicable
+budget-failed owners retry their current selection. This models simultaneous
 work, not just the size of an individual successful response. See
 \href{../ui/src-tauri/src/commands/outputs.rs}{native field commands} and
 \href{../ui/src-tauri/src/commands/io_budget.rs}{I/O reservations}.
@@ -192,6 +195,14 @@ have additional budgets. A renderer can be within its texture-size limit yet
 run out of combined native, JavaScript and GPU working memory. The system must
 retain the reason a representation was reduced or refused rather than silently
 labeling it full resolution.
+
+The native netCDF API has process lifetime while each dataset file retains its
+shorter open/close lifetime. The loaded library remains available for internal
+process or thread cleanup callbacks; repeatedly unloading it after each read
+would risk callbacks into unloaded code. This lifetime policy does not retain
+every file or remove the reader's serialized native API access. The
+\href{../ui/src-tauri/src/commands/netcdf_dynamic.rs}{dynamic netCDF owner}
+keeps this distinction explicit.
 
 \subsection{Cancellation is a state transition, not instantaneous preemption}
 

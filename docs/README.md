@@ -2,8 +2,8 @@
 
 Start with [building and running Nimbus](BUILDING.md). The
 [configuration guide](../configs/README.md) explains how to choose an example
-and validate it, and the [Studio guide](../ui/README.md) covers the desktop and
-remote-compute workflows.
+and validate it, and the [Studio guide](STUDIO.pdf) explains the desktop and
+remote-compute workflows, plots, analysis and publication.
 The [complete namelist reference](NAMELIST.md) lists configuration keys,
 omission defaults, units, aliases and current restrictions, including unfinished
 options and legacy-reader compatibility.
@@ -18,6 +18,13 @@ compute backends, CPU instruction sets, memory topology, compression, native
 ownership and GPU rendering fit together. It explains how to decide between
 local and larger-scale execution, and what a future multi-GPU solver would
 require; distributed solver execution is a design proposal, not a shipped feature.
+It also distinguishes the existing Vulkan PTX retained-flux assist from a
+proposed Vulkan/CUDA runtime hybrid, including memory sharing, synchronization,
+scientific parity and performance gates.
+The [Studio guide](STUDIO.pdf) follows data from native readers through workers,
+Plotly, VTK and graphics shaders to the displayed and captured frame. It covers
+all plot families, the research and Python workspaces, sampling and coordinate
+assumptions, worker measurement, I/O budgets, memory ownership and recovery.
 The mathematics guide also covers
 moving frames, terrain and nesting. Read [scientific references](foundationalScience.md)
 for the supporting literature.

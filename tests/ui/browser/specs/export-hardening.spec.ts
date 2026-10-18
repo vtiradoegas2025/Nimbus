@@ -107,6 +107,11 @@ test("Studio recorder offers portable export for a complete saved 3D frame", asy
 
 test("portable supercell viewpoints retain every prepared field without rebuilding source arrays", async ({ page }, info) => {
   test.setTimeout(150_000);
+  const progress: { done: number; count: number; elapsedMs: number }[] = [];
+  page.on("console", message => {
+    const prefix = "NIMBUS_VIEWPOINT_PROGRESS ";
+    if (message.text().startsWith(prefix)) progress.push(JSON.parse(message.text().slice(prefix.length)));
+  });
   await page.goto("/harness/index.html");
   await page.waitForFunction(() => !!window.__nimbusVtkHarness);
   await page.evaluate(() => { window.__nimbusVtkHarness!.setSize(512, 384); window.__nimbusVtkHarness!.setPlot("supercell"); window.__nimbusVtkHarness!.setStep(1); });
@@ -120,7 +125,17 @@ test("portable supercell viewpoints retain every prepared field without rebuildi
   await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
   const before = await page.evaluate(() => window.__nimbusVtkHarness!.inspectVolumeInputs());
   expect(before.fingerprints.length).toBeGreaterThanOrEqual(2);
-  const html = await page.evaluate(() => window.__nimbusVtkHarness!.capturePortableViewpoints(12));
+  let html: string;
+  try {
+    html = await page.evaluate(() => window.__nimbusVtkHarness!.capturePortableViewpoints(12));
+  } finally {
+    await info.attach("portable-viewpoint-progress", {
+      body: JSON.stringify(progress, null, 2), contentType: "application/json",
+    });
+  }
+  expect(progress.map(item => item.done)).toEqual(Array.from({ length: 13 }, (_, index) => index));
+  expect(progress.every((item, index) => item.count === 12 && Number.isFinite(item.elapsedMs)
+    && item.elapsedMs >= (progress[index - 1]?.elapsedMs ?? 0))).toBe(true);
   expect(await page.evaluate(() => window.__nimbusVtkHarness!.inspectVolumeInputs())).toEqual(before);
   const exportDocument = JSON.parse(/<script id="nimbus-viewpoints" type="application\/json">(.*?)<\/script>/s.exec(html)![1]);
   expect(exportDocument.scene.descriptor.plot).toBe("supercell");

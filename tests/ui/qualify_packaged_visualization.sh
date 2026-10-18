@@ -186,7 +186,6 @@ if [[ ! -f "$OUTPUT" ]]; then
   fi
   exit 1
 fi
-rm -f "$PROGRESS"
 
 case "$(uname -s)" in
   Darwin) TARGET_OS="macos" ;;
@@ -208,3 +207,4 @@ if [[ "$APP_STATUS" -ne 0 ]]; then
   echo "Packaged application reported failure status $APP_STATUS." >&2
   exit "$APP_STATUS"
 fi
+rm -f "$PROGRESS"

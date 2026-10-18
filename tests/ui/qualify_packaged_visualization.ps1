@@ -170,7 +170,6 @@ try {
         }
         throw "Packaged application exited without writing qualification evidence (status $AppStatus)."
     }
-    Remove-Item -LiteralPath $Progress -Force -ErrorAction SilentlyContinue
     $Architecture = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
     $TargetArch = switch ($Architecture) {
         "X64" { "x86_64" }
@@ -182,6 +181,7 @@ try {
         $Output --profile $Profile --mode $Mode --target-os windows --target-arch $TargetArch
     if ($LASTEXITCODE -ne 0) { throw "Packaged visualization evidence validation failed." }
     if ($AppStatus -ne 0) { throw "Packaged application reported failure status $AppStatus." }
+    Remove-Item -LiteralPath $Progress -Force -ErrorAction SilentlyContinue
 } finally {
     Pop-Location
 }

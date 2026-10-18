@@ -66,7 +66,8 @@ export function validatePackagedVisualizationEvidence(
 ): UnknownRecord {
   const report = record(input, "report");
   if (report.schema !== SCHEMA || report.schemaVersion !== 1 || report.status !== "passed") {
-    throw new Error("report schema/version/status is not a passed v1 qualification");
+    const detail = typeof report.error === "string" && report.error ? `: ${report.error}` : "";
+    throw new Error(`report schema/version/status is not a passed v1 qualification${detail}`);
   }
   if (report.profile !== expected.profile) {
     throw new Error(`report profile ${String(report.profile)} does not match ${expected.profile}`);

@@ -1,7 +1,9 @@
 import { test, expect } from "@playwright/test";
+import { advanceCloudMotionClock, armCloudMotionClock, installCloudMotionClock, resumeCloudMotionClock, waitForCloudMotionFrame } from "../support/cloudMotionClock";
 
 for (const mode of ["grid", "terrain", "nested", "terrain-nested"]) test(`${mode} clouds follow Earth winds across saved grid changes`, async ({ page }, info) => {
   test.setTimeout(mode.endsWith("nested") ? 300_000 : 90_000);
+  await installCloudMotionClock(page);
   const activationOptions = mode.endsWith("nested") ? { timeout: 90_000 } : undefined;
   const errors: string[] = [];
   const diagnostics: unknown[] = [];
@@ -63,15 +65,17 @@ for (const mode of ["grid", "terrain", "nested", "terrain-nested"]) test(`${mode
     record();
     const timer = setInterval(() => { record(); if (++samples === 8) clearInterval(timer); }, 500);
   });
+  await armCloudMotionClock(page);
   await page.evaluate(() => window.__nimbusVtkHarness!.setStep(1));
   try { await expect(page.locator(".plot3d-overlay-host")).toHaveAttribute("data-cloud-motion-active", "true", activationOptions); }
   catch (error) {
     await info.attach("moving-cloud-activation-stream", { body: JSON.stringify({ mode, errors, diagnostics }), contentType: "application/json" });
     throw error;
   }
+  await waitForCloudMotionFrame(page);
   if (mode.endsWith("nested")) await expect(page.locator(".plot3d-overlay-host")).toHaveAttribute("data-output-level", "child_0000");
   const capture = await page.evaluate(() => window.__nimbusVtkHarness!.captureAppearance());
-  const motion = capture!.evidence.descriptor.parameters!.cloudMotion as { displacementM: number[]; fromStep: number; toStep: number; alignment: string; fromSources: { role: string; runDir: string; spacingM: number[] }[]; toSources: { role: string; runDir: string; spacingM: number[] }[] };
+  const motion = capture!.evidence.descriptor.parameters!.cloudMotion as { fraction: number; displacementM: number[]; fromStep: number; toStep: number; alignment: string; fromSources: { role: string; runDir: string; spacingM: number[] }[]; toSources: { role: string; runDir: string; spacingM: number[] }[] };
   expect(motion.alignment).toBe("wind");
   expect(motion.fromStep).toBe(0); expect(motion.toStep).toBe(1);
   expect(motion.fromSources[0].spacingM[0]).toBe(125);
@@ -87,7 +91,8 @@ for (const mode of ["grid", "terrain", "nested", "terrain-nested"]) test(`${mode
   for (const [axis, value] of [60,30,6].entries()) expect(motion.displacementM[axis]).toBeCloseTo(value, 4);
   expect(capture!.evidence.descriptor.frameIndex).toBeNull();
   const before = await page.evaluate(() => window.__nimbusVtkHarness!.snapshot());
-  await page.waitForTimeout(150);
+  await advanceCloudMotionClock(page, 150);
+  await page.waitForFunction((fraction) => Number(document.querySelector<HTMLElement>(".plot3d-overlay-host")?.dataset.cloudMotionFraction) > fraction, motion.fraction);
   const during = await page.evaluate(() => window.__nimbusVtkHarness!.snapshot());
   if (during.texture3DUploads !== before.texture3DUploads) console.log(JSON.stringify({ mode, before, during,
     host: await page.locator(".plot3d-overlay-host").evaluate(el => ({ ... (el as HTMLElement).dataset })),
@@ -101,15 +106,18 @@ for (const mode of ["grid", "terrain", "nested", "terrain-nested"]) test(`${mode
     const scene = document.querySelector<HTMLElement>('[data-testid="scene"]');
     return scene?.dataset.frameLoading === "false" && scene.dataset.renderedStep === String(step);
   }, 1);
+  await resumeCloudMotionClock(page);
   if (mode.endsWith("nested")) {
     await page.evaluate(() => window.__nimbusVtkHarness!.setPlayback(true, false, 4000));
     await expect(page.getByText("Waiting for the next saved cloud frame", { exact: true })).toBeVisible();
     await page.waitForFunction(() => document.querySelector<HTMLElement>('[data-testid="scene"]')?.dataset.frameLoading === "false");
+    await armCloudMotionClock(page);
     await page.evaluate(() => window.__nimbusVtkHarness!.setStep(3));
     await expect(page.locator(".plot3d-overlay-host")).toHaveAttribute("data-cloud-motion-active", "true", activationOptions);
     await expect(page.locator(".plot3d-overlay-host")).toHaveAttribute("data-output-level", "root");
     const reverse = (await page.evaluate(() => window.__nimbusVtkHarness!.captureAppearance()))!.evidence.descriptor.parameters!.cloudMotion as { displacementM: number[] };
     for (const [axis,value] of [120,60,12].entries()) expect(reverse.displacementM[axis]).toBeCloseTo(value,4);
+    await resumeCloudMotionClock(page);
   }
   await page.locator(".plot3d-control-tab", { hasText: "Flow" }).click();
   await page.getByRole("group", { name: "Updraft / downdraft", exact: true }).getByRole("button").first().click();
@@ -129,6 +137,7 @@ for (const mode of ["grid", "terrain", "nested", "terrain-nested"]) test(`${mode
 
 for (const mode of ["grid", "terrain", "nested", "terrain-nested"]) test(`${mode} centroid preview preserves Earth registration`, async ({ page }) => {
   if (mode.endsWith("nested")) test.setTimeout(300_000);
+  await installCloudMotionClock(page);
   await page.goto(`/harness/index.html?fidelity=presentation&movingCloud=${mode}`);
   await page.waitForFunction(() => Boolean(window.__nimbusVtkHarness));
   await page.evaluate(() => { window.__nimbusVtkHarness!.setSize(512, 384); window.__nimbusVtkHarness!.setPlot("supercell"); });
@@ -137,6 +146,7 @@ for (const mode of ["grid", "terrain", "nested", "terrain-nested"]) test(`${mode
   await page.getByRole("button", { name: "Interpolate cloud", exact: true }).click();
   await page.evaluate(() => window.__nimbusVtkHarness!.setPlayback(true,false,4000));
   await expect(page.getByText("Waiting for the next saved cloud frame", { exact: true })).toBeVisible();
+  await armCloudMotionClock(page);
   await page.evaluate(() => window.__nimbusVtkHarness!.setStep(1));
   await expect(page.locator(".plot3d-overlay-host")).toHaveAttribute("data-cloud-motion-active","true",
     mode.endsWith("nested") ? { timeout: 90_000 } : undefined);
@@ -145,6 +155,7 @@ for (const mode of ["grid", "terrain", "nested", "terrain-nested"]) test(`${mode
   expect(Math.abs(motion.displacementM[0] - 60)).toBeLessThan(5);
   expect(Math.abs(motion.displacementM[1] - 30)).toBeLessThan(5);
   expect(motion.displacementM[2]).toBe(0);
+  await resumeCloudMotionClock(page);
   await page.evaluate(() => { window.__nimbusVtkHarness!.setMounted(false); window.__nimbusVtkHarness!.clearFieldCache(); });
   await expect.poll(() => page.evaluate(() => window.__nimbusVtkHarness!.snapshot().visualization.committedBytes)).toBe(0);
 });

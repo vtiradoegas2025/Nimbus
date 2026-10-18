@@ -4,6 +4,8 @@ Build from the current source and keep a change focused on one identifiable
 behavior. Agree on priorities and bounded work assignments with the maintainer.
 [Architecture](docs/ARCHITECTURE.pdf) explains ownership and code
 boundaries; [mathematics](docs/MATHEMATICS.pdf) explains the model assumptions.
+The [Studio guide](docs/STUDIO.pdf) explains application behavior, plotting
+assumptions, resource ownership and publication contracts.
 The [build guide](docs/BUILDING.md) lists toolchains and runtime data.
 
 ## Work on a branch
