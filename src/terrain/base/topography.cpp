@@ -9,11 +9,12 @@
 
 #include "topography.hpp"
 #include "core/infra/grid_coordinates.hpp"
+#include "core/infra/physical_constants.hpp"
 #include <cmath>
 #include <algorithm>
 #include <limits>
 #include <stdexcept>
-
+#include <string>
 
 namespace tmv::topography
 {
@@ -89,7 +90,7 @@ ScharResult eval_schar(double x, const TerrainConfig::ScharParams& params)
 
     double xa_ratio = x / a;
     double envelope = std::exp(-xa_ratio*xa_ratio);
-    double k = M_PI / ell;
+    double k         = physical_constants::pi / ell;
     double cos_term = std::cos(k * x);
     double cos2_term = cos_term * cos_term;
 

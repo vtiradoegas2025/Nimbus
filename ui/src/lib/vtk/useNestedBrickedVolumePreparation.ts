@@ -1,6 +1,7 @@
 import { volumeImageBytes, volumeValidityBudgetFactor, reserveVolumeValidity } from "@/lib/vtk/volumeValidityBudget";
 import { reconstructVolumePlan, needsVolumeReconstruction } from "./volumeReconstruction";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useIoBudgetRetry } from "@/lib/core/useIoBudgetRetry";
 import type { NestedVolumeOwnershipLayer } from "@/lib/run/outputHierarchy";
 import { readField, readFieldBrickHierarchy } from "@/lib/run/runOutputs";
 import { selectVolumeHierarchyPlan, type VolumeBrickPlan } from "@/lib/plot/fieldBrickHierarchy";
@@ -25,12 +26,15 @@ export interface NestedPreparedVolumeBrick {
 
 interface State {
   identity: string;
+  reservationId: number | null;
   plans: Array<{ levelId: string; plan: VolumeBrickPlan }>;
   bricks: NestedPreparedVolumeBrick[];
   stats: { min: number; max: number; p2: number; p98: number } | null;
   loading: boolean;
   error: string | null;
 }
+const NO_BRICKS: NestedPreparedVolumeBrick[] = [];
+const NO_PLANS: State["plans"] = [];
 
 let sequence = 0;
 
@@ -46,6 +50,7 @@ export function useNestedBrickedVolumePreparation(input: {
 }): State & { current: boolean } {
   const ownerRef = useRef(`vtk:nested-volume:${++sequence}`);
   const clientsRef = useRef<VolumeBrickPreparationClient[]>([]);
+  const residentReservations = useRef(new Set<number>());
   const layersKey = JSON.stringify(input.layers.map((layer) => ({
     levelId: layer.level.levelId,
     runDir: layer.level.runDir,
@@ -62,16 +67,35 @@ export function useNestedBrickedVolumePreparation(input: {
   ]), [input.background, input.fieldName, input.maximumPreparedCells, input.maximumTextureDimension, input.requestedLevel, layersKey, transferKey]);
   const stableLayers = useMemo(() => input.layers, [input.layers]);
   const [state, setState] = useState<State>({
-    identity: "", plans: [], bricks: [], stats: null, loading: false, error: null,
+    identity: "", reservationId: null, plans: [], bricks: [], stats: null, loading: false, error: null,
   });
+  const active = input.enabled && Boolean(input.fieldName) && stableLayers.length >= 2;
+  const budgetRetry = useIoBudgetRetry(state.error);
 
   useEffect(() => () => {
     clientsRef.current.forEach((client) => client.shutdown());
     clientsRef.current = [];
+    for (const id of residentReservations.current) visualizationResourceGovernor.release(id);
+    residentReservations.current.clear();
   }, []);
 
   useEffect(() => {
-    if (!input.enabled || !input.fieldName || stableLayers.length < 2) return;
+    for (const id of residentReservations.current) {
+      if (id === state.reservationId) continue;
+      visualizationResourceGovernor.release(id);
+      residentReservations.current.delete(id);
+    }
+  }, [state.reservationId]);
+
+  useEffect(() => {
+    if (!input.enabled || !input.fieldName || stableLayers.length < 2) {
+      clientsRef.current.forEach(client => client.shutdown());
+      clientsRef.current = [];
+      setState(current => current.bricks.length || current.plans.length || current.stats || current.loading || current.error
+        ? { identity, reservationId: null, plans: [], bricks: [], stats: null, loading: false, error: null }
+        : current);
+      return;
+    }
     const controller = new AbortController();
     const transfer = transferRef.current;
     const clients: VolumeBrickPreparationClient[] = [];
@@ -220,14 +244,31 @@ export function useNestedBrickedVolumePreparation(input: {
       return { plans: generation.layers, bricks, stats: statsByLayer.at(-1)! };
     })().then(
       (result) => {
-        if (!controller.signal.aborted) setState({ identity, ...result, loading: false, error: null });
+        if (controller.signal.aborted) return;
+        let reservationId: number | null = null;
+        if (result.bricks.length > 0 && aggregateReservation != null) {
+          const resident = visualizationResourceGovernor.transition(aggregateReservation,
+            uniqueVolumeImages(result.bricks).flatMap(brick => [
+              visualizationBufferClaim(brick.prepared.values.buffer, "prepared-main"),
+              ...(brick.prepared.validity ? [visualizationBufferClaim(brick.prepared.validity.buffer, "prepared-main")] : []),
+              { allocationId: `${ownerRef.current}:${identity}:${brick.levelId}:${brick.brickId}:gpu`,
+                stage: "gpu" as const, bytes: volumeImageBytes(brick.prepared, input.maximumTextureDimension), accounting: "resident" as const },
+            ]));
+          if (!resident.ok) throw new Error(resident.reason);
+          reservationId = resident.reservation.id;
+          residentReservations.current.add(reservationId);
+          aggregateReservation = null;
+        }
+        setState({ identity, reservationId, ...result, loading: false, error: null });
       },
-      (error) => {
-        if (!controller.signal.aborted) setState((current) => ({
-          ...current, loading: false, error: error instanceof Error ? error.message : String(error),
-        }));
-      },
-    ).finally(() => {
+    ).catch((error) => {
+        clients.forEach(client => client.shutdown());
+        if (clientsRef.current === clients) clientsRef.current = [];
+        if (!controller.signal.aborted) setState({
+          identity, reservationId: null, plans: [], bricks: [], stats: null, loading: false,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }).finally(() => {
       if (aggregateReservation != null) visualizationResourceGovernor.release(aggregateReservation);
       if (controller.signal.aborted) clients.forEach((client) => client.shutdown());
     });
@@ -236,27 +277,13 @@ export function useNestedBrickedVolumePreparation(input: {
       clients.forEach((client) => client.shutdown());
     };
   }, [
-    identity, input.enabled, input.fieldName, input.maximumPreparedCells,
+    budgetRetry, identity, input.enabled, input.fieldName, input.maximumPreparedCells,
     input.requestedLevel, stableLayers, transferKey,
   ]);
 
-  const current = state.identity === identity;
-  const committed = current ? state : { ...state, loading: input.enabled };
-  useEffect(() => {
-    if (!current || committed.bricks.length === 0) return;
-    const reservation = visualizationResourceGovernor.reserve({
-      owner: ownerRef.current,
-      generation: identity,
-      priority: "visible",
-      claims: uniqueVolumeImages(committed.bricks).flatMap((brick) => [
-        visualizationBufferClaim(brick.prepared.values.buffer, "prepared-main"),
-        ...(brick.prepared.validity ? [visualizationBufferClaim(brick.prepared.validity.buffer, "prepared-main")] : []),
-        { allocationId: `${ownerRef.current}:${identity}:${brick.levelId}:${brick.brickId}:gpu`,
-          stage: "gpu" as const, bytes: volumeImageBytes(brick.prepared, input.maximumTextureDimension), accounting: "resident" as const },
-      ]),
-    });
-    if (!reservation.ok) return;
-    return () => { visualizationResourceGovernor.release(reservation.reservation.id); };
-  }, [committed.bricks, current, identity]);
+  const current = active && state.identity === identity;
+  const committed = !active
+    ? { ...state, plans: NO_PLANS, bricks: NO_BRICKS, stats: null, loading: false, error: null }
+    : current ? state : { ...state, loading: true };
   return { ...committed, current };
 }

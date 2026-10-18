@@ -47,16 +47,16 @@ jobs:
             build-essential ccache cmake glslang-tools libomp-dev libvulkan-dev \
             mesa-vulkan-drivers spirv-tools vulkan-tools
 
-      - name: Restore current SPIR-V tools
+      - name: Restore pinned GLSL and SPIR-V tools
         uses: actions/cache@v4
         with:
-          path: .cache/spirv-tools-2026.1
-          key: spirv-tools-2026.1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/dev/shaders/build_spirv_tools.sh') }}
+          path: .cache/shader-toolchain-16.2.0-2026.1
+          key: shader-toolchain-16.2.0-2026.1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/dev/shaders/build_spirv_tools.sh') }}
 
-      - name: Build SPIR-V tools with strict FMA support
+      - name: Build GLSL and SPIR-V tools with strict FMA support
         run: |
-          bash scripts/dev/shaders/build_spirv_tools.sh .cache/spirv-tools-2026.1
-          echo "$GITHUB_WORKSPACE/.cache/spirv-tools-2026.1/build/tools" >> "$GITHUB_PATH"
+          bash scripts/dev/shaders/build_spirv_tools.sh .cache/shader-toolchain-16.2.0-2026.1
+          echo "$GITHUB_WORKSPACE/.cache/shader-toolchain-16.2.0-2026.1/bin" >> "$GITHUB_PATH"
 
       - name: Restore C++ compiler cache
         uses: actions/cache@v4
@@ -110,10 +110,10 @@ jobs:
         if: always()
         run: ccache --show-stats
 
-  ui-browser:
-    name: UI lifecycle (Chromium + SwiftShader)
+  ui-contracts:
+    name: UI unit and type contracts
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -135,17 +135,6 @@ jobs:
         working-directory: ui
         run: npm run test:unit
 
-      # WebKit alongside Chromium because WebKit is not a second opinion here —
-      # it is the shipped macOS app. Tauri renders in WKWebView, and a
-      # Chromium-only gate let a WebKit-only defect ship: the COEP value the app
-      # sent was Chromium-specific, so WebKit never entered cross-origin
-      # isolation, SharedArrayBuffer was absent, and the Python tab's Stop
-      # button could not interrupt anything on the platform most of this is
-      # developed on. Nothing running here could have seen that.
-      - name: Install Chromium, WebKit and system libraries
-        working-directory: ui
-        run: npx playwright install --with-deps chromium webkit
-
       # Blocks the React #310 class of defect: a hook added below the early
       # return in a long component changes the hook count between renders and
       # takes down the whole view. Errors fail the job; exhaustive-deps is a
@@ -157,6 +146,42 @@ jobs:
       - name: Type-check browser harness
         working-directory: ui
         run: npm run typecheck:browser
+
+
+  ui-browser:
+    name: UI (${{ matrix.project }}, shard ${{ matrix.shard }}/4)
+    needs: ui-contracts
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        project: [chromium-swiftshader, webkit-standard, webkit-retina]
+        shard: [1, 2, 3, 4]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Install UI dependencies
+        working-directory: ui
+        run: npm ci
+
+      # WebKit alongside Chromium because WebKit is not a second opinion here —
+      # it is the shipped macOS app. Tauri renders in WKWebView, and a
+      # Chromium-only gate let a WebKit-only defect ship: the COEP value the app
+      # sent was Chromium-specific, so WebKit never entered cross-origin
+      # isolation, SharedArrayBuffer was absent, and the Python tab's Stop
+      # button could not interrupt anything on the platform most of this is
+      # developed on. Nothing running here could have seen that.
+      - name: Install Chromium, WebKit and system libraries
+        working-directory: ui
+        run: npx playwright install --with-deps chromium webkit
 
       # The Python specs boot a real interpreter. Its runtime comes from the
       # pyodide npm package, but that package ships no wheels, so ~37 MB of
@@ -179,25 +204,17 @@ jobs:
         working-directory: ui
         run: npm run vendor:pyodide
 
-      - name: Run production VTK lifecycle gate
+      - name: Run the complete browser suite partition
         working-directory: ui
         env:
           NIMBUS_VTK_MOUNT_CYCLES: 100
-        run: npm run test:browser
-
-      # WKWebView is the shipped macOS engine, so gate the complete supported
-      # surface at both standard and Retina scale. This covers more than the
-      # Python worker: layout, lifecycle, config, archive, and high-DPI behavior
-      # can all diverge from Chromium independently.
-      - name: Run complete WebKit release matrix
-        working-directory: ui
-        run: npm run test:webkit-smoke
+        run: npx playwright test --project="${{ matrix.project }}" --shard="${{ matrix.shard }}/4"
 
       - name: Upload lifecycle metrics and failure traces
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: vtk-lifecycle-chromium-swiftshader
+          name: vtk-lifecycle-${{ matrix.project }}-${{ matrix.shard }}
           path: |
             ui/build/test-results
             ui/build/playwright-report

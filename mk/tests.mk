@@ -85,7 +85,11 @@ bin/thompson_cold_table_tool: src/tools/thompson_cold_table_tool.cpp src/microph
 
 THOMPSON_TABLE_THREADS ?= 8
 .PHONY: thompson-data
-thompson-data: bin/thompson_activation_table_tool bin/thompson_collection_table_tool bin/thompson_cold_table_tool
+thompson-data:
+	python3 scripts/dependencies/fetch_thompson_tables.py
+
+.PHONY: thompson-generate-data
+thompson-generate-data: bin/thompson_activation_table_tool bin/thompson_collection_table_tool bin/thompson_cold_table_tool
 	mkdir -p data/thompson
 	./bin/thompson_activation_table_tool tests/fixtures/reference/thompson/CCN_ACTIVATE.BIN data/thompson/ccn_activation.ntact
 	OMP_NUM_THREADS=$(THOMPSON_TABLE_THREADS) ./bin/thompson_collection_table_tool data/thompson/collection_v1.ntctbl
@@ -716,7 +720,7 @@ bin/test_physics_turbulence_runtime_state: tests/test_main.cpp tests/physics/tes
 bin/test_physics_sgs_apply_runtime_state bin/test_physics_sgs_apply_runtime_state_optimized: tests/test_main.cpp tests/physics/test_sgs_apply_runtime_state.cpp src/core/orchestration/dynamics/sgs_apply.cpp src/core/runtime/simulation_state.cpp src/turbulence/base/eddy_viscosity.cpp src/turbulence/base/collocated_eddy_viscosity.cpp $(TERRAIN_TRANSPORT_SRC) src/core/infra/coordinate_system.cpp $(COMPUTE_RUNTIME_SRC) $(TEST_FLAGS_STAMP) | bin
 	$(CXX_COMPILE) $(if $(filter %_optimized,$@),$(filter-out -O0,$(TEST_CXXFLAGS)) -DNDEBUG,$(TEST_CXXFLAGS)) $(CPPFLAGS) $(filter %.cpp,$^) $(LDLIBS) -o $@
 
-bin/test_physics_terrain: $(TEST_INFRA) tests/physics/test_terrain.cpp $(TERRAIN_SCHEME_SRCS) $(TERRAIN_TRANSPORT_SRC) src/numerics/advection/advection_cartesian.cpp src/core/infra/coordinate_system.cpp src/core/infra/domain_motion.cpp | bin
+bin/test_physics_terrain: $(TEST_INFRA) tests/physics/test_terrain.cpp $(TERRAIN_SCHEME_SRCS) $(TERRAIN_TRANSPORT_SRC) src/numerics/advection/advection_cartesian.cpp src/numerics/advection/advection_perf.cpp src/core/infra/coordinate_system.cpp src/core/infra/domain_motion.cpp $(BACKEND_COMMON_SRCS) | bin
 	$(CXX_COMPILE) $(TEST_CXXFLAGS) $(CPPFLAGS) $(filter %.cpp,$^) $(LDLIBS) -o $@
 
 # Data tests
@@ -994,7 +998,7 @@ verify-shaders:
 qualify-netcdf-history: bin/netcdf_history_fixture
 	CARGO_TARGET_DIR=$(CATALOG_RUST_TARGET_DIR) python3 scripts/qualification/output/qualify_netcdf_history.py
 
-qualify-zfp-core-history: bin/nimbus_sim bin/test_core_zfp_roundtrip bin/test_core_output_writer
+qualify-zfp-core-history: bin/nimbus_sim bin/test_core_zfp_roundtrip bin/test_core_output_writer bin/test_core_radar_zfp_v4_integration
 	./bin/test_core_zfp_roundtrip "[core][zfp][roundtrip][qualified][science]"
 	./bin/test_core_zfp_roundtrip "[core][zfp][writer][workspace]"
 	./bin/test_core_zfp_roundtrip "[core][zfp][parallel]"

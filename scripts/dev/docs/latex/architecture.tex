@@ -68,11 +68,11 @@
   filecolor={Maroon},
   citecolor={Blue},
   urlcolor={Blue},
-  pdfcreator={LaTeX via pandoc}}
+  pdfcreator={LaTeX via Tectonic}}
 
 \title{Nimbus: Architecture and design choices}
 \author{Nimbus project documentation}
-\date{17 October 2026}
+\date{18 October 2026}
 
 \begin{document}
 \hypersetup{pageanchor=false}
@@ -90,8 +90,9 @@
 \pagenumbering{arabic}
 \pagestyle{fancy}
 Nimbus separates the atmospheric calculation from the application used
-to configure and inspect it. The simulator is a C++17 executable. Nimbus
-Studio is a Tauri desktop application: TypeScript and React provide the
+to configure and inspect it. The simulator is a C++17 executable, independently
+developed rather than ported or forked from CM1. Nimbus Studio is a Tauri
+desktop application: TypeScript and React provide the
 interface, while Rust owns filesystem access, process control and native
 data readers. Studio launches the simulator as a separate process. The
 same executable can run from a terminal or on a remote Linux computer
@@ -111,6 +112,8 @@ the evidence required for a new change.
 
 \input{figures/architecture.tex}
 
+\input{architecture-local-experiments.tex}
+
 \input{architecture-solver.tex}
 
 \input{architecture-execution.tex}
@@ -127,6 +130,11 @@ colormap, camera, opacity or rendering resolution does not change the
 simulated atmosphere. Conversely, selecting a solver backend does not
 select Studio's rendering API or give its webview direct access to the
 solver's GPU buffers.
+
+The \hyperref[architecture-multigpu]{multi-GPU design section} describes what
+it would take to partition the solver across devices. That future compute
+capability is separate from distributing rendering. Multiple graphics or
+compute queues are not evidence that a simulation is already sharded.
 
 \input{figures/rendering.tex}
 
@@ -588,7 +596,8 @@ Maintained responsibility
 and orchestration \\
 \texttt{vulkan/}, \texttt{metal/} & Native backend code, shaders and
 backend checks \\
-\texttt{ui/} & Studio frontend, native shell and their tests \\
+\texttt{ui/} & Studio frontend and native shell; maintained tests live under
+\texttt{tests/ui/} \\
 \texttt{configs/} & Public starting configurations \\
 \texttt{tests/} & Numerical references, contracts and bounded
 fixtures \\

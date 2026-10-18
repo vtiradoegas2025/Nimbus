@@ -1,6 +1,7 @@
 import { volumeImageBytes, volumeValidityBudgetFactor, reserveVolumeValidity } from "@/lib/vtk/volumeValidityBudget";
 import { reconstructVolumePlan, needsVolumeReconstruction } from "./volumeReconstruction";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useIoBudgetRetry } from "@/lib/core/useIoBudgetRetry";
 import { readField, readFieldBrickHierarchy, type StepInfo } from "@/lib/run/runOutputs";
 import {
   compactVolumeBrickPlan,
@@ -37,10 +38,12 @@ export interface PreparedVolumeBrick {
   brickId: string;
   prepared: PreparedVtkImage;
 }
+const NO_BRICKS: PreparedVolumeBrick[] = [];
 
 interface BrickedVolumeState {
   identity: string;
   commitToken: number;
+  reservationId: number | null;
   hierarchy: FieldBrickHierarchy | null;
   plan: VolumeBrickPlan | null;
   stats: { min: number; max: number; p2: number; p98: number; p995?: number } | null;
@@ -99,6 +102,7 @@ export function useBrickedVolumePreparation(input: {
   } = input;
   const ownerRef = useRef(`vtk:bricked-volume:${++volumeBrickScopeSequence}`);
   const clientRef = useRef<VolumeBrickPreparationClient | null>(null);
+  const residentReservations = useRef(new Set<number>());
   const transferRef = useRef(transfer);
   transferRef.current = transfer;
   const transferKey = volumeOpacitySelectionKey(fieldName, transfer);
@@ -123,6 +127,7 @@ export function useBrickedVolumePreparation(input: {
   const [state, setState] = useState<BrickedVolumeState>({
     identity: "",
     commitToken: 0,
+    reservationId: null,
     hierarchy: null,
     plan: null,
     stats: null,
@@ -130,16 +135,36 @@ export function useBrickedVolumePreparation(input: {
     loading: false,
     error: null,
   });
+  const active = enabled && Boolean(step?.grid && fieldName);
+  const budgetRetry = useIoBudgetRetry(state.error);
 
   useEffect(() => () => {
     clientRef.current?.shutdown();
     clientRef.current = null;
+    for (const id of residentReservations.current) visualizationResourceGovernor.release(id);
+    residentReservations.current.clear();
   }, []);
 
   useEffect(() => {
-    if (!enabled || !step || !step.grid || !fieldName) return;
+    for (const id of residentReservations.current) {
+      if (id === state.reservationId) continue;
+      visualizationResourceGovernor.release(id);
+      residentReservations.current.delete(id);
+    }
+  }, [state.reservationId]);
+
+  useEffect(() => {
+    if (!enabled || !step || !step.grid || !fieldName) {
+      clientRef.current?.shutdown();
+      clientRef.current = null;
+      setState(current => current.bricks.length || current.plan || current.hierarchy || current.stats || current.loading || current.error
+        ? { identity, commitToken: 0, reservationId: null, hierarchy: null, plan: null, stats: null, bricks: [], loading: false, error: null }
+        : current);
+      return;
+    }
     const grid = step.grid;
     const controller = new AbortController();
+    let activeClient: VolumeBrickPreparationClient | null = null;
     setState((current) => ({ ...current, loading: true, error: null, requiresBoundedOverview: false }));
     let admissionReservationId: number | null = null;
     void (async () => {
@@ -298,6 +323,7 @@ export function useBrickedVolumePreparation(input: {
           }
           const client = clientRef.current;
           if (!client) throw new Error("Progressive volume bricks require module workers");
+          activeClient = client;
           try {
             preparedBatch = await client.prepareAnomalyBatch(fields.map((field, index) => ({
               kind: "scalar" as const,
@@ -314,6 +340,8 @@ export function useBrickedVolumePreparation(input: {
             lastError = error;
             client.shutdown();
             if (clientRef.current === client) clientRef.current = null;
+          } finally {
+            activeClient = null;
           }
         }
         if (!preparedBatch) throw lastError ?? new Error("Volume anomaly worker failed twice");
@@ -348,6 +376,7 @@ export function useBrickedVolumePreparation(input: {
           }
           const client = clientRef.current;
           if (!client) throw new Error("Progressive volume bricks require module workers");
+          activeClient = client;
           try {
             prepared = await client.prepare({
               kind: "scalar",
@@ -364,6 +393,8 @@ export function useBrickedVolumePreparation(input: {
             lastError = error;
             client.shutdown();
             if (clientRef.current === client) clientRef.current = null;
+          } finally {
+            activeClient = null;
           }
         }
         if (!prepared) throw lastError ?? new Error("Volume brick worker failed twice");
@@ -376,61 +407,60 @@ export function useBrickedVolumePreparation(input: {
       return { hierarchy, plan, stats, bricks };
     })().then(
       (result) => {
-        if (!controller.signal.aborted) setState({
+        if (controller.signal.aborted) return;
+        const commitToken = ++volumeBrickCommitSequence;
+        let reservationId: number | null = null;
+        if (result.bricks.length > 0 && admissionReservationId != null) {
+          const resident = visualizationResourceGovernor.transition(admissionReservationId,
+            result.bricks.flatMap(({ brickId, prepared }) => [
+              visualizationBufferClaim(prepared.values.buffer, "prepared-main"),
+              ...(prepared.validity ? [visualizationBufferClaim(prepared.validity.buffer, "prepared-main")] : []),
+              { allocationId: `${ownerRef.current}:${identity}:${commitToken}:${brickId}:gpu`,
+                stage: "gpu" as const, bytes: volumeImageBytes(prepared, maximumTextureDimension), accounting: "resident" as const },
+            ]));
+          if (!resident.ok) throw new Error(resident.reason);
+          reservationId = resident.reservation.id;
+          residentReservations.current.add(reservationId);
+          admissionReservationId = null;
+        }
+        setState({
           identity,
-          commitToken: ++volumeBrickCommitSequence,
+          commitToken,
+          reservationId,
           ...result,
           loading: false,
           error: null,
           requiresBoundedOverview: false,
         });
       },
-      (error) => {
+    ).catch((error) => {
         if (!controller.signal.aborted) setState((current) => ({
           ...current,
           identity,
+          reservationId: null,
           bricks: [], hierarchy: null, plan: null, stats: null,
           loading: false,
           error: error instanceof Error ? error.message : String(error),
           requiresBoundedOverview: error instanceof VolumeResidencyError
             && allowTransientHierarchy && !step.fieldBrickHierarchies?.[fieldName],
         }));
-      },
-    ).finally(() => {
+      }).finally(() => {
       if (admissionReservationId != null) {
         visualizationResourceGovernor.release(admissionReservationId);
       }
     });
-    return () => controller.abort();
-  }, [allowTransientHierarchy, compactBricks, enabled, exclusionKey, fieldName, identity, maximumPreparedCells, metadataOnly, opacityClass, requestedLevel, runDir, stableExclusion, step, transferKey]);
+    return () => {
+      controller.abort();
+      if (activeClient) {
+        activeClient.shutdown();
+        if (clientRef.current === activeClient) clientRef.current = null;
+      }
+    };
+  }, [allowTransientHierarchy, budgetRetry, compactBricks, enabled, exclusionKey, fieldName, identity, maximumPreparedCells, metadataOnly, opacityClass, requestedLevel, runDir, stableExclusion, step, transferKey]);
 
-  const current = state.identity === identity;
-  const committed = current ? state : { ...state, loading: true };
-  useEffect(() => {
-    if (committed.bricks.length === 0) return;
-    const claims = [...committed.bricks.flatMap(({ brickId, prepared }) => [
-      visualizationBufferClaim(prepared.values.buffer, "prepared-main"),
-      ...(prepared.validity ? [visualizationBufferClaim(prepared.validity.buffer, "prepared-main")] : []),
-      {
-        allocationId: `${ownerRef.current}:${committed.identity}:${committed.commitToken}:${brickId}:gpu`,
-        stage: "gpu" as const,
-        bytes: volumeImageBytes(prepared, maximumTextureDimension),
-        accounting: "resident" as const,
-      },
-    ])];
-    const reservation = visualizationResourceGovernor.reserve({
-      owner: ownerRef.current,
-      generation: committed.identity,
-      priority: "visible",
-      claims,
-    });
-    if (!reservation.ok) {
-      setState((current) => current.identity === committed.identity
-        ? { ...current, bricks: [], error: reservation.reason }
-        : current);
-      return;
-    }
-    return () => { visualizationResourceGovernor.release(reservation.reservation.id); };
-  }, [committed.bricks, committed.commitToken, committed.identity]);
+  const current = active && state.identity === identity;
+  const committed = !active
+    ? { ...state, bricks: NO_BRICKS, hierarchy: null, plan: null, stats: null, loading: false, error: null }
+    : current ? state : { ...state, loading: true };
   return { ...committed, current };
 }

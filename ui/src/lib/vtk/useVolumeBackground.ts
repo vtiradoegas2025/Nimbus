@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useIoBudgetRetry } from "@/lib/core/useIoBudgetRetry";
 import { readField, type StepInfo } from "@/lib/run/runOutputs";
 import { prepareVtkInWorker } from "./vtkPreparationClient";
 import { volumeBackgroundProfile, type VolumeBackground } from "./volumeBackground";
@@ -9,6 +10,7 @@ const cache = new Map<string, VolumeBackground>();
 export function useVolumeBackground(enabled: boolean, runDir: string, step: StepInfo | null | undefined, field: string | null) {
   const key = JSON.stringify([runDir, step?.index, step?.publicationGeneration, field]);
   const [state, setState] = useState<{ key: string; profile: VolumeBackground | null; error: string | null }>({ key: "", profile: null, error: null });
+  const budgetRetry = useIoBudgetRetry(state.error);
   useEffect(() => {
     if (!enabled || !step?.grid || !field) return;
     const cached = cache.get(key);
@@ -43,7 +45,7 @@ export function useVolumeBackground(enabled: boolean, runDir: string, step: Step
       setState({ key, profile, error: null });
     })().catch(error => { if (!controller.signal.aborted) setState({ key, profile: null, error: String(error) }); });
     return () => controller.abort();
-  }, [enabled, key]);
+  }, [enabled, key, budgetRetry]);
   return { profile: enabled && state.key === key ? state.profile : null,
     loading: enabled && (state.key !== key || (!state.profile && !state.error)),
     error: enabled && state.key === key ? state.error : null };

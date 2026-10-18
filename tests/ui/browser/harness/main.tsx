@@ -3,6 +3,7 @@ import { PanePresentationProvider } from "@nimbus/components/plots/panePresentat
 import { collectVtkAppearanceEvidence } from "@nimbus/lib/vtk/vtkAppearanceEvidence";
 import type { PanePresentationSnapshot } from "@nimbus/lib/plot/panePresentationBarrier";
 import { RegularDataflowHarness } from "./regular-dataflow";
+import { VolumeOwnerLifecycleHarness, volumeOwnerInvoke } from "./volume-owner-lifecycle";
 import { PublishedVolumeOverviewHarness } from "./published-overview";
 import { PlaybackScreenHarness } from "./playback-screen";
 import { PlotResolutionHarness } from "./plot-resolution";
@@ -98,7 +99,8 @@ installBrowserInstrumentation();
 installTauriFixture({ nativeCapabilities: true,
   intercept: new URLSearchParams(window.location.search).get("mode") === "research" ? researchInvoke : new URLSearchParams(window.location.search).get("mode") === "regular-dataflow" ? regularInvoke
     : new URLSearchParams(window.location.search).get("mode") === "published-overview" ? publishedOverviewInvoke
-    : new URLSearchParams(window.location.search).get("mode") === "recorder" ? recorderInvoke : undefined });
+    : new URLSearchParams(window.location.search).get("mode") === "recorder" ? recorderInvoke
+    : new URLSearchParams(window.location.search).get("mode") === "volume-owner" ? volumeOwnerInvoke : undefined });
 const qualificationRam = Number(new URLSearchParams(window.location.search).get("volumeRamGiB"));
 if (Number.isFinite(qualificationRam) && qualificationRam >= 2 && qualificationRam <= 128) {
   visualizationResourceGovernor.setHardwareFacts({ source: "browser", systemRamBytes: qualificationRam * 1024 ** 3, logicalCores: 8 });
@@ -1175,7 +1177,9 @@ function RecorderHarness() {
 
 const mode = new URLSearchParams(window.location.search).get("mode");
 createRoot(rootElement).render(
-  mode === "research"
+  mode === "volume-owner"
+    ? <VolumeOwnerLifecycleHarness />
+    : mode === "research"
     ? <ResearchHarness />
     : mode === "plot-resolution"
     ? <PlotResolutionHarness />

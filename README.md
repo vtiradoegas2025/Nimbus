@@ -6,6 +6,13 @@ from the terminal or through Nimbus Studio, a Tauri/React application. CPU,
 Vulkan and Metal execution are available for the combinations admitted by the
 runtime catalog.
 
+Nimbus has been an independent codebase from the beginning; it is not a port
+or fork of CM1. Its goal is to make high-fidelity atmospheric experiments
+practical on ordinary workstations and MacBooks through efficient algorithms,
+GPU acceleration and a configurable, maintainable solver. The technical guides
+explain how to evaluate resolution, accuracy and resource cost, and when an
+experiment needs resources beyond one computer.
+
 Nimbus is under active scientific and engineering development. A successful
 build or an admitted configuration is not full scientific qualification. Some
 couplings remain incomplete and are deliberately rejected. Read the

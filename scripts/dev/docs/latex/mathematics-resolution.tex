@@ -1,0 +1,330 @@
+\chapter{Resolution, useful accuracy and the cost of an experiment}
+\label{mathematics-resolution}
+
+Nimbus's aim includes high-fidelity atmospheric experiments on ordinary
+workstations and MacBooks. Efficient algorithms and GPU acceleration can
+change which experiments are practical on a given machine. The mathematical
+question is what accuracy an experiment needs and which changes actually buy
+that accuracy. A smaller grid spacing, a faster timestep implementation and a
+more detailed rendered image are three different improvements. This chapter
+connects the physical question to discretization, computational cost and the
+evidence needed to increase resolution deliberately.
+
+The discussion supplies planning models and experiment-design guidance. It
+does not assign a universal maximum grid to a laptop, recommend one spacing
+for all storms, or claim that Nimbus is already fully optimized. The
+\href{ARCHITECTURE.pdf}{architecture guide} explains how to measure memory,
+data movement and execution, and what distributed GPU execution would require.
+
+\section{Define fidelity through a question and an observable}
+
+Let $X(t)$ denote the complete model state and $J[X]$ a quantity of interest.
+Examples include domain-integrated water, accumulated precipitation over a
+specified area and interval, an updraft-volume distribution, a cold-pool
+propagation speed, or a spectrum of resolved kinetic energy. Define the region,
+time interval, units and averaging operation before choosing the grid. A
+single maximum of vertical vorticity and an area-averaged circulation are not
+equivalent targets and need not converge at the same rate.
+
+For example, a dry-mass-weighted mean mixing ratio over a fixed physical region
+$\mathcal R$ is
+\[
+ J_q(t)=\frac{\displaystyle\sum_{C\subset\mathcal R}M_C(t)q_C(t)}
+              {\displaystyle\sum_{C\subset\mathcal R}M_C(t)},
+ \qquad M_C=\rho_{d,C}V_C.
+\]
+This expression assumes the region is a union of owned physical cells.
+Partially intersected cells need an explicit overlap rule. Terrain volumes,
+moving domains and coarse/fine coverage change those weights; storage halos
+never contribute merely because they contain finite values. Comparing runs
+on different grids requires a common physical region rather than the same
+integer array slice.
+
+High fidelity therefore has several components: the appropriate governing
+approximations, credible initial and boundary conditions, suitable closure
+assumptions, sufficient spatial and temporal resolution, and a numerical
+implementation that preserves the declared contracts. The objective is to
+make that combination affordable locally. Optimization can remove waste
+without changing the question; changing the question to fit the machine must
+be a deliberate scientific choice.
+
+\section{Grid spacing is not the smallest trustworthy feature}
+
+Sampling a wavelength at two points is a representability limit, not a promise
+that an evolution scheme propagates that wavelength accurately. To see the
+distinction, consider the teaching example of a centered derivative on a
+uniform collocated grid,
+\[
+ D_h f_j=\frac{f_{j+1}-f_{j-1}}{2h},\qquad f_j=e^{ikjh}.
+\]
+Substitution gives
+\[
+ D_h f_j=i\frac{\sin(kh)}{h}f_j,
+ \qquad \frac{k_{\mathrm{effective}}}{k}
+       =\frac{\sin(kh)}{kh}.
+\]
+At wavelengths $\lambda=4h$ and $8h$, this ratio is approximately 0.637 and
+0.900. At the two-cell alternating mode it is zero. The formula illustrates
+why a visibly sampled pattern can have a badly represented derivative. It is
+not the transfer function of Nimbus's full scheme: face staggering,
+reconstruction, upwinding, limiters, dissipation and time integration change
+the result. In particular, a face-centered gradient has a different symbol
+from this collocated example.
+
+An effective-resolution study must examine the combined algorithm. Wave
+propagation and decay tests expose phase and amplitude errors; spectra and
+structure statistics expose where an evolving turbulent solution loses useful
+scale content. Skamarock's
+\href{https://doi.org/10.1175/MWR2830.1}{kinetic-energy-spectrum study}
+is relevant methodological context. It does not establish Nimbus's effective
+resolution or justify transferring another model's cells-per-wavelength
+estimate without testing the Nimbus configuration.
+
+The same issue matters in a vorticity rendering. Curl uses spatial derivatives
+of velocity, and its apparent small structures can be sensitive to filtering,
+stagger-to-center reconstruction and the derivative operator. A smooth GPU
+image can make a field easier to inspect while leaving its physical resolving
+power unchanged. Report the velocity source, curl definition, units,
+sampling, thresholds and display transformation with such a figure. The
+presence of fine visible structure is useful evidence to investigate, but its
+resolved scales must be established from the underlying fields and experiment.
+
+\section{Refinement changes the resolved and unresolved partition}
+
+In a filtered-flow interpretation, a representative subgrid stress is
+\[
+ \tau_{ij}=\overline{u_i u_j}-\overline{u}_i\,\overline{u}_j.
+\]
+This expression states that filtering a product differs from multiplying
+filtered velocities. It is an illustrative incompressible form; a compressible
+closure may use density-weighted filtering and Nimbus's selected scheme has
+its own precise conventions. Refining the grid changes what is explicitly
+represented and what the closure must supply. It does not simply produce more
+samples of an otherwise unchanged turbulent model.
+
+For an eddy-viscosity example, $K\sim(C\Delta)^2|S|$. Both the filter scale
+$\Delta$ and resolved strain $|S|$ can change on refinement. Holding the
+coefficient $C$ fixed therefore does not hold the realized mixing fixed.
+The relationship between vertical and horizontal resolution also matters:
+a thin near-surface layer and a wide horizontal cell do not have the same
+numerical or closure behavior as an isotropic cell of equal volume.
+
+Bryan, Wyngaard and Fritsch's
+\href{https://journals.ametsoc.org/view/journals/mwre/131/10/1520-0493_2003_131_2394_rrftso_2.0.co_2.xml}{study
+of deep moist convection} motivates examining the scale assumptions of an
+LES closure alongside resolution. Its results are not a universal grid cutoff
+for every Nimbus experiment. Bulk microphysics, cloud optical properties,
+surface exchange and initial-condition uncertainty remain modeled even after
+important turbulent motions become resolved.
+
+Refinement also needs compatible inputs. Preserve the physical size and
+amplitude of an initial perturbation rather than its radius in cells. Sample
+the same sounding and terrain with documented reconstruction. Keep sponge
+thickness and forcing regions in physical units where that defines the
+experiment. Recheck the realized base-state balance. Otherwise a purported
+resolution comparison changes the triggering or boundaries at the same time.
+
+\section{Why halving spacing can cost much more than eight times}
+
+For a fixed rectangular physical domain, ignoring halos and staggered end
+planes, the cell count is approximately
+\[
+ N\simeq\frac{L_xL_yL_z}{\Delta x\,\Delta y\,\Delta z}.
+\]
+Refining each direction by factors $(r_x,r_y,r_z)$ increases the cell count by
+$r_xr_yr_z$. The time cost also depends on the timestep. A schematic explicit
+wave/advection restriction is
+\[
+ \Delta t\left(
+ \frac{|u|+c_x}{\Delta x}
+ +\frac{|v|+c_y}{\Delta y}
+ +\frac{|w|+c_z}{\Delta z}\right)\lesssim C_{\mathrm{scheme}},
+\]
+where the relevant characteristic speeds and stability constant depend on the
+operator and integrator. This is a dimensional planning relation, not Nimbus's
+exact timestep controller. Moving-grid transport uses velocity relative to
+the grid, and mapped coordinates require the corresponding metric factors.
+Split-explicit integration separates slow-step and
+acoustic restrictions; the cost can increase through more outer steps, more
+fast substeps, or both. Terrain metrics and local thin layers can determine the
+restrictive physical spacing.
+
+If all spacings shrink by $r$, characteristic speeds stay comparable, the
+explicit timestep scales as $1/r$, and work per cell per step remains comparable,
+the same physical duration requires approximately $r^4$ work in three
+dimensions. Doubling linear resolution gives eight times the cells and about
+sixteen times the work under those assumptions. Horizontal-only refinement
+gives roughly $r^3$ work if the horizontal CFL restriction controls the step;
+if an unchanged vertical restriction already dominates, the initial increase
+can instead be closer to $r^2$. These are distinct cases, not conflicting rules.
+
+For an explicit constant-diffusivity operator, a representative restriction is
+\[
+ K\Delta t\left(\Delta x^{-2}+\Delta y^{-2}+\Delta z^{-2}\right)
+ \lesssim C_{\mathrm{diff}}.
+\]
+If this becomes controlling and $K$ stays fixed, isotropic refinement can make
+the work scale as $r^5$. A grid-dependent SGS coefficient, implicit solve or
+subcycling changes that estimate. Positivity restrictions, sedimentation and
+microphysics can add costs that do not obey the simple wave model. For example,
+increasing the number of cloudy cells can change the work distribution even
+when the total cell count scales regularly.
+
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.36\textwidth}>{\centering\arraybackslash}p{0.18\textwidth}>{\raggedright\arraybackslash}p{0.37\textwidth}@{}}
+\toprule
+Illustrative change & State-size factor & Work factor for fixed duration \\
+\midrule
+\endhead
+Halve all three spacings & $8$ & About $16$ if wave CFL controls \\
+Halve horizontal spacings only & $4$ & About $8$ if horizontal CFL controls \\
+Halve all three spacings, fixed explicit diffusivity controls & $8$ & About $32$ \\
+Double physical domain lengths at unchanged spacing & $8$ & About $8$ if step
+size and per-cell work stay comparable \\
+\bottomrule
+\end{longtable}
+
+The factors exclude changes in communication, cache behavior, output,
+initialization and iteration counts. They explain why optimization has large
+scientific value: removing repeated scans, avoidable synchronization or
+unneeded copies can make the next refinement practical without changing its
+equations. They also explain why a speedup on one grid cannot be extrapolated
+unchanged across a memory-capacity boundary. Actual complete-run measurements
+must determine the local hardware's practical range.
+
+The same model quantifies an optimization opportunity. Suppose a complete
+matched workload becomes $S$ times faster, and its refinement cost remains
+approximately proportional to $h^{-4}$. At a fixed time budget, that gain could
+support a linear refinement factor $r\simeq S^{1/4}$, provided memory and other
+constraints still fit. An illustrative sixteen-fold gain corresponds to
+halving all three spacings for about the original elapsed time. This is not
+a measured Nimbus speedup. The refined state still has eight times as many
+cells, so reducing unnecessary live storage can be as consequential as faster
+arithmetic. Alternatively, the same gain can support more realizations at an
+already adequate resolution. This is why optimization changes the accessible
+science on ordinary hardware rather than merely changing a benchmark number.
+
+\section{Memory and output belong in the same resolution calculation}
+
+With $F$ simultaneously live scalar-equivalents and $b$ bytes per scalar, a
+first payload estimate is $bFN$. It omits unequal field shapes, geometry,
+halos, stage duplication, private scheme state and output snapshots unless
+those have explicitly been included in $F$. Storage precision also differs
+from arithmetic precision. A float32 field with double-precision temporary
+work cannot be budgeted as though every live representation uses four bytes.
+
+For a halo depth $h$ around an owned local tile, the allocation ratio is
+\[
+ R_{\mathrm{storage}}=
+ \frac{(n_x+2h)(n_y+2h)(n_z+2h)}{n_xn_yn_z}.
+\]
+This simple rectangular example shows why small distributed tiles can have
+high overhead. Physical boundary layouts and C-grid fields change the exact
+count. Halos increase storage and communication, but not the physical
+atmospheric inventory used in a conservation check.
+
+If $F_o$ fields are saved for physical duration $T$ at interval $\tau_o$,
+an uncompressed payload estimate is
+\[
+ B_{\mathrm{history}}\simeq
+ bF_oN\left(1+\left\lfloor T/\tau_o\right\rfloor\right).
+\]
+It assumes an initial frame and fixed-size full fields, and excludes metadata,
+checkpoints and predictive dependencies. At fixed physical output cadence,
+isotropic refinement multiplies this payload by $r^3$. Saving every fixed
+number of shrinking timesteps can add another factor of $r$. A comparison
+should preserve the intended physical sampling rather than accidentally
+turning a resolution experiment into a different I/O workload.
+
+Compression changes storage and transfer costs according to its actual mode
+and data. It does not make the uncompressed computational working set vanish.
+Some read paths can decode a bounded window; others still need a larger source
+working set. A measured compression ratio for one smooth field is not an
+admission guarantee for all fields or storm stages.
+
+\section{A refinement study compares the same mathematical experiment}
+
+For a smooth, sufficiently resolved verification problem, suppose
+$J(h)=J_*+Ch^p+o(h^p)$ with a stable leading error coefficient. For three
+grids $h,h/r,h/r^2$ with $r>1$, an observed order is
+\[
+ p_{\mathrm{obs}}=
+ \frac{\log\left|\dfrac{J(h)-J(h/r)}{J(h/r)-J(h/r^2)}\right|}{\log r}.
+\]
+If the differences are meaningful and the asymptotic model applies, the
+corresponding extrapolation is
+\[
+ J_*\approx J(h/r^2)+
+ \frac{J(h/r^2)-J(h/r)}{r^{p_{\mathrm{obs}}}-1}.
+\]
+These formulas are conditional estimates. Near-zero differences, nonmonotone
+behavior, phase shifts or changing physical closure can invalidate the
+interpretation. NASA's
+\href{https://www.grc.nasa.gov/www/wind/valid/tutorial/spatconv.html}{spatial
+convergence tutorial} provides verification context. A formally high-order
+reconstruction does not establish the order of a complete moist, limited,
+split-coupled simulation.
+
+Start with manufactured or analytical problems that isolate spatial and
+temporal errors. Refine time at a fixed grid, and refine space with temporal
+error controlled. Test hydrostatic balance, wave propagation, translated
+tracers, physical inventories and the selected source laws. For common-grid
+comparisons, restrict conserved inventories with their physical weights;
+arithmetic interpolation of mixing ratios is not generally conservative.
+Retain original fine-grid peaks as separate quantities if they are of interest.
+
+Long nonlinear convective runs need additional interpretation. Small admissible
+changes can shift storm timing or location and eventually produce different
+realizations. Pointwise agreement at a late time is then a different question
+from agreement of precipitation, transport, spectra or event distributions.
+Compare those statistics on declared common scales and intervals. If a
+storm-relative alignment is used, report it alongside the unaligned comparison;
+it must not hide a propagation error. Neither visual similarity nor divergence
+alone settles numerical correctness.
+
+\section{Choose ensemble size and resolution together}
+
+Suppose an experiment estimates a mean diagnostic from $m$ independent,
+identically distributed realizations with finite variance $\sigma^2$. Its
+sampling standard error scales as $\sigma/\sqrt m$. This does not describe
+discretization bias, model-form error or a single deterministic simulation.
+Snapshots from one trajectory are usually correlated and must not be counted
+as independent realizations simply because many frames were saved.
+
+A fixed compute budget can therefore be spent on finer individual runs, more
+realizations, longer sampling or a larger physical domain. Which choice helps
+depends on the quantity of interest and its dominant error. Reproducible
+perturbation seeds help paired comparisons, but do not create independence
+or validate the perturbation model. The local-hardware objective includes
+making ensembles practical, not only producing the finest isolated frame.
+Independent realizations are also a natural unit for spreading work across
+additional computers without domain-exchange traffic.
+
+\section{Keep numerical, physical and representation errors distinguishable}
+
+An experiment record should separate spatial and temporal discretization,
+closure and coefficient assumptions, initial and boundary uncertainty,
+sampling variability, floating-point effects, and saved-data transformations.
+Their effects interact; the list is not a theorem that their measured errors
+can always be added as independent scalar terms. It identifies what to vary
+and what to hold fixed in a controlled comparison.
+
+For example, if saved velocity values have a pointwise error bound
+$|e_j|\leq\epsilon$, a centered derivative reconstructed from those saved
+values has representation error bounded by
+\[
+ \left|\frac{e_{j+1}-e_{j-1}}{2h}\right|\leq\frac{\epsilon}{h}.
+\]
+A finer grid can amplify a fixed saved-field error in a derivative diagnostic.
+This bound assumes the pointwise premise and this specific stencil; it does
+not assert that every compression mode supplies that premise. Vorticity and
+other derivative products need their own error assessment. Lossy visualization
+output is also different from lossy prognostic state or restart, which can
+affect subsequent evolution.
+
+The useful result of this process is a declared experiment envelope: the
+observable, physical setup, supported configuration, grid and timestep,
+input identities, output transformations, measured resource cost and observed
+sensitivity. That envelope can demonstrate demanding local experiments where
+the evidence supports them, and identify when additional optimization, memory,
+ensemble throughput or distributed execution is needed. Hardware placement
+follows the experiment and measurements; it is not a substitute for them.

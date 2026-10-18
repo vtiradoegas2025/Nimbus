@@ -1,0 +1,180 @@
+\section{Local experimentation and the decision to use HPC}
+\label{architecture-local-experiments}
+
+A central goal is high-fidelity atmospheric simulation on ordinary workstations
+and MacBooks through efficient algorithms, careful memory ownership and GPU
+acceleration. Local work is not intended to stop at toy models, coarse previews
+or preliminary checks before an inevitable cluster run. Reducing avoidable
+work and data movement can make substantially more demanding experiments
+practical on the same hardware. A researcher
+should be able to change a documented experiment, inspect its assumptions,
+and increase its resolution without maintaining a separate solver fork for
+each case. The objective is useful scientific work per unit of time, memory
+and effort. A high GPU utilization percentage is not sufficient evidence of
+that objective, and a run does not become scientifically adequate merely
+because it completes on a laptop or a cluster.
+
+Three questions determine where an experiment belongs. First, does the
+discretization and selected physics answer the scientific question? Second,
+does the complete working set fit the available resources? Third, can the
+required duration, repetitions and analysis finish within the researcher's
+time budget? A configuration can pass one question and fail another. The
+\href{MATHEMATICS.pdf}{mathematics guide's resolution and experiment-design
+chapter} develops the first question and the scaling assumptions behind the
+other two. This section describes the engineering boundaries that keep the
+answers separate.
+
+\subsection{Capacity and turnaround are different constraints}
+
+A useful memory estimate follows simultaneously live owners. It includes
+primary fields, time-integration stages, scheme-private state, geometry,
+rollback candidates, reports, output snapshots and communication buffers.
+The simulator, Studio, Python and operating system can all be active at once.
+On a discrete-memory machine, RAM and each GPU's local memory are separate
+constraints. On a unified-memory machine, competing allocations can consume
+one physical capacity even though several subsystems each report a plausible
+local budget. Neither topology removes maximum allocation sizes or the need
+for headroom.
+
+For illustration, a float32 scalar array of size $512^3$ occupies 0.5 GiB.
+The existing 51-field-equivalent dynamics admission envelope would account
+for 25.5 GiB for that allocation shape before interpreting additional owners
+and host/device duplication. Doubling all three dimensions makes a scalar
+array 4 GiB and that envelope 204 GiB. These are arithmetic examples, not
+recommended Nimbus grids, measured peak usage, or predictions that a device
+with that nominal capacity will admit the job. The
+\href{../include/compute/compute_memory_admission.hpp}{memory admission owner}
+must also check the largest buffer, backend capabilities and simultaneous
+levels. A preflight estimate should explain which owners it covers; it cannot
+serve as a measurement of peak process memory.
+
+Turnaround includes more than stepping. A useful comparison is
+\[
+ T_{\mathrm{local}}=T_{\mathrm{prepare}}+T_{\mathrm{solve}}
+                      +T_{\mathrm{publish}}+T_{\mathrm{analyse}},
+\]
+with overlapping phases counted on the actual critical path rather than
+added twice. Remote execution also introduces queueing, staging, result
+transfer and recovery costs. A cluster can shorten the solve and still delay
+the answer to a small experiment. Conversely, an overnight local run may be
+unsuitable when the scientific conclusion needs dozens of realizations.
+Measure the whole workflow for the same experiment before choosing placement.
+
+\subsection{Choose the kind of parallelism that serves the question}
+
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.22\textwidth}>{\raggedright\arraybackslash}p{0.34\textwidth}>{\raggedright\arraybackslash}p{0.36\textwidth}@{}}
+\toprule
+Need & Useful execution arrangement & Consequence \\
+\midrule
+\endhead
+One admitted case fits locally & CPU or one selected accelerator & Fast
+iteration can avoid remote staging; actual elapsed time still needs measurement. \\
+Many independent cases fit individually & Separate processes or batch jobs &
+Distribute experiments without halo exchange; each job still needs a complete
+working set and a distinct output identity. \\
+One case exceeds a device's memory & Spatial domain decomposition & Requires
+the distributed ownership and exchange design in
+\hyperref[architecture-multigpu]{the multi-GPU section}; adding cards alone
+does not implement it. \\
+One case fits but misses the time budget & Profile first, then consider
+strong scaling & Transfers, reductions and output can erase a faster kernel
+or the benefit of an additional device. \\
+The ensemble or archive exceeds local capacity & Managed remote resources &
+Scheduling, storage, transfer and reproducible restart become part of the
+experiment, not administrative details. \\
+\bottomrule
+\end{longtable}
+
+Running independent cases is often the first useful step beyond one machine.
+They can share immutable coefficient files but must not share writable run
+directories, mutable model state or a GPU allocation budget without explicit
+coordination. Device assignment and the number of simultaneous jobs must be
+controlled. The current remote-compute workflow launches a process through
+SSH; it does not provide a distributed solver or a general cluster scheduler.
+An ensemble diagram in Studio is an analysis facility, not evidence that a
+multi-node ensemble scheduler exists.
+
+Local alternatives include a shorter diagnostic experiment, a different output
+cadence, a smaller scientifically justified domain, or an admitted nest focused
+on the region of interest. Each changes a different cost. A shorter duration
+cannot answer a question about late-time behavior. Smaller domains change
+boundary influence. A coarser grid changes resolved scales. Nesting introduces
+exchange and feedback requirements and does not bypass their readiness gates.
+These choices must remain visible in the experiment record rather than being
+silently selected by an automatic speed policy.
+
+\subsection{What optimization can buy without changing the experiment}
+
+Memory layout, traversal order and cache reuse can reduce the cost of moving
+the same physical state. Reusing valid material coefficients can avoid
+recomputing them at every acoustic operation. Keeping intermediate state on
+the accelerator can avoid unnecessary host round trips. Reusing scratch
+capacity can reduce allocation overhead, while shortening actual buffer
+lifetimes can reduce peak memory. These improvements answer different
+bottlenecks and can combine to make a demanding local experiment practical.
+They must retain the producer/consumer, stage and failure contracts developed
+in the execution chapters.
+
+GPU acceleration is most useful when enough suitable work can remain on the
+device and the selected numerical families have native implementations.
+Launching many tiny kernels or repeatedly copying complete fields through
+the host can consume the anticipated gain. Conversely, a small diagnostic or
+control task can be inexpensive on the CPU; moving every function to a shader
+is not itself the objective. Measure which owner limits the complete run,
+then remove that cost without silently changing the selected physics, output
+or acceptance conditions.
+
+The result can be invested in finer resolution, longer duration, more ensemble
+members or faster interactive iteration. The mathematics guide explains why
+linear-resolution gains are nonlinear in runtime, and why memory and time
+must both be considered. A faster implementation and a smaller live working
+set can shift the practical local/HPC boundary. That boundary should be
+re-measured after optimization rather than inferred from the resource demands
+of an early implementation.
+
+\subsection{Changing an experiment without rewriting its infrastructure}
+
+Existing public choices should be expressed through the versioned configuration
+and recorded with the executable catalog. Initial conditions, physical domain,
+boundary conditions, admitted physics, output and backend selection belong to
+that document. A case-specific condition hidden in an inner loop cannot be
+recovered by reading the saved YAML and is therefore a poor extension boundary.
+
+A new physical formulation still requires implementation. The reusable unit
+is its state and operator contract: the quantities and units it reads, the
+inventories it changes, grid locations, source interval, private continuation
+state, invalid-input behavior and supported backends. It must join ordinary
+configuration loading, admission, restart, diagnostics and tests. If it requires
+native execution, a host implementation alone does not complete the feature.
+The existing \href{../include/compute/backend_interface.hpp}{typed backend
+interface} and \href{../src/core/runtime/scheme_catalog.cpp}{scheme catalog}
+provide boundaries to extend; they are not a dynamic plugin system that can
+accept arbitrary new physics without compiled code.
+
+This also separates analysis customization from solver customization. A new
+Python diagnostic can operate on published fields without changing the time
+integrator. It must disclose missing inputs, units, grid reconstruction and
+sampling. A new prognostic variable has a much larger obligation: initialization,
+transport, source coupling, halos, restart and publication all need an owner.
+Modern engineering reduces the repeated plumbing, but does not make those
+scientific obligations optional.
+
+\subsection{Measure a decision boundary, not a universal machine ranking}
+
+A useful future resource report would combine observed peak working sets,
+stage times, transfers, output volume and actual simulated duration with the
+configuration identity. It should state uncertainty and identify extrapolation.
+The existing admission checks, telemetry and Studio loading-worker measurement
+cover pieces of this problem; they do not yet form a universal experiment-cost
+estimator. In particular, Studio's small cached NPY measurement chooses a
+loading heuristic and cannot choose solver resolution or predict a storm's
+runtime.
+
+The practical development order is to establish correctness for a declared
+profile, optimize and measure complete single-device work on representative
+unified and discrete-memory systems, then evaluate independent-job throughput and finally
+coupled distributed execution where the experiment requires it. Lowering the
+barrier means keeping the local build usable throughout that process. Optional
+cluster transports should not become prerequisites for running a single CPU
+case, and a proposed scaling feature should not be advertised as available
+before it has public configuration, working coupling and the required tests.

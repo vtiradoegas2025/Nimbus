@@ -6,6 +6,7 @@ mkdir -p "$shader_root"
 shader_root="$(cd "$shader_root" && pwd -P)"
 tools_revision=fbe4f3ad913c44fe8700545f8ffe35d1382b7093
 headers_revision=04f10f650d514df88b76d25e83db360142c7b174
+glslang_revision=f0bd0257c308b9a26562c1a30c4748a0219cc951
 
 checkout() {
     local repository="$1" revision="$2" destination="$3"
@@ -24,9 +25,24 @@ checkout() {
 
 checkout https://github.com/KhronosGroup/SPIRV-Tools.git "$tools_revision" "$shader_root/source"
 checkout https://github.com/KhronosGroup/SPIRV-Headers.git "$headers_revision" "$shader_root/source/external/spirv-headers"
-cmake -S "$shader_root/source" -B "$shader_root/build" -G "Unix Makefiles" \
-    -DCMAKE_BUILD_TYPE=Release -DSPIRV_SKIP_TESTS=ON -DSPIRV_SKIP_EXECUTABLES=OFF
-cmake --build "$shader_root/build" --parallel "${NIMBUS_SHADER_BUILD_JOBS:-2}" \
-    --target spirv-as spirv-dis spirv-val spirv-opt spirv-link
-"$shader_root/build/tools/spirv-val" --version
-echo "Shader tool executables: $shader_root/build/tools"
+checkout https://github.com/KhronosGroup/glslang.git "$glslang_revision" "$shader_root/glslang"
+mkdir -p "$shader_root/toolchain" "$shader_root/bin"
+# glslang -Os embeds the optimizer; putting newer CLI tools on PATH is insufficient.
+cat > "$shader_root/toolchain/CMakeLists.txt" <<'CMAKE'
+cmake_minimum_required(VERSION 3.22.1)
+project(NimbusShaderToolchain LANGUAGES C CXX)
+add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/../source" spirv-tools)
+add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/../glslang" glslang)
+CMAKE
+cmake -S "$shader_root/toolchain" -B "$shader_root/toolchain-build" -G "Unix Makefiles" \
+    -DCMAKE_BUILD_TYPE=Release -DSPIRV_SKIP_TESTS=ON -DSPIRV_SKIP_EXECUTABLES=OFF \
+    -DGLSLANG_TESTS=OFF -DGLSLANG_ENABLE_INSTALL=OFF -DBUILD_EXTERNAL=OFF -DENABLE_OPT=ON
+cmake --build "$shader_root/toolchain-build" --parallel "${NIMBUS_SHADER_BUILD_JOBS:-2}" \
+    --target spirv-as spirv-dis spirv-val spirv-opt spirv-link glslang-standalone
+for executable in spirv-as spirv-dis spirv-val spirv-opt spirv-link; do
+    ln -sf "$shader_root/toolchain-build/spirv-tools/tools/$executable" "$shader_root/bin/$executable"
+done
+ln -sf "$shader_root/toolchain-build/glslang/StandAlone/glslang" "$shader_root/bin/glslangValidator"
+"$shader_root/bin/spirv-val" --version
+"$shader_root/bin/glslangValidator" --version
+echo "Shader tool executables: $shader_root/bin"

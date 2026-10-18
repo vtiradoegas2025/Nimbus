@@ -58,11 +58,11 @@
   filecolor={Maroon},
   citecolor={Blue},
   urlcolor={Blue},
-  pdfcreator={LaTeX via pandoc}}
+  pdfcreator={LaTeX via Tectonic}}
 
 \title{Nimbus: Mathematics, theory and physical assumptions}
 \author{Nimbus project documentation}
-\date{17 October 2026}
+\date{18 October 2026}
 
 \begin{document}
 \hypersetup{pageanchor=false}
@@ -83,7 +83,10 @@
 assumptions}\label{model-variables-and-assumptions}
 
 Nimbus represents an atmosphere with resolved motion, bulk water species
-and parameterized unresolved processes. This guide explains the
+and parameterized unresolved processes. Its solver has been independently
+developed from the beginning; it is not a port or fork of CM1. Shared
+scientific references and supported CM1 data conventions do not imply an
+identical discretization or implementation. This guide explains the
 mathematical choices in the implementation, why they matter, and where
 their limits are. It is a guide to the current source and permanent
 tests, not a claim that every available scheme combination is ready or
@@ -1676,6 +1679,8 @@ runtime source owner.
 \input{mathematics-closures.tex}
 
 \input{mathematics-coupling.tex}
+
+\input{mathematics-resolution.tex}
 
 \input{mathematics-coverage.tex}
 

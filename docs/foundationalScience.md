@@ -5,6 +5,9 @@ and numerical representation. The references below supply scientific context;
 they do not imply that Nimbus implements every part of a publication or shares
 all of its discretization and thermodynamic choices. Current source, independent
 reference tests and configuration admission determine the implemented scope.
+Nimbus has been an independent codebase from its beginning, not a CM1 port or
+fork. A shared scientific reference or CM1-compatible input format does not
+establish a shared solver implementation.
 
 ## Dynamics and unresolved motion
 
@@ -27,6 +30,26 @@ Treatment of Entrainment Processes*](https://journals.ametsoc.org/abstract/journ
 Monthly Weather Review, 134, 2318–2341, describes the YSU nonlocal diffusion and
 explicit entrainment formulation. The source under `src/boundary_layer` defines
 the retained column equations, surface treatment and admitted Nimbus couplings.
+
+## Resolution and experiment design
+
+[Skamarock (2004), *Evaluating Mesoscale NWP Models Using Kinetic Energy
+Spectra*](https://doi.org/10.1175/MWR2830.1), Monthly Weather Review, 132,
+3019–3032, provides context for assessing effective resolution through resolved
+spectra. Its findings do not determine Nimbus's effective resolution without
+corresponding tests of Nimbus's numerical operators and configuration.
+
+[Bryan, Wyngaard and Fritsch (2003), *Resolution Requirements for the Simulation
+of Deep Moist Convection*](https://journals.ametsoc.org/view/journals/mwre/131/10/1520-0493_2003_131_2394_rrftso_2.0.co_2.xml),
+Monthly Weather Review, 131, 2394–2416, relates resolution to turbulence-closure
+assumptions. The mathematics guide uses this context to explain refinement and
+closure sensitivity, not to prescribe a universal spacing for Nimbus.
+
+[NASA/NPARC, *Examining Spatial (Grid) Convergence*](https://www.grc.nasa.gov/www/wind/valid/tutorial/spatconv.html)
+describes conditional convergence and extrapolation estimates. The new
+resolution chapter states the smoothness, asymptotic-error and matched-problem
+assumptions before applying those estimates, and distinguishes them from
+statistics of long nonlinear convective simulations.
 
 ## Bulk microphysics
 

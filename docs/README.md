@@ -11,10 +11,14 @@ options and legacy-reader compatibility.
 The [mathematics guide](MATHEMATICS.pdf) explains the equations and assumptions
 behind the model, including physical cell ownership, staggering, terrain metrics,
 transport, initial conditions, radiation, microphysics, mixing, diagnostics and
-a complete coupled timestep.
+a complete coupled timestep. It also connects effective resolution, timestep
+cost, refinement studies and ensemble design to high-fidelity local experiments.
 The [architecture guide](ARCHITECTURE.pdf) explains how configuration, state,
 compute backends, CPU instruction sets, memory topology, compression, native
-ownership and GPU rendering fit together. The mathematics guide also covers
+ownership and GPU rendering fit together. It explains how to decide between
+local and larger-scale execution, and what a future multi-GPU solver would
+require; distributed solver execution is a design proposal, not a shipped feature.
+The mathematics guide also covers
 moving frames, terrain and nesting. Read [scientific references](foundationalScience.md)
 for the supporting literature.
 

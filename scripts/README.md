@@ -27,6 +27,12 @@ Unique stems such as `cpu_scaling` continue to work without the folder prefix.
 `setup.sh` and `run_with_vulkan_env.sh` remain at the top level because other
 automation treats them as stable environment entry points.
 
+`dependencies/fetch_thompson_tables.py` installs checksum-pinned runtime inputs
+from the dedicated data release, or from a verified offline archive. Its manifest
+must agree with the existing scientific identities in the runtime headers.
+`dev/shaders/build_spirv_tools.sh` builds the matching pinned GLSL compiler and
+SPIR-V tools used for explicit shader reproducibility checks.
+
 ## Configuration reference
 
 `dev/docs/namelist.json` holds the reviewed parameter inventory and source
