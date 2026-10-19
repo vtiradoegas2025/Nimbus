@@ -69,6 +69,45 @@ function Get-NimbusBindgenArguments([string]$Existing, [string]$RustHost) {
     return "$Arguments --target=$RustHost".Trim()
 }
 
+function Test-NimbusMsvcHeaders([string]$IncludePath) {
+    $Directories = @($IncludePath -split ';' | ForEach-Object { $_.Trim().Trim('"') } | Where-Object { $_ })
+    foreach ($Header in @("vcruntime.h", "corecrt.h", "inttypes.h")) {
+        if (-not ($Directories | Where-Object { Test-Path -LiteralPath (Join-Path $_ $Header) -PathType Leaf })) {
+            return $false
+        }
+    }
+    return $true
+}
+
+function Initialize-NimbusMsvcHeaders([string]$Architecture) {
+    if (Test-NimbusMsvcHeaders $env:INCLUDE) { return }
+    if ($env:INCLUDE) {
+        throw "INCLUDE does not contain the MSVC and Universal CRT headers. Start a native Visual Studio Developer PowerShell or remove the incomplete override."
+    }
+    $VsWhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
+    if (-not (Test-Path -LiteralPath $VsWhere -PathType Leaf)) {
+        throw "Visual Studio discovery is unavailable. Install the native C++ Build Tools through Nimbus setup."
+    }
+    $Component = if ($Architecture -eq "arm64") { "Microsoft.VisualStudio.Component.VC.Tools.ARM64" } else { "Microsoft.VisualStudio.Component.VC.Tools.x86.x64" }
+    $Installation = & $VsWhere -latest -prerelease -products * -requires $Component -property installationPath
+    if ($LASTEXITCODE -ne 0 -or @($Installation).Count -ne 1) {
+        throw "Cannot locate Visual Studio C++ tools for $Architecture."
+    }
+    $DeveloperCommand = Join-Path $Installation "Common7\Tools\VsDevCmd.bat"
+    if (-not (Test-Path -LiteralPath $DeveloperCommand -PathType Leaf)) {
+        throw "Visual Studio developer environment is missing: $DeveloperCommand"
+    }
+    $CommandLine = '""{0}" -no_logo -arch={1} -host_arch={1} >nul && set INCLUDE"' -f $DeveloperCommand, $Architecture
+    $Output = & $env:ComSpec /d /s /c $CommandLine
+    $Includes = @($Output | Where-Object { $_ -match '^INCLUDE=' })
+    if ($LASTEXITCODE -ne 0 -or $Includes.Count -ne 1 -or
+        -not (Test-NimbusMsvcHeaders $Includes[0].Substring(8))) {
+        throw "Visual Studio did not provide the MSVC and Universal CRT headers for $Architecture."
+    }
+    # MSYS Clang can lack Visual Studio discovery; bindgen's driver consumes INCLUDE.
+    $env:INCLUDE = $Includes[0].Substring(8)
+}
+
 function Initialize-NimbusRustBuildEnvironment {
     param(
         [Parameter(Mandatory=$true)][string]$MsysRoot,
@@ -108,6 +147,7 @@ function Initialize-NimbusRustBuildEnvironment {
         (Get-Command $env:CLANG_PATH -CommandType Application -ErrorAction Stop).Source
     } else { Join-Path (Split-Path -Parent $LibclangLibrary) "clang.exe" }
     Assert-NimbusNativePe $ClangPath $ExpectedMachine
+    Initialize-NimbusMsvcHeaders $Architecture
 
     $BindgenKey = "BINDGEN_EXTRA_CLANG_ARGS_$RustHost"
     $ExistingArguments = ""
@@ -130,4 +170,9 @@ function Initialize-NimbusRustBuildEnvironment {
     # An absolute libclang path does not select its dependent DLLs. This search
     # directory is inherited by build children without reordering executables.
     Set-NimbusNativeDllDirectory (Split-Path -Parent $LibclangLibrary)
+    "#include <stdint.h>`n#include <inttypes.h>`n#include <stddef.h>`nint nimbus_pointer_width[(sizeof(void*) == 8) ? 1 : -1];" |
+        & $ClangPath "--target=$RustHost" -x c -fsyntax-only -
+    if ($LASTEXITCODE -ne 0) {
+        throw "Native Clang cannot parse the selected MSVC/Universal CRT headers for $RustHost."
+    }
 }

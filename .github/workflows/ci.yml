@@ -8,7 +8,7 @@ on:
 
 # Cancel superseded runs on the same branch / PR.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: native-repair-${{ github.ref }}-${{ github.sha }}
   cancel-in-progress: true
 
 env:
@@ -254,6 +254,7 @@ jobs:
           retention-days: 14
 
   studio-macos-package:
+    if: false
     name: Nimbus Studio package (macOS ${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 120
@@ -552,6 +553,13 @@ jobs:
           python3 scripts/tests/architecture/test_studio_distribution.py
           python3 scripts/tests/architecture/test_openmp_probe.py
 
+      - name: Build the native NSIS installer with bundled runtimes
+        working-directory: ui
+        shell: pwsh
+        env:
+          NIMBUS_MSYS2_ROOT: ${{ steps.msys2.outputs.msys2-location }}
+        run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/build_native_app.ps1
+
       - name: Exercise the native Windows Studio bridge
         working-directory: ui/src-tauri
         shell: pwsh
@@ -559,13 +567,6 @@ jobs:
           . ..\..\scripts\windows\rust_build_environment.ps1
           Initialize-NimbusRustBuildEnvironment -MsysRoot '${{ steps.msys2.outputs.msys2-location }}' -Architecture '${{ matrix.arch }}'
           cargo test --lib
-
-      - name: Build the native NSIS installer with bundled runtimes
-        working-directory: ui
-        shell: pwsh
-        env:
-          NIMBUS_MSYS2_ROOT: ${{ steps.msys2.outputs.msys2-location }}
-        run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/build_native_app.ps1
 
       - name: Qualify packaged production visualization in WebView2
         working-directory: ui

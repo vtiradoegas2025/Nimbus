@@ -76,6 +76,9 @@ require(f"RUST_MIN={rust_minimum}" in SETUP
 require(re.findall(r"dtolnay/rust-toolchain@([0-9.]+)", CI_WORKFLOW)
         and all(version == rust_minimum for version in re.findall(r"dtolnay/rust-toolchain@([0-9.]+)", CI_WORKFLOW)),
         "native CI must exercise the declared Rust minimum")
+require(CI_WORKFLOW.index("Build the native NSIS installer with bundled runtimes")
+        < CI_WORKFLOW.index("Exercise the native Windows Studio bridge"),
+        "Windows native bridge tests must run after the required bundle resources are staged")
 require(package["engines"]["node"] == node_range, "Studio must declare the supported Node range")
 require(
     package_lock["packages"][""]["engines"]["node"] == node_range,

@@ -46,6 +46,18 @@ try {
         try { Assert-NimbusRustVersion @("release: $Version") } catch { $Rejected = $true }
         if (-not $Rejected) { throw "Rust minimum guard accepted unsupported release '$Version'." }
     }
+    $MsvcHeaders = Join-Path $FixtureRoot "MSVC include"
+    $UcrtHeaders = Join-Path $FixtureRoot "SDK ucrt"
+    New-Item -ItemType Directory -Path $MsvcHeaders, $UcrtHeaders | Out-Null
+    [IO.File]::WriteAllText((Join-Path $MsvcHeaders "vcruntime.h"), "")
+    foreach ($Header in @("corecrt.h", "inttypes.h")) {
+        [IO.File]::WriteAllText((Join-Path $UcrtHeaders $Header), "")
+    }
+    if (-not (Test-NimbusMsvcHeaders "$MsvcHeaders;$UcrtHeaders;") -or
+        (Test-NimbusMsvcHeaders $MsvcHeaders) -or (Test-NimbusMsvcHeaders $UcrtHeaders) -or
+        (Test-NimbusMsvcHeaders "")) {
+        throw "MSVC header discovery accepted an incomplete SDK or rejected complete include directories."
+    }
     $X64 = Join-Path $FixtureRoot "x64.dll"
     $Arm64 = Join-Path $FixtureRoot "arm64.dll"
     Write-PeFixture $X64 0x8664

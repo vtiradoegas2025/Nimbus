@@ -75,7 +75,10 @@ and libclang for Rust's readers and checks that their architecture matches the
 Rust MSVC toolchain. It also selects libclang's directory for DLL lookup in build
 child processes; an absolute libclang filename alone does not bind its dependent
 libraries. Bindgen uses the selected native Clang executable and the Rust MSVC
-target explicitly, including on ARM64. Run the installer
+target explicitly, including on ARM64. Setup obtains the MSVC and Universal CRT
+include directories from Visual Studio when the current shell has none, then
+checks that native Clang can parse those headers. An incomplete existing
+`INCLUDE` override produces an actionable error. Run the installer
 path printed at completion, then launch **Nimbus Studio** from the Start menu.
 Follow the setup output if a tool installation requires a new terminal or a
 restart. Use this Windows route instead of the Bash packaging command. An
