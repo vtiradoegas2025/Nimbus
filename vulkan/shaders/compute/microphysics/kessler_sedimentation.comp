@@ -1,0 +1,124 @@
+#version 450
+
+/**
+ * Kessler sedimentation: column-wise terminal-velocity fallout for rain.
+ *
+ * One invocation per (i, j) storage column. Physical columns loop over the
+ * caller-owned k range sequentially, matching the CPU accumulation order.
+ *
+ * The qg/qh fields and tendencies are retained as inert ABI compatibility
+ * slots. The shader reads and updates rain only.
+ */
+
+layout(local_size_x = 64) in;
+
+layout(set = 0, binding = 0) readonly buffer QR { float qr[]; };
+layout(set = 0, binding = 1) readonly buffer QG { float qg[]; };
+layout(set = 0, binding = 2) readonly buffer QH { float qh[]; };
+layout(set = 0, binding = 3) readonly buffer RhoDBuf { float rho_d_b[]; };
+layout(set = 0, binding = 4) readonly buffer LayerThickness { float layer_thickness[]; };
+layout(set = 0, binding = 5) buffer DQR { float dqr_dt[]; };
+layout(set = 0, binding = 6) buffer DQG { float dqg_dt[]; };
+layout(set = 0, binding = 7) buffer DQH { float dqh_dt[]; };
+
+// ── Push constants ──────────────────────────────────────────────────
+layout(push_constant) uniform PushConstants
+{
+    int   nr;
+    int   nth;
+    int   nz;
+    int   i_begin;
+    int   i_end;
+    int   j_begin;
+    int   j_end;
+    int   k_begin;
+    int   k_end;
+    float dz_val;
+    float Vt_max_rain;
+    float vt_cap;     // universal 0.9 dz/dt CFL cap
+    int   have_rho_d;
+    float dt_step;
+    int   have_layer_thickness;
+    float pad2;
+};
+
+// SCIENCE.md M12 fall speed; mirrors fall_speeds.hpp.
+const float KESSLER_RAIN_A = 36.34;
+const float KESSLER_RAIN_B = 0.1346;
+const float MIN_Q_SED = 1.0e-9;
+const float FALLBACK_RHO_AIR = 1.2;
+
+void evaluate(uint col_id)
+{
+    uint total_columns = uint(nr) * uint(nth);
+    if (col_id >= total_columns)
+    {
+        return;
+    }
+
+    int j = int(col_id % uint(nth));
+    int i = int(col_id / uint(nth));
+    if (i < i_begin || i >= i_end
+        || j < j_begin || j >= j_end)
+    {
+        return;
+    }
+
+    uint levels = uint(nz);
+    uint base = col_id * levels;
+
+    // Sequential loop over vertical levels (matches CPU k-loop order).
+    // k_begin is a pure SINK (precipitation leaves the domain). Density-corrected, capped
+    // fall speeds and mass-conserving receiver weighting mirror
+    // KesslerScheme::compute_sedimentation (SCIENCE.md M11).
+    for (uint k = uint(k_begin); k < uint(k_end); ++k)
+    {
+        uint idx = base + k;
+        float donor_dz = dz_val;
+        float receiver_dz = dz_val;
+        if (have_layer_thickness != 0)
+        {
+            donor_dz = layer_thickness[idx];
+            receiver_dz = k > uint(k_begin) ? layer_thickness[idx - 1u] : donor_dz;
+        }
+
+        // Uniform branch (not a ternary): when the profile is absent the
+        // bound buffer is a 1-float dummy, and OpSelect could still
+        // evaluate the out-of-bounds read.
+        float fall_factor = 1.0;
+        float recv_weight = 1.0;
+        float rho_air_k = FALLBACK_RHO_AIR;
+        if (have_rho_d != 0)
+        {
+            float rho_d_k  = rho_d_b[idx];
+            float rho_d_km = (k > uint(k_begin))
+                ? rho_d_b[idx - 1u] : rho_d_k;
+            fall_factor = sqrt(FALLBACK_RHO_AIR / rho_d_k);
+            recv_weight = rho_d_k / rho_d_km;
+            rho_air_k = rho_d_k;
+        }
+
+        // Rain: classic Kessler speed with the altitude factor.
+        // Transport the pre-process rain field. The shared column donor
+        // admission owns the finite-step combined process/fallout bound. This
+        // also keeps the bottom flux identical to the public sedimentation
+        // sink owner used by the conservation ledger.
+        float qr_val = max(qr[idx], 0.0);
+        if (qr_val > MIN_Q_SED)
+        {
+            float Vt = KESSLER_RAIN_A
+                * pow(1.0e-3 * rho_air_k * qr_val, KESSLER_RAIN_B);
+            Vt = min(Vt * fall_factor, Vt_max_rain);
+            Vt = min(Vt, vt_cap);
+            float sed_flux = Vt * qr_val;
+            dqr_dt[idx] -= sed_flux / donor_dz;
+            if (k > uint(k_begin))
+                dqr_dt[idx - 1] += recv_weight * sed_flux / receiver_dz;
+        }
+    }
+}
+
+void main()
+{
+    evaluate(gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * gl_NumWorkGroups.x * gl_WorkGroupSize.x);
+}

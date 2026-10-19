@@ -1,0 +1,154 @@
+# Production-binary qualification fixture for the mapped
+# Cartesian C-grid. It deliberately combines active bell terrain with the
+# mapped Smagorinsky tensor closure, Kessler water/heat coupling, and
+# physical-column simple-grey radiation. Bell and Schär are admitted through
+# the structural mapped CPU family and qualified by the sustained production
+# gate in tests/science/cgrid/terrain/qualify_cgrid_terrain_coupling.py.
+schema: nimbus.v1
+
+grid:
+  coordinate_system: cartesian
+  staggering: c_grid
+  nx: 16
+  ny: 16
+  nz: 20
+  dx: 500
+  dy: 500
+  dz: 500
+  ztop: 10000
+
+time:
+  run_time: 20
+  dt_large: 0.2
+  acoustic_substeps: 6
+  adaptive_dt: false
+  cfl_safety: 0.7
+  output_interval: 20
+
+dynamics:
+  scheme: klemp_wilhelmson_split_cartesian_cgrid
+  axisymmetric: false
+
+boundary_conditions:
+  lateral:
+    west: radiative
+    east: radiative
+    south: radiative
+    north: radiative
+  bottom: rigid_slip
+  top: rigid
+
+damping:
+  enabled: false
+  z_d: 10000
+  alpha: 0
+  mode: explicit
+
+coriolis:
+  enabled: false
+  mode: f_plane
+  latitude_deg: 35
+
+microphysics:
+  scheme: kessler
+
+turbulence:
+  scheme: smagorinsky
+  mode: 3d
+  Cs: 0.18
+  Pr_t: 0.7
+  Sc_t: 0.7
+
+diffusion:
+  scheme: explicit
+  operator_order: 2
+  K_h: 0
+  K_v: 0
+  apply_to: scalars
+
+surface:
+  scheme: none
+  apply_fluxes: false
+  z0m_m: 0.1
+  z0h_m: 0.01
+  albedo: 0.2
+  emissivity: 0.96
+  tsk_k: 300
+  qsfc_kgkg: 0.014
+
+boundary_layer:
+  scheme: none
+
+radiation:
+  scheme: simple_grey
+  solar_forcing: idealized_diurnal
+  latitude_deg: 35
+  declination_deg: 15
+  local_solar_time_at_start_h: 0
+  do_lw: true
+  do_sw: false
+  cadence_s: 5
+  clear_sky_only: true
+  tau_lw_ref: 2.5
+  tau_sw_ref: 0.22
+  n_lw: 1
+  n_sw: 2
+
+terrain:
+  scheme: bell
+  coordinate: smoothed
+  compute_derivatives: true
+  compute_metrics: true
+  smoothing_decay: 0.1
+  bell:
+    h0: 300
+    a: 2000
+    axisymmetric: true
+
+initial_conditions:
+  sounding:
+    type: parametric_cape
+    cape_jkg: 1400
+    tropopause_m: 8000
+    surface_theta_k: 300
+    moisture_qv_kgkg: 0.014
+  hodograph:
+    type: wk_param
+    u_sfc_ms: 2
+    v_sfc_ms: 0
+    u_1km_ms: 4
+    v_1km_ms: 1
+    u_6km_ms: 10
+    v_6km_ms: 4
+  trigger:
+    type: bubble
+    bubble:
+      dtheta_k: 1
+      radius_km: 1.5
+      center_x_m: 4000
+      center_y_m: 4000
+      center_z_m: 1500
+
+output:
+  preset: minimal
+  format: npy_3d
+  async_io: false
+  live_shm: false
+
+extensions:
+  execution:
+    mode: qualified
+  compute:
+    backend: cpu
+    allow_fallback: false
+    validate_parity: false
+    gpu_apply_microphysics: false
+    gpu_apply_slow: false
+    gpu_apply_sgs: false
+  checkpoint:
+    every_s: 10
+  diagnostics:
+    scientific_every_steps: 1
+    deterministic_reductions: true
+  validation:
+    guard_mode: error

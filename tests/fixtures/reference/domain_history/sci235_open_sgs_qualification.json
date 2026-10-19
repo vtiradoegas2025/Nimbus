@@ -1,0 +1,59 @@
+{
+  "status": "PASS",
+  "scope": "cpu_flat_cgrid_open_faces_stochastic_smagorinsky",
+  "source_config": "configs/qualification/cgrid_open_sgs_coupled.yaml",
+  "provenance": {
+    "binary": "bin/nimbus_sim_cpu",
+    "binary_sha256": "2a0ff70fe0627b452adc20d3a6a1ef0ee68519580489cc041afea03b7271d771",
+    "source_config_sha256": "36269b3c934ebca6f1b1fe05a69728fd0b5658959ec5533fbe38d2e6512e52f1",
+    "derived_vertical_config_sha256": "d1236508a2d14f71384818ea9d2e7be9812080dcd815ccf302d5e71fbcbd9ace"
+  },
+  "modes": [
+    {
+      "mode": "vertical_only",
+      "continuous_steps": 160,
+      "restart_step": 80,
+      "exact_fields": ["p", "qr", "qv", "rho", "theta", "u", "v", "w"],
+      "exact_ledgers": [
+        "budget.csv",
+        "energy_budget.csv",
+        "momentum_budget.csv",
+        "moisture_budget.csv",
+        "radiation_budget.csv",
+        "thermodynamic_source_budget.csv"
+      ],
+      "metrics": {
+        "maximum_step_stress_closure_relative_residual": 0.0,
+        "maximum_cumulative_stress_closure_relative_residual": 0.0,
+        "maximum_absolute_boundary_work_j": 0.0,
+        "minimum_irreversible_dissipation_j": 5501168.67554524,
+        "maximum_radiation_booking_relative_residual": 0.0,
+        "maximum_microphysics_conservation_relative_residual": 0.0,
+        "open_boundary_steps": 160
+      }
+    },
+    {
+      "mode": "3d",
+      "continuous_steps": 160,
+      "restart_step": 80,
+      "exact_fields": ["p", "qr", "qv", "rho", "theta", "u", "v", "w"],
+      "exact_ledgers": [
+        "budget.csv",
+        "energy_budget.csv",
+        "momentum_budget.csv",
+        "moisture_budget.csv",
+        "radiation_budget.csv",
+        "thermodynamic_source_budget.csv"
+      ],
+      "metrics": {
+        "maximum_step_stress_closure_relative_residual": 8.12279154396142e-17,
+        "maximum_cumulative_stress_closure_relative_residual": 2.986748313334919e-17,
+        "maximum_absolute_boundary_work_j": 7186.945388957868,
+        "minimum_irreversible_dissipation_j": 5502143.775278528,
+        "maximum_radiation_booking_relative_residual": 0.0,
+        "maximum_microphysics_conservation_relative_residual": 0.0,
+        "open_boundary_steps": 160
+      }
+    }
+  ]
+}

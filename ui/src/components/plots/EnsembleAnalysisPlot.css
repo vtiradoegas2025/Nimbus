@@ -1,0 +1,82 @@
+/* Matches the ensemble-alignment panel in PlotStudio.css: same faintly sage
+ * wash and serif masthead, derived from theme tokens so both follow the
+ * theme together instead of each pinning its own green. */
+.ensemble-analysis {
+  --ensemble-wash: color-mix(in oklch, var(--color-ok) 6%, var(--color-surface));
+  --ensemble-rule: color-mix(in oklch, var(--color-ok) 16%, var(--color-border));
+  border-block: 1px solid var(--ensemble-rule);
+  background: var(--ensemble-wash);
+  color: var(--color-text);
+}
+
+.ensemble-analysis__header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 28px;
+  padding: 18px 22px 15px;
+  border-bottom: 1px solid var(--ensemble-rule);
+}
+
+.ensemble-analysis__header > div:first-child {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  gap: 3px 12px;
+}
+
+.ensemble-analysis__header > div:first-child > span {
+  grid-column: 1 / -1;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+.ensemble-analysis__header strong {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: var(--font-size-2xl);
+  font-weight: 500;
+  letter-spacing: -.03em;
+}
+
+.ensemble-analysis__header p { margin: 0; color: var(--color-text-muted); font-size: var(--font-size-xs); }
+.ensemble-analysis__identity { display: grid; grid-template-columns: auto auto; align-items: baseline; gap: 0 8px; text-align: right; }
+.ensemble-analysis__identity b { font-variant-numeric: tabular-nums; font-size: var(--font-size-lg); }
+.ensemble-analysis__identity span { color: var(--color-text-muted); font-size: var(--font-size-xs); letter-spacing: var(--tracking-label); text-transform: uppercase; }
+
+.ensemble-analysis__controls {
+  display: flex;
+  align-items: end;
+  gap: 18px;
+  padding: 12px 22px;
+  border-bottom: 1px solid var(--ensemble-rule);
+  overflow-x: auto;
+}
+
+.ensemble-analysis__controls label,
+.ensemble-analysis__controls [role="group"] { display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+.ensemble-analysis__controls label > span,
+.ensemble-analysis__controls [role="group"] > span { color: var(--color-text-muted); font-size: var(--font-size-xs); font-weight: 600; letter-spacing: var(--tracking-label); text-transform: uppercase; }
+.ensemble-analysis__controls select,
+.ensemble-analysis__controls input[type="number"] { min-height: var(--control-height); border: 1px solid var(--ensemble-rule); background: var(--color-bg); color: var(--color-text); padding: 4px 8px; }
+.ensemble-analysis__controls input[type="range"] { width: 120px; }
+.ensemble-analysis__controls button { border: 0; border-bottom: 1px solid transparent; background: transparent; color: var(--color-text-muted); padding: 5px 8px; }
+.ensemble-analysis__controls button[aria-pressed="true"] { border-color: var(--color-accent); color: var(--color-text); }
+.ensemble-analysis__controls b { min-width: 2ch; font-size: var(--font-size-xs); font-variant-numeric: tabular-nums; }
+
+.ensemble-analysis__contract,
+.ensemble-analysis__notice { display: flex; align-items: center; gap: 8px; padding: 8px 22px; color: var(--color-text-muted); font-size: var(--font-size-xs); border-bottom: 1px solid color-mix(in oklch, var(--ensemble-rule) 65%, transparent); }
+.ensemble-analysis__metrics { display: flex; flex-wrap: wrap; gap: 7px 20px; padding: 9px 22px; border-bottom: 1px solid var(--ensemble-rule); font-size: var(--font-size-xs); font-variant-numeric: tabular-nums; }
+.ensemble-analysis__metrics span { color: var(--color-text-muted); }
+.ensemble-analysis__metrics b { color: var(--color-text); font-weight: 600; }
+.ensemble-analysis__plot { position: relative; min-height: 620px; }
+.ensemble-analysis__canvas { width: 100%; height: 620px; }
+
+@media (max-width: 900px) {
+  .ensemble-analysis__header { grid-template-columns: 1fr; gap: 10px; }
+  .ensemble-analysis__identity { justify-self: start; text-align: left; }
+  .ensemble-analysis__controls { align-items: flex-start; flex-direction: column; }
+  .ensemble-analysis__plot, .ensemble-analysis__canvas { min-height: 720px; height: 720px; }
+}

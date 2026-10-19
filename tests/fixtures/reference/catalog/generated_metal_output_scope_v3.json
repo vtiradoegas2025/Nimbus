@@ -1,0 +1,44 @@
+{
+  "schema": "nimbus.generated-metal-output-scope.v3",
+  "version": 3,
+  "claimBoundary": "Existing canonical NPY/netCDF/ZFP scope plus exactly one separately admitted east-radiative minimal NPY configuration; other retained boundaries and codecs remain guarded.",
+  "priorOutputScopeV2ManifestSha256": "41144394ad21ee2df018d319061607c3a6423d617aeb94a7fa27053505491e4a",
+  "baseManifestSha256": "85642f094c418fe95eb4c2fa0ba5a2a947aec95f8f1c43b17abcd924b0f068a0",
+  "npyNetcdfManifestSha256": "30d5fcc9494016894733ef973909849f8c58fbd04b3e0d6bb2e5e497c0c9ca99",
+  "zfpTypedOutputManifestSha256": "89ef136c9637c6e23d17cd996af20631973286447b783f1978d1471d4982c9fc",
+  "sourceTuples": 2016,
+  "outputFormats": [
+    "npy_3d",
+    "netcdf",
+    "zfp_high"
+  ],
+  "totalTuples": 6049,
+  "distinctConfigCount": 4537,
+  "writeCadenceSecondsByFormat": {
+    "npy_3d": [
+      1,
+      301
+    ],
+    "netcdf": [
+      1,
+      301
+    ],
+    "zfp_high": [
+      1
+    ]
+  },
+  "additionalBoundaryNpyScope": {
+    "version": 1,
+    "profileCount": 1,
+    "familyId": "boundary:2b5bfbe6dfa466c6baf991e3",
+    "strictCanonicalYamlSha256": "a244b58833f7e3cd7060d941e8453d4e5face3dff9e18e87ebf61dd581a24d55",
+    "outputFormats": [
+      "npy_3d"
+    ],
+    "writeCadenceSeconds": [
+      1
+    ],
+    "manifestSha256": "26712e5d5714b313cc1e17f348d67b9db9eeea60e5b888d56b0b7cf3cc5673a9"
+  },
+  "normalization": "Existing v2 canonical NPY/netCDF/ZFP normalization is unchanged; the additional east-radiative NPY digest is checked before normalization and never admits netCDF or ZFP."
+}

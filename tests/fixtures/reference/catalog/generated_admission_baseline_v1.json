@@ -1,0 +1,152 @@
+{
+  "admission": {
+    "admittedTupleSha256": "876ba73010be38095a6e1cfb67c2bfad4231a08228e83c0947e629ce0f3c8625",
+    "inputTupleSha256": "26b27d893d7eabcdb392cafddc33c1fe72f71778ff5c6c4b87a65008248db1e7",
+    "partitions": {
+      "c_grid.cpu.exploratory": 155520,
+      "c_grid.cpu.qualified": 8064,
+      "c_grid.gpu.exploratory": 155520,
+      "c_grid.gpu.qualified": 2016,
+      "collocated.cpu.exploratory": 4338,
+      "collocated.gpu.exploratory": 4338
+    },
+    "rejections": [
+      {
+        "count": 28224,
+        "reason": "diffusion.scheme=implicit requires the ready constant-coefficient Cartesian CPU scalar or scalar-and-momentum envelope, or a ready mapped-terrain CPU profile"
+      },
+      {
+        "count": 24192,
+        "reason": "microphysics.scheme=kessler is qualified only in an exact public reference profile"
+      },
+      {
+        "count": 24192,
+        "reason": "microphysics.scheme=lin is qualified only for maintained flat, RK, mapped, Earth-fixed, or stationary two-way nesting profiles with declared backend ownership"
+      },
+      {
+        "count": 12096,
+        "reason": "microphysics.scheme=milbrandt requires the maintained native C-grid reference profile"
+      },
+      {
+        "count": 24192,
+        "reason": "microphysics.scheme=thompson requires a maintained CPU profile or the native C-grid Thompson reference"
+      },
+      {
+        "count": 24192,
+        "reason": "native projection rejected: microphysics.scheme=kessler is qualified only in an exact public reference profile"
+      },
+      {
+        "count": 24192,
+        "reason": "native projection rejected: microphysics.scheme=lin is qualified only for maintained flat, RK, mapped, Earth-fixed, or stationary two-way nesting profiles with declared backend ownership"
+      },
+      {
+        "count": 12096,
+        "reason": "native projection rejected: microphysics.scheme=milbrandt requires the maintained native C-grid reference profile"
+      },
+      {
+        "count": 24192,
+        "reason": "native projection rejected: microphysics.scheme=thompson requires a maintained CPU profile or the native C-grid Thompson reference"
+      },
+      {
+        "count": 34560,
+        "reason": "native projection rejected: turbulence.scheme=tke is outside the qualified flat, RK, A-grid, and mapped CPU families"
+      },
+      {
+        "count": 10080,
+        "reason": "output.format=zfp: qualified ZFP requires explicit per-field tolerances"
+      },
+      {
+        "count": 24192,
+        "reason": "qualified mapped terrain is limited to the exact stationary-bell and constant-velocity Schar CPU reference profiles or the exact dry stationary Bell/Schar fallback-off Vulkan/Metal mapped-core profiles"
+      },
+      {
+        "count": 34560,
+        "reason": "turbulence.scheme=tke is outside the qualified flat, RK, A-grid, and mapped CPU families"
+      }
+    ],
+    "schema": "nimbus.native-admission-batch.v1",
+    "summary": {
+      "admitted": 329796,
+      "input": 630756,
+      "rejected": 300960,
+      "rejectionReasons": 13
+    },
+    "version": 1
+  },
+  "claimBoundary": "Descriptor identity, canonical admission/preflight and representative public YAML loading only; not timestep execution, complete product coverage or full qualification.",
+  "generated": {
+    "acceptedTupleSha256": "26b27d893d7eabcdb392cafddc33c1fe72f71778ff5c6c4b87a65008248db1e7",
+    "ownershipGroupsSha256": "739b5327bf047b6245715977abed27be349558a5fcc671be3a6d358fe2d8fde7",
+    "partitions": {
+      "c_grid.cpu.exploratory": 155520,
+      "c_grid.cpu.qualified": 155520,
+      "c_grid.gpu.exploratory": 155520,
+      "c_grid.gpu.qualified": 155520,
+      "collocated.cpu": 4338,
+      "collocated.gpu": 4338
+    },
+    "summary": {
+      "accepted": 630756,
+      "cgridAccepted": 622080,
+      "cgridEvaluated": 1658880,
+      "collocatedAccepted": 8676,
+      "collocatedEvaluated": 38880,
+      "evaluated": 1697760,
+      "ownershipSignatures": 533
+    }
+  },
+  "preflight": {
+    "admittedTupleSha256": "876ba73010be38095a6e1cfb67c2bfad4231a08228e83c0947e629ce0f3c8625",
+    "checks": {
+      "compatibility": 329796,
+      "lifetime": 329796,
+      "projection": 329796,
+      "serialization": 329796,
+      "sounding": 329796,
+      "soundingCacheHits": 329793,
+      "soundingMaterializations": 3
+    },
+    "inputTupleSha256": "26b27d893d7eabcdb392cafddc33c1fe72f71778ff5c6c4b87a65008248db1e7",
+    "partitions": {
+      "c_grid.cpu.exploratory": 155520,
+      "c_grid.cpu.qualified": 8064,
+      "c_grid.gpu.exploratory": 155520,
+      "c_grid.gpu.qualified": 2016,
+      "collocated.cpu.exploratory": 4338,
+      "collocated.gpu.exploratory": 4338
+    },
+    "rejections": [],
+    "schema": "nimbus.native-full-preflight-batch.v1",
+    "summary": {
+      "input": 630756,
+      "preflightAdmitted": 329796,
+      "preflightRejected": 0,
+      "rejectionReasons": 0,
+      "scienceAdmitted": 329796,
+      "scienceRejected": 300960
+    },
+    "version": 1,
+    "warnings": []
+  },
+  "review": "reports/backend_repairs/20260921/catalog_baseline_reconciliation/README.md",
+  "schema": "nimbus.generated-admission-baseline.v1",
+  "version": 1,
+  "yamlReload": {
+    "signedStreamSha256": "20d1fe2a74ff00c0ab14c83197fbb4c02130773f28937b74043f5296615a722a",
+    "summary": {
+      "axisRequirements": 206,
+      "inputTuples": 329796,
+      "ownershipSignatures": 429,
+      "partitions": {
+        "c_grid.cpu.false": 83,
+        "c_grid.cpu.true": 45,
+        "c_grid.gpu.false": 114,
+        "c_grid.gpu.true": 35,
+        "collocated.cpu.false": 79,
+        "collocated.gpu.false": 158
+      },
+      "representativeSha256": "19848bf239f08e04df34e4fd1684e5a0e3c4c275718fc7941ffecf0352d6ceea",
+      "representatives": 514
+    }
+  }
+}

@@ -1,0 +1,196 @@
+{
+  "schema": "nimbus.qualification.moving_nested_reference_frontier.policy",
+  "schema_version": 4,
+  "policy_id": "moving-nested-reference-frontier-v4-projected-containment-amendment",
+  "policy_status": "ratified",
+  "scope": "same-equation 600 m moving-child versus oversized stationary Nimbus reference with post-failure geometry and projected-containment amendments",
+  "threshold_policy": {
+    "path": "moving_nested_supercell_reference_frontier_v2.json",
+    "sha256": "130f39702e3c2d05823c98b6ba40dab5efe42d745e3766ffe55099fe32e76229",
+    "schema_version": 2,
+    "policy_id": "moving-nested-reference-frontier-v2-ratified"
+  },
+  "prior_policy": {
+    "path": "moving_nested_supercell_reference_frontier_v3.json",
+    "sha256": "c39190880d0ad278b8fab063b9cf4d236b0cbef425af7ad5cb10716960305da1",
+    "schema_version": 3,
+    "policy_id": "moving-nested-reference-frontier-v3-geometry-amendment"
+  },
+  "failure_evidence": {
+    "path": "../../../docs/evidence/moving_nested_reference_frontier_v3_projected_containment_failure.json",
+    "sha256": "8cd67e341affcad8a72bd030e15ded49b31e32290591a224ed873aad972c0ca5",
+    "schema_version": 1,
+    "reason": "relaxation_zone_entry_after_confirmation_pending"
+  },
+  "required_metric_families": [
+    "path",
+    "intensity",
+    "cold_pool",
+    "precipitation"
+  ],
+  "expected_contract": {
+    "coordinate_frame": "earth_absolute",
+    "detector_algorithm": "updraft_core_watershed_condensate_rotation_branches_v5",
+    "continuity_algorithm": "fixed_window_temporal_branch_association_v5",
+    "moving_tracking_source": "synchronized_nested_child",
+    "reference_tracking_source": "oversized_stationary_reference",
+    "moving_movement_algorithm": "qualified_envelope_hysteresis_v6",
+    "comparison_region": "moving_child_qualification_aperture",
+    "relaxation_exclusion_cells": 8,
+    "trusted_region_cell_count": 9600,
+    "trusted_region_shape_cells": {
+      "x": 100,
+      "y": 96
+    },
+    "horizontal_grid_spacing_m": {
+      "x": 600.0,
+      "y": 600.0
+    },
+    "grid_phase_origin_m": {
+      "x": 0.0,
+      "y": 0.0
+    },
+    "geometry_plan": {
+      "path": "moving_nested_supercell_geometry_plan_v1.json",
+      "sha256": "59ba6ddbb2f17e27f0287d565b28d814420dce87c9152a904e555a8cb0fd559c",
+      "schema_version": 1,
+      "plan_id": "moving_nested_reference_geometry_v1"
+    },
+    "qualification_aperture": {
+      "path": "moving_nested_supercell_qualification_aperture_v1.json",
+      "sha256": "969ae21f9369d8d414fe9eea18208c3586a31faf21596125f7288a0c0779f6a9",
+      "schema_version": 1,
+      "aperture_id": "moving_nested_fixed_100x96_v1"
+    },
+    "physics_signature_sha256": "88b4a995bc1c86d96d5f323d019fa7eee27b3b3aedfd7382d3fd93e7ebdbdb0f",
+    "sample_start_s": 30.0,
+    "sample_interval_s": 30.0,
+    "duration_s": 4500.0
+  },
+  "coverage_thresholds": {
+    "minimum_paired_selected_fraction": 0.95,
+    "maximum_consecutive_unpaired_samples": 2,
+    "require_final_paired_sample": true
+  },
+  "metric_thresholds": {
+    "path": {
+      "rmse_m": 6000.0,
+      "p95_m": 10000.0,
+      "maximum_m": 15000.0,
+      "final_m": 10000.0
+    },
+    "intensity": {
+      "maximum_updraft_normalized_rmse": 0.25,
+      "maximum_updraft_peak_relative_error": 0.30,
+      "maximum_updraft_peak_time_error_s": 300.0,
+      "maximum_absolute_uh_normalized_rmse": 0.30,
+      "maximum_absolute_uh_peak_relative_error": 0.35,
+      "maximum_absolute_uh_peak_time_error_s": 300.0,
+      "updraft_scale_floor_ms": 5.0,
+      "uh_scale_floor_m2s2": 25.0
+    },
+    "cold_pool": {
+      "area_normalized_rmse": 0.30,
+      "integrated_deficit_normalized_rmse": 0.30,
+      "minimum_theta_rho_perturbation_rmse_k": 2.0,
+      "centroid_rmse_m": 6000.0,
+      "area_scale_floor_m2": 1000000.0,
+      "integrated_deficit_scale_floor_k_m2": 1000000.0,
+      "minimum_active_samples": 75
+    },
+    "precipitation": {
+      "final_accumulated_mass_relative_error": 0.30,
+      "footprint_area_normalized_rmse": 0.35,
+      "p95_depth_normalized_rmse": 0.35,
+      "maximum_depth_normalized_rmse": 0.40,
+      "mass_scale_floor_kg": 1.0,
+      "area_scale_floor_m2": 1000000.0,
+      "depth_scale_floor_mm": 0.1
+    }
+  },
+  "derived_definitions": {
+    "cold_pool": {
+      "id": "surface_density_potential_temperature_deficit_v1",
+      "level": "first_physical_scalar_center",
+      "required_fields": ["theta", "qv", "qc", "qr", "qi", "qs", "qg", "qh"],
+      "theta_rho_formula": "theta * (1 + qv / epsilon) / (1 + qv + qc + qr + qi + qs + qg + qh), epsilon=Rd/Rv",
+      "environment_reference": "horizontally_homogeneous_initial_theta_rho_at_same_level",
+      "cold_pool_threshold_k": -2.0,
+      "integrated_deficit_definition": "sum(max(0,-theta_rho_perturbation_k) * coincident_cell_area_m2)",
+      "centroid_weight": "max(0,-theta_rho_perturbation_k)"
+    },
+    "precipitation": {
+      "id": "earth_aligned_accumulated_rainfall_v1",
+      "required_fields": ["accumulated_rainfall"],
+      "effective_depth_definition": "published accumulated_rainfall_mm, including the authoritative accumulation residual",
+      "accumulated_mass_definition": "sum(effective_depth_mm * coincident_cell_area_m2)",
+      "footprint_threshold_mm": 1.0
+    }
+  },
+  "ratification": {
+    "decision": "post_failure_projected_containment_amendment_of_v3_geometry_and_blinded_v2_thresholds",
+    "review_date": "2026-08-11",
+    "reviewer_role": "independent_science_policy_audit",
+    "failed_v3_movement_sequence_observed": true,
+    "candidate_metric_values_inspected": false,
+    "minimum_input_series_schema_version": 2,
+    "reviewed_sources": [
+      {
+        "path": "moving_nested_supercell_reference_frontier_v2.json",
+        "sha256": "130f39702e3c2d05823c98b6ba40dab5efe42d745e3766ffe55099fe32e76229",
+        "purpose": "immutable pre-candidate blinded numerical thresholds"
+      },
+      {
+        "path": "moving_nested_supercell_reference_frontier_v3.json",
+        "sha256": "c39190880d0ad278b8fab063b9cf4d236b0cbef425af7ad5cb10716960305da1",
+        "purpose": "immutable post-failure operational geometry and fixed-aperture amendment"
+      },
+      {
+        "path": "../../../docs/evidence/moving_nested_reference_frontier_v3_projected_containment_failure.json",
+        "sha256": "8cd67e341affcad8a72bd030e15ded49b31e32290591a224ed873aad972c0ca5",
+        "purpose": "fail-closed 3510-to-3540 confirmation-cadence evidence"
+      },
+      {
+        "path": "moving_nested_supercell_geometry_plan_v1.json",
+        "sha256": "59ba6ddbb2f17e27f0287d565b28d814420dce87c9152a904e555a8cb0fd559c",
+        "purpose": "unchanged reference-derived child and parent containment plan"
+      },
+      {
+        "path": "moving_nested_supercell_qualification_aperture_v1.json",
+        "sha256": "969ae21f9369d8d414fe9eea18208c3586a31faf21596125f7288a0c0779f6a9",
+        "purpose": "unchanged fixed 100x96 measurement aperture"
+      }
+    ],
+    "threshold_rationale": {
+      "coverage": "Unchanged byte-for-byte from the bound blinded v2 threshold policy.",
+      "path": "Unchanged byte-for-byte from the bound blinded v2 threshold policy.",
+      "intensity": "Unchanged byte-for-byte from the bound blinded v2 threshold policy.",
+      "cold_pool": "Unchanged byte-for-byte from the bound blinded v2 threshold policy.",
+      "precipitation": "Unchanged byte-for-byte from the bound blinded v2 threshold policy.",
+      "truncation": "The v3 geometry plan and fixed 100x96 aperture are unchanged; v4 changes movement timing only."
+    },
+    "projected_containment_amendment": {
+      "reason": "fail_closed_relaxation_zone_entry_after_confirmation_pending",
+      "algorithm": "qualified_envelope_hysteresis_v6",
+      "ordinary_confirmation_samples": 2,
+      "eligibility": "authoritative selected track with finite signed per-face motion and a current inner-margin breach",
+      "per_face_projection": "projected_clearance_m = current_clearance_m - max(0,outward_signed_face_velocity_ms) * face_motion_interval_s",
+      "immediate_commit_predicate": "any projected_clearance_m < exact_axis_relaxation_width_m",
+      "commit_preconditions": "complete two-dimensional release box and parent containment are feasible before mutation",
+      "exact_relaxation_boundary_is_trusted": true,
+      "centroid_motion_substitution_allowed": false,
+      "ambiguity_topology_or_missing_face_motion_bypass_allowed": false,
+      "current_relaxation_entry_recoverable": false,
+      "numerical_thresholds_changed": false,
+      "geometry_or_aperture_changed": false,
+      "failed_candidate_disposition": "invalid_not_comparable"
+    }
+  },
+  "limitations": [
+    "The numerical thresholds remain the blinded v2 values, while both the v3 geometry amendment and v4 movement amendment were created after observing fail-closed candidates.",
+    "No metric value from the invalid v3 moving candidate was inspected or used to alter a threshold.",
+    "V4 changes only the fail-closed timing of a feasible relocation; it does not permit movement after relaxation-zone entry or waive ambiguity, topology, complete-box, shift-cap, or parent-containment checks.",
+    "A pass remains a bounded same-equation fixed-aperture comparison, not CM1, observational, ensemble, climatological, retired-swath precipitation, or storm-lifetime validation.",
+    "The policy does not enable public moving_nest selection, live-storm Vulkan, device-resident relocation, terrain, throughput, or broader physics combinations."
+  ]
+}

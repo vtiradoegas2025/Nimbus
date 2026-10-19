@@ -1,0 +1,117 @@
+/*
+ * Camera-orientation compass for 3D (VTK) plots.
+ *
+ * Sits in the top-left corner of the overlay host. Visual language follows
+ * Plot3DOverlay.css (scrim background, scene custom properties, xs font),
+ * but owns a square SVG rose rather than a text badge.
+ *
+ * pointer-events: none on every element — this widget must never intercept
+ * a camera interaction drag.
+ */
+
+/*
+ * Top-LEFT of the canvas, and deliberately a SIBLING of `.plot3d-overlay-stack`
+ * rather than a child of it.
+ *
+ * The stack owns the top-right corner and is itself absolutely positioned, so a
+ * compass nested inside it resolved this `left: 8px` against the stack's own
+ * box — parking it beside the colorbar in the busiest corner of the scene
+ * instead of at the left edge these rules describe. As a sibling the offsets
+ * resolve against `.plot3d-overlay-host` (the canvas), and the two overlays
+ * stop competing for the same space.
+ */
+.plot3d-compass {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 6px;
+  border-radius: 4px;
+  background: var(--scene-scrim);
+  pointer-events: none;
+  user-select: none;
+}
+
+.plot3d-compass__rose {
+  display: block;
+  /* 64 × 64 logical pixels — compact but finger-readable. */
+  width: 64px;
+  height: 64px;
+  overflow: visible;
+}
+
+/* Compass-rose elements — stroked in scene ink / muted ink. */
+.plot3d-compass__ring {
+  fill: none;
+  stroke: var(--scene-hairline);
+  stroke-width: 1;
+}
+
+.plot3d-compass__tick {
+  stroke: var(--scene-ink-muted);
+  stroke-width: 1;
+  stroke-linecap: round;
+}
+
+.plot3d-compass__tick--cardinal {
+  stroke: var(--scene-ink);
+  stroke-width: 1.5;
+}
+
+.plot3d-compass__north-label {
+  fill: var(--scene-ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 8px;
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+
+/* Viewing-direction needle — accent colour so it pops against the rose. */
+.plot3d-compass__needle-head {
+  fill: var(--scene-accent);
+  stroke: none;
+}
+
+.plot3d-compass__needle-tail {
+  fill: var(--scene-ink-muted);
+  stroke: none;
+}
+
+/* Storm marker: a small open diamond. */
+.plot3d-compass__storm-marker {
+  fill: none;
+  stroke: var(--scene-warn);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+/* Readout row below the rose. */
+.plot3d-compass__readout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  color: var(--scene-ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.plot3d-compass__azimuth {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.plot3d-compass__elevation {
+  color: var(--scene-ink-muted);
+}
+
+.plot3d-compass__storm-range {
+  color: var(--scene-warn);
+}

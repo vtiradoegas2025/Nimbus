@@ -1,0 +1,14 @@
+import assert from "node:assert/strict";
+import { buildPortableViewpoints, orbitPoint } from "../../../../ui/src/lib/platform/portableViewpoints.ts";
+assert.deepEqual(orbitPoint([3, 2, 7], [1, 2, 0], 90), [1.0000000000000002, 4, 7]);
+assert.deepEqual(orbitPoint([3, 2, 7], [1, 2, 0], 0), [3, 2, 7]);
+assert.throws(() => orbitPoint([NaN, 2, 7], [1, 2, 0], 90));
+const input = { schema: "nimbus.portable-viewpoints" as const, version: 1 as const, title: "</script><script>alert(1)</script>", width: 1, height: 1, source: { step: 7 }, scene: { field: "theta_prime" }, views: [{ angleDeg: 0, png: "data:image/png;base64,AAAA" }] };
+const html = new TextDecoder().decode(buildPortableViewpoints(input));
+assert(!html.includes(input.title), "source metadata cannot inject executable HTML");
+assert(html.includes("connect-src 'none'"));
+const json = html.match(/<script id="nimbus-viewpoints" type="application\/json">(.*?)<\/script>/s)![1];
+assert.deepEqual(JSON.parse(json), input);
+assert.throws(() => buildPortableViewpoints({ ...input, views: [] }));
+assert.throws(() => buildPortableViewpoints({ ...input, views: [{ angleDeg: 0, png: "https://external/image" }] }));
+console.log("Portable viewpoint orbit, metadata escaping and offline contract passed");

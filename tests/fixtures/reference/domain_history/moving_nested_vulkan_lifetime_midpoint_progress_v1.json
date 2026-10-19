@@ -1,0 +1,48 @@
+{
+  "schema": "nimbus.evidence.moving_nested_vulkan_lifetime_progress",
+  "schema_version": 1,
+  "status": "in_progress",
+  "qualification_eligible": false,
+  "scope": "segmented_fresh_start_physical_vulkan_lifetime",
+  "report": {
+    "path": "tests/artifacts/moving_nested_vulkan_lifetime_v1_20260819_midpoint_progress_report.json",
+    "sha256": "02692820faef4eda767f45aed9722f91dbca5f6656f6558045f509143a53c752"
+  },
+  "inputs": {
+    "binary_sha256": "bd8b15533d4674902aa13e40416400c228d48771485db6fde5916aca656eba07",
+    "config_sha256": "adb44405cc424abdd9db842d03586ed82a328669684dc81f3a18e833a9a2da1a"
+  },
+  "progress": {
+    "completed_through_s": 2250,
+    "expected_duration_s": 4500,
+    "fraction_complete": 0.5,
+    "segments": 5,
+    "tracker_samples": 75,
+    "portable_checkpoints": 5,
+    "relocation_count": 1,
+    "relocation_time_s": 2010,
+    "relocation_shift_cells": {"i": 14, "j": 0},
+    "final_cumulative_shift_cells": {"i": 14, "j": 0}
+  },
+  "aggregate_device_counters": {
+    "parent_smagorinsky_dispatches_per_operation": 3000,
+    "child_smagorinsky_dispatches_per_operation": 3000,
+    "parent_kessler_process_dispatches_per_operation": 1500,
+    "child_kessler_process_dispatches_per_operation": 3000,
+    "parent_microphysics_apply_dispatches": 0,
+    "child_microphysics_apply_dispatches": 0
+  },
+  "next_resume": {
+    "checkpoint": "tests/artifacts/moving_nested_vulkan_lifetime_v1_20260819_segment_1800_2250/checkpoints/checkpoint_step_000001500.nimbus",
+    "checkpoint_sha256": "747193684554e9ce1e2782351d7276877eecfd50152589dbd35358bb17a51a32",
+    "time_s": 2250
+  },
+  "claim_limits": {
+    "campaign_complete": false,
+    "lifetime_metrics_compared": false,
+    "formal_qualification": false,
+    "public_moving_nest_admitted": false,
+    "device_resident_relocation": false,
+    "readiness_score_promotion": false
+  }
+}

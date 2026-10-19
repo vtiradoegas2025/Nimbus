@@ -1,0 +1,150 @@
+// sgs_apply.comp
+//
+// Forward-Euler application of the SGS turbulence tendencies
+// (GPU.md Phase 4.2): mirrors the integrate loop in
+// step_dynamics_new (dynamics.cpp) exactly -
+//   u,v,w += d{u,v,w}dt_sgs*dt with the wind clamps;
+//   theta += dthetadt_sgs*dt with the theta bounds clamp
+//     (non-finite result -> theta0 fallback before the clamp);
+//   qv  += dqvdt_sgs*dt with the qv clamp (gated by has_qv);
+//   tke += (dtkedt_sgs + dtkedt_pbl)*dt, bounded at the physical zero (gated by
+//     has_tke).
+// In guarded mode, non-finite tendency reads integrate as zero and non-finite
+// results use the CPU writer's fallbacks. Warn/Strict mode emits the raw
+// candidate so the post-fence observer can reject it before host copy-back.
+// Pointwise: each thread owns one cell in each of the six output fields.
+//
+// Data layout: row-major [nx][ny][nz]. Index (i, j, k) = (i*ny + j)*nz + k.
+
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) readonly buffer UInBuf      { float u_in[];      };
+layout(set = 0, binding = 1) readonly buffer VInBuf      { float v_in[];      };
+layout(set = 0, binding = 2) readonly buffer WInBuf      { float w_in[];      };
+layout(set = 0, binding = 3) readonly buffer ThetaInBuf  { float theta_in[];  };
+layout(set = 0, binding = 4) readonly buffer QvInBuf     { float qv_in[];     };
+layout(set = 0, binding = 5) readonly buffer TkeInBuf    { float tke_in[];    };
+layout(set = 0, binding = 6) readonly buffer DuBuf       { float dudt[];      };
+layout(set = 0, binding = 7) readonly buffer DvBuf       { float dvdt[];      };
+layout(set = 0, binding = 8) readonly buffer DwBuf       { float dwdt[];      };
+layout(set = 0, binding = 9) readonly buffer DThetaBuf   { float dthetadt[];  };
+layout(set = 0, binding = 10) readonly buffer DQvBuf     { float dqvdt[];     };
+layout(set = 0, binding = 11) readonly buffer DTkeBuf    { float dtkedt[];    };
+layout(set = 0, binding = 12) readonly buffer DTkePblBuf { float dtkedt_pbl[]; };
+
+layout(set = 0, binding = 13) writeonly buffer UOutBuf     { float u_out[];     };
+layout(set = 0, binding = 14) writeonly buffer VOutBuf     { float v_out[];     };
+layout(set = 0, binding = 15) writeonly buffer WOutBuf     { float w_out[];     };
+layout(set = 0, binding = 16) writeonly buffer ThetaOutBuf { float theta_out[]; };
+layout(set = 0, binding = 17) writeonly buffer QvOutBuf    { float qv_out[];    };
+layout(set = 0, binding = 18) writeonly buffer TkeOutBuf   { float tke_out[];   };
+
+// Push constants (52 bytes; mirrors SgsApplyPushConstants).
+layout(push_constant) uniform PushConstants {
+    int   nx;
+    int   ny;
+    int   nz;
+    int   has_qv;
+    int   has_tke;
+    float dt_step;
+    float theta_fallback;
+    float theta_min;
+    float theta_max;
+    float qv_max;
+    float wind_h_max;
+    float wind_v_max;
+    int   sanitize;
+    int   collocated;
+};
+
+bool finite_f(float v) { return !isnan(v) && !isinf(v); }
+
+float zero_if_nonfinite(float v) { return finite_f(v) ? v : 0.0; }
+
+void main()
+{
+    uint gid = gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * gl_NumWorkGroups.x * gl_WorkGroupSize.x;
+    uint total = uint(nx) * uint(ny) * uint(nz);
+    if (gid >= total)
+    {
+        return;
+    }
+
+    int i = int(gid / uint(ny * nz));
+    int j = int((gid / uint(nz)) % uint(ny));
+    int k = int(gid % uint(nz));
+    if (collocated != 0 && (i == 0 || i == nx - 1 || j == 0 || j == ny - 1 || k == 0 || k == nz - 1))
+    {
+        u_out[gid]     = u_in[gid];
+        v_out[gid]     = v_in[gid];
+        w_out[gid]     = w_in[gid];
+        theta_out[gid] = theta_in[gid];
+        qv_out[gid]    = qv_in[gid];
+        tke_out[gid]   = tke_in[gid];
+        return;
+    }
+
+    float du  = sanitize != 0 ? zero_if_nonfinite(dudt[gid]) : dudt[gid];
+    float dv = sanitize != 0 ? zero_if_nonfinite(dvdt[gid]) : dvdt[gid];
+    float dw = sanitize != 0 ? zero_if_nonfinite(dwdt[gid]) : dwdt[gid];
+    float dth = sanitize != 0
+        ? zero_if_nonfinite(dthetadt[gid]) : dthetadt[gid];
+
+    // Winds: non-finite results clamp to zero (the CPU's explicit guard
+    // before the wind clamps, whose own non-finite fallback is also 0).
+    float u_new = u_in[gid] + du * dt_step;
+    u_out[gid] = sanitize == 0 ? u_new
+        : (finite_f(u_new) ? clamp(u_new, -wind_h_max, wind_h_max) : 0.0);
+    float v_new = v_in[gid] + dv * dt_step;
+    v_out[gid] = sanitize == 0 ? v_new
+        : (finite_f(v_new) ? clamp(v_new, -wind_h_max, wind_h_max) : 0.0);
+    float w_new = w_in[gid] + dw * dt_step;
+    w_out[gid] = sanitize == 0 ? w_new
+        : (finite_f(w_new) ? clamp(w_new, -wind_v_max, wind_v_max) : 0.0);
+
+    // theta: a non-finite integrated value keeps the cell's pre-step theta
+    // (theta_in, its own altitude's value), not the surface theta_fallback -
+    // stamping a stratospheric cell to ~300 K is a spurious cold anomaly
+    // (science audit NaN-theta cold bomb). theta_fallback is the terminal
+    // backstop only when theta_in is itself non-finite. Mirrors the CPU.
+    float theta_new = theta_in[gid] + dth * dt_step;
+    if (sanitize != 0 && !finite_f(theta_new))
+    {
+        theta_new = finite_f(theta_in[gid]) ? theta_in[gid] : theta_fallback;
+    }
+    theta_out[gid] = sanitize == 0
+        ? theta_new : clamp(theta_new, theta_min, theta_max);
+
+    if (has_qv != 0)
+    {
+        float dqv = sanitize != 0
+            ? zero_if_nonfinite(dqvdt[gid]) : dqvdt[gid];
+        float qv_new = qv_in[gid] + dqv * dt_step;
+        qv_out[gid] = sanitize == 0 ? qv_new
+            : (finite_f(qv_new) ? clamp(qv_new, 0.0, qv_max) : 0.0);
+    }
+    else
+    {
+        qv_out[gid] = qv_in[gid];
+    }
+
+    if (has_tke != 0)
+    {
+        float dtke = sanitize != 0
+            ? zero_if_nonfinite(dtkedt[gid])
+                + zero_if_nonfinite(dtkedt_pbl[gid])
+            : dtkedt[gid] + dtkedt_pbl[gid];
+        float tke_new = tke_in[gid] + dtke * dt_step;
+        if (sanitize != 0 && !finite_f(tke_new))
+        {
+            tke_new = finite_f(tke_in[gid]) ? tke_in[gid] : 0.0;
+        }
+        tke_out[gid] = sanitize == 0 ? tke_new : max(0.0, tke_new);
+    }
+    else
+    {
+        tke_out[gid] = tke_in[gid];
+    }
+}

@@ -1,0 +1,410 @@
+// acoustic_bc_face_cartesian_cgrid.comp
+//
+// Per-substep acoustic boundary conditions on the Cartesian Arakawa C-grid
+// (GPU.md Phase 4.1): the GPU equivalent of
+// CartesianCGridBCScheme::apply_acoustic (apply_lateral + apply_vertical in
+// boundary_conditions_cartesian_cgrid.cpp), folded into the batched
+// acoustic submission so the 8-substep loop never returns to the host.
+//
+// One dispatch per face, in the CPU's exact order (west, east, south,
+// north, vertical; the `face` push constant selects), because corner and
+// edge ghost cells read values an earlier face pass wrote. Within one face
+// dispatch every thread writes only its own cell; the single intra-face
+// dependency (the ghost reading the wall-normal face the same pass updates)
+// is resolved analytically for Radiative, ZeroGradient, and rigid closures.
+//
+// Ghost handling mirrors the CPU exactly: u/v/w ghosts plus the rho/p
+// scalar copies; theta and moisture are NOT touched (the scalar-advection
+// kernel owns their boundary cells).
+//
+// BC enum encodings (config_v1.hpp): LateralBC 0=Periodic 1=Radiative
+// 2=Rigid 3=RigidSlip 4=ZeroGradient; LegacyOpen=5 is rejected before
+// dispatch. BottomBC 0=RigidNoSlip 1=RigidSlip; TopBC 0=Rigid
+// 1=RigidWithSponge 2=Open.
+//
+// Data layout: row-major [nx][ny][nz]. Index (i, j, k) = (i*ny + j)*nz + k.
+
+#version 450
+#extension GL_GOOGLE_include_directive : require
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) buffer UBuf
+{
+    float u_f[];
+};
+layout(set = 0, binding = 1) buffer VBuf
+{
+    float v_f[];
+};
+layout(set = 0, binding = 2) buffer WBuf
+{
+    float w_f[];
+};
+layout(set = 0, binding = 3) buffer RhoBuf
+{
+    float rho_f[];
+};
+layout(set = 0, binding = 4) buffer PBuf
+{
+    float p_f[];
+};
+
+// KW78 radiative face state (SCIENCE.md M17): the previous values
+// of the four Radiative boundary-normal faces, packed
+//   [u_west: ny*nz][u_east: ny*nz][v_south: nx*nz][v_north: nx*nz].
+// The momentum kernel prognoses the east/north faces each substep, so
+// the faces cannot serve as their own storage; the radiation condition
+// replaces those updates. face == 5 seeds this buffer from the live
+// faces (dispatched once per batch, before the first substep).
+layout(set = 0, binding = 5) buffer RadBuf
+{
+    float rad_f[];
+};
+
+// Push constants (64 bytes; mirrors AcousticBcFacePushConstants).
+layout(push_constant) uniform PushConstants
+{
+    int   nx;
+    int   ny;
+    int   nz;
+    int   face; // 0=west 1=east 2=south 3=north 4=vertical 5=seed
+    int   bc_west;
+    int   bc_east;
+    int   bc_south;
+    int   bc_north;
+    int   bc_bottom;
+    int   bc_top;
+    float frame_velocity_u_ms;
+    float frame_velocity_v_ms;
+    float dt_small;
+    float inv_dx;
+    float inv_dy;
+    float pad2;
+};
+
+#include "boundary_float32.glsl"
+
+// KW78 deep-convection gravity-wave phase speed (m/s); mirrors
+// CartesianCGridBCScheme::kCStar.
+const float C_STAR = 30.0;
+
+const int kPeriodic     = 0;
+const int kRadiative    = 1;
+const int kRigid        = 2;
+const int kRigidSlip    = 3;
+const int kZeroGradient = 4;
+
+uint at(int i, int j, int k)
+{
+    return uint((i * ny + j) * nz + k);
+}
+
+void copy_scalars(uint dst, uint src)
+{
+    rho_f[dst] = rho_f[src];
+    p_f[dst]   = p_f[src];
+}
+
+float radiated(float previous, float phase, float gradient, float inverse_spacing)
+{
+    precise float dt_phase  = boundary_mul(dt_small, phase);
+    precise float tendency  = boundary_mul(dt_phase, gradient);
+    precise float increment = boundary_mul(tendency, inverse_spacing);
+    precise float result    = boundary_sub(previous, increment);
+    return result;
+}
+
+void evaluate(uint gid)
+{
+    uint total = uint(nx) * uint(ny) * uint(nz);
+    if (gid >= total)
+    {
+        return;
+    }
+
+    int  k  = int(gid % uint(nz));
+    uint ij = gid / uint(nz);
+    int  j  = int(ij % uint(ny));
+    int  i  = int(ij / uint(ny));
+    uint c  = gid;
+
+    if (face == 5) // ── Seed the radiation state from the live faces ──
+    {
+        if (i == 0)
+        {
+            rad_f[uint(j * nz + k)] = u_f[c]; // u_west
+        }
+        if (i == nx - 2)
+        {
+            rad_f[uint(ny * nz + j * nz + k)] = u_f[c]; // u_east
+        }
+        if (j == 0)
+        {
+            rad_f[uint(2 * ny * nz + i * nz + k)] = v_f[c]; // v_south
+        }
+        if (j == ny - 2)
+        {
+            rad_f[uint(2 * ny * nz + nx * nz + i * nz + k)] = v_f[c]; // v_north
+        }
+        return;
+    }
+
+    if (face == 0) // ── West (i = 0 ghost; wall face = u[0]) ──────────
+    {
+        if (i != 0)
+            return;
+        if (bc_west == kPeriodic)
+        {
+            uint s = at(nx - 2, j, k);
+            u_f[c] = u_f[s];
+            v_f[c] = v_f[s];
+            w_f[c] = w_f[s];
+            copy_scalars(c, s);
+        }
+        else
+        {
+            uint s = at(1, j, k);
+            if (bc_west == kRadiative)
+            {
+                // KW78: u[0] is radiation-owned (mirrors the CPU).
+                uint          n     = uint(j * nz + k);
+                float         up    = rad_f[n];
+                float         phase = boundary_sub(boundary_sub(up, frame_velocity_u_ms), C_STAR);
+                precise float un    = up;
+                if (phase < 0.0 && dt_small > 0.0)
+                {
+                    un = radiated(up, phase, boundary_sub(u_f[s], up), inv_dx);
+                }
+                u_f[c]   = un;
+                rad_f[n] = un;
+            }
+            else if (bc_west == kZeroGradient)
+            {
+                u_f[c] = u_f[s];
+            }
+            else
+            {
+                u_f[c] = frame_velocity_u_ms;
+            }
+            if (bc_west == kRigid)
+            {
+                v_f[c] = frame_velocity_v_ms;
+                w_f[c] = 0.0;
+            }
+            else
+            {
+                v_f[c] = v_f[s];
+                w_f[c] = w_f[s];
+            }
+            copy_scalars(c, s);
+        }
+    }
+    else if (face == 1) // ── East (ghost i = nx-1; wall face = u[nx-2]) ──
+    {
+        int g = nx - 1, a = nx - 2;
+        if (i == a && (bc_east == kRigid || bc_east == kRigidSlip))
+        {
+            u_f[c] = frame_velocity_u_ms; // zero grid-relative normal flow
+        }
+        if (i != g)
+            return;
+        if (bc_east == kPeriodic)
+        {
+            uint s = at(1, j, k);
+            u_f[c] = u_f[s];
+            v_f[c] = v_f[s];
+            w_f[c] = w_f[s];
+            copy_scalars(c, s);
+        }
+        else
+        {
+            uint  sa = at(a, j, k);
+            float u_a_eff;
+            if (bc_east == kRadiative)
+            {
+                // KW78: the radiation replaces the momentum kernel's
+                // update of the boundary face (mirrors the CPU).
+                uint          n     = uint(ny * nz + j * nz + k);
+                float         up    = rad_f[n];
+                float         phase = boundary_add(boundary_sub(up, frame_velocity_u_ms), C_STAR);
+                precise float un    = up;
+                if (phase > 0.0 && dt_small > 0.0)
+                {
+                    un = radiated(up, phase, boundary_sub(up, u_f[at(a - 1, j, k)]), inv_dx);
+                }
+                u_f[sa]  = un;
+                rad_f[n] = un;
+                u_a_eff  = un;
+            }
+            else if (bc_east == kZeroGradient)
+            {
+                u_a_eff = u_f[at(a - 1, j, k)];
+                u_f[sa] = u_a_eff;
+            }
+            else
+            {
+                // Rigid/RigidSlip zero u[a] this pass; the ghost write
+                // below uses the analytic value so the read is race-free.
+                u_a_eff = frame_velocity_u_ms;
+            }
+            u_f[c] = (bc_east == kRadiative || bc_east == kZeroGradient) ? u_a_eff : frame_velocity_u_ms;
+            if (bc_east == kRigid)
+            {
+                v_f[c] = frame_velocity_v_ms;
+                w_f[c] = 0.0;
+            }
+            else
+            {
+                v_f[c] = v_f[sa];
+                w_f[c] = w_f[sa];
+            }
+            copy_scalars(c, sa);
+        }
+    }
+    else if (face == 2) // ── South (j = 0 ghost; wall face = v[i][0]) ──
+    {
+        if (j != 0)
+            return;
+        if (bc_south == kPeriodic)
+        {
+            uint s = at(i, ny - 2, k);
+            v_f[c] = v_f[s];
+            u_f[c] = u_f[s];
+            w_f[c] = w_f[s];
+            copy_scalars(c, s);
+        }
+        else
+        {
+            uint s = at(i, 1, k);
+            if (bc_south == kRadiative)
+            {
+                uint          n     = uint(2 * ny * nz + i * nz + k);
+                float         vp    = rad_f[n];
+                float         phase = boundary_sub(boundary_sub(vp, frame_velocity_v_ms), C_STAR);
+                precise float vn    = vp;
+                if (phase < 0.0 && dt_small > 0.0)
+                {
+                    vn = radiated(vp, phase, boundary_sub(v_f[s], vp), inv_dy);
+                }
+                v_f[c]   = vn;
+                rad_f[n] = vn;
+            }
+            else if (bc_south == kZeroGradient)
+            {
+                v_f[c] = v_f[s];
+            }
+            else
+            {
+                v_f[c] = frame_velocity_v_ms;
+            }
+            if (bc_south == kRigid)
+            {
+                u_f[c] = frame_velocity_u_ms;
+                w_f[c] = 0.0;
+            }
+            else
+            {
+                u_f[c] = u_f[s];
+                w_f[c] = w_f[s];
+            }
+            copy_scalars(c, s);
+        }
+    }
+    else if (face == 3) // ── North (ghost j = ny-1; wall face = v[i][ny-2]) ──
+    {
+        int g = ny - 1, a = ny - 2;
+        if (j == a && (bc_north == kRigid || bc_north == kRigidSlip))
+        {
+            v_f[c] = frame_velocity_v_ms; // zero grid-relative normal flow
+        }
+        if (j != g)
+            return;
+        if (bc_north == kPeriodic)
+        {
+            uint s = at(i, 1, k);
+            v_f[c] = v_f[s];
+            u_f[c] = u_f[s];
+            w_f[c] = w_f[s];
+            copy_scalars(c, s);
+        }
+        else
+        {
+            uint  sa = at(i, a, k);
+            float v_a_eff;
+            if (bc_north == kRadiative)
+            {
+                uint          n     = uint(2 * ny * nz + nx * nz + i * nz + k);
+                float         vp    = rad_f[n];
+                float         phase = boundary_add(boundary_sub(vp, frame_velocity_v_ms), C_STAR);
+                precise float vn    = vp;
+                if (phase > 0.0 && dt_small > 0.0)
+                {
+                    vn = radiated(vp, phase, boundary_sub(vp, v_f[at(i, a - 1, k)]), inv_dy);
+                }
+                v_f[sa]  = vn;
+                rad_f[n] = vn;
+                v_a_eff  = vn;
+            }
+            else if (bc_north == kZeroGradient)
+            {
+                v_a_eff = v_f[at(i, a - 1, k)];
+                v_f[sa] = v_a_eff;
+            }
+            else
+            {
+                v_a_eff = frame_velocity_v_ms;
+            }
+            v_f[c] = (bc_north == kRadiative || bc_north == kZeroGradient) ? v_a_eff : frame_velocity_v_ms;
+            if (bc_north == kRigid)
+            {
+                u_f[c] = frame_velocity_u_ms;
+                w_f[c] = 0.0;
+            }
+            else
+            {
+                u_f[c] = u_f[sa];
+                w_f[c] = w_f[sa];
+            }
+            copy_scalars(c, sa);
+        }
+    }
+    else // ── Vertical (bottom k = 0; top k = nz-1) ────────────────────
+    {
+        if (k == 0)
+        {
+            // Bottom: w[0] is interior on the C-grid (ground face w[-1]=0
+            // is implicit in the divergence). RigidSlip leaves u/v at k=0
+            // PROGNOSTIC (SCIENCE.md M19, mirrors the CPU);
+            // RigidNoSlip pins them to the ground.
+            if (bc_bottom == 0) // RigidNoSlip
+            {
+                u_f[c] = 0.0;
+                v_f[c] = 0.0;
+            }
+        }
+        else if (k == nz - 1)
+        {
+            uint s = at(i, j, nz - 2);
+            if (bc_top == 2) // Open
+            {
+                w_f[c] = w_f[s];
+                u_f[c] = (nz == 2 && bc_bottom == 0) ? 0.0 : u_f[s];
+                v_f[c] = (nz == 2 && bc_bottom == 0) ? 0.0 : v_f[s];
+            }
+            else // Rigid / RigidWithSponge (sponge applied separately)
+            {
+                w_f[c] = 0.0;
+                u_f[c] = (nz == 2 && bc_bottom == 0) ? 0.0 : u_f[s];
+                v_f[c] = (nz == 2 && bc_bottom == 0) ? 0.0 : v_f[s];
+            }
+        }
+        // p and rho stay prognostic at the surface and lid; theta and
+        // moisture are owned by the advection kernel.
+    }
+}
+
+void main()
+{
+    evaluate(gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * gl_NumWorkGroups.x * gl_WorkGroupSize.x);
+}

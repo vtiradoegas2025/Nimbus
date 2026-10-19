@@ -1,0 +1,658 @@
+.run-detail {
+  background: var(--color-bg);
+  display: flex;
+  flex-direction: column;
+  container-type: inline-size;
+}
+
+.run-detail--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.run-detail__placeholder {
+  text-align: center;
+  color: var(--color-text-muted);
+  max-width: 320px;
+}
+
+.run-detail__placeholder > svg {
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-3);
+}
+
+.run-detail__placeholder h2 {
+  margin: 0 0 var(--space-2);
+  color: var(--color-text);
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+}
+
+.run-detail__placeholder p {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+}
+
+/* ---------- Header ---------- */
+
+.run-detail__header {
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.run-detail__title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* The case name is the only elastic item in the row. Without min-width: 0 a
+ * flex item refuses to shrink below its content, so a long run name pushed the
+ * action buttons past the header's right edge — where the app shell's
+ * overflow: hidden clipped them (measured: 81px of "View plots" cut off at the
+ * 1100px minimum window width). Same treatment the meta rows already use. */
+.run-detail__header h2 {
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+/* Fixed, short labels — they should never be squeezed to make room for the
+ * name; the name ellipsizes instead. */
+.run-detail__title-row > .run-detail__abort,
+.run-detail__title-row > .run-detail__open-dir,
+.run-detail__title-row > .run-detail__view-plots {
+  flex-shrink: 0;
+}
+
+.run-detail__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: 2px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.run-detail__id {
+  color: var(--color-text-secondary);
+}
+
+.run-detail__sep {
+  color: var(--color-text-muted);
+}
+
+/* ---------- Immutable launch evidence ---------- */
+
+.run-detail__provenance {
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in oklch, var(--color-surface) 88%, var(--color-bg));
+}
+
+.run-detail__provenance > summary {
+  min-height: 44px;
+  display: grid;
+  grid-template-columns: max-content max-content 1fr;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-5);
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.run-detail__provenance > summary::marker {
+  color: var(--color-text-muted);
+}
+
+.run-detail__provenance > summary:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+.run-detail__provenance > summary > span:first-child {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.run-detail__provenance > summary strong {
+  font-size: var(--font-size-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--color-ok);
+}
+
+.run-detail__provenance--missing > summary strong,
+.run-detail__provenance--invalid > summary strong {
+  color: var(--color-warn);
+}
+
+.run-detail__provenance--invalid > summary strong {
+  color: var(--color-error);
+}
+
+.run-detail__provenance-summary {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.run-detail__provenance-body {
+  padding: var(--space-3) var(--space-5) var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.run-detail__provenance-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3) var(--space-5);
+  margin: 0 0 var(--space-4);
+}
+
+.run-detail__provenance-facts > div {
+  min-width: 0;
+}
+
+.run-detail__provenance-facts dt,
+.run-detail__provenance-identities > span {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.run-detail__provenance-facts dd {
+  margin: 2px 0 0;
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.run-detail__provenance-identities {
+  display: grid;
+  grid-template-columns: 8.5rem minmax(0, 1fr);
+  gap: var(--space-2) var(--space-3);
+  align-items: baseline;
+}
+
+.run-detail__provenance-identities code {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-size-xs);
+  font-variant-ligatures: none;
+}
+
+.run-detail__provenance-comparison {
+  display: grid;
+  grid-template-columns: minmax(8rem, 0.8fr) repeat(2, minmax(0, 1fr));
+  margin: 0 0 var(--space-4);
+  border-block: 1px solid var(--color-border);
+  font-size: var(--font-size-xs);
+}
+
+.run-detail__provenance-comparison > div {
+  display: contents;
+}
+
+.run-detail__provenance-comparison span,
+.run-detail__provenance-comparison code {
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.run-detail__provenance-comparison [role="columnheader"] {
+  color: var(--color-text-muted);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+.run-detail__provenance-comparison [role="cell"]:first-child {
+  color: var(--color-text);
+}
+
+.run-detail__provenance-boundary,
+.run-detail__provenance-problem {
+  max-width: 72ch;
+  margin: var(--space-4) 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  line-height: 1.55;
+}
+
+.run-detail__provenance-problem {
+  margin-top: 0;
+  color: var(--color-text-secondary);
+}
+
+.run-detail__provenance-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.run-detail__provenance-actions button {
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.run-detail__provenance-actions button:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  color: var(--color-text);
+}
+
+.run-detail__provenance-actions button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.run-detail__provenance-actions button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.run-detail__provenance-actions span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-size-xs);
+}
+
+@container (max-width: 720px) {
+  .run-detail__provenance > summary {
+    grid-template-columns: 1fr max-content;
+  }
+
+  .run-detail__provenance-summary {
+    grid-column: 1 / -1;
+  }
+
+  .run-detail__provenance-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .run-detail__provenance-identities {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+
+  .run-detail__provenance-identities code + span {
+    margin-top: var(--space-2);
+  }
+
+  .run-detail__provenance-comparison {
+    grid-template-columns: minmax(6.5rem, 0.7fr) repeat(2, minmax(7rem, 1fr));
+    overflow-x: auto;
+  }
+}
+
+.status-pill {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  padding: 3px var(--space-2);
+  border-radius: var(--radius-pill);
+}
+
+.run-detail__title-spacer {
+  flex: 1;
+}
+
+.run-detail__abort {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 4px var(--space-3);
+  border-radius: var(--radius-md);
+  background: color-mix(in oklch, var(--color-error) 12%, transparent);
+  color: var(--color-error);
+  border: 1px solid color-mix(in oklch, var(--color-error) 25%, transparent);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.run-detail__abort:hover:not(:disabled) {
+  background: color-mix(in oklch, var(--color-error) 20%, transparent);
+  border-color: var(--color-error);
+}
+
+.run-detail__abort:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.run-detail__abort-error {
+  color: var(--color-error);
+}
+
+.run-detail__view-plots,
+.run-detail__open-dir {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 4px var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.run-detail__view-plots {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  border-color: color-mix(in oklch, var(--color-accent) 30%, var(--color-border));
+}
+
+.run-detail__view-plots:hover:not(:disabled) {
+  background: color-mix(in oklch, var(--color-accent) 18%, var(--color-surface));
+  border-color: var(--color-accent);
+}
+
+.run-detail__view-plots:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.run-detail__plot-notice {
+  margin: 0;
+  padding: var(--space-2) var(--space-5);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-body);
+  overflow-wrap: anywhere;
+}
+
+.run-detail__open-dir {
+  background: var(--color-surface-2);
+  color: var(--color-text-secondary);
+  border-color: var(--color-border);
+}
+
+.run-detail__open-dir:hover {
+  background: var(--color-surface-3);
+  color: var(--color-text);
+  border-color: var(--color-border-strong);
+}
+
+.status-pill--running {
+  background: color-mix(in oklch, var(--color-accent) 14%, transparent);
+  color: var(--color-accent);
+}
+.status-pill--queued {
+  background: var(--color-surface-2);
+  color: var(--color-text-secondary);
+}
+.status-pill--completed {
+  background: color-mix(in oklch, var(--color-ok) 16%, transparent);
+  color: var(--color-ok);
+}
+.status-pill--failed {
+  background: color-mix(in oklch, var(--color-error) 16%, transparent);
+  color: var(--color-error);
+}
+.status-pill--aborted {
+  background: color-mix(in oklch, var(--color-warn) 16%, transparent);
+  color: var(--color-warn);
+}
+
+.status-pill--library-ready {
+  background: color-mix(in oklch, var(--color-ok) 16%, transparent);
+  color: var(--color-ok);
+}
+.status-pill--library-partial {
+  background: color-mix(in oklch, var(--color-warn) 16%, transparent);
+  color: var(--color-warn);
+}
+.status-pill--library-invalid {
+  background: color-mix(in oklch, var(--color-error) 16%, transparent);
+  color: var(--color-error);
+}
+
+/* ---------- Rebuilt run-library inspection ---------- */
+
+.run-detail__library {
+  flex: 1;
+  overflow: auto;
+  padding: var(--space-6) var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.run-detail__library-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  max-width: 72ch;
+  padding-bottom: var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.run-detail__library-notice > svg { flex: 0 0 auto; margin-top: 2px; }
+.run-detail__library-notice > div { display: flex; flex-direction: column; gap: var(--space-1); }
+.run-detail__library-notice strong { color: var(--color-text); font-size: var(--font-size-md); }
+.run-detail__library-notice span { color: var(--color-text-secondary); font-size: var(--font-size-sm); line-height: var(--line-height-body); }
+.run-detail__library-notice--ready > svg { color: var(--color-ok); }
+.run-detail__library-notice--partial > svg { color: var(--color-warn); }
+.run-detail__library-notice--invalid > svg { color: var(--color-error); }
+
+.run-detail > .run-detail__library-notice {
+  max-width: none;
+  padding: var(--space-3) var(--space-5);
+}
+
+.run-detail > .run-detail__library-notice > div { max-width: 72ch; }
+
+.run-detail__stats-grid--library {
+  max-width: 760px;
+  padding: 0;
+  margin: 0;
+}
+
+.run-detail__library-path {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--space-2) var(--space-4);
+  max-width: 760px;
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--color-border);
+  font-size: var(--font-size-sm);
+}
+
+.run-detail__library-path > span { color: var(--color-text-muted); }
+.run-detail__library-path > strong { color: var(--color-text-secondary); font-weight: 500; }
+.run-detail__library-path code {
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.run-detail__library-recovery {
+  max-width: 68ch;
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-body);
+}
+
+@container (max-width: 620px) {
+  .run-detail__stats-grid--library { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .run-detail__library-path { grid-template-columns: 1fr; gap: var(--space-1); }
+  .run-detail__library-path > strong,
+  .run-detail__library-path code { margin-bottom: var(--space-3); }
+}
+
+/* ---------- Progress ---------- */
+
+.run-detail__progress {
+  padding: var(--space-4) var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.run-detail__progress-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.run-detail__progress-row--sub {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.run-detail__progress-label {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.run-detail__progress-value {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+}
+
+.run-detail__progress-pct {
+  color: var(--color-text-muted);
+}
+
+.run-detail__progress-bar {
+  height: 6px;
+  background: var(--color-surface-2);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+
+.run-detail__progress-fill {
+  width: 100%;
+  height: 100%;
+  background: var(--color-accent);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 300ms var(--ease-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .run-detail__progress-fill { transition: none; }
+}
+
+/* ---------- Stats grid (Wall clock / ETA / Rate / max |v|) ---------- */
+
+.run-detail__stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2) var(--space-4);
+  margin-top: var(--space-2);
+}
+
+.run-detail__stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.run-detail__stat-label {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.run-detail__stat-value {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- VelMax sparkline ---------- */
+
+.run-detail__sparkline {
+  margin-top: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--color-info);
+}
+
+.run-detail__sparkline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.run-detail__sparkline-range {
+  color: var(--color-text-secondary);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.run-detail__sparkline-svg {
+  width: 100%;
+  height: 48px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+/* ---------- Log container ---------- */
+
+/* Column, not the default row: the log panel is this section's only child and
+ * must span its full width. As a row container the panel's width collapsed to
+ * the content width of the log lines (a ~300px stub against a ~1100px
+ * section), and LogStream's collapse rule — `flex: 0 0 auto`, written to
+ * "collapse height to header-only" — silently applied to the width instead. */
+.run-detail__log {
+  flex: 1;
+  padding: var(--space-4) var(--space-5) var(--space-5);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Hand the freed height back to the sections above instead of leaving a tall
+ * empty panel hanging under the collapsed header. */
+.run-detail__log:has(.log-stream--collapsed) {
+  flex: 0 0 auto;
+}

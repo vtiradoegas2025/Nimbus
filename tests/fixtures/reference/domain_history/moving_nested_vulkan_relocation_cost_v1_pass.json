@@ -1,0 +1,127 @@
+{
+  "disposition": {
+    "broader_profiles_covered": false,
+    "device_resident_relocation_proven": false,
+    "exact_profile_throughput_blocker": false,
+    "per_subphase_attribution_available": false,
+    "reason": "all measured relocation cost is only an upper bound on removable device-residency cost",
+    "throughput_promotion": false
+  },
+  "measurement": {
+    "maximum_possible_whole_run_speedup_if_relocation_were_free_percent": 0.12207428291844459,
+    "mean_solver_step_ms": 3316.15,
+    "model_steps": 3000,
+    "relocation_count": 7,
+    "relocation_max_ms": 1902.33175,
+    "relocation_mean_ms": 1734.9284284285716,
+    "relocation_median_ms": 1705.71025,
+    "relocation_min_ms": 1672.745083,
+    "relocation_total_ms": 12144.498999,
+    "relocation_total_share_of_solver_wall_percent": 0.12207428291844459,
+    "relocations": [
+      {
+        "completed_step": 1340,
+        "movement_sequence": 1,
+        "newly_admitted_columns": 4648,
+        "shift_cells": {
+          "i": 14,
+          "j": 0
+        },
+        "simulation_time_s": 2010,
+        "tracker_record": "tests/artifacts/moving_nested_vulkan_lifetime_v2_20260819_segment_0000_4500/storm_track/track_step_000001340.json",
+        "tracker_record_sha256": "7c9b07601b3097256f948448e3373e881496ceb1c2e70a019bbf9028eea1e5dd",
+        "transaction_elapsed_ms": 1726.527708
+      },
+      {
+        "completed_step": 2120,
+        "movement_sequence": 2,
+        "newly_admitted_columns": 4316,
+        "shift_cells": {
+          "i": 13,
+          "j": 0
+        },
+        "simulation_time_s": 3180,
+        "tracker_record": "tests/artifacts/moving_nested_vulkan_lifetime_v2_20260819_segment_0000_4500/storm_track/track_step_000002120.json",
+        "tracker_record_sha256": "fdcd28fcb907a634cb287b811d48c2d8d89b9328f3a94a047c32dfb89ef8889e",
+        "transaction_elapsed_ms": 1704.642042
+      },
+      {
+        "completed_step": 2340,
+        "movement_sequence": 3,
+        "newly_admitted_columns": 8232,
+        "shift_cells": {
+          "i": 14,
+          "j": 14
+        },
+        "simulation_time_s": 3510,
+        "tracker_record": "tests/artifacts/moving_nested_vulkan_lifetime_v2_20260819_segment_0000_4500/storm_track/track_step_000002340.json",
+        "tracker_record_sha256": "dc11bdcb7752cc93a1c6b40392c9a4b58d7e6d67c62fb2a4f22ec7671d97315b",
+        "transaction_elapsed_ms": 1749.871583
+      },
+      {
+        "completed_step": 2360,
+        "movement_sequence": 4,
+        "newly_admitted_columns": 2512,
+        "shift_cells": {
+          "i": 4,
+          "j": 4
+        },
+        "simulation_time_s": 3540,
+        "tracker_record": "tests/artifacts/moving_nested_vulkan_lifetime_v2_20260819_segment_0000_4500/storm_track/track_step_000002360.json",
+        "tracker_record_sha256": "ccb9ea5130782b7c0b471d01412d02d2cb3bb5df2566306900e1960bbd797230",
+        "transaction_elapsed_ms": 1682.670583
+      },
+      {
+        "completed_step": 2560,
+        "movement_sequence": 5,
+        "newly_admitted_columns": 1296,
+        "shift_cells": {
+          "i": 3,
+          "j": 1
+        },
+        "simulation_time_s": 3840,
+        "tracker_record": "tests/artifacts/moving_nested_vulkan_lifetime_v2_20260819_segment_0000_4500/storm_track/track_step_000002560.json",
+        "tracker_record_sha256": "ce9c51dcca1152858927d7b510362a1465113b17f1f3859e0de75273f047cc37",
+        "transaction_elapsed_ms": 1672.745083
+      },
+      {
+        "completed_step": 2780,
+        "movement_sequence": 6,
+        "newly_admitted_columns": 664,
+        "shift_cells": {
+          "i": 2,
+          "j": 0
+        },
+        "simulation_time_s": 4170,
+        "tracker_record": "tests/artifacts/moving_nested_vulkan_lifetime_v2_20260819_segment_0000_4500/storm_track/track_step_000002780.json",
+        "tracker_record_sha256": "44fdb3381d899bb1f2265267f2721369aa54118b0def94ab257bb016af343617",
+        "transaction_elapsed_ms": 1902.33175
+      },
+      {
+        "completed_step": 2880,
+        "movement_sequence": 7,
+        "newly_admitted_columns": 1272,
+        "shift_cells": {
+          "i": 2,
+          "j": 2
+        },
+        "simulation_time_s": 4320,
+        "tracker_record": "tests/artifacts/moving_nested_vulkan_lifetime_v2_20260819_segment_0000_4500/storm_track/track_step_000002880.json",
+        "tracker_record_sha256": "d6371b9b8c47504a6847c7cfc6604c600efdbecc94779f6672c56fe852c4c7f5",
+        "transaction_elapsed_ms": 1705.71025
+      }
+    ],
+    "solver_wall_seconds": 9948.45
+  },
+  "schema": "nimbus.moving_nested.vulkan_relocation_cost",
+  "schema_version": 1,
+  "source": {
+    "binary_sha256": "7d1abadfbde32d1d5747779356ffe0f68893af64cfd0b99d2843b6eaa3e88457",
+    "config_sha256": "adb44405cc424abdd9db842d03586ed82a328669684dc81f3a18e833a9a2da1a",
+    "runtime_report": "tests/artifacts/moving_nested_vulkan_lifetime_v2_20260819_segment_0000_4500/moving_nested_vulkan_runtime_report.json",
+    "runtime_report_sha256": "c14f4063d1d11ca59272bdea6b26f789b891155a6010f957e6b5be5a936b7d91",
+    "tracker_manifest_sha256": "36a4927fe6e7ddd1443bf29280d485aa2f7211f0bd7befe44d2e6ddbc574e810",
+    "tracker_record_count": 150
+  },
+  "status": "pass"
+}

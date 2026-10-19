@@ -1,0 +1,121 @@
+{
+  "schema": "nimbus.qualification.moving_nested_reference_frontier.movement_failure",
+  "schema_version": 1,
+  "status": "invalid",
+  "qualification_disposition": "incomplete",
+  "qualification_eligible": false,
+  "reason": "post_containment_orthogonal_reserve_absent",
+  "scope": "ratified-v7 fixed-aperture same-equation frontier",
+  "campaign_root": "/private/tmp/nimbus_moving_reference_frontier_v7_retry_20260812",
+  "comparison_performed": false,
+  "candidate_metric_values_inspected": false,
+  "frozen_inputs": {
+    "binary": {
+      "bytes": 6163968,
+      "sha256": "33cc758a578a15472ead29f7638a3a6c101bf89f39144bb094a4216e46cf2571",
+      "movement_algorithm": "qualified_envelope_hysteresis_v9"
+    },
+    "moving_config_sha256": "c86663caaee2c1217d300809713fd5e3856ae141561aae256437267c8f2287f0",
+    "reference_config_sha256": "df57ab348dcb742177a9e3ae4740ebeed6ee18540cb26e296db8604c3b1f8925",
+    "policy": {
+      "path": "../../tests/qualification/fixtures/moving_nested_supercell_reference_frontier_v7.json",
+      "sha256": "3a058e68e1b6d04e660ab3eefae9d1d19a99e9efc1fbdef88ad720d722270fa1",
+      "schema_version": 7,
+      "policy_id": "moving-nested-reference-frontier-v7-balanced-trusted-containment-amendment"
+    },
+    "extractor_sha256": "7bc67f94a7c40fbc0b3d90d24e6540d8d0c5b7ebc638a127a17a750b42d487bb",
+    "comparator_sha256": "c9cd5b6f2424cdaf9c647414d6cd76780790f322871a715904fa4a163f06a48f"
+  },
+  "completed_reference": {
+    "source_run": "/private/tmp/nimbus_moving_reference_frontier_v7_20260812/oversized_reference",
+    "execution_mode": "existing_complete_run_with_binary_and_config_identity_revalidated",
+    "duration_s": 4500,
+    "tracker_samples": 150,
+    "diagnostic_samples": 150,
+    "runtime_log_sha256": "0fa4ba22c8a7b8e3c2442a0ab27e7b2747271d5497b4f75e23513ca22c2398ab",
+    "run_manifest_sha256": "badc5a2a2b32a3c667aee1f34e4728c0556f71b69b4b12dc30d5775d4ebd5e89",
+    "final_checkpoint": {
+      "simulation_time_s": 4500,
+      "completed_steps": 6000,
+      "sha256": "be12944ca2c9eb81b61ee02a6e795dd6dd8ae61afe82a7c58547de1c8dd5e543",
+      "sidecar_sha256": "e4f2f66b70848ea0f73e9f5ea3a5bb625aa3b34afdef1b216cf57cd5bc763cec"
+    }
+  },
+  "moving_failure": {
+    "runtime_log": {
+      "bytes": 14820967,
+      "sha256": "a4d7a66709df9f41df80451c1aba8a2c9949bc673e60bb01c07643c4664636ed"
+    },
+    "scientific_invalidity": {
+      "bytes": 369,
+      "sha256": "b323a946baa393be5f0235ddcb879fda459d470459300c271e8db4b5bc74f8cb",
+      "simulation_time_s": 3720,
+      "completed_step": 2480,
+      "reason": "relaxation_zone_entry"
+    },
+    "published_coverage": {
+      "tracker_samples": 124,
+      "tracker_last_time_s": 3720,
+      "diagnostic_samples": 123,
+      "diagnostic_last_time_s": 3690,
+      "invalid_step_history_or_checkpoint_published": false
+    },
+    "latest_restart_safe_checkpoint": {
+      "simulation_time_s": 3600,
+      "completed_steps": 2400,
+      "bytes": 253294210,
+      "sha256": "c2ad24af349b235d180ab62f05add47a2469988f81258b6ed53949e02dde95d7",
+      "fnv1a64": "252aa74d3ef31e0c",
+      "sidecar_sha256": "55dfd9d476256cc079d0f8f23a0c60139690fe06381dfc1a298027f690875e86"
+    }
+  },
+  "forensic_sequence": [
+    {
+      "simulation_time_s": 3540,
+      "selected_clearance_m": {"west": 18000, "east": 9000, "south": 21600, "north": 23400},
+      "movement_status": "requested",
+      "movement_reason": "trusted_interior_containment",
+      "committed_shift_parent_cells": {"i": 4, "j": 0},
+      "unused_orthogonal_release_slack_parent_cells": {"i": 0, "j": 4},
+      "scientific_status": "valid"
+    },
+    {
+      "simulation_time_s": 3690,
+      "tracker_sha256": "2e9dacfff2acacf08e2884b87bf12e7312bcd95eca44bc789d1006ca2e546906",
+      "selected_clearance_m": {"west": 15000, "east": 10200, "south": 22200, "north": 25200},
+      "signed_face_velocity_ms": {"west": 20, "east": 60, "south": 0, "north": -160},
+      "movement_status": "ineligible",
+      "movement_reason": "trusted_interior_contained",
+      "scientific_status": "valid"
+    },
+    {
+      "simulation_time_s": 3720,
+      "tracker_sha256": "c5ff4ffc917aa847e031053a0f4b2b547ad23b612d57a6eb00ddb12345f00993",
+      "selected_clearance_m": {"west": 15000, "east": 10200, "south": 22200, "north": 1200},
+      "signed_face_velocity_ms": {"west": 0, "east": 0, "south": 0, "north": 800},
+      "north_face_expansion_since_prior_sample_m": 24000,
+      "movement_status": "ineligible",
+      "movement_reason": "opposite_release_margin_insufficient",
+      "scientific_status": "invalid",
+      "scientific_reason": "relaxation_zone_entry"
+    }
+  ],
+  "failure_classification": {
+    "class": "trusted_containment_transaction_left_avoidable_orthogonal_reserve_unused",
+    "v9_balanced_containment_state_succeeded": true,
+    "original_v5_and_v8_failure_windows_repaired": true,
+    "continuity_branch_jump": false,
+    "declared_topology_reorganization": false,
+    "current_relaxation_entry_recoverable": false,
+    "3540_orthogonal_release_preserving_shift_parent_cells": {"i": 0, "j": 4},
+    "3540_clearance_after_proposed_combined_shift_m": {"west": 13200, "east": 13800, "south": 16800, "north": 28200},
+    "counterfactual_3720_north_clearance_before_any_new_move_m": 6000,
+    "intended_repair": "during a trusted-interior containment transaction, use only orthogonal whole-parent-cell slack above the immutable release margin in the authoritative tracked approach direction, preserving every current relaxation face and never treating an existing relaxation-zone entry as recoverable"
+  },
+  "limitations": [
+    "The moving branch is scientifically invalid and incomplete; the completed reference cannot make it comparable.",
+    "No moving/reference series or comparison report was produced, and no candidate comparison metric value was inspected.",
+    "The proposed orthogonal reserve is admitted only as part of an already-qualified trusted-containment transaction and cannot cross an opposite release face.",
+    "This evidence does not alter numerical thresholds, geometry, aperture, cadence, current-relaxation fail-closed ownership, or public moving_nest status."
+  ]
+}

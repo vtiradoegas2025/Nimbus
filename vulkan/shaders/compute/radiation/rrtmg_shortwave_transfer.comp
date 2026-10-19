@@ -1,0 +1,121 @@
+// Prepared RRTMG shortwave PIFM two-stream transfer, one g-point per thread.
+#version 450
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set=0,binding=0) readonly buffer AbsBuf { float absorption[]; };
+layout(set=0,binding=1) readonly buffer RayBuf { float rayleigh[]; };
+layout(set=0,binding=2) readonly buffer SolarBuf { float solar_source[]; };
+layout(set=0,binding=3) readonly buffer CloudDepthBuf { float cloud_depth[]; };
+layout(set=0,binding=4) readonly buffer CloudOmegaBuf { float cloud_omega[]; };
+layout(set=0,binding=5) readonly buffer CloudAsymBuf { float cloud_asymmetry[]; };
+layout(set=0,binding=6) writeonly buffer UpBuf { float upward_partial[]; };
+layout(set=0,binding=7) writeonly buffer DownBuf { float downward_partial[]; };
+layout(set=0,binding=8) buffer DirectReflectBuf { float direct_reflectance[]; };
+layout(set=0,binding=9) buffer DiffuseReflectBuf { float diffuse_reflectance[]; };
+layout(set=0,binding=10) buffer DirectTransmitBuf { float direct_transmittance[]; };
+layout(set=0,binding=11) buffer DiffuseTransmitBuf { float diffuse_transmittance[]; };
+layout(set=0,binding=12) buffer DirectBeamBuf { float direct_beam[]; };
+layout(set=0,binding=13) buffer CumulativeBuf { float cumulative_direct[]; };
+layout(set=0,binding=14) buffer UpDirectBuf { float upward_direct[]; };
+layout(set=0,binding=15) buffer UpDiffuseBuf { float upward_diffuse[]; };
+layout(set=0,binding=16) buffer DownTotalBuf { float downward_total[]; };
+layout(set=0,binding=17) buffer DownDiffuseBuf { float downward_diffuse[]; };
+
+layout(push_constant) uniform PushConstants {
+    int layers; int has_clouds; float cosine_zenith; float solar_irradiance_wm2;
+    float surface_albedo; float source_sum; int padding0; int padding1;
+};
+
+struct LayerTransfer { float rd; float rf; float td; float tf; float beam; };
+float transmission(float depth) {
+    float bounded = min(depth, 40.0);
+    return bounded <= 1.0e-4 ? 1.0 - bounded + 0.5 * bounded * bounded : exp(-bounded);
+}
+LayerTransfer pifm(float a, float s, float asymmetry) {
+    LayerTransfer r = LayerTransfer(0.0, 0.0, 1.0, 1.0, 1.0);
+    float tau = a + s; if (tau <= 0.0) return r;
+    float omega = clamp(s / tau, 0.0, 1.0);
+    float gamma1 = (8.0 - omega * (5.0 + 3.0 * asymmetry)) * 0.25;
+    float gamma2 = 3.0 * omega * (1.0 - asymmetry) * 0.25;
+    float gamma3 = (2.0 - 3.0 * asymmetry * cosine_zenith) * 0.25;
+    float gamma4 = 1.0 - gamma3;
+    r.beam = transmission(tau / cosine_zenith);
+    if (omega >= 0.9999995) {
+        float av = gamma1 * cosine_zenith;
+        float gamma_tau = gamma1 * tau;
+        r.rd = (gamma_tau - (av - gamma3) * (1.0 - r.beam)) / (1.0 + gamma_tau);
+        r.td = 1.0 - r.rd; r.rf = gamma_tau / (1.0 + gamma_tau); r.tf = 1.0 - r.rf;
+        if (r.beam == 1.0) return LayerTransfer(0.0, 0.0, 1.0, 1.0, 1.0);
+        return r;
+    }
+    float a1 = gamma1 * gamma4 + gamma2 * gamma3;
+    float a2 = gamma1 * gamma3 + gamma2 * gamma4;
+    float k = sqrt(max(0.0, gamma1 * gamma1 - gamma2 * gamma2));
+    float kp = k * cosine_zenith, kp1 = 1.0 + kp, km1 = 1.0 - kp;
+    float two_k = 2.0 * k, one_kp2 = 1.0 - kp * kp, kg = k + gamma1;
+    float r1 = km1 * (a2 + k * gamma3), r2 = kp1 * (a2 - k * gamma3);
+    float r3 = two_k * (gamma3 - a2 * cosine_zenith);
+    float r4 = one_kp2 * kg, r5 = one_kp2 * (k - gamma1);
+    float t1 = kp1 * (a1 + k * gamma4), t2 = km1 * (a1 - k * gamma4);
+    float t3 = two_k * (gamma4 + a1 * cosine_zenith);
+    float beta = (gamma1 - k) / kg;
+    float exp_k = transmission(k * tau), inv_exp = 1.0 / exp_k;
+    float denom = r4 * inv_exp + r5 * exp_k;
+    if (abs(denom) <= 1.0e-8) { r.rd = 1.0e-8; r.td = r.beam; }
+    else {
+        r.rd = omega * (r1 * inv_exp - r2 * exp_k - r3 * r.beam) / denom;
+        r.td = r.beam - omega * (r.beam * (t1 * inv_exp - t2 * exp_k) - t3) / denom;
+    }
+    float exp2 = exp_k * exp_k;
+    float diffuse_denominator = 1.0 / ((1.0 - beta * exp2) * kg);
+    r.rf = gamma2 * (1.0 - exp2) * diffuse_denominator;
+    r.tf = two_k * exp_k * diffuse_denominator;
+    return r;
+}
+int band_for_gpoint(uint g) {
+    const int ends[14] = int[14](6,18,26,34,44,54,56,66,74,80,86,94,100,112);
+    for (int b=0;b<14;++b) if (g<uint(ends[b])) return b; return 13;
+}
+void main() {
+    uint g=gl_GlobalInvocationID.x; if(g>=112u) return;
+    uint stride=uint(layers+1), base=g*stride; int band=band_for_gpoint(g);
+    cumulative_direct[base]=1.0;
+    for(int top=0;top<layers;++top) {
+        int layer=layers-1-top; uint ix=uint(layer)*112u+g; uint sx=base+uint(top);
+        float cd=has_clouds!=0?cloud_depth[uint(layer)*14u+uint(band)]:0.0;
+        float cs=has_clouds!=0?cd*cloud_omega[uint(layer)*14u+uint(band)]:0.0;
+        float scatter=rayleigh[ix]+cs;
+        float asym=(scatter>0.0&&has_clouds!=0)?cs*cloud_asymmetry[uint(layer)*14u+uint(band)]/scatter:0.0;
+        LayerTransfer tr=pifm(absorption[ix]+cd-cs,scatter,asym);
+        direct_reflectance[sx]=tr.rd; diffuse_reflectance[sx]=tr.rf;
+        direct_transmittance[sx]=tr.td; diffuse_transmittance[sx]=tr.tf; direct_beam[sx]=tr.beam;
+        cumulative_direct[base+uint(top+1)]=cumulative_direct[base+uint(top)]*tr.beam;
+    }
+    upward_direct[base+uint(layers)]=surface_albedo; upward_diffuse[base+uint(layers)]=surface_albedo;
+    int low=layers-1; uint lx=base+uint(low);
+    float coupling=1.0/(1.0-surface_albedo*diffuse_reflectance[lx]);
+    upward_direct[lx]=direct_reflectance[lx]+diffuse_transmittance[lx]*
+        ((direct_transmittance[lx]-direct_beam[lx])*surface_albedo+direct_beam[lx]*surface_albedo)*coupling;
+    upward_diffuse[lx]=diffuse_reflectance[lx]+diffuse_transmittance[lx]*diffuse_transmittance[lx]*surface_albedo*coupling;
+    for(int top=low-1;top>=0;--top) { uint x=base+uint(top);
+        coupling=1.0/(1.0-upward_diffuse[x+1u]*diffuse_reflectance[x]);
+        upward_direct[x]=direct_reflectance[x]+diffuse_transmittance[x]*
+          ((direct_transmittance[x]-direct_beam[x])*upward_diffuse[x+1u]+direct_beam[x]*upward_direct[x+1u])*coupling;
+        upward_diffuse[x]=diffuse_reflectance[x]+diffuse_transmittance[x]*diffuse_transmittance[x]*upward_diffuse[x+1u]*coupling;
+    }
+    downward_total[base]=1.0; downward_diffuse[base]=0.0;
+    downward_total[base+1u]=direct_transmittance[base]; downward_diffuse[base+1u]=diffuse_reflectance[base];
+    for(int top=1;top<layers;++top) { uint x=base+uint(top);
+        coupling=1.0/(1.0-diffuse_reflectance[x]*downward_diffuse[x]);
+        downward_total[x+1u]=cumulative_direct[x]*direct_transmittance[x]+diffuse_transmittance[x]*
+          ((downward_total[x]-cumulative_direct[x])+cumulative_direct[x]*direct_reflectance[x]*downward_diffuse[x])*coupling;
+        downward_diffuse[x+1u]=diffuse_reflectance[x]+diffuse_transmittance[x]*diffuse_transmittance[x]*downward_diffuse[x]*coupling;
+    }
+    float incident=solar_irradiance_wm2*cosine_zenith*solar_source[g]/source_sum;
+    for(int top=0;top<=layers;++top) { uint x=base+uint(top);
+        coupling=1.0/(1.0-downward_diffuse[x]*upward_diffuse[x]);
+        float up=(cumulative_direct[x]*upward_direct[x]+(downward_total[x]-cumulative_direct[x])*upward_diffuse[x])*coupling;
+        float down=cumulative_direct[x]+((downward_total[x]-cumulative_direct[x])+cumulative_direct[x]*upward_direct[x]*downward_diffuse[x])*coupling;
+        uint out_index=base+uint(layers-top); upward_partial[out_index]=incident*up; downward_partial[out_index]=incident*down;
+    }
+}

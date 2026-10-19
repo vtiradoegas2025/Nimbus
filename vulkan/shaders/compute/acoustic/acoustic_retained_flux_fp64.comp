@@ -1,0 +1,103 @@
+#version 450
+#extension GL_ARB_gpu_shader_fp64 : require
+#extension GL_ARB_gpu_shader_int64 : require
+#extension GL_EXT_spirv_intrinsics : require
+spirv_execution_mode(extensions = ["SPV_KHR_float_controls"], capabilities = [4466], 4461, 64);
+spirv_execution_mode(extensions = ["SPV_KHR_float_controls"], capabilities = [4467], 4462, 64);
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+layout(set = 0, binding = 0) readonly buffer Rho { uint rho[]; };
+layout(set = 0, binding = 1) readonly buffer U { uint u[]; };
+layout(set = 0, binding = 2) readonly buffer V { uint v[]; };
+layout(set = 0, binding = 3) readonly buffer W { uint w[]; };
+layout(set = 0, binding = 4) buffer FluxX { uint flux_x[]; };
+layout(set = 0, binding = 5) buffer FluxY { uint flux_y[]; };
+layout(set = 0, binding = 6) buffer FluxZ { uint flux_z[]; };
+layout(push_constant) uniform Constants {
+    int nx;
+    int ny;
+    int nz;
+    int pad;
+    uint frame_u_ms;
+    uint frame_v_ms;
+    uint weight_low;
+    uint weight_high;
+};
+
+spirv_instruction(extensions = ["SPV_KHR_fma"], capabilities = [6030], id = 4427)
+double retained_fma(double a, double b, double c);
+
+// Integer conversion preserves FP32 subnormals even on Vulkan devices that
+// expose no shaderDenormPreserveFloat32 mode.
+double widen(uint value)
+{
+    uint sign = value & 0x80000000u;
+    uint exponent = (value >> 23) & 255u;
+    uint fraction = value & 0x7fffffu;
+    uint64_t result = uint64_t(sign) << 32;
+    if (exponent == 255u)
+        result |= (uint64_t(2047) << 52) | (fraction == 0u ? uint64_t(0) : uint64_t(1) << 51);
+    else if (exponent != 0u)
+        result |= (uint64_t(exponent + 896u) << 52) | (uint64_t(fraction) << 29);
+    else if (fraction != 0u)
+    {
+        int leading = findMSB(fraction);
+        result |= (uint64_t(leading + 874) << 52) |
+            ((uint64_t(fraction) << (52 - leading)) & ((uint64_t(1) << 52) - 1));
+    }
+    return packDouble2x32(uvec2(uint(result), uint(result >> 32)));
+}
+
+uint narrow(double value)
+{
+    uvec2 words = unpackDouble2x32(value);
+    uint sign = words.y & 0x80000000u;
+    int exponent = int((words.y >> 20) & 2047u);
+    uint64_t fraction = (uint64_t(words.y & 0xfffffu) << 32) | words.x;
+    if (exponent == 2047)
+        return sign | (fraction == uint64_t(0) ? 0x7f800000u : 0x7fc00000u);
+    int target = exponent - 896;
+    if (exponent == 0 || target < -23) return sign;
+    if (target >= 255) return sign | 0x7f800000u;
+    uint64_t significand = (uint64_t(1) << 52) | fraction;
+    int shift = target > 0 ? 29 : 30 - target;
+    uint64_t rounded = significand >> shift;
+    uint64_t remainder = significand & ((uint64_t(1) << shift) - 1);
+    uint64_t halfway = uint64_t(1) << (shift - 1);
+    if (remainder > halfway || (remainder == halfway && (rounded & uint64_t(1)) != uint64_t(0))) ++rounded;
+    if (target <= 0) return sign | uint(rounded);
+    if (rounded == (uint64_t(1) << 24)) { rounded >>= 1; ++target; }
+    if (target >= 255) return sign | 0x7f800000u;
+    return sign | (uint(target) << 23) | (uint(rounded) & 0x7fffffu);
+}
+
+void main()
+{
+    uint cell = gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * gl_NumWorkGroups.x * gl_WorkGroupSize.x;
+    if (cell >= uint(nx) * uint(ny) * uint(nz)) return;
+    uint k = cell % uint(nz);
+    uint j = (cell / uint(nz)) % uint(ny);
+    uint i = cell / uint(ny * nz);
+    double weight = packDouble2x32(uvec2(weight_low, weight_high));
+    if (i + 1 < uint(nx))
+    {
+        precise double density = 0.5 * (widen(rho[cell]) + widen(rho[cell + uint(ny * nz)]));
+        precise double velocity = widen(u[cell]) - widen(frame_u_ms);
+        precise double flux = density * velocity;
+        precise double next = retained_fma(weight, flux, widen(flux_x[cell]));
+        flux_x[cell] = narrow(next);
+    }
+    if (j + 1 < uint(ny))
+    {
+        precise double density = 0.5 * (widen(rho[cell]) + widen(rho[cell + uint(nz)]));
+        precise double velocity = widen(v[cell]) - widen(frame_v_ms);
+        precise double flux = density * velocity;
+        precise double next = retained_fma(weight, flux, widen(flux_y[cell]));
+        flux_y[cell] = narrow(next);
+    }
+    precise double density = k + 1 < uint(nz)
+        ? 0.5 * (widen(rho[cell]) + widen(rho[cell + 1])) : widen(rho[cell]);
+    precise double flux = density * widen(w[cell]);
+    precise double next = retained_fma(weight, flux, widen(flux_z[cell]));
+    flux_z[cell] = narrow(next);
+}

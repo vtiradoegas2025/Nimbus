@@ -1,0 +1,119 @@
+{
+  "status": "PASS",
+  "scope": "cpu_flat_cgrid_open_faces_stochastic_smagorinsky",
+  "source_config": "configs/qualification/cgrid_open_sgs_coupled.yaml",
+  "provenance": {
+    "binary": "bin/nimbus_sim_cpu",
+    "binary_sha256": "262b8055c88235e835262f08f3b31eec49b9a2ce6dd7f181aa5551df89311806",
+    "source_config_sha256": "6656a6da8d51b4f9ae7d55a7c14c5e17fb2d70cdca8194ba062439cde724fb36",
+    "derived_vertical_config_sha256": "55e39f3137f0865359497f6a1c3474b22f7a9ec97af572068fc7392110c656a0"
+  },
+  "modes": [
+    {
+      "mode": "vertical_only",
+      "continuous_steps": 160,
+      "restart_step": 80,
+      "exact_fields": [
+        "p",
+        "qr",
+        "qv",
+        "rho",
+        "theta",
+        "u",
+        "v",
+        "w"
+      ],
+      "exact_ledgers": [
+        "budget.csv",
+        "energy_budget.csv",
+        "momentum_budget.csv",
+        "moisture_budget.csv",
+        "radiation_budget.csv",
+        "thermodynamic_source_budget.csv"
+      ],
+      "execution": {
+        "backend": "cpu",
+        "serial": {
+          "model_steps": 160,
+          "dispatches": 0,
+          "sgs_coefficient_dispatches": 0,
+          "sgs_apply_dispatches": 0
+        },
+        "parallel": {
+          "model_steps": 160,
+          "dispatches": 0,
+          "sgs_coefficient_dispatches": 0,
+          "sgs_apply_dispatches": 0
+        },
+        "resumed": {
+          "model_steps": 80,
+          "dispatches": 0,
+          "sgs_coefficient_dispatches": 0,
+          "sgs_apply_dispatches": 0
+        }
+      },
+      "metrics": {
+        "maximum_step_stress_closure_relative_residual": 0.0,
+        "maximum_cumulative_stress_closure_relative_residual": 0.0,
+        "maximum_absolute_boundary_work_j": 0.0,
+        "minimum_irreversible_dissipation_j": 5501168.67554524,
+        "maximum_radiation_booking_relative_residual": 0.0,
+        "maximum_microphysics_conservation_relative_residual": 0.0,
+        "open_boundary_steps": 160
+      }
+    },
+    {
+      "mode": "3d",
+      "continuous_steps": 160,
+      "restart_step": 80,
+      "exact_fields": [
+        "p",
+        "qr",
+        "qv",
+        "rho",
+        "theta",
+        "u",
+        "v",
+        "w"
+      ],
+      "exact_ledgers": [
+        "budget.csv",
+        "energy_budget.csv",
+        "momentum_budget.csv",
+        "moisture_budget.csv",
+        "radiation_budget.csv",
+        "thermodynamic_source_budget.csv"
+      ],
+      "execution": {
+        "backend": "cpu",
+        "serial": {
+          "model_steps": 160,
+          "dispatches": 0,
+          "sgs_coefficient_dispatches": 0,
+          "sgs_apply_dispatches": 0
+        },
+        "parallel": {
+          "model_steps": 160,
+          "dispatches": 0,
+          "sgs_coefficient_dispatches": 0,
+          "sgs_apply_dispatches": 0
+        },
+        "resumed": {
+          "model_steps": 80,
+          "dispatches": 0,
+          "sgs_coefficient_dispatches": 0,
+          "sgs_apply_dispatches": 0
+        }
+      },
+      "metrics": {
+        "maximum_step_stress_closure_relative_residual": 8.12279154396142e-17,
+        "maximum_cumulative_stress_closure_relative_residual": 2.986748313334919e-17,
+        "maximum_absolute_boundary_work_j": 7186.945388957868,
+        "minimum_irreversible_dissipation_j": 5502143.775278528,
+        "maximum_radiation_booking_relative_residual": 0.0,
+        "maximum_microphysics_conservation_relative_residual": 0.0,
+        "open_boundary_steps": 160
+      }
+    }
+  ]
+}

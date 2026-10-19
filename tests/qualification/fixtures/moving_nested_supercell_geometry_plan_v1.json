@@ -1,0 +1,151 @@
+{
+  "schema": "nimbus.qualification.moving_nested_geometry_plan",
+  "schema_version": 1,
+  "plan_id": "moving_nested_reference_geometry_v1",
+  "status": "reference_derived_pre_rerun",
+  "source_reference": {
+    "run_role": "oversized_stationary_reference",
+    "binary_sha256": "98073653547ec4c94b198a5d155e3db82c77e1ef8ac45e2de7dd744e3efba7ab",
+    "configuration_snapshot_sha256": "d313a16f5b8a46250beafa34d5c896129741b0bbb33fd18497d23d49d60bd9b2",
+    "tracker_inventory": {
+      "record_count": 150,
+      "first_time_s": 30.0,
+      "last_time_s": 4500.0,
+      "canonical_record_set_sha256": "df7ca2b4a5c63ec387375ecd15096c81872cdc51899508ee3bb3064651c0ecdf",
+      "canonicalization": "sha256(canonical_json([{simulation_time_s,file,sha256}], sorted by file))"
+    },
+    "extrema_records": {
+      "maximum_y_span": {
+        "simulation_time_s": 4380.0,
+        "file": "track_step_000005840.json",
+        "sha256": "a7d07345eda02b57ca3006983351b5125f5122db14cb6f89cfe402c40456d4c3"
+      },
+      "maximum_x_span": {
+        "simulation_time_s": 4410.0,
+        "file": "track_step_000005880.json",
+        "sha256": "feb7a7cdd2946e4b0b5cee420bc8d4f77417c685ae58742f8d8c2ea2b490916a"
+      },
+      "final_trajectory": {
+        "simulation_time_s": 4500.0,
+        "file": "track_step_000006000.json",
+        "sha256": "1e0d978cb8a96d2ed7861b8359930f0c182ef99f5e62858f4820c1ee7ba2e7a8"
+      }
+    }
+  },
+  "scientific_inputs": {
+    "child_spacing_m": {
+      "x": 600.0,
+      "y": 600.0
+    },
+    "parent_shift_spacing_m": {
+      "x": 1200.0,
+      "y": 1200.0
+    },
+    "inner_margin_m": 15600.0,
+    "nominal_release_margin_m": 16800.0,
+    "parent_lattice_phase_allowance_m": {
+      "x": 1200.0,
+      "y": 1200.0
+    },
+    "maximum_authoritative_envelope_span_m": {
+      "x": 58200.0,
+      "y": 64200.0
+    },
+    "sizing_rule": "ceil_to_parent_span(maximum_authoritative_envelope_span + 2*nominal_release_margin + parent_lattice_phase_allowance)"
+  },
+  "planned_child": {
+    "physical_cells": {
+      "x": 156,
+      "y": 166,
+      "z": 50
+    },
+    "storage_cells": {
+      "x": 158,
+      "y": 168,
+      "z": 50
+    },
+    "physical_extent_m": {
+      "x": 93600.0,
+      "y": 99600.0
+    },
+    "parent_cell_span": {
+      "x": 78,
+      "y": 83
+    },
+    "relaxation_exclusion_cells": 8,
+    "operational_interior_shape_cells": {
+      "x": 140,
+      "y": 150
+    }
+  },
+  "reference_driven_movement_replay": {
+    "algorithm": "qualified_envelope_hysteresis_v5",
+    "initial_child_origin_parent_cell": {
+      "i": 2,
+      "j": 1
+    },
+    "expected_moves": [
+      {"simulation_time_s": 2010.0, "i": 14, "j": 0},
+      {"simulation_time_s": 3150.0, "i": 14, "j": 0},
+      {"simulation_time_s": 3420.0, "i": 0, "j": 10},
+      {"simulation_time_s": 3480.0, "i": 8, "j": 0},
+      {"simulation_time_s": 3900.0, "i": 5, "j": 6},
+      {"simulation_time_s": 3990.0, "i": 4, "j": 0},
+      {"simulation_time_s": 4140.0, "i": 3, "j": 3},
+      {"simulation_time_s": 4380.0, "i": 4, "j": 2}
+    ],
+    "maximum_child_origin_parent_cell": {
+      "i": 54,
+      "j": 22
+    },
+    "final_child_origin_parent_cell": {
+      "i": 54,
+      "j": 22
+    },
+    "ineligible_geometry_decisions": 0
+  },
+  "planned_parent": {
+    "boundary_stencil_parent_cells": 1,
+    "minimum_physical_cells": {
+      "x": 133,
+      "y": 106,
+      "z": 50
+    },
+    "minimum_storage_cells": {
+      "x": 135,
+      "y": 108,
+      "z": 50
+    }
+  },
+  "planned_configurations": {
+    "moving_lifetime": {
+      "path": "moving_nested_supercell_lifetime.yaml",
+      "sha256": "e9d92821da1890fb447bbd812c0846b523cefa6bab9a76214808cd820aa0e3c5"
+    },
+    "moving_frontier": {
+      "path": "moving_nested_supercell_frontier_v5.yaml",
+      "sha256": "c86663caaee2c1217d300809713fd5e3856ae141561aae256437267c8f2287f0"
+    },
+    "oversized_reference": {
+      "path": "../../../configs/qualification/moving_nested_supercell_reference_v5.yaml",
+      "sha256": "df57ab348dcb742177a9e3ae4740ebeed6ee18540cb26e296db8604c3b1f8925"
+    }
+  },
+  "qualification_aperture_requirement": {
+    "aperture_id": "moving_nested_fixed_100x96_v1",
+    "shape_cells": {
+      "x": 100,
+      "y": 96
+    },
+    "cell_count": 9600,
+    "horizontal_grid_spacing_m": {
+      "x": 600.0,
+      "y": 600.0
+    },
+    "grid_phase_origin_m": {
+      "x": 0.0,
+      "y": 0.0
+    }
+  },
+  "claim_boundary": "The plan sizes a fresh candidate from the completed stationary-reference trajectory and preserves the pre-ratified numerical thresholds. It is not a moving/reference comparison result and does not guarantee containment for candidate morphology outside the recorded reference envelope."
+}

@@ -1,0 +1,153 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_spirv_intrinsics : require
+spirv_execution_mode(extensions = ["SPV_KHR_float_controls"], capabilities = [4466], 4461, 32);
+spirv_execution_mode(extensions = ["SPV_KHR_float_controls"], capabilities = [4467], 4462, 32);
+layout(local_size_x = 64) in;
+layout(set = 0, binding = 0) readonly buffer B0
+{
+    float input_values[];
+};
+layout(set = 0, binding = 1) writeonly buffer B1
+{
+    float output_values[];
+};
+layout(push_constant) uniform PushConstants
+{
+    int   nx;
+    int   ny;
+    int   nz;
+    int   operation;
+    float rd_high;
+    float rd_low;
+    float cv_high;
+    float cv_low;
+    float cvv_high;
+    float cvv_low;
+    float cl_high;
+    float cl_low;
+    float ci_high;
+    float ci_low;
+    float tref_high;
+    float tref_low;
+    float ev_high;
+    float ev_low;
+    float ei_high;
+    float ei_low;
+    float gravity_high;
+    float gravity_low;
+    float p0_high;
+    float p0_low;
+    float kappa_high;
+    float kappa_low;
+    float gamma_high;
+    float gamma_low;
+    float theta_min_high;
+    float theta_min_low;
+    float theta_max_high;
+    float theta_max_low;
+};
+#include "../microphysics/compensated_fma.glsl"
+vec2 value(int n, int field)
+{
+    return vec2(input_values[24 * n + field], 0);
+}
+vec2 pair_at(int n, int field)
+{
+    return vec2(input_values[24 * n + field], input_values[24 * n + field + 1]);
+}
+vec2 power(vec2 base, vec2 exponent)
+{
+    return df_exp(df_mul(exponent, df_log(base)));
+}
+void write_pair(int n, int field, vec2 result)
+{
+    output_values[14 * n + field]     = result.x;
+    output_values[14 * n + field + 1] = result.y;
+}
+float stored(vec2 v)
+{
+    return v.y == 0 ? v.x : fma(1.0, v.x, v.y);
+}
+vec2 total_energy(vec2 capacity, vec2 nonthermal, float theta, float pressure)
+{
+    vec2 temperature =
+        df_mul(vec2(theta, 0), power(df_div(vec2(pressure, 0), vec2(p0_high, p0_low)), vec2(kappa_high, kappa_low)));
+    return df_add(df_mul(capacity, df_sub(temperature, vec2(tref_high, tref_low))), nonthermal);
+}
+void evaluate(uint gid)
+{
+    if (gid >= uint(nx) * uint(ny) * uint(nz))
+        return;
+    int   n = int(gid), i = n / (ny * nz), j = (n / nz) % ny, k = n % nz;
+    float theta = input_values[24 * n + 1], pressure = input_values[24 * n + 2];
+    output_values[14 * n]     = theta;
+    output_values[14 * n + 1] = pressure;
+    for (int f = 2; f < 14; ++f)
+        output_values[14 * n + f] = 0;
+    bool owned = i > 0 && i < nx - 1 && j > 0 && j < ny - 1;
+    if (operation == 1 && !owned)
+        return;
+    vec2 vapor = value(n, 6), liquid = df_add(value(n, 7), value(n, 8));
+    vec2 ice = df_add(df_add(df_add(value(n, 9), value(n, 10)), value(n, 11)), value(n, 12));
+    vec2 rho = value(n, 0);
+    vec2 uw = value(i > 0 ? n - ny * nz : n, 3), ue = value(n, 3), vs = value(j > 0 ? n - nz : n, 4), vn = value(n, 4),
+         wt = value(n, 5);
+    vec2 wb = k > 0 ? value(n - 1, 5) : vec2(0);
+    if (k == 0)
+    {
+        vec2 gx = pair_at(n, 16), gy = pair_at(n, 18);
+        wb =
+            -df_add(df_mul(df_mul(vec2(0.5, 0), df_add(uw, ue)), gx), df_mul(df_mul(vec2(0.5, 0), df_add(vs, vn)), gy));
+    }
+    vec2 kinetic  = df_add(df_add(df_mul(uw, uw), df_mul(ue, ue)), df_add(df_mul(vs, vs), df_mul(vn, vn)));
+    kinetic       = df_mul(vec2(0.25, 0), df_add(kinetic, df_add(df_mul(wb, wb), df_mul(wt, wt))));
+    vec2 capacity = df_add(vec2(cv_high, cv_low), df_mul(vapor, vec2(cvv_high, cvv_low)));
+    capacity      = df_mul(
+        rho, df_add(df_add(capacity, df_mul(liquid, vec2(cl_high, cl_low))), df_mul(ice, vec2(ci_high, ci_low))));
+    vec2 carrier    = df_add(df_add(df_add(vec2(1, 0), vapor), liquid), ice);
+    vec2 nonthermal = df_mul(carrier, df_add(kinetic, df_mul(vec2(gravity_high, gravity_low), pair_at(n, 14))));
+    nonthermal = df_add(df_add(nonthermal, df_mul(vapor, vec2(ev_high, ev_low))), df_mul(ice, vec2(ei_high, ei_low)));
+    nonthermal = df_mul(rho, df_add(nonthermal, value(n, 13)));
+    vec2 requested = vec2(0);
+    if (operation == 1)
+    {
+        requested        = pair_at(n, 20);
+        vec2 temperature = df_add(vec2(tref_high, tref_low), df_div(df_sub(requested, nonthermal), capacity));
+        if (temperature.x <= 0 || capacity.x <= 0)
+        {
+            output_values[14 * n] = uintBitsToFloat(0x7fc00000u);
+            return;
+        }
+        vec2 thermodynamic_pressure = df_mul(df_mul(rho, vec2(rd_high, rd_low)), temperature);
+        theta                       = stored(df_mul(
+            temperature, power(df_div(vec2(p0_high, p0_low), thermodynamic_pressure), vec2(kappa_high, kappa_low))));
+        vec2 base = df_div(df_mul(df_mul(rho, vec2(rd_high, rd_low)), vec2(theta, 0)), vec2(p0_high, p0_low));
+        pressure  = stored(df_mul(vec2(p0_high, p0_low), power(base, vec2(gamma_high, gamma_low))));
+        if (theta < theta_min_high + theta_min_low || theta > theta_max_high + theta_max_low || pressure <= 0)
+        {
+            output_values[14 * n] = uintBitsToFloat(0x7fc00000u);
+            return;
+        }
+    }
+    vec2 total                = total_energy(capacity, nonthermal, theta, pressure);
+    output_values[14 * n]     = theta;
+    output_values[14 * n + 1] = pressure;
+    write_pair(n, 2, capacity);
+    write_pair(n, 4, nonthermal);
+    write_pair(n, 6, total);
+    if (owned)
+    {
+        if (operation == 0)
+            requested = total;
+        vec2 volume  = pair_at(n, 22);
+        vec2 initial = df_mul(requested, volume), final_inventory = df_mul(total, volume);
+        write_pair(n, 8, initial);
+        write_pair(n, 10, final_inventory);
+        write_pair(n, 12, df_sub(final_inventory, initial));
+    }
+}
+void main()
+{
+    evaluate(gl_GlobalInvocationID.x);
+}

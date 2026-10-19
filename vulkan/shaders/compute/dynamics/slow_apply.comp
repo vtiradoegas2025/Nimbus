@@ -1,0 +1,72 @@
+// slow_apply.comp
+//
+// Forward-Euler application of the slow (advective + buoyancy + mixing)
+// tendencies in the split-explicit step (GPU.md Phase 4.2):
+// mirrors the apply_slow_tendencies callback in
+// step_dynamics_split_explicit (dynamics.cpp) exactly -
+//   u += (du_dt + du_dt_pbl)*dt,
+//   v += (dv_dt + dv_dt_pbl)*dt,
+//   w += dw_dt*dt,
+//   p += dp_dt*dt,
+// with non-finite tendency sums integrating as zero. Deliberately NO
+// bounds clamps: the CPU loop applies none here (the acoustic substeps
+// and the end-of-step relaxation own the clamping). Pointwise in-place
+// update; rho is untouched (continuity advances in the acoustic loop).
+//
+// Data layout: row-major [nx][ny][nz]. Index (i, j, k) = (i*ny + j)*nz + k.
+
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) readonly buffer UInBuf    { float u_in[];    };
+layout(set = 0, binding = 1) readonly buffer VInBuf    { float v_in[];    };
+layout(set = 0, binding = 2) readonly buffer WInBuf    { float w_in[];    };
+layout(set = 0, binding = 3) readonly buffer PInBuf    { float p_in[];    };
+layout(set = 0, binding = 4) readonly buffer DuBuf     { float du_dt[];   };
+layout(set = 0, binding = 5) readonly buffer DvBuf     { float dv_dt[];   };
+layout(set = 0, binding = 6) readonly buffer DwBuf     { float dw_dt[];   };
+layout(set = 0, binding = 7) readonly buffer DpBuf     { float dp_dt[];   };
+layout(set = 0, binding = 8) readonly buffer DuPblBuf  { float du_dt_pbl[]; };
+layout(set = 0, binding = 9) readonly buffer DvPblBuf  { float dv_dt_pbl[]; };
+
+layout(set = 0, binding = 10) writeonly buffer UOutBuf { float u_out[]; };
+layout(set = 0, binding = 11) writeonly buffer VOutBuf { float v_out[]; };
+layout(set = 0, binding = 12) writeonly buffer WOutBuf { float w_out[]; };
+layout(set = 0, binding = 13) writeonly buffer POutBuf { float p_out[]; };
+
+// Push constants (32 bytes; mirrors SlowApplyPushConstants).
+layout(push_constant) uniform PushConstants {
+    int   nx;
+    int   ny;
+    int   nz;
+    int   sanitize;
+    float dt_large;
+    float pad1;
+    float pad2;
+    float pad3;
+};
+
+bool finite_f(float v) { return !isnan(v) && !isinf(v); }
+
+float zero_if_nonfinite(float v) { return sanitize == 0 || finite_f(v) ? v : 0.0; }
+
+void main()
+{
+    uint gid = gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * gl_NumWorkGroups.x * gl_WorkGroupSize.x;
+    uint total = uint(nx) * uint(ny) * uint(nz);
+    if (gid >= total)
+    {
+        return;
+    }
+
+    float du_slow = zero_if_nonfinite(du_dt[gid] + du_dt_pbl[gid]);
+    float dv_slow = zero_if_nonfinite(dv_dt[gid] + dv_dt_pbl[gid]);
+    float dw_slow = zero_if_nonfinite(dw_dt[gid]);
+    float dp_slow = zero_if_nonfinite(dp_dt[gid]);
+
+    u_out[gid] = u_in[gid] + du_slow * dt_large;
+    v_out[gid] = v_in[gid] + dv_slow * dt_large;
+    w_out[gid] = w_in[gid] + dw_slow * dt_large;
+    p_out[gid] = p_in[gid] + dp_slow * dt_large;
+}

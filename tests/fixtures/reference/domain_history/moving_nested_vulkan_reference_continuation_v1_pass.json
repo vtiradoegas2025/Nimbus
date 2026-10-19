@@ -1,0 +1,46 @@
+{
+  "schema": "nimbus.evidence.moving_nested_vulkan_reference_continuation",
+  "schema_version": 1,
+  "status": "diagnostic_pass",
+  "qualification_eligible": false,
+  "scope": "heterogeneous_cpu_prefix_physical_vulkan_suffix_against_frozen_reference",
+  "report": {
+    "path": "tests/artifacts/moving_nested_vulkan_live_storm_v1_20260819/hybrid_reference_diagnostic.json",
+    "sha256": "702a8ab4dfe1db103617802255dad4ada29e23f8861b8c9ecf9e5fd26e8942d7"
+  },
+  "inputs": {
+    "cpu_moving_series_sha256": "3fcb23bb6baa0ed8ea7a56115cd955f291f3c9b8003eff0b50b73cf882658ba7",
+    "oversized_reference_series_sha256": "985d43272a22c5aef6e07a6280f5255c79b5ec87f56c035b842f920a7da0e947",
+    "baseline_qualification_report_sha256": "eb5d05bdf7127505a5eff9abb29a3e67be4d8ac330b84d62da3c1fa2292cb3d1",
+    "v12_policy_sha256": "ba4a8f76f196be809f5b036f77a27ec49880ccaa476bd151119252110890c9cc",
+    "vulkan_runtime_report_sha256": "75b4d25a986461bf2970b5eaf6e31d0bb33d5d25ba0c7846fda3fcdf5a9245d7"
+  },
+  "composition": {
+    "cpu_prefix_inclusive_through_s": 4050,
+    "vulkan_suffix_start_s": 4080,
+    "final_time_s": 4500,
+    "cpu_samples": 135,
+    "vulkan_samples": 15,
+    "total_samples": 150
+  },
+  "threshold_result": {
+    "policy": "unchanged ratified v12 formulas and thresholds",
+    "checks": 21,
+    "passed": 21,
+    "failed": 0,
+    "path_rmse_m": 230.841283967,
+    "path_maximum_m": 543.415612565,
+    "maximum_updraft_normalized_rmse": 0.0584407500779,
+    "maximum_absolute_uh_normalized_rmse": 0.124700756766,
+    "cold_pool_area_normalized_rmse": 0.100685892279,
+    "final_accumulated_mass_relative_error": 0.0082161986158
+  },
+  "claim_limits": {
+    "formal_qualification_comparison": false,
+    "same_binary_backend_provenance": false,
+    "public_moving_nest_admitted": false,
+    "device_resident_relocation": false,
+    "cross_backend_path_equivalence": false,
+    "throughput_promotion": false
+  }
+}

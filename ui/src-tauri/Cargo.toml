@@ -1,0 +1,68 @@
+[package]
+name = "nimbus-studio"
+version = "0.1.0"
+description = "Desktop companion app for the Nimbus atmospheric simulator"
+authors = ["Nimbus"]
+license = ""
+repository = ""
+edition = "2021"
+rust-version = "1.77.2"
+
+[lib]
+name = "nimbus_studio_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.6.2", features = [] }
+
+[dependencies]
+tauri = { version = "2.11.2", features = [] }
+tauri-plugin-log = "2"
+tauri-plugin-fs = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-shell = "2"
+
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", features = ["float_roundtrip"] }
+sha2 = "0.10.9"
+log = "0.4"
+once_cell = "1.20"
+thiserror = "1.0"
+libloading = "0.8"
+# Base64 decoding for PNG frames shipped from the webview during MP4
+# export — sending pre-encoded strings keeps the IPC payload as cheap
+# JSON instead of huge number-array buffers.
+base64 = "0.22"
+
+# ZFP decompression for the simulator's .zfp3d output. zfp-sys vendors and
+# builds libzfp via the `cc` crate, so the decoder is self-contained (no system
+# libzfp needed) and bit-compatible with the sim's writer (both use libzfp).
+# Static linkage is required for a self-contained .app/DMG. The crate's
+# default shared build leaves @rpath/libzfp.1.dylib outside the Tauri bundle
+# and makes the packaged application abort before its webview starts.
+# 0.4.x switched only the binding crate to edition 2024 while retaining the
+# same generated API and bundled ZFP 1.0.1 library. Keep the edition-2021
+# release so the shell's declared Rust 1.77.2 MSRV remains real.
+zfp-sys = { version = "=0.3.0", features = ["static"] }
+# Zero-copy &[f32] -> &[u8] reinterpretation so the existing little-endian
+# reducers run on decoded ZFP volumes without an extra copy.
+bytemuck = "1"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+# Later patch releases require edition 2024 without declaring a higher MSRV.
+# Keep Tao's loader graph compatible with the shell's Rust 1.77.2 minimum.
+dlopen2 = "=0.8.0"
+dlopen2_derive = "=0.4.1"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = [
+    "Win32_Foundation",
+    "Win32_Storage_FileSystem",
+    "Win32_System_ProcessStatus",
+    "Win32_System_Diagnostics_ToolHelp",
+    "Win32_System_JobObjects",
+    "Win32_System_Threading",
+] }

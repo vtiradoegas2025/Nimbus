@@ -1,0 +1,135 @@
+schema: nimbus.v1
+
+# Output/storage working-set discriminator. The physics is deliberately calm;
+# the measured owner is the qualified eight-field predictive-ZFP publication
+# path, not storm evolution or solver throughput.
+grid:
+  coordinate_system: cartesian
+  staggering: c_grid
+  nx: 64
+  ny: 64
+  nz: 48
+  dx: 500
+  dy: 500
+  dz: 300
+  ztop: 14400
+
+time:
+  run_time: 8
+  dt_large: 1.0
+  acoustic_substeps: 8
+  adaptive_dt: false
+  cfl_safety: 0.7
+  output_interval: 1
+
+dynamics:
+  scheme: klemp_wilhelmson_split_cartesian_cgrid
+  axisymmetric: false
+
+boundary_conditions:
+  lateral:
+    west: radiative
+    east: radiative
+    south: radiative
+    north: radiative
+  bottom: rigid_slip
+  top: rigid
+
+damping:
+  enabled: false
+  z_d: 12000
+  alpha: 0.00333
+  mode: explicit
+  lateral_width: 0
+  lateral_alpha: 0
+  lateral_sponge_enabled: false
+  w_only_top_sponge: false
+  w_only_depth_cells: 0
+  w_only_alpha_max: 0
+
+coriolis:
+  enabled: false
+  mode: f_plane
+
+microphysics:
+  scheme: none
+
+turbulence:
+  scheme: none
+  mode: 3d
+  Cs: 0.18
+  Pr_t: 0.7
+  Sc_t: 0.7
+
+advection:
+  scheme: tvd
+
+diffusion:
+  scheme: explicit
+  operator_order: 2
+  K_h: 0
+  K_v: 0
+  apply_to: scalars
+
+surface:
+  scheme: none
+  apply_fluxes: false
+
+boundary_layer:
+  scheme: none
+
+radiation:
+  scheme: none
+
+initial_conditions:
+  sounding:
+    type: parametric_cape
+    cape_jkg: 0
+    tropopause_m: 11000
+    surface_theta_k: 300
+    moisture_qv_kgkg: 0.004
+  hodograph:
+    type: wk_param
+    u_sfc_ms: 0
+    v_sfc_ms: 0
+    u_1km_ms: 0
+    v_1km_ms: 0
+    u_6km_ms: 0
+    v_6km_ms: 0
+  trigger:
+    type: none
+
+output:
+  preset: minimal
+  format: zfp_high
+  async_io: false
+  live_shm: false
+  zfp_mode: accuracy
+  zfp_keyframe_interval: 8
+  zfp_predictive_delta: true
+  zfp_sparse_threshold: 0
+  zfp_float16_prefilter: false
+  zfp_per_field_tolerances: true
+  zfp_field_tolerance:
+    u: 1.0e-4
+    v: 1.0e-4
+    w: 1.0e-4
+    theta: 1.0e-3
+    p: 5.0e-2
+    rho: 1.0e-6
+    qv: 1.0e-8
+    qr: 1.0e-8
+
+extensions:
+  execution:
+    mode: qualified
+  compute:
+    backend: cpu
+  diagnostics:
+    scientific_every_steps: 0
+  performance:
+    timing: true
+    report_every_steps: 0
+    warmup_steps: 0
+  validation:
+    guard_mode: error

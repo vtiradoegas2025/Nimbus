@@ -1,0 +1,140 @@
+{
+  "schema": "nimbus.qualification.moving_nested_reference_frontier.movement_failure",
+  "schema_version": 1,
+  "status": "invalid",
+  "qualification_disposition": "incomplete",
+  "qualification_eligible": false,
+  "reason": "quantized_balanced_trusted_face_unrecognized",
+  "scope": "ratified-v9 fixed-aperture same-equation frontier",
+  "campaign_root": "tests/artifacts/moving_nested_reference_frontier_v9_20260814",
+  "comparison_performed": false,
+  "candidate_metric_values_inspected": false,
+  "frozen_inputs": {
+    "binary": {
+      "bytes": 6163968,
+      "sha256": "2d96385bd0a96d3a51c3b6fd39788d29e7d587e1ebdfbab914a01e4cada31a6b",
+      "movement_algorithm": "qualified_envelope_hysteresis_v11"
+    },
+    "moving_config_sha256": "c86663caaee2c1217d300809713fd5e3856ae141561aae256437267c8f2287f0",
+    "reference_config_sha256": "df57ab348dcb742177a9e3ae4740ebeed6ee18540cb26e296db8604c3b1f8925",
+    "policy": {
+      "path": "../../tests/qualification/fixtures/moving_nested_supercell_reference_frontier_v9.json",
+      "sha256": "aaa4aa0d6e07a81fc180e510d2a6bf6506051f52ecf82a96afb7bfe476edee2f",
+      "schema_version": 9,
+      "policy_id": "moving-nested-reference-frontier-v9-receding-trusted-face-amendment"
+    },
+    "extractor_sha256": "e7c22c810060d6c3a5d1bdfd585c09587844b2d8d74e5599719d6650582363ff",
+    "comparator_sha256": "e06ab408257d4eb0b911376a9a4066ee2cccdf6a6f516100b687595bb3c072ef",
+    "runner_sha256": "eff11ed781827baf279d1f2af1b7fa482d6a6ac31c202b520bc467ea9ba830ae"
+  },
+  "completed_reference": {
+    "source_run": "tests/artifacts/moving_nested_reference_frontier_v9_20260814/oversized_reference",
+    "execution_mode": "fresh_complete_run_with_binary_and_config_identity_validated",
+    "duration_s": 4500,
+    "tracker_samples": 150,
+    "diagnostic_samples": 150,
+    "runtime_log_sha256": "f40f7973897202aa9b93a72574fe49487e214d7e22edb40c85a66c9d4d73290e",
+    "run_manifest_sha256": "cb663e338dcf5d4019ca0cf879a719f23b14b1e1f29e57f7af7e4a6b9bf4ceae",
+    "final_checkpoint": {
+      "simulation_time_s": 4500,
+      "completed_steps": 6000,
+      "bytes": 431767130,
+      "sha256": "d8e3458110f5604165d1197c30b30c115fdcdc2a7fe15d6261feda682b9c1f86",
+      "fnv1a64": "74be80108745c32a",
+      "sidecar_sha256": "658524b1b719ac3a6b70545c0f6b61615ca5cd1aaa7090fee24eadb9844d7e29"
+    }
+  },
+  "moving_failure": {
+    "runtime_log": {
+      "bytes": 16435989,
+      "sha256": "3d65d82fccd9fbcae744d289e8612b9b34f2a96bfc6482094a2a2229465dee0e"
+    },
+    "scientific_invalidity": {
+      "bytes": 372,
+      "sha256": "a0943be42bf5fb393da68480856f1110a30cd38f116e7252b7a0a154a9fb0288",
+      "simulation_time_s": 4110,
+      "completed_step": 2740,
+      "reason": "unresolved_breached_face"
+    },
+    "failed_output_manifest": {
+      "bytes": 298,
+      "sha256": "0a113b7315326065479ba60f112e146d17ee825165efc72f84b2191d438ff090",
+      "publication_state": "failed"
+    },
+    "published_coverage": {
+      "tracker_samples": 137,
+      "tracker_last_time_s": 4110,
+      "diagnostic_samples": 136,
+      "diagnostic_last_time_s": 4080,
+      "invalid_step_history_or_checkpoint_published": false
+    },
+    "latest_restart_safe_checkpoint": {
+      "simulation_time_s": 4050,
+      "completed_steps": 2700,
+      "bytes": 253294210,
+      "sha256": "7f72b1a3c1d3543020b8aa20167e63c45928d550bcabe51869be0086dea5e69a",
+      "fnv1a64": "4aada058964b51a9",
+      "sidecar_sha256": "edc118e077985b5bf1aee23c960335aac5d13e0e0370d39c59de57d628f78718"
+    }
+  },
+  "forensic_sequence": [
+    {
+      "simulation_time_s": 4050,
+      "tracker_sha256": "195147b406ae19ad84301229e80a5bfbafeb4e6cfce3d4a94e72fa0491b7670d",
+      "selected_clearance_m": {"west": 15000, "east": 16800, "south": 18600, "north": 21000},
+      "signed_face_velocity_ms": {"west": 0, "east": 40, "south": 20, "north": 20},
+      "selected_motion_ms": {"x": 18.408417158858065, "y": 13.821789528028555},
+      "movement_status": "ineligible",
+      "movement_reason": "trusted_interior_contained",
+      "scientific_status": "valid"
+    },
+    {
+      "simulation_time_s": 4080,
+      "tracker_sha256": "34c6d32b1f27170910b2bbdde7220ec79f5520f37788d5b53e3d5357518a8c1b",
+      "selected_clearance_m": {"west": 15600, "east": 15600, "south": 18600, "north": 20400},
+      "signed_face_velocity_ms": {"west": 20, "east": 40, "south": 0, "north": 20},
+      "selected_motion_ms": {"x": 17.994738494086679, "y": 13.405634985119832},
+      "movement_status": "cooldown",
+      "movement_reason": "cooldown_active",
+      "scientific_status": "valid"
+    },
+    {
+      "simulation_time_s": 4110,
+      "tracker_sha256": "fbaca411b069720eea3b385335a9c2fe0c0f674cdd0ed35d4dd2c3b154bc476f",
+      "selected_clearance_m": {"west": 16200, "east": 15000, "south": 19200, "north": 19800},
+      "signed_face_velocity_ms": {"west": 20, "east": 20, "south": 20, "north": 20},
+      "selected_motion_ms": {"x": 18.26752321682104, "y": 13.724780787969454},
+      "movement_status": "ineligible",
+      "movement_reason": "opposite_release_margin_insufficient",
+      "requested_shift_parent_cells": {"i": 0, "j": 0},
+      "scientific_status": "invalid",
+      "scientific_reason": "unresolved_breached_face"
+    }
+  ],
+  "failure_classification": {
+    "class": "single_approaching_trusted_face_at_parent_cell_quantization_optimum_not_admitted_as_contained",
+    "v11_receding_trusted_face_state_succeeded": true,
+    "v10_orthogonal_reserve_succeeded": true,
+    "v7_3720_failure_frontier_crossed": true,
+    "fp64_active_limiter_failure_frontier_crossed": true,
+    "continuity_branch_jump": false,
+    "declared_topology_reorganization": false,
+    "current_relaxation_zone_entry": false,
+    "4110_breached_face": "east",
+    "4110_breached_face_clearance_m": 15000,
+    "4110_opposite_face_clearance_m": 16200,
+    "4110_inner_margin_m": 15600,
+    "4110_relaxation_margin_m": 4800,
+    "parent_shift_quantum_m": 1200,
+    "current_axis_minimum_clearance_m": 15000,
+    "approaching_one_cell_shift_axis_minimum_clearance_m": 15000,
+    "strict_minimum_clearance_improvement_available": false,
+    "intended_repair": "when a single approaching inner-margin face and its opposite remain outside relaxation, classify that axis as quantized trusted containment without mutation only if every bounded whole-parent-cell translation in the approaching direction fails to strictly improve the axis minimum clearance; preserve relocation whenever any legal shift improves that minimum, and preserve immediate failure for current relaxation entry, ambiguity, topology, parent-containment, and non-finite evidence"
+  },
+  "limitations": [
+    "The moving branch is scientifically invalid and incomplete; the completed reference cannot make it comparable.",
+    "No moving/reference series or comparison report was produced, and no candidate comparison metric value was inspected.",
+    "The proposed quantized-balance state can authorize only a no-mutation trusted-interior disposition while both axis faces remain outside relaxation and no legal approaching-direction parent-cell shift strictly improves the minimum clearance.",
+    "This evidence does not alter numerical thresholds, geometry, aperture, cadence, current-relaxation fail-closed ownership, movement caps, or public moving_nest status."
+  ]
+}

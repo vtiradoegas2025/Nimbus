@@ -1,0 +1,36 @@
+node_modules
+
+# Every generated artifact is consolidated here: the app bundle (vite
+# build.outDir), the browser-test bundle, Playwright results/reports, and tsc
+# incremental state. Keeping one ignored directory keeps the package root
+# readable. The old top-level paths stay listed so switching branches across
+# this change doesn't resurrect them as untracked noise.
+build
+dist
+dist-ssr
+.browser-test-dist
+test-results
+playwright-report
+*.local
+*.tsbuildinfo
+
+# Pyodide, copied out of node_modules by scripts/vendor_pyodide.mjs on every
+# browser-test build. A build artifact that cannot live under build/: Vite
+# serves publicDir relative to the config root, and the browser-test root is
+# integration/.
+integration/public/
+
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Tauri build outputs (added in Phase 1.D)
+src-tauri/target
+src-tauri/windows-runtime
+src-tauri/gen

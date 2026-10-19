@@ -1,0 +1,49 @@
+{
+  "schema": "nimbus.evidence.moving_nested_vulkan_direction_reset_repair",
+  "schema_version": 1,
+  "status": "pass",
+  "qualification_eligible": false,
+  "scope": "physical_vulkan_4050_4500_direction_change_confirmation_repair",
+  "report": {
+    "path": "tests/artifacts/moving_nested_vulkan_lifetime_v1_20260819_repaired_tail_4050_4500_attempt2/moving_nested_vulkan_runtime_report.json",
+    "sha256": "770dd3218ff9877da87eec373747f871771ba4d1f5efdfa0ec0a1ef9ccfbb9c8"
+  },
+  "inputs": {
+    "binary_sha256": "7d1abadfbde32d1d5747779356ffe0f68893af64cfd0b99d2843b6eaa3e88457",
+    "config_sha256": "adb44405cc424abdd9db842d03586ed82a328669684dc81f3a18e833a9a2da1a",
+    "source_checkpoint_time_s": 4050,
+    "source_checkpoint_sha256": "4d14e7ed434bd7520be4a5c2e2d50c1098f64b03a9100803123a1591db7eb304",
+    "source_binary_sha256": "bd8b15533d4674902aa13e40416400c228d48771485db6fde5916aca656eba07"
+  },
+  "failure_reproduced": {
+    "time_s": 4290,
+    "reason": "unresolved_breached_face",
+    "prior_request_shift_cells": {"i": 1, "j": 0},
+    "reset_request_shift_cells": {"i": 2, "j": 2},
+    "reset_confirmation_count": 1,
+    "nearest_boundary_m": 12000,
+    "relaxation_width_m": 4800
+  },
+  "repair_proof": {
+    "tracker_samples": 15,
+    "reset_time_s": 4290,
+    "reset_status": "valid_pending_relocation",
+    "commit_time_s": 4320,
+    "committed_shift_cells": {"i": 2, "j": 2},
+    "final_cumulative_shift_cells": {"i": 52, "j": 21},
+    "final_scientific_validity": "valid",
+    "final_checkpoint_time_s": 4500,
+    "final_checkpoint_sha256": "b91f5e0d662fac1ed6461dbcf95593bc167e24d846bad85d48ab8c78427e14b2",
+    "simulated_seconds_per_solver_wall_second": 0.438321,
+    "focused_domain_motion_assertions": 419,
+    "focused_domain_motion_cases": 35
+  },
+  "claim_limits": {
+    "single_binary_full_lifetime": false,
+    "full_lifetime_metrics_compared": false,
+    "formal_qualification": false,
+    "public_moving_nest_admitted": false,
+    "device_resident_relocation": false,
+    "readiness_score_promotion": false
+  }
+}

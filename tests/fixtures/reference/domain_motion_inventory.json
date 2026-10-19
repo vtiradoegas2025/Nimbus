@@ -1,0 +1,261 @@
+{
+  "schema_version": 1,
+  "contract_id": "constant_translation_earth_wind_grid_transport_v1",
+  "storage_contract": {
+    "prognostic_horizontal_wind": "earth_relative",
+    "base_state_horizontal_wind": "earth_relative",
+    "horizontal_transport_velocity": "grid_relative",
+    "surface_relative_wind": "earth_relative_minus_surface_motion",
+    "published_horizontal_wind_default": "earth_relative",
+    "stored_horizontal_position": "grid_relative_with_checkpointed_earth_origin"
+  },
+  "entries": [
+    {
+      "id": "frame-and-strict-config",
+      "categories": ["state_owner", "coordinate_consumer", "restart_field"],
+      "tier": "D2",
+      "disposition": "frame_primitive_ready",
+      "contract": "The constant frame velocity and t0 Earth origin are immutable configuration; the live Earth origin is derived from exact model time.",
+      "evidence": [
+        {"path": "include/core/infra/domain_motion.hpp", "contains": "struct HorizontalDomainFrame"},
+        {"path": "include/init/config/config_v1.hpp", "contains": "struct DomainMotionSection"},
+        {"path": "src/init/config/v1_loader.cpp", "contains": "domain_motion.frame_velocity.u_ms"}
+      ]
+    },
+    {
+      "id": "prognostic-and-base-wind-storage",
+      "categories": ["state_owner", "velocity_consumer"],
+      "tier": "D2",
+      "disposition": "contract_defined",
+      "contract": "u/v and u0/v0 remain Earth-relative. Translation must not be baked into the hodograph or persisted fields.",
+      "evidence": [
+        {"path": "include/core/runtime/simulation_state.hpp", "contains": "struct PrognosticFieldStorage"},
+        {"path": "include/core/runtime/simulation_state.hpp", "contains": "struct BaseStateStorage"},
+        {"path": "src/core/runtime/simulation_state.cpp", "contains": "storage.base.u0"}
+      ]
+    },
+    {
+      "id": "initialization-and-hodograph",
+      "categories": ["cpu_operator", "velocity_consumer"],
+      "tier": "D2",
+      "disposition": "contract_defined",
+      "contract": "Sounding and hodograph winds initialize Earth-relative u/v and u0/v0 unchanged by frame motion.",
+      "evidence": [
+        {"path": "src/core/orchestration/dynamics/initial_conditions_cartesian.cpp", "contains": "fields.u[i][j][k]"},
+        {"path": "src/core/orchestration/dynamics/equations.cpp", "contains": "state.base.u0"},
+        {"path": "src/init/hodograph/factory.cpp", "contains": "make_hodograph_source"}
+      ]
+    },
+    {
+      "id": "cpu-a-grid-dynamics",
+      "categories": ["cpu_operator", "velocity_consumer"],
+      "tier": "D2",
+      "disposition": "stationary_only",
+      "contract": "Advect Earth-relative momentum with grid-relative horizontal velocity; pressure, buoyancy, and Earth-relative perturbation Coriolis retain their current meanings.",
+      "evidence": [
+        {"path": "src/dynamics/schemes/klemp_wilhelmson_split/cartesian_agrid.cpp", "contains": "coriolis_x"},
+        {"path": "include/numerics/advection/cartesian_mass_flux.hpp", "contains": "x_face"}
+      ]
+    },
+    {
+      "id": "cpu-c-grid-dynamics",
+      "categories": ["cpu_operator", "velocity_consumer"],
+      "tier": "D2",
+      "disposition": "stationary_only",
+      "contract": "Construct horizontal continuity and advective face fluxes with u-Ud and v-Vd while retaining Earth-relative face momentum.",
+      "evidence": [
+        {"path": "src/dynamics/schemes/klemp_wilhelmson_split/cartesian_cgrid_3d.cpp", "contains": "coriolis_f"},
+        {"path": "src/terrain/base/conservative_transport.cpp", "contains": "cgrid_mass_flux_x"}
+      ]
+    },
+    {
+      "id": "cpu-scalar-and-private-moment-transport",
+      "categories": ["cpu_operator", "velocity_consumer"],
+      "tier": "D2",
+      "disposition": "stationary_only",
+      "contract": "All horizontal conservative carrier and scalar fluxes use one shared grid-relative mass-flux currency; vertical transport is unchanged.",
+      "evidence": [
+        {"path": "src/numerics/advection/advection_cartesian.cpp", "contains": "mass_flux_x"},
+        {"path": "include/numerics/advection/advection_cartesian.hpp", "contains": "advect_scalar_conservative_3d_cartesian"}
+      ]
+    },
+    {
+      "id": "cpu-lateral-and-acoustic-boundaries",
+      "categories": ["cpu_operator", "velocity_consumer", "coordinate_consumer"],
+      "tier": "D2",
+      "disposition": "stationary_only",
+      "contract": "Characteristic direction and normal transport use grid-relative velocity. Stored and published boundary wind remains Earth-relative.",
+      "evidence": [
+        {"path": "src/boundary_conditions/boundary_conditions_cartesian.cpp", "contains": "Radiative"},
+        {"path": "src/boundary_conditions/boundary_conditions_cartesian_cgrid.cpp", "contains": "radiative"},
+        {"path": "include/boundary_conditions/boundary_conditions_base.hpp", "contains": "class BoundaryConditionScheme"}
+      ]
+    },
+    {
+      "id": "coriolis",
+      "categories": ["cpu_operator", "vulkan_operator", "velocity_consumer"],
+      "tier": "D2",
+      "disposition": "contract_defined",
+      "contract": "Coriolis consumes Earth-relative perturbation wind (u-u0,v-v0); constant frame velocity is never subtracted from this force.",
+      "evidence": [
+        {"path": "src/dynamics/schemes/klemp_wilhelmson_split/cartesian_agrid.cpp", "contains": "local_f * (uy - state_->base.v0[k])"},
+        {"path": "src/dynamics/schemes/klemp_wilhelmson_split/cartesian_cgrid_3d.cpp", "contains": "coriolis.f_at_grid_y0"},
+        {"path": "vulkan/shaders/compute/dynamics/cartesian_cgrid_slow_tendencies.comp", "contains": "coriolis_f * (uy_at_xface - v0_base_b[k])"}
+      ]
+    },
+    {
+      "id": "surface-and-boundary-layer",
+      "categories": ["cpu_operator", "velocity_consumer", "coordinate_consumer"],
+      "tier": "D2",
+      "disposition": "contract_defined",
+      "contract": "Surface stress consumes air velocity relative to the physical surface, not grid-relative transport velocity. Initial translating qualification is flat, fixed-surface only.",
+      "evidence": [
+        {"path": "src/boundary_layer/runtime.cpp", "contains": "surface_config"},
+        {"path": "src/boundary_layer/base/surface_fluxes.cpp", "contains": "namespace tmv::surface_fluxes"},
+        {"path": "include/core/runtime/simulation_state.hpp", "contains": "sfc_tau_u"}
+      ]
+    },
+    {
+      "id": "sgs-diffusion-and-sponge",
+      "categories": ["cpu_operator", "velocity_consumer"],
+      "tier": "D2",
+      "disposition": "translation_invariant",
+      "contract": "Velocity gradients, diffusion, and constant-translation sponge perturbations are Galilean invariant, but boundary targets and reference winds must stay Earth-relative.",
+      "evidence": [
+        {"path": "src/core/orchestration/dynamics/sgs_apply.cpp", "contains": "&state.fields.u"},
+        {"path": "src/core/orchestration/physics/diffusion_step.cpp", "contains": "&state.fields.u"},
+        {"path": "src/core/infra/rayleigh_damping.cpp", "contains": "&state.fields.u"}
+      ]
+    },
+    {
+      "id": "microphysics-and-sedimentation",
+      "categories": ["cpu_operator", "vulkan_operator"],
+      "tier": "D2",
+      "disposition": "translation_invariant",
+      "contract": "Point microphysics and vertical air-relative sedimentation are unchanged by constant horizontal translation; their carrier flux still comes from the shared transport operator.",
+      "evidence": [
+        {"path": "src/core/orchestration/physics/microphysics_step.cpp", "contains": "microphysics"},
+        {"path": "vulkan/shaders/compute/microphysics/microphysics_apply.comp", "contains": "theta"},
+        {"path": "vulkan/shaders/compute/microphysics/kessler_sedimentation.comp", "contains": "terminal-velocity"}
+      ]
+    },
+    {
+      "id": "terrain-and-moving-surface",
+      "categories": ["cpu_operator", "coordinate_consumer", "velocity_consumer"],
+      "tier": "D7",
+      "disposition": "unsupported_initial_release",
+      "contract": "Non-flat terrain is excluded from the first translating mode. Earth-fixed terrain would require time-dependent grid metrics and surface-relative tangent-wall velocity.",
+      "evidence": [
+        {"path": "src/terrain/runtime.cpp", "contains": "normalize_terrain_scheme_id"},
+        {"path": "src/terrain/base/topography.cpp", "contains": "namespace tmv::topography"},
+        {"path": "src/terrain/base/conservative_transport.cpp", "contains": "cgrid_mass_flux_x"}
+      ]
+    },
+    {
+      "id": "radiation-and-earth-location",
+      "categories": ["cpu_operator", "coordinate_consumer"],
+      "tier": "D7",
+      "disposition": "unsupported_initial_release",
+      "contract": "Interactive geographic radiation is excluded initially. Solar time/location must use Earth coordinates; horizontally homogeneous simple-grey remains translation invariant.",
+      "evidence": [
+        {"path": "src/radiation/runtime.cpp", "contains": "radiation_scheme"},
+        {"path": "src/radiation/base/radiative_transfer.cpp", "contains": "grey_sw_beer_lambert"},
+        {"path": "src/radiation/schemes/simple_grey/simple_grey.cpp", "contains": "SimpleGreyScheme"}
+      ]
+    },
+    {
+      "id": "storm-rotation-and-budget-diagnostics",
+      "categories": ["coordinate_consumer", "velocity_consumer"],
+      "tier": "D4",
+      "disposition": "diagnostic_ready",
+      "contract": "Field derivatives use Earth-relative winds; translation-invariant gradients are unchanged. Track positions convert grid-to-Earth and fitted grid velocity adds frame velocity before Earth-relative publication.",
+      "evidence": [
+        {"path": "src/diagnostics/storm_tracker.cpp", "contains": "fixed_window_temporal_branch_association_v5"},
+        {"path": "src/diagnostics/storm_rotation.cpp", "contains": "physical_height_midpoint_uh_2d_v1"},
+        {"path": "src/diagnostics/budgets/momentum_budget.cpp", "contains": "coriolis"}
+      ]
+    },
+    {
+      "id": "radar-and-trajectories",
+      "categories": ["coordinate_consumer", "velocity_consumer"],
+      "tier": "D2",
+      "disposition": "stationary_only",
+      "contract": "Radar radial velocity uses Earth-relative air velocity and Earth-coordinate radar geometry. Trajectory transport uses grid-relative velocity while output positions carry both frames.",
+      "evidence": [
+        {"path": "src/radar/runtime.cpp", "contains": "state_view.u"},
+        {"path": "src/diagnostics/trajectories/trajectories.cpp", "contains": "velocity"}
+      ]
+    },
+    {
+      "id": "disk-shm-and-netcdf-output",
+      "categories": ["output_writer", "coordinate_consumer", "velocity_consumer"],
+      "tier": "D2",
+      "disposition": "stationary_only",
+      "contract": "Default u/v products remain Earth-relative. Every frame records Earth origin and frame velocity; coordinates are Earth-relative or explicitly named grid-relative.",
+      "evidence": [
+        {"path": "src/core/runtime/headless_runtime.cpp", "contains": "centered_velocity_staging_plan"},
+        {"path": "src/core/output/output_writer.cpp", "contains": "AsyncOutputWriter"},
+        {"path": "src/core/output/netcdf_history_writer.cpp", "contains": "terrain_following"},
+        {"path": "src/core/output/shm_writer.cpp", "contains": "ShmWriter"}
+      ]
+    },
+    {
+      "id": "checkpoint-and-restart",
+      "categories": ["restart_field", "state_owner", "coordinate_consumer"],
+      "tier": "D2",
+      "disposition": "stationary_only",
+      "contract": "Checkpoint immutable frame configuration and exact model time/origin identity. Restart must reproduce the next grid-relative flux bit-for-bit.",
+      "evidence": [
+        {"path": "src/core/runtime/simulation_checkpoint.cpp", "contains": "encode_configuration"},
+        {"path": "src/core/runtime/simulation_checkpoint.cpp", "contains": "prognostic_fields(state.fields)"}
+      ]
+    },
+    {
+      "id": "zfp-and-footprint-reduction",
+      "categories": ["output_writer", "restart_field"],
+      "tier": "D2",
+      "disposition": "contract_defined",
+      "contract": "ZFP compresses Earth-relative prognostic winds unchanged. Frame metadata is lossless and separate; compressed restart must pass the same declared error contract in both frames.",
+      "evidence": [
+        {"path": "src/core/output/output_writer.cpp", "contains": "ZFP"},
+        {"path": "include/core/output/step_manifest.hpp", "contains": "compression"}
+      ]
+    },
+    {
+      "id": "nested-grid-state",
+      "categories": ["state_owner", "coordinate_consumer", "velocity_consumer"],
+      "tier": "D6",
+      "disposition": "unsupported_initial_release",
+      "contract": "The existing nested snapshot interpolator is not an evolving parent. Future child fields retain Earth-relative winds and receive grid-relative boundary fluxes from explicit parent/child frame transforms.",
+      "evidence": [
+        {"path": "include/core/runtime/simulation_state.hpp", "contains": "struct NestedGridStorage"},
+        {"path": "src/core/infra/nested_grid.cpp", "contains": "has no nested"}
+      ]
+    },
+    {
+      "id": "vulkan-abi-and-residency",
+      "categories": ["vulkan_operator", "state_owner", "velocity_consumer"],
+      "tier": "D3",
+      "disposition": "stationary_only",
+      "contract": "Add frame velocity once to the versioned ABI and derive grid-relative transport in kernels without duplicating resident prognostic winds or allocating per step.",
+      "evidence": [
+        {"path": "include/compute/kernel_abi.hpp", "contains": "coriolis_f"},
+        {"path": "src/compute/dispatch/advection.cpp", "contains": "mass_flux_x"},
+        {"path": "vulkan/src/compute/compute_backend_vulkan.cpp", "contains": "dispatch"}
+      ]
+    },
+    {
+      "id": "vulkan-dynamics-and-boundaries",
+      "categories": ["vulkan_operator", "velocity_consumer"],
+      "tier": "D3",
+      "disposition": "stationary_only",
+      "contract": "GPU A/C dynamics, acoustic continuity, conservative advection, and radiative faces use the same grid-relative transport contract as CPU; Coriolis retains Earth-relative wind.",
+      "evidence": [
+        {"path": "vulkan/shaders/compute/dynamics/cartesian_tendencies.comp", "contains": "Perturbation Coriolis"},
+        {"path": "vulkan/shaders/compute/dynamics/cartesian_cgrid_slow_tendencies.comp", "contains": "advecting velocity"},
+        {"path": "vulkan/shaders/compute/dynamics/acoustic_bc_face_cartesian_cgrid.comp", "contains": "Radiative"},
+        {"path": "vulkan/shaders/compute/advection/advect_conservative_mass_flux_cartesian_cgrid.comp", "contains": "mass_flux"}
+      ]
+    }
+  ]
+}

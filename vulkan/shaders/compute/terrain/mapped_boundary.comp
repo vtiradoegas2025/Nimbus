@@ -1,0 +1,171 @@
+#version 450
+layout(local_size_x = 64) in;
+layout(set = 0, binding = 0) readonly buffer B0
+{
+    float u_input[];
+};
+layout(set = 0, binding = 1) readonly buffer B1
+{
+    float v_input[];
+};
+layout(set = 0, binding = 2) readonly buffer B2
+{
+    float w_input[];
+};
+layout(set = 0, binding = 3) readonly buffer B3
+{
+    float rho_input[];
+};
+layout(set = 0, binding = 4) readonly buffer B4
+{
+    float p_input[];
+};
+layout(set = 0, binding = 5) writeonly buffer B5
+{
+    float u_output[];
+};
+layout(set = 0, binding = 6) writeonly buffer B6
+{
+    float v_output[];
+};
+layout(set = 0, binding = 7) writeonly buffer B7
+{
+    float w_output[];
+};
+layout(set = 0, binding = 8) writeonly buffer B8
+{
+    float rho_output[];
+};
+layout(set = 0, binding = 9) writeonly buffer B9
+{
+    float p_output[];
+};
+layout(push_constant) uniform PushConstants
+{
+    int   nx;
+    int   ny;
+    int   nz;
+    int   west;
+    int   east;
+    int   south;
+    int   north;
+    int   bottom;
+    int   top;
+    float frame_u;
+    float frame_v;
+    int   padding;
+};
+uint index3(int i, int j, int k)
+{
+    return (uint(i) * uint(ny) + uint(j)) * uint(nz) + uint(k);
+}
+float original(int f, int i, int j, int k)
+{
+    uint n = index3(i, j, k);
+    if (f == 0)
+        return u_input[n];
+    if (f == 1)
+        return v_input[n];
+    if (f == 2)
+        return w_input[n];
+    if (f == 3)
+        return rho_input[n];
+    return p_input[n];
+}
+float after_west(int f, int i, int j, int k)
+{
+    if (i != 0)
+        return original(f, i, j, k);
+    if (west == 0)
+        return original(f, nx - 2, j, k);
+    if (f == 0)
+    {
+        if (west == 1)
+            return original(f, 0, j, k);
+        if (west == 4)
+            return original(f, 1, j, k);
+        return frame_u;
+    }
+    if (west == 2 && f < 3)
+        return f == 1 ? frame_v : 0.0;
+    return original(f, 1, j, k);
+}
+float after_east(int f, int i, int j, int k)
+{
+    if (east != 0 && i >= nx - 2 && f == 0)
+    {
+        if (east == 2 || east == 3)
+            return frame_u;
+        return after_west(f, east == 4 ? nx - 3 : nx - 2, j, k);
+    }
+    if (i != nx - 1)
+        return after_west(f, i, j, k);
+    if (east == 0)
+        return after_west(f, 1, j, k);
+    if (east == 2 && f < 3)
+        return f == 1 ? frame_v : 0.0;
+    return after_west(f, nx - 2, j, k);
+}
+float after_south(int f, int i, int j, int k)
+{
+    if (j != 0)
+        return after_east(f, i, j, k);
+    if (south == 0)
+        return after_east(f, i, ny - 2, k);
+    if (f == 1)
+    {
+        if (south == 1)
+            return after_east(f, i, 0, k);
+        if (south == 4)
+            return after_east(f, i, 1, k);
+        return frame_v;
+    }
+    if (south == 2 && f < 3)
+        return f == 0 ? frame_u : 0.0;
+    return after_east(f, i, 1, k);
+}
+float after_north(int f, int i, int j, int k)
+{
+    if (north != 0 && j >= ny - 2 && f == 1)
+    {
+        if (north == 2 || north == 3)
+            return frame_v;
+        return after_south(f, i, north == 4 ? ny - 3 : ny - 2, k);
+    }
+    if (j != ny - 1)
+        return after_south(f, i, j, k);
+    if (north == 0)
+        return after_south(f, i, 1, k);
+    if (north == 2 && f < 3)
+        return f == 0 ? frame_u : 0.0;
+    return after_south(f, i, ny - 2, k);
+}
+float final_value(int f, int i, int j, int k)
+{
+    // Pull through the CPU's face order to retain corner ownership without inter-dispatch buffers.
+    if (f < 2)
+    {
+        int source_k = k == nz - 1 ? nz - 2 : k;
+        if (source_k == 0 && bottom == 0)
+            return 0.0;
+        return after_north(f, i, j, source_k);
+    }
+    if (f == 2 && k == nz - 1)
+        return top == 2 ? after_north(f, i, j, nz - 2) : 0.0;
+    return after_north(f, i, j, k);
+}
+void evaluate(uint n)
+{
+    if (n >= uint(nx) * uint(ny) * uint(nz))
+        return;
+    int k = int(n % uint(nz)), j = int((n / uint(nz)) % uint(ny)), i = int(n / (uint(ny) * uint(nz)));
+    u_output[n]   = final_value(0, i, j, k);
+    v_output[n]   = final_value(1, i, j, k);
+    w_output[n]   = final_value(2, i, j, k);
+    rho_output[n] = final_value(3, i, j, k);
+    p_output[n]   = final_value(4, i, j, k);
+}
+void main()
+{
+    evaluate(gl_GlobalInvocationID.x);
+}

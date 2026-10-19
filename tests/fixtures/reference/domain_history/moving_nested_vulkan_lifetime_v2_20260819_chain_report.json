@@ -1,0 +1,393 @@
+{
+  "aggregate_device_level_counters": {
+    "kessler": {
+      "child_apply": 0,
+      "child_pointwise": 6000,
+      "child_sedimentation": 6000,
+      "parent_apply": 0,
+      "parent_pointwise": 3000,
+      "parent_sedimentation": 3000
+    },
+    "smagorinsky": {
+      "child_coefficients": 6000,
+      "child_sgs_apply": 6000,
+      "child_tendencies": 6000,
+      "parent_coefficients": 6000,
+      "parent_sgs_apply": 6000,
+      "parent_tendencies": 6000
+    }
+  },
+  "claims": {
+    "checkpoint_lineage_exact": true,
+    "device_resident_relocation": false,
+    "fallback_off_physical_vulkan": true,
+    "formal_reference_comparison_complete": false,
+    "host_authoritative_kessler_state_commit": true,
+    "host_owned_relocations": true,
+    "native_parent_child_kessler_processes": true,
+    "native_parent_child_smagorinsky": true,
+    "public_moving_nest_admitted": false,
+    "single_binary_config_identity": true,
+    "uninterrupted_single_process": true
+  },
+  "inputs": {
+    "binary_sha256": "7d1abadfbde32d1d5747779356ffe0f68893af64cfd0b99d2843b6eaa3e88457",
+    "config_sha256": "adb44405cc424abdd9db842d03586ed82a328669684dc81f3a18e833a9a2da1a"
+  },
+  "next_resume": {
+    "checkpoint": "tests/artifacts/moving_nested_vulkan_lifetime_v2_20260819_segment_0000_4500/checkpoints/checkpoint_step_000003000.nimbus",
+    "checkpoint_sha256": "b91f5e0d662fac1ed6461dbcf95593bc167e24d846bad85d48ab8c78427e14b2",
+    "time_s": 4500.0
+  },
+  "progress": {
+    "checkpoint_count": 10,
+    "completed_through_s": 4500.0,
+    "expected_duration_s": 4500.0,
+    "final_cumulative_shift_cells": {
+      "i": 52,
+      "j": 21
+    },
+    "fraction_complete": 1.0,
+    "relocation_count": 7,
+    "relocations": [
+      {
+        "cumulative_shift_cells": {
+          "i": 14,
+          "j": 0
+        },
+        "reason": "request_ready",
+        "shift_cells": {
+          "i": 14,
+          "j": 0
+        },
+        "simulation_time_s": 2010
+      },
+      {
+        "cumulative_shift_cells": {
+          "i": 27,
+          "j": 0
+        },
+        "reason": "request_ready",
+        "shift_cells": {
+          "i": 13,
+          "j": 0
+        },
+        "simulation_time_s": 3180
+      },
+      {
+        "cumulative_shift_cells": {
+          "i": 41,
+          "j": 14
+        },
+        "reason": "projected_relaxation_risk",
+        "shift_cells": {
+          "i": 14,
+          "j": 14
+        },
+        "simulation_time_s": 3510
+      },
+      {
+        "cumulative_shift_cells": {
+          "i": 45,
+          "j": 18
+        },
+        "reason": "trusted_interior_containment",
+        "shift_cells": {
+          "i": 4,
+          "j": 4
+        },
+        "simulation_time_s": 3540
+      },
+      {
+        "cumulative_shift_cells": {
+          "i": 48,
+          "j": 19
+        },
+        "reason": "trusted_interior_containment",
+        "shift_cells": {
+          "i": 3,
+          "j": 1
+        },
+        "simulation_time_s": 3840
+      },
+      {
+        "cumulative_shift_cells": {
+          "i": 50,
+          "j": 19
+        },
+        "reason": "trusted_interior_containment",
+        "shift_cells": {
+          "i": 2,
+          "j": 0
+        },
+        "simulation_time_s": 4170
+      },
+      {
+        "cumulative_shift_cells": {
+          "i": 52,
+          "j": 21
+        },
+        "reason": "trusted_interior_containment",
+        "shift_cells": {
+          "i": 2,
+          "j": 2
+        },
+        "simulation_time_s": 4320
+      }
+    ],
+    "segment_count": 1,
+    "tracker_samples": 150
+  },
+  "qualification_eligible": false,
+  "schema": "nimbus.diagnostic.moving_nested_vulkan_lifetime_chain",
+  "schema_version": 1,
+  "scope": "uninterrupted_fresh_start_physical_vulkan_lifetime",
+  "segments": [
+    {
+      "checkpoints": [
+        {
+          "checkpoint": {
+            "bytes": 253294213,
+            "path": "tests/artifacts/moving_nested_vulkan_lifetime_v2_20260819_segment_0000_4500/checkpoints/checkpoint_step_000000300.nimbus",
+            "sha256": "0c1aee335895aa1b09907278f10793d524dec0e08a20105f92b5e26e363a162d"
+          },
+          "sidecar": {
+            "bytes": 470,
+            "path": "tests/artifacts/moving_nested_vulkan_lifetime_v2_20260819_segment_0000_4500/checkpoints/checkpoint_step_000000300.nimbus.json",
+            "sha256": "682a18b8d76319902c3e0f1abf40e02877fa00d67726204627ca4dba8d560645"
+          },
+          "simulation_time_s": 450.0
+        },
+        {
+          "checkpoint": {
+            "bytes": 253294213,
+            "path": "tests/artifacts/moving_nested_vulkan_lifetime_v2_20260819_segment_0000_4500/checkpoints/checkpoint_step_000000600.nimbus",
+            "sha256": "1a2a055e74169768721884b3fe3026debb92f8f43acd191c5c008de0b7f11adb"
+          },
+          "sidecar": {
+            "bytes": 470,
+            "path": "tests/artifacts/moving_nested_vulkan_lifetime_v2_20260819_segment_0000_4500/checkpoints/checkpoint_step_000000600.nimbus.json",
+            "sha256": "0572e395228af930c2550cca84956e4cb37a3575c67f3c701da874ebfbecbd45"
+          },
+          "simulation_time_s": 900.0
+        },
+        {
+          "checkpoint": {
+            "bytes": 253294213,
+            "path": "tests/artifacts/moving_nested_vulkan_lifetime_v2_20260819_segment_0000_4500/checkpoints/checkpoint_step_000000900.nimbus",
+            "sha256": "d1a24cf9240cf66f718b165079f958026bcb67a7d401ff544ee0459563a776c7"
+          },
+          "sidecar": {
+            "bytes": 471,
+            "path": "tests/artifacts/moving_nested_vulkan_lifetime_v2_20260819_segment_0000_4500/checkpoints/checkpoint_step_000000900.nimbus.json",
+            "sha256": "07f3e2934045df817a580157485b28d748e04a0cb241b0e97e994e58df3c7945"
+          },
+          "simulation_time_s": 1350.0
+        },
+        {
+          "checkpoint": {
+            "bytes": 253294213,
+            "path": "tests/artifacts/moving_nested_vulkan_lifetime_v2_20260819_segment_0000_4500/checkpoints/checkpoint_step_000001200.nimbus",
+            "sha256": "963958a4ac124fb8bfda94fa84366d74c4cf0622b8a54466e4aa396ea3bd9305"
+          },
+          "sidecar": {
+            "bytes": 472,
+            "path": "tests/artifacts/moving_nested_vulkan_lifetime_v2_20260819_segment_0000_4500/checkpoints/checkpoint_step_000001200.nimbus.json",
+            "sha256": "41cb18b951fa423bdfd88773a860e9adb098d1b37b0842a60991fb12e920be6d"
+          },
+          "simulation_time_s": 1800.0
+        },
+        {
+          "checkpoint": {
+            "bytes": 253294213,
+            "path": "tests/artifacts/moving_nested_vulkan_lifetime_v2_20260819_segment_0000_4500/checkpoints/checkpoint_step_000001500.nimbus",
+            "sha256": "747193684554e9ce1e2782351d7276877eecfd50152589dbd35358bb17a51a32"
+          },
+          "sidecar": {
+            "bytes": 472,
+            "path": "tests/artifacts/moving_nested_vulkan_lifetime_v2_20260819_segment_0000_4500/checkpoints/checkpoint_step_000001500.nimbus.json",
+            "sha256": "56f3c8bd285680ce7c83b81b91682f4c6657a472b4f4bdda4d13ca7e4cb3dd17"
+          },
+          "simulation_time_s": 2250.0
+        },
+        {
+          "checkpoint": {
+            "bytes": 253294213,
+            "path": "tests/artifacts/moving_nested_vulkan_lifetime_v2_20260819_segment_0000_4500/checkpoints/checkpoint_step_000001800.nimbus",
+            "sha256": "5f3c82c45b8cd91331d241f4f1be7e53a948ab462844776da333bc5f161368c8"
+          },
+          "sidecar": {
+            "bytes": 472,
+            "path": "tests/artifacts/moving_nested_vulkan_lifetime_v2_20260819_segment_0000_4500/checkpoints/checkpoint_step_000001800.nimbus.json",
+            "sha256": "1cea7e8ea802d2f29e0634782d837411961418232f0fdf25a0d5e026b1e8d0ae"
+          },
+          "simulation_time_s": 2700.0
+        },
+        {
+          "checkpoint": {
+            "bytes": 253294213,
+            "path": "tests/artifacts/moving_nested_vulkan_lifetime_v2_20260819_segment_0000_4500/checkpoints/checkpoint_step_000002100.nimbus",
+            "sha256": "fd3694bbeec8c21d5d4a1a29358498dcbfbadba4500f7eb8224535337b660239"
+          },
+          "sidecar": {
+            "bytes": 472,
+            "path": "tests/artifacts/moving_nested_vulkan_lifetime_v2_20260819_segment_0000_4500/checkpoints/checkpoint_step_000002100.nimbus.json",
+            "sha256": "6b5ee269b3784739d1f830b4acc7ff4ff2c10cd39edaf99e66f6169e0cd14261"
+          },
+          "simulation_time_s": 3150.0
+        },
+        {
+          "checkpoint": {
+            "bytes": 253294213,
+            "path": "tests/artifacts/moving_nested_vulkan_lifetime_v2_20260819_segment_0000_4500/checkpoints/checkpoint_step_000002400.nimbus",
+            "sha256": "c71d19e6e48f87ba0d3a671d5d1fd1af267b6bac3bf3043749dd27156fc3586b"
+          },
+          "sidecar": {
+            "bytes": 472,
+            "path": "tests/artifacts/moving_nested_vulkan_lifetime_v2_20260819_segment_0000_4500/checkpoints/checkpoint_step_000002400.nimbus.json",
+            "sha256": "9f58805d658be5d861c4ff5845e3db68f28da6b7421cd11d3d655cf553dae291"
+          },
+          "simulation_time_s": 3600.0
+        },
+        {
+          "checkpoint": {
+            "bytes": 253294213,
+            "path": "tests/artifacts/moving_nested_vulkan_lifetime_v2_20260819_segment_0000_4500/checkpoints/checkpoint_step_000002700.nimbus",
+            "sha256": "4d14e7ed434bd7520be4a5c2e2d50c1098f64b03a9100803123a1591db7eb304"
+          },
+          "sidecar": {
+            "bytes": 472,
+            "path": "tests/artifacts/moving_nested_vulkan_lifetime_v2_20260819_segment_0000_4500/checkpoints/checkpoint_step_000002700.nimbus.json",
+            "sha256": "0cfa7e1b30154356da96d92f0746d5b8d11b0e1895320ae9931fd2df4fbf253d"
+          },
+          "simulation_time_s": 4050.0
+        },
+        {
+          "checkpoint": {
+            "bytes": 253294213,
+            "path": "tests/artifacts/moving_nested_vulkan_lifetime_v2_20260819_segment_0000_4500/checkpoints/checkpoint_step_000003000.nimbus",
+            "sha256": "b91f5e0d662fac1ed6461dbcf95593bc167e24d846bad85d48ab8c78427e14b2"
+          },
+          "sidecar": {
+            "bytes": 472,
+            "path": "tests/artifacts/moving_nested_vulkan_lifetime_v2_20260819_segment_0000_4500/checkpoints/checkpoint_step_000003000.nimbus.json",
+            "sha256": "a29a4088ffdf2a7951ba9f1bf8770cc1fea794840abcaf49fa428b864aa09e84"
+          },
+          "simulation_time_s": 4500.0
+        }
+      ],
+      "directory": "tests/artifacts/moving_nested_vulkan_lifetime_v2_20260819_segment_0000_4500",
+      "end_s": 4500.0,
+      "final_checkpoint": {
+        "bytes": 253294213,
+        "path": "tests/artifacts/moving_nested_vulkan_lifetime_v2_20260819_segment_0000_4500/checkpoints/checkpoint_step_000003000.nimbus",
+        "sha256": "b91f5e0d662fac1ed6461dbcf95593bc167e24d846bad85d48ab8c78427e14b2"
+      },
+      "final_checkpoint_sidecar": {
+        "bytes": 472,
+        "path": "tests/artifacts/moving_nested_vulkan_lifetime_v2_20260819_segment_0000_4500/checkpoints/checkpoint_step_000003000.nimbus.json",
+        "sha256": "a29a4088ffdf2a7951ba9f1bf8770cc1fea794840abcaf49fa428b864aa09e84"
+      },
+      "relocations": [
+        {
+          "cumulative_shift_cells": {
+            "i": 14,
+            "j": 0
+          },
+          "reason": "request_ready",
+          "shift_cells": {
+            "i": 14,
+            "j": 0
+          },
+          "simulation_time_s": 2010
+        },
+        {
+          "cumulative_shift_cells": {
+            "i": 27,
+            "j": 0
+          },
+          "reason": "request_ready",
+          "shift_cells": {
+            "i": 13,
+            "j": 0
+          },
+          "simulation_time_s": 3180
+        },
+        {
+          "cumulative_shift_cells": {
+            "i": 41,
+            "j": 14
+          },
+          "reason": "projected_relaxation_risk",
+          "shift_cells": {
+            "i": 14,
+            "j": 14
+          },
+          "simulation_time_s": 3510
+        },
+        {
+          "cumulative_shift_cells": {
+            "i": 45,
+            "j": 18
+          },
+          "reason": "trusted_interior_containment",
+          "shift_cells": {
+            "i": 4,
+            "j": 4
+          },
+          "simulation_time_s": 3540
+        },
+        {
+          "cumulative_shift_cells": {
+            "i": 48,
+            "j": 19
+          },
+          "reason": "trusted_interior_containment",
+          "shift_cells": {
+            "i": 3,
+            "j": 1
+          },
+          "simulation_time_s": 3840
+        },
+        {
+          "cumulative_shift_cells": {
+            "i": 50,
+            "j": 19
+          },
+          "reason": "trusted_interior_containment",
+          "shift_cells": {
+            "i": 2,
+            "j": 0
+          },
+          "simulation_time_s": 4170
+        },
+        {
+          "cumulative_shift_cells": {
+            "i": 52,
+            "j": 21
+          },
+          "reason": "trusted_interior_containment",
+          "shift_cells": {
+            "i": 2,
+            "j": 2
+          },
+          "simulation_time_s": 4320
+        }
+      ],
+      "report": {
+        "bytes": 5000,
+        "path": "tests/artifacts/moving_nested_vulkan_lifetime_v2_20260819_segment_0000_4500/moving_nested_vulkan_runtime_report.json",
+        "sha256": "c14f4063d1d11ca59272bdea6b26f789b891155a6010f957e6b5be5a936b7d91"
+      },
+      "runtime_log": {
+        "bytes": 18055117,
+        "path": "tests/artifacts/moving_nested_vulkan_lifetime_v2_20260819_segment_0000_4500/qualification_run.log",
+        "sha256": "064dea04d25fa5ee6ea78327a11717316e2932a1d7df2de4187dc221eadd3301"
+      },
+      "simulated_seconds_per_solver_wall_second": 0.452332,
+      "start_s": 0.0,
+      "tracker_samples": 150
+    }
+  ],
+  "status": "complete"
+}

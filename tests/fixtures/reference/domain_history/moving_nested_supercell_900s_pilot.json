@@ -1,0 +1,57 @@
+{
+  "binary_sha256": "f069cff8fcb8508a5498673bb4a2c9e50a1d7c202911a34896b72e6c87ba3dbe",
+  "checkpoint_bytes": 141557308,
+  "checkpoint_count": 2,
+  "child_field_extrema": {
+    "p": {"max": 98202.421875, "min": 10836.9853515625},
+    "qr": {"max": 0.007443813141435385, "min": 0.0},
+    "qv": {"max": 0.01256212592124939, "min": 3.31602459482383e-05},
+    "rho": {"max": 1.1427146196365356, "min": 0.17083966732025146},
+    "theta": {"max": 417.19287109375, "min": 300.9207763671875},
+    "u": {"max": 40.93437957763672, "min": 4.797632217407227},
+    "v": {"max": 33.64858627319336, "min": 0.4546453356742859},
+    "w": {"max": 27.08682632446289, "min": -6.952271461486816}
+  },
+  "child_published_origins_earth_m": [[3000, 1800], [5400, 1800]],
+  "child_storage_shape": [86, 78, 50],
+  "coherent_samples": 27,
+  "committed_movement": {
+    "committed_shift_child_cells": {"i": 4, "j": 0},
+    "committed_shift_parent_cells": {"i": 2, "j": 0},
+    "movement_sequence": 1,
+    "simulation_time_s": 720
+  },
+  "config_sha256": "b707dd70a560f13f757782ccdcd45bd8cfcced4ebe83161a63fa8f20da4a12a8",
+  "detector_coordinate_frame": "earth_absolute",
+  "duration_s": 900,
+  "horizontal_storage_cell_ratio_to_reference": 0.37413569576490924,
+  "ledger_rows": {
+    "budget.csv": 1620,
+    "energy_budget.csv": 180,
+    "moisture_budget.csv": 180,
+    "momentum_budget.csv": 180,
+    "thermodynamic_source_budget.csv": 1800
+  },
+  "limitations": [
+    "internal qualification-only CPU profile; public moving_nest selection remains closed",
+    "900-second bounded campaign, not the complete 4500-second fine-child/reference frontier",
+    "current 84x76 child is interim evidence geometry, not a finalized footprint",
+    "no changed-thread, live-storm Vulkan, terrain, two-way feedback, AMR, or broad-combination claim"
+  ],
+  "maximum_absolute_updraft_helicity_m2s2": 744.707360683259,
+  "maximum_tracker_updraft_ms": 27.6126070022583,
+  "measured_peak_rss_bytes": 722944000,
+  "minimum_selected_envelope_distance_to_child_boundary_m": 6000.0,
+  "motion_available_samples": 25,
+  "predicted_memory_bytes": 826595116,
+  "root_storage_shape": [134, 105, 50],
+  "schema": "nimbus.qualification.moving_nested_supercell.pilot_evidence",
+  "schema_version": 2,
+  "scope": "internal_cpu_fine_child_live_storm_movement_not_selectable",
+  "simulated_seconds_per_wall_second": 1.73837,
+  "status": "pass",
+  "storm_samples": 30,
+  "storm_tracking_schema_version": 11,
+  "tracking_source": "synchronized_nested_child",
+  "wall_seconds": 519.2774293750117
+}

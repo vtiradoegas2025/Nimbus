@@ -1,0 +1,40 @@
+import assert from "node:assert/strict";
+import { mockQueue } from "../../../../ui/src/lib/core/mockData.ts";
+import { processExitSummary, publishedFrameCount, runFailureSummary, runPlotBlockReason } from "../../../../ui/src/lib/run/runOutcome.ts";
+import type { QueuedRun } from "../../../../ui/src/lib/core/types.ts";
+
+const base: QueuedRun = { ...mockQueue[0], status: "failed", origin: "live", frameCount: 0,
+  provenance: { ...mockQueue[1].provenance!, exitCode: -4, completeFrameCount: 0 } };
+const remote: QueuedRun = { ...base, executionTarget: { id: "node", name: "Research node", host: "node", binaryPath: "/opt/nimbus_sim", workDirectory: "/runs" } };
+
+assert.match(processExitSummary(-4), /SIGILL/);
+assert.match(processExitSummary(-11), /SIGSEGV/);
+assert.equal(processExitSummary(132), "Process exited with code 132.");
+assert.match(processExitSummary(132, true), /signal-style/);
+assert.match(processExitSummary(null), /unavailable/);
+assert.match(processExitSummary(NaN), /unavailable/);
+assert.match(runFailureSummary(base)!.title, /without a complete saved frame/);
+assert.match(runFailureSummary(base)!.detail, /SIGILL/);
+assert.equal(runFailureSummary({ ...base, status: "completed" }), null);
+assert.match(runFailureSummary({ ...base, provenance: { ...base.provenance!, runtimeHealth: "invalid" } })!.detail, /unavailable/);
+assert.equal(publishedFrameCount({ ...base, frameCount: undefined }), 0);
+assert.equal(publishedFrameCount({ ...base, frameCount: undefined, provenance: { ...base.provenance!, runtimeHealth: "invalid" } }), null);
+for (const frameCount of [-1, NaN, 1.5, Infinity]) assert.equal(publishedFrameCount({ ...base, frameCount }), 0);
+assert.match(runPlotBlockReason(base)!, /No complete/);
+assert.match(runPlotBlockReason({ ...base, status: "completed" })!, /No complete/);
+assert.equal(runPlotBlockReason({ ...base, frameCount: 2 }), null);
+assert.equal(runPlotBlockReason({ ...base, origin: "disk", libraryHealth: "partial", frameCount: 2 }), null);
+assert.match(runPlotBlockReason({ ...base, libraryHealth: "invalid", frameCount: 2 })!, /failed validation/);
+assert.match(runPlotBlockReason({ ...remote, frameCount: 2 })!, /Receive and verify/);
+assert.match(runPlotBlockReason({ ...remote, remoteTerminationUnconfirmed: true })!, /termination/);
+assert.match(runPlotBlockReason({ ...remote, remoteTransferInProgress: true })!, /transfer/);
+const received: QueuedRun = { ...remote, frameCount: 2, remoteReceive: { state: "complete", error: null, retryAvailable: false, updatedUnixMs: 1 } };
+assert.equal(runPlotBlockReason(received), null);
+assert.match(runPlotBlockReason({ ...received, remoteReceive: { ...received.remoteReceive!, state: "receiving" } })!, /transfer/);
+assert.equal(runPlotBlockReason({ ...received, origin: "disk", remoteReceive: undefined }), null);
+const failedTransfer: QueuedRun = { ...remote, provenance: { ...base.provenance!, exitCode: 0 }, remoteReceive: { state: "failed", error: "Connection lost", retryAvailable: true, updatedUnixMs: 1 } };
+assert.match(runFailureSummary(failedTransfer)!.title, /results were not received/);
+assert.match(runFailureSummary(failedTransfer)!.detail, /does not require rerunning/);
+assert.match(runFailureSummary({ ...failedTransfer, remoteReceive: { ...failedTransfer.remoteReceive!, state: "invalid" } })!.title, /failed validation/);
+assert.match(runFailureSummary({ ...failedTransfer, provenance: { ...base.provenance!, exitCode: -4 } })!.title, /Run failed/);
+console.log("Run outcomes: signals, verified evidence, partial frames, remote transfer, and plot access passed.");

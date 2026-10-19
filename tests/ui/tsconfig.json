@@ -1,0 +1,30 @@
+{
+  "extends": "../../ui/tsconfig.app.json",
+  "compilerOptions": {
+    "types": [
+      "node",
+      "@playwright/test"
+    ],
+    "paths": {
+      "@nimbus/*": [
+        "../../ui/src/*"
+      ],
+      "@/*": [
+        "../../ui/src/*"
+      ]
+    },
+    "tsBuildInfoFile": "../../ui/build/tsconfig.tests.tsbuildinfo"
+  },
+  "include": [
+    "../../ui/src/vite-env.d.ts",
+    "../../ui/src/types/**/*.d.ts",
+    "unit/**/*.ts",
+    "browser/**/*.ts",
+    "browser/**/*.tsx",
+    "analysis/**/*.ts",
+    "release/**/*.ts",
+    "config/**/*.ts",
+    "../../ui/playwright.config.ts",
+    "../../ui/vite.browser.config.ts"
+  ]
+}

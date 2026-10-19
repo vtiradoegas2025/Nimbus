@@ -1,0 +1,40 @@
+{
+  "schema": "nimbus.evidence.moving_nested_vulkan_live_storm",
+  "schema_version": 1,
+  "status": "pass",
+  "qualification_eligible": false,
+  "scope": "exploratory_cross_backend_resume_physical_vulkan",
+  "report": {
+    "path": "tests/artifacts/moving_nested_vulkan_live_storm_v1_20260819/moving_nested_vulkan_runtime_report.json",
+    "sha256": "75b4d25a986461bf2970b5eaf6e31d0bb33d5d25ba0c7846fda3fcdf5a9245d7"
+  },
+  "inputs": {
+    "binary_sha256": "bd8b15533d4674902aa13e40416400c228d48771485db6fde5916aca656eba07",
+    "config_sha256": "adb44405cc424abdd9db842d03586ed82a328669684dc81f3a18e833a9a2da1a",
+    "source_checkpoint_sha256": "7f72b1a3c1d3543020b8aa20167e63c45928d550bcabe51869be0086dea5e69a",
+    "source_checkpoint_time_s": 4050,
+    "final_time_s": 4500
+  },
+  "summary": {
+    "physical_device": "Apple M4 Max through MoltenVK",
+    "fallback": "off",
+    "tracker_samples": 15,
+    "relocation_times_s": [4170, 4260, 4320],
+    "parent_smagorinsky_dispatches_per_operation": 600,
+    "child_smagorinsky_dispatches_per_operation": 600,
+    "parent_kessler_process_dispatches_per_operation": 300,
+    "child_kessler_process_dispatches_per_operation": 600,
+    "parent_microphysics_apply_dispatches": 0,
+    "child_microphysics_apply_dispatches": 0,
+    "strict_finite_bounded_outputs": true,
+    "final_checkpoint_time_s": 4500,
+    "solver_step_wall_seconds": 1058.89,
+    "simulated_seconds_per_solver_wall_second": 0.424974
+  },
+  "claim_limits": {
+    "public_moving_nest_admitted": false,
+    "device_resident_relocation": false,
+    "cross_backend_reference_qualification": false,
+    "throughput_promotion": false
+  }
+}

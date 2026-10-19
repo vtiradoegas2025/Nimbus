@@ -1,0 +1,3720 @@
+{
+  "endpoint_equivalence": {
+    "comparison": "bitwise-identical portable binary checkpoint",
+    "duration_s": 30.0,
+    "exact_across_thread_counts": true,
+    "reference_bytes": 29329063,
+    "reference_sha256": "4052527edff0e5b993b436da523a7073b0d722e2177b39407e834e4a96e936db",
+    "results": [
+      {
+        "checkpoint_bytes": 29329063,
+        "checkpoint_sha256": "4052527edff0e5b993b436da523a7073b0d722e2177b39407e834e4a96e936db",
+        "threads": 1
+      },
+      {
+        "checkpoint_bytes": 29329063,
+        "checkpoint_sha256": "4052527edff0e5b993b436da523a7073b0d722e2177b39407e834e4a96e936db",
+        "threads": 2
+      },
+      {
+        "checkpoint_bytes": 29329063,
+        "checkpoint_sha256": "4052527edff0e5b993b436da523a7073b0d722e2177b39407e834e4a96e936db",
+        "threads": 4
+      },
+      {
+        "checkpoint_bytes": 29329063,
+        "checkpoint_sha256": "4052527edff0e5b993b436da523a7073b0d722e2177b39407e834e4a96e936db",
+        "threads": 8
+      },
+      {
+        "checkpoint_bytes": 29329063,
+        "checkpoint_sha256": "4052527edff0e5b993b436da523a7073b0d722e2177b39407e834e4a96e936db",
+        "threads": 12
+      },
+      {
+        "checkpoint_bytes": 29329063,
+        "checkpoint_sha256": "4052527edff0e5b993b436da523a7073b0d722e2177b39407e834e4a96e936db",
+        "threads": 16
+      }
+    ]
+  },
+  "frontier": {
+    "fastest_median_step_ms": 32.7184,
+    "pareto_thread_counts": [
+      2,
+      4,
+      8,
+      12
+    ],
+    "recommended_threads": 12
+  },
+  "generated_at_utc": "2026-07-26T03:33:39.249847+00:00",
+  "identity": {
+    "build.binary_sha256": "7dfc41ebcea53a5aa04952fc58fce727a1822439a941f51b8c54d4d70868e25c",
+    "build.compiler": {
+      "command": "g++",
+      "version": "Apple clang version 21.0.0 (clang-2100.0.123.102)"
+    },
+    "build.cxxflags": "-std=c++17 -I include -I src -march=native -mtune=native -I vulkan/include -I/opt/homebrew/opt/vulkan-headers/include -Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include -DEXPORT_NPY -DHAVE_ZFP -I/Users/victortiradoegas/.local/include -DHAVE_NETCDF -I/opt/homebrew/Cellar/netcdf/4.10.1/include -O3 -DNDEBUG",
+    "build.ldflags": " -L/opt/homebrew/opt/libomp/lib -lomp -L/Users/victortiradoegas/.local/lib -Wl,-rpath,/Users/victortiradoegas/.local/lib -lzfp -L/opt/homebrew/Cellar/netcdf/4.10.1/lib -lnetcdf",
+    "build.profile": "release-like -O3 -DNDEBUG",
+    "host.logical_cpu_count": 16,
+    "host.machine": "arm64",
+    "host.system": "Darwin",
+    "run.config_sha256": "2e70b06397c0728b12d3dc1fef20f48747ee5c3a62f8c1f715834ba3ef92a699",
+    "run.measured_simulated_s": 100.0,
+    "run.measured_steps": 100,
+    "run.memory_plan": {
+      "cells": 196608,
+      "field_bytes": 786432,
+      "fixed_overhead_bytes": 16777216,
+      "predicted_bytes": 75759616,
+      "predicted_fields": 75
+    },
+    "run.metric_scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+    "run.warmup_steps": 20
+  },
+  "measurement_contract": "identical binary/config/equations/metric scope; inherited Nimbus/OpenMP tuning cleared; only OMP_NUM_THREADS changes; trial rounds alternate ascending/descending thread order",
+  "points": [
+    {
+      "avg_step_ms": {
+        "mad": 0.20699999999999363,
+        "max": 180.815,
+        "median": 177.871,
+        "min": 177.432,
+        "samples": [
+          177.432,
+          178.075,
+          177.871,
+          178.078,
+          180.815,
+          177.508,
+          177.847
+        ],
+        "three_robust_sigma": 0.9206945999999717
+      },
+      "incremental_speedup_over_previous": 1.0,
+      "parallel_efficiency": 1.0,
+      "peak_rss_bytes": {
+        "max": 78348288,
+        "median": 78217216,
+        "samples": [
+          78249984,
+          78168064,
+          78184448,
+          78348288,
+          78200832,
+          78217216,
+          78217216
+        ]
+      },
+      "speedup_over_one_thread": 1.0,
+      "threads": 1
+    },
+    {
+      "avg_step_ms": {
+        "mad": 0.11470000000001335,
+        "max": 96.0064,
+        "median": 95.689,
+        "min": 95.4345,
+        "samples": [
+          95.6373,
+          95.689,
+          96.0064,
+          95.8037,
+          95.8128,
+          95.646,
+          95.4345
+        ],
+        "three_robust_sigma": 0.5101626600000594
+      },
+      "incremental_speedup_over_previous": 1.858844799297725,
+      "parallel_efficiency": 0.9294223996488625,
+      "peak_rss_bytes": {
+        "max": 78331904,
+        "median": 78266368,
+        "samples": [
+          78233600,
+          78266368,
+          78266368,
+          78331904,
+          78266368,
+          78299136,
+          78249984
+        ]
+      },
+      "speedup_over_one_thread": 1.858844799297725,
+      "threads": 2
+    },
+    {
+      "avg_step_ms": {
+        "mad": 0.12839999999999918,
+        "max": 56.8597,
+        "median": 55.1897,
+        "min": 55.0613,
+        "samples": [
+          55.1897,
+          55.3948,
+          55.1815,
+          56.8597,
+          55.0775,
+          56.5582,
+          55.0613
+        ],
+        "three_robust_sigma": 0.5710975199999964
+      },
+      "incremental_speedup_over_previous": 1.7338198975533476,
+      "parallel_efficiency": 0.8057255248714887,
+      "peak_rss_bytes": {
+        "max": 78397440,
+        "median": 78364672,
+        "samples": [
+          78348288,
+          78364672,
+          78397440,
+          78315520,
+          78348288,
+          78381056,
+          78381056
+        ]
+      },
+      "speedup_over_one_thread": 3.222902099485955,
+      "threads": 4
+    },
+    {
+      "avg_step_ms": {
+        "mad": 0.21359999999999957,
+        "max": 38.2894,
+        "median": 36.8922,
+        "min": 36.5548,
+        "samples": [
+          36.7193,
+          37.0342,
+          36.5548,
+          38.2894,
+          36.6786,
+          37.7299,
+          36.8922
+        ],
+        "three_robust_sigma": 0.950050079999998
+      },
+      "incremental_speedup_over_previous": 1.4959720482920509,
+      "parallel_efficiency": 0.6026714319015943,
+      "peak_rss_bytes": {
+        "max": 78561280,
+        "median": 78528512,
+        "samples": [
+          78528512,
+          78544896,
+          78528512,
+          78528512,
+          78495744,
+          78561280,
+          78544896
+        ]
+      },
+      "speedup_over_one_thread": 4.821371455212755,
+      "threads": 8
+    },
+    {
+      "avg_step_ms": {
+        "mad": 0.08150000000000546,
+        "max": 37.0281,
+        "median": 32.7184,
+        "min": 32.4979,
+        "samples": [
+          32.4979,
+          37.0281,
+          32.6369,
+          32.9443,
+          32.7184,
+          32.6876,
+          32.7348
+        ],
+        "three_robust_sigma": 0.3624957000000243
+      },
+      "incremental_speedup_over_previous": 1.127567362707223,
+      "parallel_efficiency": 0.45303509136551096,
+      "peak_rss_bytes": {
+        "max": 78725120,
+        "median": 78626816,
+        "samples": [
+          78577664,
+          78610432,
+          78561280,
+          78725120,
+          78626816,
+          78643200,
+          78675968
+        ]
+      },
+      "speedup_over_one_thread": 5.436421096386131,
+      "threads": 12
+    },
+    {
+      "avg_step_ms": {
+        "mad": 0.038800000000001944,
+        "max": 36.6004,
+        "median": 36.197,
+        "min": 36.1274,
+        "samples": [
+          36.197,
+          36.2042,
+          36.6004,
+          36.24,
+          36.1696,
+          36.1274,
+          36.1582
+        ],
+        "three_robust_sigma": 0.17257464000000863
+      },
+      "incremental_speedup_over_previous": 0.9038981131032958,
+      "parallel_efficiency": 0.30712317319114846,
+      "peak_rss_bytes": {
+        "max": 78774272,
+        "median": 78757888,
+        "samples": [
+          78708736,
+          78774272,
+          78774272,
+          78757888,
+          78774272,
+          78708736,
+          78708736
+        ]
+      },
+      "speedup_over_one_thread": 4.913970771058375,
+      "threads": 16
+    }
+  ],
+  "run": {
+    "endpoint_duration_s": 30.0,
+    "thread_counts": [
+      1,
+      2,
+      4,
+      8,
+      12,
+      16
+    ],
+    "trial_order": "alternating ascending/descending frontier",
+    "trials_per_thread_count": 7
+  },
+  "schema": "nimbus.cpu-scaling.v3",
+  "source_reports": [
+    {
+      "aggregate": {
+        "avg_step_ms": {
+          "max": 180.815,
+          "median": 177.871,
+          "min": 177.432,
+          "p95_nearest_rank": 180.815
+        },
+        "peak_rss_bytes": {
+          "max": 78348288.0,
+          "median": 78217216.0,
+          "min": 78168064.0,
+          "p95_nearest_rank": 78348288.0
+        },
+        "process_wall_s": {
+          "max": 21.58554916601861,
+          "median": 21.278247082955204,
+          "min": 21.208217167004477,
+          "p95_nearest_rank": 21.58554916601861
+        },
+        "sim_s_per_wall_s": {
+          "max": 5.63596,
+          "median": 5.62206,
+          "min": 5.53051,
+          "p95_nearest_rank": 5.63596
+        },
+        "step_wall_s": {
+          "max": 18.0815,
+          "median": 17.7871,
+          "min": 17.7432,
+          "p95_nearest_rank": 18.0815
+        }
+      },
+      "build": {
+        "binary": "/Users/victortiradoegas/Desktop/PersonalProjects/Nimbus/bin/nimbus_sim_cpu_benchmark",
+        "binary_sha256": "7dfc41ebcea53a5aa04952fc58fce727a1822439a941f51b8c54d4d70868e25c",
+        "compiler": {
+          "command": "g++",
+          "version": "Apple clang version 21.0.0 (clang-2100.0.123.102)"
+        },
+        "cxxflags": "-std=c++17 -I include -I src -march=native -mtune=native -I vulkan/include -I/opt/homebrew/opt/vulkan-headers/include -Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include -DEXPORT_NPY -DHAVE_ZFP -I/Users/victortiradoegas/.local/include -DHAVE_NETCDF -I/opt/homebrew/Cellar/netcdf/4.10.1/include -O3 -DNDEBUG",
+        "ldflags": " -L/opt/homebrew/opt/libomp/lib -lomp -L/Users/victortiradoegas/.local/lib -Wl,-rpath,/Users/victortiradoegas/.local/lib -lzfp -L/opt/homebrew/Cellar/netcdf/4.10.1/lib -lnetcdf",
+        "profile": "release-like -O3 -DNDEBUG"
+      },
+      "generated_at_utc": "2026-07-26T03:33:25.465267+00:00",
+      "host": {
+        "logical_cpu_count": 16,
+        "machine": "arm64",
+        "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+        "processor": "arm",
+        "release": "25.5.0",
+        "system": "Darwin"
+      },
+      "regression_policy": null,
+      "run": {
+        "cleared_inherited_environment_prefixes": [
+          "NIMBUS_",
+          "OMP_",
+          "KMP_",
+          "GOMP_"
+        ],
+        "command": [
+          "/Users/victortiradoegas/Desktop/PersonalProjects/Nimbus/bin/nimbus_sim_cpu_benchmark",
+          "--headless",
+          "--config=/Users/victortiradoegas/Desktop/PersonalProjects/Nimbus/configs/benchmark/cpu_scaling_student.yaml",
+          "--compute-backend=cpu",
+          "--log-profile=normal",
+          "--timing",
+          "--timing-every=0"
+        ],
+        "config": "/Users/victortiradoegas/Desktop/PersonalProjects/Nimbus/configs/benchmark/cpu_scaling_student.yaml",
+        "config_sha256": "2e70b06397c0728b12d3dc1fef20f48747ee5c3a62f8c1f715834ba3ef92a699",
+        "environment": {
+          "OMP_NUM_THREADS": "1"
+        },
+        "measured_simulated_s": 100.0,
+        "measured_steps": 100,
+        "memory_plan": {
+          "cells": 196608,
+          "field_bytes": 786432,
+          "fixed_overhead_bytes": 16777216,
+          "predicted_bytes": 75759616,
+          "predicted_fields": 75
+        },
+        "metric_scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+        "threads": 1,
+        "trials": 7,
+        "warmup_steps": 20
+      },
+      "schema": "nimbus.cpu-benchmark.v1",
+      "trials": [
+        {
+          "avg_step_ms": 177.432,
+          "measured_simulated_s": 100.0,
+          "measured_steps": 100,
+          "memory_calibration": {
+            "observed_peak_field_equivalents": 99.5,
+            "phases": [
+              {
+                "field_equivalents": 48.5,
+                "peak_rss_bytes": 38141952,
+                "phase": "startup_ready",
+                "plan_margin_bytes": 37617664
+              },
+              {
+                "field_equivalents": 48.5,
+                "peak_rss_bytes": 38141952,
+                "phase": "first_radiation",
+                "plan_margin_bytes": 37617664
+              },
+              {
+                "field_equivalents": 48.520833333333336,
+                "peak_rss_bytes": 38158336,
+                "phase": "first_boundary_layer",
+                "plan_margin_bytes": 37601280
+              },
+              {
+                "field_equivalents": 93.29166666666667,
+                "peak_rss_bytes": 73367552,
+                "phase": "first_dynamics",
+                "plan_margin_bytes": 2392064
+              }
+            ],
+            "plan_margin_bytes": -2490368,
+            "within_plan": false
+          },
+          "memory_milestones": [
+            {
+              "peak_rss_bytes": 38141952,
+              "phase": "startup_ready"
+            },
+            {
+              "peak_rss_bytes": 38141952,
+              "phase": "first_radiation"
+            },
+            {
+              "peak_rss_bytes": 38158336,
+              "phase": "first_boundary_layer"
+            },
+            {
+              "peak_rss_bytes": 73367552,
+              "phase": "first_dynamics"
+            }
+          ],
+          "memory_plan": {
+            "cells": 196608,
+            "field_bytes": 786432,
+            "fixed_overhead_bytes": 16777216,
+            "predicted_bytes": 75759616,
+            "predicted_fields": 75
+          },
+          "peak_rss_bytes": 78249984,
+          "process_wall_s": 21.208217167004477,
+          "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+          "sim_s_per_wall_s": 5.63596,
+          "step_wall_s": 17.7432,
+          "trial": 1,
+          "warmup_steps": 20
+        },
+        {
+          "avg_step_ms": 178.075,
+          "measured_simulated_s": 100.0,
+          "measured_steps": 100,
+          "memory_calibration": {
+            "observed_peak_field_equivalents": 99.39583333333333,
+            "phases": [
+              {
+                "field_equivalents": 48.375,
+                "peak_rss_bytes": 38043648,
+                "phase": "startup_ready",
+                "plan_margin_bytes": 37715968
+              },
+              {
+                "field_equivalents": 48.375,
+                "peak_rss_bytes": 38043648,
+                "phase": "first_radiation",
+                "plan_margin_bytes": 37715968
+              },
+              {
+                "field_equivalents": 48.395833333333336,
+                "peak_rss_bytes": 38060032,
+                "phase": "first_boundary_layer",
+                "plan_margin_bytes": 37699584
+              },
+              {
+                "field_equivalents": 93.1875,
+                "peak_rss_bytes": 73285632,
+                "phase": "first_dynamics",
+                "plan_margin_bytes": 2473984
+              }
+            ],
+            "plan_margin_bytes": -2408448,
+            "within_plan": false
+          },
+          "memory_milestones": [
+            {
+              "peak_rss_bytes": 38043648,
+              "phase": "startup_ready"
+            },
+            {
+              "peak_rss_bytes": 38043648,
+              "phase": "first_radiation"
+            },
+            {
+              "peak_rss_bytes": 38060032,
+              "phase": "first_boundary_layer"
+            },
+            {
+              "peak_rss_bytes": 73285632,
+              "phase": "first_dynamics"
+            }
+          ],
+          "memory_plan": {
+            "cells": 196608,
+            "field_bytes": 786432,
+            "fixed_overhead_bytes": 16777216,
+            "predicted_bytes": 75759616,
+            "predicted_fields": 75
+          },
+          "peak_rss_bytes": 78168064,
+          "process_wall_s": 21.316889208974317,
+          "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+          "sim_s_per_wall_s": 5.61562,
+          "step_wall_s": 17.8075,
+          "trial": 2,
+          "warmup_steps": 20
+        },
+        {
+          "avg_step_ms": 177.871,
+          "measured_simulated_s": 100.0,
+          "measured_steps": 100,
+          "memory_calibration": {
+            "observed_peak_field_equivalents": 99.41666666666667,
+            "phases": [
+              {
+                "field_equivalents": 48.416666666666664,
+                "peak_rss_bytes": 38076416,
+                "phase": "startup_ready",
+                "plan_margin_bytes": 37683200
+              },
+              {
+                "field_equivalents": 48.416666666666664,
+                "peak_rss_bytes": 38076416,
+                "phase": "first_radiation",
+                "plan_margin_bytes": 37683200
+              },
+              {
+                "field_equivalents": 48.4375,
+                "peak_rss_bytes": 38092800,
+                "phase": "first_boundary_layer",
+                "plan_margin_bytes": 37666816
+              },
+              {
+                "field_equivalents": 93.20833333333333,
+                "peak_rss_bytes": 73302016,
+                "phase": "first_dynamics",
+                "plan_margin_bytes": 2457600
+              }
+            ],
+            "plan_margin_bytes": -2424832,
+            "within_plan": false
+          },
+          "memory_milestones": [
+            {
+              "peak_rss_bytes": 38076416,
+              "phase": "startup_ready"
+            },
+            {
+              "peak_rss_bytes": 38076416,
+              "phase": "first_radiation"
+            },
+            {
+              "peak_rss_bytes": 38092800,
+              "phase": "first_boundary_layer"
+            },
+            {
+              "peak_rss_bytes": 73302016,
+              "phase": "first_dynamics"
+            }
+          ],
+          "memory_plan": {
+            "cells": 196608,
+            "field_bytes": 786432,
+            "fixed_overhead_bytes": 16777216,
+            "predicted_bytes": 75759616,
+            "predicted_fields": 75
+          },
+          "peak_rss_bytes": 78184448,
+          "process_wall_s": 21.278247082955204,
+          "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+          "sim_s_per_wall_s": 5.62206,
+          "step_wall_s": 17.7871,
+          "trial": 3,
+          "warmup_steps": 20
+        },
+        {
+          "avg_step_ms": 178.078,
+          "measured_simulated_s": 100.0,
+          "measured_steps": 100,
+          "memory_calibration": {
+            "observed_peak_field_equivalents": 99.625,
+            "phases": [
+              {
+                "field_equivalents": 48.645833333333336,
+                "peak_rss_bytes": 38256640,
+                "phase": "startup_ready",
+                "plan_margin_bytes": 37502976
+              },
+              {
+                "field_equivalents": 48.645833333333336,
+                "peak_rss_bytes": 38256640,
+                "phase": "first_radiation",
+                "plan_margin_bytes": 37502976
+              },
+              {
+                "field_equivalents": 48.666666666666664,
+                "peak_rss_bytes": 38273024,
+                "phase": "first_boundary_layer",
+                "plan_margin_bytes": 37486592
+              },
+              {
+                "field_equivalents": 93.41666666666667,
+                "peak_rss_bytes": 73465856,
+                "phase": "first_dynamics",
+                "plan_margin_bytes": 2293760
+              }
+            ],
+            "plan_margin_bytes": -2588672,
+            "within_plan": false
+          },
+          "memory_milestones": [
+            {
+              "peak_rss_bytes": 38256640,
+              "phase": "startup_ready"
+            },
+            {
+              "peak_rss_bytes": 38256640,
+              "phase": "first_radiation"
+            },
+            {
+              "peak_rss_bytes": 38273024,
+              "phase": "first_boundary_layer"
+            },
+            {
+              "peak_rss_bytes": 73465856,
+              "phase": "first_dynamics"
+            }
+          ],
+          "memory_plan": {
+            "cells": 196608,
+            "field_bytes": 786432,
+            "fixed_overhead_bytes": 16777216,
+            "predicted_bytes": 75759616,
+            "predicted_fields": 75
+          },
+          "peak_rss_bytes": 78348288,
+          "process_wall_s": 21.315284833020996,
+          "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+          "sim_s_per_wall_s": 5.61553,
+          "step_wall_s": 17.8078,
+          "trial": 4,
+          "warmup_steps": 20
+        },
+        {
+          "avg_step_ms": 180.815,
+          "measured_simulated_s": 100.0,
+          "measured_steps": 100,
+          "memory_calibration": {
+            "observed_peak_field_equivalents": 99.4375,
+            "phases": [
+              {
+                "field_equivalents": 48.416666666666664,
+                "peak_rss_bytes": 38076416,
+                "phase": "startup_ready",
+                "plan_margin_bytes": 37683200
+              },
+              {
+                "field_equivalents": 48.416666666666664,
+                "peak_rss_bytes": 38076416,
+                "phase": "first_radiation",
+                "plan_margin_bytes": 37683200
+              },
+              {
+                "field_equivalents": 48.4375,
+                "peak_rss_bytes": 38092800,
+                "phase": "first_boundary_layer",
+                "plan_margin_bytes": 37666816
+              },
+              {
+                "field_equivalents": 93.22916666666667,
+                "peak_rss_bytes": 73318400,
+                "phase": "first_dynamics",
+                "plan_margin_bytes": 2441216
+              }
+            ],
+            "plan_margin_bytes": -2441216,
+            "within_plan": false
+          },
+          "memory_milestones": [
+            {
+              "peak_rss_bytes": 38076416,
+              "phase": "startup_ready"
+            },
+            {
+              "peak_rss_bytes": 38076416,
+              "phase": "first_radiation"
+            },
+            {
+              "peak_rss_bytes": 38092800,
+              "phase": "first_boundary_layer"
+            },
+            {
+              "peak_rss_bytes": 73318400,
+              "phase": "first_dynamics"
+            }
+          ],
+          "memory_plan": {
+            "cells": 196608,
+            "field_bytes": 786432,
+            "fixed_overhead_bytes": 16777216,
+            "predicted_bytes": 75759616,
+            "predicted_fields": 75
+          },
+          "peak_rss_bytes": 78200832,
+          "process_wall_s": 21.58554916601861,
+          "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+          "sim_s_per_wall_s": 5.53051,
+          "step_wall_s": 18.0815,
+          "trial": 5,
+          "warmup_steps": 20
+        },
+        {
+          "avg_step_ms": 177.508,
+          "measured_simulated_s": 100.0,
+          "measured_steps": 100,
+          "memory_calibration": {
+            "observed_peak_field_equivalents": 99.45833333333333,
+            "phases": [
+              {
+                "field_equivalents": 48.458333333333336,
+                "peak_rss_bytes": 38109184,
+                "phase": "startup_ready",
+                "plan_margin_bytes": 37650432
+              },
+              {
+                "field_equivalents": 48.458333333333336,
+                "peak_rss_bytes": 38109184,
+                "phase": "first_radiation",
+                "plan_margin_bytes": 37650432
+              },
+              {
+                "field_equivalents": 48.479166666666664,
+                "peak_rss_bytes": 38125568,
+                "phase": "first_boundary_layer",
+                "plan_margin_bytes": 37634048
+              },
+              {
+                "field_equivalents": 93.25,
+                "peak_rss_bytes": 73334784,
+                "phase": "first_dynamics",
+                "plan_margin_bytes": 2424832
+              }
+            ],
+            "plan_margin_bytes": -2457600,
+            "within_plan": false
+          },
+          "memory_milestones": [
+            {
+              "peak_rss_bytes": 38109184,
+              "phase": "startup_ready"
+            },
+            {
+              "peak_rss_bytes": 38109184,
+              "phase": "first_radiation"
+            },
+            {
+              "peak_rss_bytes": 38125568,
+              "phase": "first_boundary_layer"
+            },
+            {
+              "peak_rss_bytes": 73334784,
+              "phase": "first_dynamics"
+            }
+          ],
+          "memory_plan": {
+            "cells": 196608,
+            "field_bytes": 786432,
+            "fixed_overhead_bytes": 16777216,
+            "predicted_bytes": 75759616,
+            "predicted_fields": 75
+          },
+          "peak_rss_bytes": 78217216,
+          "process_wall_s": 21.243271000043023,
+          "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+          "sim_s_per_wall_s": 5.63356,
+          "step_wall_s": 17.7508,
+          "trial": 6,
+          "warmup_steps": 20
+        },
+        {
+          "avg_step_ms": 177.847,
+          "measured_simulated_s": 100.0,
+          "measured_steps": 100,
+          "memory_calibration": {
+            "observed_peak_field_equivalents": 99.45833333333333,
+            "phases": [
+              {
+                "field_equivalents": 48.458333333333336,
+                "peak_rss_bytes": 38109184,
+                "phase": "startup_ready",
+                "plan_margin_bytes": 37650432
+              },
+              {
+                "field_equivalents": 48.458333333333336,
+                "peak_rss_bytes": 38109184,
+                "phase": "first_radiation",
+                "plan_margin_bytes": 37650432
+              },
+              {
+                "field_equivalents": 48.479166666666664,
+                "peak_rss_bytes": 38125568,
+                "phase": "first_boundary_layer",
+                "plan_margin_bytes": 37634048
+              },
+              {
+                "field_equivalents": 93.25,
+                "peak_rss_bytes": 73334784,
+                "phase": "first_dynamics",
+                "plan_margin_bytes": 2424832
+              }
+            ],
+            "plan_margin_bytes": -2457600,
+            "within_plan": false
+          },
+          "memory_milestones": [
+            {
+              "peak_rss_bytes": 38109184,
+              "phase": "startup_ready"
+            },
+            {
+              "peak_rss_bytes": 38109184,
+              "phase": "first_radiation"
+            },
+            {
+              "peak_rss_bytes": 38125568,
+              "phase": "first_boundary_layer"
+            },
+            {
+              "peak_rss_bytes": 73334784,
+              "phase": "first_dynamics"
+            }
+          ],
+          "memory_plan": {
+            "cells": 196608,
+            "field_bytes": 786432,
+            "fixed_overhead_bytes": 16777216,
+            "predicted_bytes": 75759616,
+            "predicted_fields": 75
+          },
+          "peak_rss_bytes": 78217216,
+          "process_wall_s": 21.273777332971804,
+          "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+          "sim_s_per_wall_s": 5.62282,
+          "step_wall_s": 17.7847,
+          "trial": 7,
+          "warmup_steps": 20
+        }
+      ]
+    },
+    {
+      "aggregate": {
+        "avg_step_ms": {
+          "max": 96.0064,
+          "median": 95.689,
+          "min": 95.4345,
+          "p95_nearest_rank": 96.0064
+        },
+        "peak_rss_bytes": {
+          "max": 78331904.0,
+          "median": 78266368.0,
+          "min": 78233600.0,
+          "p95_nearest_rank": 78331904.0
+        },
+        "process_wall_s": {
+          "max": 11.490104499971494,
+          "median": 11.466640833998099,
+          "min": 11.424142458010465,
+          "p95_nearest_rank": 11.490104499971494
+        },
+        "sim_s_per_wall_s": {
+          "max": 10.4784,
+          "median": 10.4505,
+          "min": 10.416,
+          "p95_nearest_rank": 10.4784
+        },
+        "step_wall_s": {
+          "max": 9.60064,
+          "median": 9.5689,
+          "min": 9.54345,
+          "p95_nearest_rank": 9.60064
+        }
+      },
+      "build": {
+        "binary": "/Users/victortiradoegas/Desktop/PersonalProjects/Nimbus/bin/nimbus_sim_cpu_benchmark",
+        "binary_sha256": "7dfc41ebcea53a5aa04952fc58fce727a1822439a941f51b8c54d4d70868e25c",
+        "compiler": {
+          "command": "g++",
+          "version": "Apple clang version 21.0.0 (clang-2100.0.123.102)"
+        },
+        "cxxflags": "-std=c++17 -I include -I src -march=native -mtune=native -I vulkan/include -I/opt/homebrew/opt/vulkan-headers/include -Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include -DEXPORT_NPY -DHAVE_ZFP -I/Users/victortiradoegas/.local/include -DHAVE_NETCDF -I/opt/homebrew/Cellar/netcdf/4.10.1/include -O3 -DNDEBUG",
+        "ldflags": " -L/opt/homebrew/opt/libomp/lib -lomp -L/Users/victortiradoegas/.local/lib -Wl,-rpath,/Users/victortiradoegas/.local/lib -lzfp -L/opt/homebrew/Cellar/netcdf/4.10.1/lib -lnetcdf",
+        "profile": "release-like -O3 -DNDEBUG"
+      },
+      "generated_at_utc": "2026-07-26T03:33:25.465488+00:00",
+      "host": {
+        "logical_cpu_count": 16,
+        "machine": "arm64",
+        "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+        "processor": "arm",
+        "release": "25.5.0",
+        "system": "Darwin"
+      },
+      "regression_policy": null,
+      "run": {
+        "cleared_inherited_environment_prefixes": [
+          "NIMBUS_",
+          "OMP_",
+          "KMP_",
+          "GOMP_"
+        ],
+        "command": [
+          "/Users/victortiradoegas/Desktop/PersonalProjects/Nimbus/bin/nimbus_sim_cpu_benchmark",
+          "--headless",
+          "--config=/Users/victortiradoegas/Desktop/PersonalProjects/Nimbus/configs/benchmark/cpu_scaling_student.yaml",
+          "--compute-backend=cpu",
+          "--log-profile=normal",
+          "--timing",
+          "--timing-every=0"
+        ],
+        "config": "/Users/victortiradoegas/Desktop/PersonalProjects/Nimbus/configs/benchmark/cpu_scaling_student.yaml",
+        "config_sha256": "2e70b06397c0728b12d3dc1fef20f48747ee5c3a62f8c1f715834ba3ef92a699",
+        "environment": {
+          "OMP_NUM_THREADS": "2"
+        },
+        "measured_simulated_s": 100.0,
+        "measured_steps": 100,
+        "memory_plan": {
+          "cells": 196608,
+          "field_bytes": 786432,
+          "fixed_overhead_bytes": 16777216,
+          "predicted_bytes": 75759616,
+          "predicted_fields": 75
+        },
+        "metric_scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+        "threads": 2,
+        "trials": 7,
+        "warmup_steps": 20
+      },
+      "schema": "nimbus.cpu-benchmark.v1",
+      "trials": [
+        {
+          "avg_step_ms": 95.6373,
+          "measured_simulated_s": 100.0,
+          "measured_steps": 100,
+          "memory_calibration": {
+            "observed_peak_field_equivalents": 99.47916666666667,
+            "phases": [
+              {
+                "field_equivalents": 48.5,
+                "peak_rss_bytes": 38141952,
+                "phase": "startup_ready",
+                "plan_margin_bytes": 37617664
+              },
+              {
+                "field_equivalents": 48.5,
+                "peak_rss_bytes": 38141952,
+                "phase": "first_radiation",
+                "plan_margin_bytes": 37617664
+              },
+              {
+                "field_equivalents": 48.520833333333336,
+                "peak_rss_bytes": 38158336,
+                "phase": "first_boundary_layer",
+                "plan_margin_bytes": 37601280
+              },
+              {
+                "field_equivalents": 93.29166666666667,
+                "peak_rss_bytes": 73367552,
+                "phase": "first_dynamics",
+                "plan_margin_bytes": 2392064
+              }
+            ],
+            "plan_margin_bytes": -2473984,
+            "within_plan": false
+          },
+          "memory_milestones": [
+            {
+              "peak_rss_bytes": 38141952,
+              "phase": "startup_ready"
+            },
+            {
+              "peak_rss_bytes": 38141952,
+              "phase": "first_radiation"
+            },
+            {
+              "peak_rss_bytes": 38158336,
+              "phase": "first_boundary_layer"
+            },
+            {
+              "peak_rss_bytes": 73367552,
+              "phase": "first_dynamics"
+            }
+          ],
+          "memory_plan": {
+            "cells": 196608,
+            "field_bytes": 786432,
+            "fixed_overhead_bytes": 16777216,
+            "predicted_bytes": 75759616,
+            "predicted_fields": 75
+          },
+          "peak_rss_bytes": 78233600,
+          "process_wall_s": 11.450091540988069,
+          "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+          "sim_s_per_wall_s": 10.4562,
+          "step_wall_s": 9.56373,
+          "trial": 1,
+          "warmup_steps": 20
+        },
+        {
+          "avg_step_ms": 95.689,
+          "measured_simulated_s": 100.0,
+          "measured_steps": 100,
+          "memory_calibration": {
+            "observed_peak_field_equivalents": 99.52083333333333,
+            "phases": [
+              {
+                "field_equivalents": 48.541666666666664,
+                "peak_rss_bytes": 38174720,
+                "phase": "startup_ready",
+                "plan_margin_bytes": 37584896
+              },
+              {
+                "field_equivalents": 48.541666666666664,
+                "peak_rss_bytes": 38174720,
+                "phase": "first_radiation",
+                "plan_margin_bytes": 37584896
+              },
+              {
+                "field_equivalents": 48.5625,
+                "peak_rss_bytes": 38191104,
+                "phase": "first_boundary_layer",
+                "plan_margin_bytes": 37568512
+              },
+              {
+                "field_equivalents": 93.33333333333333,
+                "peak_rss_bytes": 73400320,
+                "phase": "first_dynamics",
+                "plan_margin_bytes": 2359296
+              }
+            ],
+            "plan_margin_bytes": -2506752,
+            "within_plan": false
+          },
+          "memory_milestones": [
+            {
+              "peak_rss_bytes": 38174720,
+              "phase": "startup_ready"
+            },
+            {
+              "peak_rss_bytes": 38174720,
+              "phase": "first_radiation"
+            },
+            {
+              "peak_rss_bytes": 38191104,
+              "phase": "first_boundary_layer"
+            },
+            {
+              "peak_rss_bytes": 73400320,
+              "phase": "first_dynamics"
+            }
+          ],
+          "memory_plan": {
+            "cells": 196608,
+            "field_bytes": 786432,
+            "fixed_overhead_bytes": 16777216,
+            "predicted_bytes": 75759616,
+            "predicted_fields": 75
+          },
+          "peak_rss_bytes": 78266368,
+          "process_wall_s": 11.466640833998099,
+          "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+          "sim_s_per_wall_s": 10.4505,
+          "step_wall_s": 9.5689,
+          "trial": 2,
+          "warmup_steps": 20
+        },
+        {
+          "avg_step_ms": 96.0064,
+          "measured_simulated_s": 100.0,
+          "measured_steps": 100,
+          "memory_calibration": {
+            "observed_peak_field_equivalents": 99.52083333333333,
+            "phases": [
+              {
+                "field_equivalents": 48.5625,
+                "peak_rss_bytes": 38191104,
+                "phase": "startup_ready",
+                "plan_margin_bytes": 37568512
+              },
+              {
+                "field_equivalents": 48.5625,
+                "peak_rss_bytes": 38191104,
+                "phase": "first_radiation",
+                "plan_margin_bytes": 37568512
+              },
+              {
+                "field_equivalents": 48.583333333333336,
+                "peak_rss_bytes": 38207488,
+                "phase": "first_boundary_layer",
+                "plan_margin_bytes": 37552128
+              },
+              {
+                "field_equivalents": 93.33333333333333,
+                "peak_rss_bytes": 73400320,
+                "phase": "first_dynamics",
+                "plan_margin_bytes": 2359296
+              }
+            ],
+            "plan_margin_bytes": -2506752,
+            "within_plan": false
+          },
+          "memory_milestones": [
+            {
+              "peak_rss_bytes": 38191104,
+              "phase": "startup_ready"
+            },
+            {
+              "peak_rss_bytes": 38191104,
+              "phase": "first_radiation"
+            },
+            {
+              "peak_rss_bytes": 38207488,
+              "phase": "first_boundary_layer"
+            },
+            {
+              "peak_rss_bytes": 73400320,
+              "phase": "first_dynamics"
+            }
+          ],
+          "memory_plan": {
+            "cells": 196608,
+            "field_bytes": 786432,
+            "fixed_overhead_bytes": 16777216,
+            "predicted_bytes": 75759616,
+            "predicted_fields": 75
+          },
+          "peak_rss_bytes": 78266368,
+          "process_wall_s": 11.490104499971494,
+          "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+          "sim_s_per_wall_s": 10.416,
+          "step_wall_s": 9.60064,
+          "trial": 3,
+          "warmup_steps": 20
+        },
+        {
+          "avg_step_ms": 95.8037,
+          "measured_simulated_s": 100.0,
+          "measured_steps": 100,
+          "memory_calibration": {
+            "observed_peak_field_equivalents": 99.60416666666667,
+            "phases": [
+              {
+                "field_equivalents": 48.625,
+                "peak_rss_bytes": 38240256,
+                "phase": "startup_ready",
+                "plan_margin_bytes": 37519360
+              },
+              {
+                "field_equivalents": 48.625,
+                "peak_rss_bytes": 38240256,
+                "phase": "first_radiation",
+                "plan_margin_bytes": 37519360
+              },
+              {
+                "field_equivalents": 48.645833333333336,
+                "peak_rss_bytes": 38256640,
+                "phase": "first_boundary_layer",
+                "plan_margin_bytes": 37502976
+              },
+              {
+                "field_equivalents": 93.41666666666667,
+                "peak_rss_bytes": 73465856,
+                "phase": "first_dynamics",
+                "plan_margin_bytes": 2293760
+              }
+            ],
+            "plan_margin_bytes": -2572288,
+            "within_plan": false
+          },
+          "memory_milestones": [
+            {
+              "peak_rss_bytes": 38240256,
+              "phase": "startup_ready"
+            },
+            {
+              "peak_rss_bytes": 38240256,
+              "phase": "first_radiation"
+            },
+            {
+              "peak_rss_bytes": 38256640,
+              "phase": "first_boundary_layer"
+            },
+            {
+              "peak_rss_bytes": 73465856,
+              "phase": "first_dynamics"
+            }
+          ],
+          "memory_plan": {
+            "cells": 196608,
+            "field_bytes": 786432,
+            "fixed_overhead_bytes": 16777216,
+            "predicted_bytes": 75759616,
+            "predicted_fields": 75
+          },
+          "peak_rss_bytes": 78331904,
+          "process_wall_s": 11.46835654095048,
+          "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+          "sim_s_per_wall_s": 10.438,
+          "step_wall_s": 9.58037,
+          "trial": 4,
+          "warmup_steps": 20
+        },
+        {
+          "avg_step_ms": 95.8128,
+          "measured_simulated_s": 100.0,
+          "measured_steps": 100,
+          "memory_calibration": {
+            "observed_peak_field_equivalents": 99.52083333333333,
+            "phases": [
+              {
+                "field_equivalents": 48.541666666666664,
+                "peak_rss_bytes": 38174720,
+                "phase": "startup_ready",
+                "plan_margin_bytes": 37584896
+              },
+              {
+                "field_equivalents": 48.541666666666664,
+                "peak_rss_bytes": 38174720,
+                "phase": "first_radiation",
+                "plan_margin_bytes": 37584896
+              },
+              {
+                "field_equivalents": 48.5625,
+                "peak_rss_bytes": 38191104,
+                "phase": "first_boundary_layer",
+                "plan_margin_bytes": 37568512
+              },
+              {
+                "field_equivalents": 93.33333333333333,
+                "peak_rss_bytes": 73400320,
+                "phase": "first_dynamics",
+                "plan_margin_bytes": 2359296
+              }
+            ],
+            "plan_margin_bytes": -2506752,
+            "within_plan": false
+          },
+          "memory_milestones": [
+            {
+              "peak_rss_bytes": 38174720,
+              "phase": "startup_ready"
+            },
+            {
+              "peak_rss_bytes": 38174720,
+              "phase": "first_radiation"
+            },
+            {
+              "peak_rss_bytes": 38191104,
+              "phase": "first_boundary_layer"
+            },
+            {
+              "peak_rss_bytes": 73400320,
+              "phase": "first_dynamics"
+            }
+          ],
+          "memory_plan": {
+            "cells": 196608,
+            "field_bytes": 786432,
+            "fixed_overhead_bytes": 16777216,
+            "predicted_bytes": 75759616,
+            "predicted_fields": 75
+          },
+          "peak_rss_bytes": 78266368,
+          "process_wall_s": 11.473838958016131,
+          "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+          "sim_s_per_wall_s": 10.437,
+          "step_wall_s": 9.58128,
+          "trial": 5,
+          "warmup_steps": 20
+        },
+        {
+          "avg_step_ms": 95.646,
+          "measured_simulated_s": 100.0,
+          "measured_steps": 100,
+          "memory_calibration": {
+            "observed_peak_field_equivalents": 99.5625,
+            "phases": [
+              {
+                "field_equivalents": 48.583333333333336,
+                "peak_rss_bytes": 38207488,
+                "phase": "startup_ready",
+                "plan_margin_bytes": 37552128
+              },
+              {
+                "field_equivalents": 48.583333333333336,
+                "peak_rss_bytes": 38207488,
+                "phase": "first_radiation",
+                "plan_margin_bytes": 37552128
+              },
+              {
+                "field_equivalents": 48.604166666666664,
+                "peak_rss_bytes": 38223872,
+                "phase": "first_boundary_layer",
+                "plan_margin_bytes": 37535744
+              },
+              {
+                "field_equivalents": 93.375,
+                "peak_rss_bytes": 73433088,
+                "phase": "first_dynamics",
+                "plan_margin_bytes": 2326528
+              }
+            ],
+            "plan_margin_bytes": -2539520,
+            "within_plan": false
+          },
+          "memory_milestones": [
+            {
+              "peak_rss_bytes": 38207488,
+              "phase": "startup_ready"
+            },
+            {
+              "peak_rss_bytes": 38207488,
+              "phase": "first_radiation"
+            },
+            {
+              "peak_rss_bytes": 38223872,
+              "phase": "first_boundary_layer"
+            },
+            {
+              "peak_rss_bytes": 73433088,
+              "phase": "first_dynamics"
+            }
+          ],
+          "memory_plan": {
+            "cells": 196608,
+            "field_bytes": 786432,
+            "fixed_overhead_bytes": 16777216,
+            "predicted_bytes": 75759616,
+            "predicted_fields": 75
+          },
+          "peak_rss_bytes": 78299136,
+          "process_wall_s": 11.453071792027913,
+          "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+          "sim_s_per_wall_s": 10.4552,
+          "step_wall_s": 9.5646,
+          "trial": 6,
+          "warmup_steps": 20
+        },
+        {
+          "avg_step_ms": 95.4345,
+          "measured_simulated_s": 100.0,
+          "measured_steps": 100,
+          "memory_calibration": {
+            "observed_peak_field_equivalents": 99.5,
+            "phases": [
+              {
+                "field_equivalents": 48.520833333333336,
+                "peak_rss_bytes": 38158336,
+                "phase": "startup_ready",
+                "plan_margin_bytes": 37601280
+              },
+              {
+                "field_equivalents": 48.520833333333336,
+                "peak_rss_bytes": 38158336,
+                "phase": "first_radiation",
+                "plan_margin_bytes": 37601280
+              },
+              {
+                "field_equivalents": 48.541666666666664,
+                "peak_rss_bytes": 38174720,
+                "phase": "first_boundary_layer",
+                "plan_margin_bytes": 37584896
+              },
+              {
+                "field_equivalents": 93.3125,
+                "peak_rss_bytes": 73383936,
+                "phase": "first_dynamics",
+                "plan_margin_bytes": 2375680
+              }
+            ],
+            "plan_margin_bytes": -2490368,
+            "within_plan": false
+          },
+          "memory_milestones": [
+            {
+              "peak_rss_bytes": 38158336,
+              "phase": "startup_ready"
+            },
+            {
+              "peak_rss_bytes": 38158336,
+              "phase": "first_radiation"
+            },
+            {
+              "peak_rss_bytes": 38174720,
+              "phase": "first_boundary_layer"
+            },
+            {
+              "peak_rss_bytes": 73383936,
+              "phase": "first_dynamics"
+            }
+          ],
+          "memory_plan": {
+            "cells": 196608,
+            "field_bytes": 786432,
+            "fixed_overhead_bytes": 16777216,
+            "predicted_bytes": 75759616,
+            "predicted_fields": 75
+          },
+          "peak_rss_bytes": 78249984,
+          "process_wall_s": 11.424142458010465,
+          "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+          "sim_s_per_wall_s": 10.4784,
+          "step_wall_s": 9.54345,
+          "trial": 7,
+          "warmup_steps": 20
+        }
+      ]
+    },
+    {
+      "aggregate": {
+        "avg_step_ms": {
+          "max": 56.8597,
+          "median": 55.1897,
+          "min": 55.0613,
+          "p95_nearest_rank": 56.8597
+        },
+        "peak_rss_bytes": {
+          "max": 78397440.0,
+          "median": 78364672.0,
+          "min": 78315520.0,
+          "p95_nearest_rank": 78397440.0
+        },
+        "process_wall_s": {
+          "max": 6.821445874986239,
+          "median": 6.6172111660125665,
+          "min": 6.596485457965173,
+          "p95_nearest_rank": 6.821445874986239
+        },
+        "sim_s_per_wall_s": {
+          "max": 18.1616,
+          "median": 18.1193,
+          "min": 17.5872,
+          "p95_nearest_rank": 18.1616
+        },
+        "step_wall_s": {
+          "max": 5.68597,
+          "median": 5.51897,
+          "min": 5.50613,
+          "p95_nearest_rank": 5.68597
+        }
+      },
+      "build": {
+        "binary": "/Users/victortiradoegas/Desktop/PersonalProjects/Nimbus/bin/nimbus_sim_cpu_benchmark",
+        "binary_sha256": "7dfc41ebcea53a5aa04952fc58fce727a1822439a941f51b8c54d4d70868e25c",
+        "compiler": {
+          "command": "g++",
+          "version": "Apple clang version 21.0.0 (clang-2100.0.123.102)"
+        },
+        "cxxflags": "-std=c++17 -I include -I src -march=native -mtune=native -I vulkan/include -I/opt/homebrew/opt/vulkan-headers/include -Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include -DEXPORT_NPY -DHAVE_ZFP -I/Users/victortiradoegas/.local/include -DHAVE_NETCDF -I/opt/homebrew/Cellar/netcdf/4.10.1/include -O3 -DNDEBUG",
+        "ldflags": " -L/opt/homebrew/opt/libomp/lib -lomp -L/Users/victortiradoegas/.local/lib -Wl,-rpath,/Users/victortiradoegas/.local/lib -lzfp -L/opt/homebrew/Cellar/netcdf/4.10.1/lib -lnetcdf",
+        "profile": "release-like -O3 -DNDEBUG"
+      },
+      "generated_at_utc": "2026-07-26T03:33:25.467107+00:00",
+      "host": {
+        "logical_cpu_count": 16,
+        "machine": "arm64",
+        "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+        "processor": "arm",
+        "release": "25.5.0",
+        "system": "Darwin"
+      },
+      "regression_policy": null,
+      "run": {
+        "cleared_inherited_environment_prefixes": [
+          "NIMBUS_",
+          "OMP_",
+          "KMP_",
+          "GOMP_"
+        ],
+        "command": [
+          "/Users/victortiradoegas/Desktop/PersonalProjects/Nimbus/bin/nimbus_sim_cpu_benchmark",
+          "--headless",
+          "--config=/Users/victortiradoegas/Desktop/PersonalProjects/Nimbus/configs/benchmark/cpu_scaling_student.yaml",
+          "--compute-backend=cpu",
+          "--log-profile=normal",
+          "--timing",
+          "--timing-every=0"
+        ],
+        "config": "/Users/victortiradoegas/Desktop/PersonalProjects/Nimbus/configs/benchmark/cpu_scaling_student.yaml",
+        "config_sha256": "2e70b06397c0728b12d3dc1fef20f48747ee5c3a62f8c1f715834ba3ef92a699",
+        "environment": {
+          "OMP_NUM_THREADS": "4"
+        },
+        "measured_simulated_s": 100.0,
+        "measured_steps": 100,
+        "memory_plan": {
+          "cells": 196608,
+          "field_bytes": 786432,
+          "fixed_overhead_bytes": 16777216,
+          "predicted_bytes": 75759616,
+          "predicted_fields": 75
+        },
+        "metric_scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+        "threads": 4,
+        "trials": 7,
+        "warmup_steps": 20
+      },
+      "schema": "nimbus.cpu-benchmark.v1",
+      "trials": [
+        {
+          "avg_step_ms": 55.1897,
+          "measured_simulated_s": 100.0,
+          "measured_steps": 100,
+          "memory_calibration": {
+            "observed_peak_field_equivalents": 99.625,
+            "phases": [
+              {
+                "field_equivalents": 48.666666666666664,
+                "peak_rss_bytes": 38273024,
+                "phase": "startup_ready",
+                "plan_margin_bytes": 37486592
+              },
+              {
+                "field_equivalents": 48.666666666666664,
+                "peak_rss_bytes": 38273024,
+                "phase": "first_radiation",
+                "plan_margin_bytes": 37486592
+              },
+              {
+                "field_equivalents": 48.6875,
+                "peak_rss_bytes": 38289408,
+                "phase": "first_boundary_layer",
+                "plan_margin_bytes": 37470208
+              },
+              {
+                "field_equivalents": 93.4375,
+                "peak_rss_bytes": 73482240,
+                "phase": "first_dynamics",
+                "plan_margin_bytes": 2277376
+              }
+            ],
+            "plan_margin_bytes": -2588672,
+            "within_plan": false
+          },
+          "memory_milestones": [
+            {
+              "peak_rss_bytes": 38273024,
+              "phase": "startup_ready"
+            },
+            {
+              "peak_rss_bytes": 38273024,
+              "phase": "first_radiation"
+            },
+            {
+              "peak_rss_bytes": 38289408,
+              "phase": "first_boundary_layer"
+            },
+            {
+              "peak_rss_bytes": 73482240,
+              "phase": "first_dynamics"
+            }
+          ],
+          "memory_plan": {
+            "cells": 196608,
+            "field_bytes": 786432,
+            "fixed_overhead_bytes": 16777216,
+            "predicted_bytes": 75759616,
+            "predicted_fields": 75
+          },
+          "peak_rss_bytes": 78348288,
+          "process_wall_s": 6.6172111660125665,
+          "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+          "sim_s_per_wall_s": 18.1193,
+          "step_wall_s": 5.51897,
+          "trial": 1,
+          "warmup_steps": 20
+        },
+        {
+          "avg_step_ms": 55.3948,
+          "measured_simulated_s": 100.0,
+          "measured_steps": 100,
+          "memory_calibration": {
+            "observed_peak_field_equivalents": 99.64583333333333,
+            "phases": [
+              {
+                "field_equivalents": 48.645833333333336,
+                "peak_rss_bytes": 38256640,
+                "phase": "startup_ready",
+                "plan_margin_bytes": 37502976
+              },
+              {
+                "field_equivalents": 48.645833333333336,
+                "peak_rss_bytes": 38256640,
+                "phase": "first_radiation",
+                "plan_margin_bytes": 37502976
+              },
+              {
+                "field_equivalents": 48.666666666666664,
+                "peak_rss_bytes": 38273024,
+                "phase": "first_boundary_layer",
+                "plan_margin_bytes": 37486592
+              },
+              {
+                "field_equivalents": 93.45833333333333,
+                "peak_rss_bytes": 73498624,
+                "phase": "first_dynamics",
+                "plan_margin_bytes": 2260992
+              }
+            ],
+            "plan_margin_bytes": -2605056,
+            "within_plan": false
+          },
+          "memory_milestones": [
+            {
+              "peak_rss_bytes": 38256640,
+              "phase": "startup_ready"
+            },
+            {
+              "peak_rss_bytes": 38256640,
+              "phase": "first_radiation"
+            },
+            {
+              "peak_rss_bytes": 38273024,
+              "phase": "first_boundary_layer"
+            },
+            {
+              "peak_rss_bytes": 73498624,
+              "phase": "first_dynamics"
+            }
+          ],
+          "memory_plan": {
+            "cells": 196608,
+            "field_bytes": 786432,
+            "fixed_overhead_bytes": 16777216,
+            "predicted_bytes": 75759616,
+            "predicted_fields": 75
+          },
+          "peak_rss_bytes": 78364672,
+          "process_wall_s": 6.655432707979344,
+          "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+          "sim_s_per_wall_s": 18.0523,
+          "step_wall_s": 5.53948,
+          "trial": 2,
+          "warmup_steps": 20
+        },
+        {
+          "avg_step_ms": 55.1815,
+          "measured_simulated_s": 100.0,
+          "measured_steps": 100,
+          "memory_calibration": {
+            "observed_peak_field_equivalents": 99.6875,
+            "phases": [
+              {
+                "field_equivalents": 48.6875,
+                "peak_rss_bytes": 38289408,
+                "phase": "startup_ready",
+                "plan_margin_bytes": 37470208
+              },
+              {
+                "field_equivalents": 48.6875,
+                "peak_rss_bytes": 38289408,
+                "phase": "first_radiation",
+                "plan_margin_bytes": 37470208
+              },
+              {
+                "field_equivalents": 48.708333333333336,
+                "peak_rss_bytes": 38305792,
+                "phase": "first_boundary_layer",
+                "plan_margin_bytes": 37453824
+              },
+              {
+                "field_equivalents": 93.5,
+                "peak_rss_bytes": 73531392,
+                "phase": "first_dynamics",
+                "plan_margin_bytes": 2228224
+              }
+            ],
+            "plan_margin_bytes": -2637824,
+            "within_plan": false
+          },
+          "memory_milestones": [
+            {
+              "peak_rss_bytes": 38289408,
+              "phase": "startup_ready"
+            },
+            {
+              "peak_rss_bytes": 38289408,
+              "phase": "first_radiation"
+            },
+            {
+              "peak_rss_bytes": 38305792,
+              "phase": "first_boundary_layer"
+            },
+            {
+              "peak_rss_bytes": 73531392,
+              "phase": "first_dynamics"
+            }
+          ],
+          "memory_plan": {
+            "cells": 196608,
+            "field_bytes": 786432,
+            "fixed_overhead_bytes": 16777216,
+            "predicted_bytes": 75759616,
+            "predicted_fields": 75
+          },
+          "peak_rss_bytes": 78397440,
+          "process_wall_s": 6.611565916973632,
+          "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+          "sim_s_per_wall_s": 18.122,
+          "step_wall_s": 5.51815,
+          "trial": 3,
+          "warmup_steps": 20
+        },
+        {
+          "avg_step_ms": 56.8597,
+          "measured_simulated_s": 100.0,
+          "measured_steps": 100,
+          "memory_calibration": {
+            "observed_peak_field_equivalents": 99.58333333333333,
+            "phases": [
+              {
+                "field_equivalents": 48.5625,
+                "peak_rss_bytes": 38191104,
+                "phase": "startup_ready",
+                "plan_margin_bytes": 37568512
+              },
+              {
+                "field_equivalents": 48.5625,
+                "peak_rss_bytes": 38191104,
+                "phase": "first_radiation",
+                "plan_margin_bytes": 37568512
+              },
+              {
+                "field_equivalents": 48.583333333333336,
+                "peak_rss_bytes": 38207488,
+                "phase": "first_boundary_layer",
+                "plan_margin_bytes": 37552128
+              },
+              {
+                "field_equivalents": 93.39583333333333,
+                "peak_rss_bytes": 73449472,
+                "phase": "first_dynamics",
+                "plan_margin_bytes": 2310144
+              }
+            ],
+            "plan_margin_bytes": -2555904,
+            "within_plan": false
+          },
+          "memory_milestones": [
+            {
+              "peak_rss_bytes": 38191104,
+              "phase": "startup_ready"
+            },
+            {
+              "peak_rss_bytes": 38191104,
+              "phase": "first_radiation"
+            },
+            {
+              "peak_rss_bytes": 38207488,
+              "phase": "first_boundary_layer"
+            },
+            {
+              "peak_rss_bytes": 73449472,
+              "phase": "first_dynamics"
+            }
+          ],
+          "memory_plan": {
+            "cells": 196608,
+            "field_bytes": 786432,
+            "fixed_overhead_bytes": 16777216,
+            "predicted_bytes": 75759616,
+            "predicted_fields": 75
+          },
+          "peak_rss_bytes": 78315520,
+          "process_wall_s": 6.821445874986239,
+          "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+          "sim_s_per_wall_s": 17.5872,
+          "step_wall_s": 5.68597,
+          "trial": 4,
+          "warmup_steps": 20
+        },
+        {
+          "avg_step_ms": 55.0775,
+          "measured_simulated_s": 100.0,
+          "measured_steps": 100,
+          "memory_calibration": {
+            "observed_peak_field_equivalents": 99.625,
+            "phases": [
+              {
+                "field_equivalents": 48.666666666666664,
+                "peak_rss_bytes": 38273024,
+                "phase": "startup_ready",
+                "plan_margin_bytes": 37486592
+              },
+              {
+                "field_equivalents": 48.666666666666664,
+                "peak_rss_bytes": 38273024,
+                "phase": "first_radiation",
+                "plan_margin_bytes": 37486592
+              },
+              {
+                "field_equivalents": 48.6875,
+                "peak_rss_bytes": 38289408,
+                "phase": "first_boundary_layer",
+                "plan_margin_bytes": 37470208
+              },
+              {
+                "field_equivalents": 93.4375,
+                "peak_rss_bytes": 73482240,
+                "phase": "first_dynamics",
+                "plan_margin_bytes": 2277376
+              }
+            ],
+            "plan_margin_bytes": -2588672,
+            "within_plan": false
+          },
+          "memory_milestones": [
+            {
+              "peak_rss_bytes": 38273024,
+              "phase": "startup_ready"
+            },
+            {
+              "peak_rss_bytes": 38273024,
+              "phase": "first_radiation"
+            },
+            {
+              "peak_rss_bytes": 38289408,
+              "phase": "first_boundary_layer"
+            },
+            {
+              "peak_rss_bytes": 73482240,
+              "phase": "first_dynamics"
+            }
+          ],
+          "memory_plan": {
+            "cells": 196608,
+            "field_bytes": 786432,
+            "fixed_overhead_bytes": 16777216,
+            "predicted_bytes": 75759616,
+            "predicted_fields": 75
+          },
+          "peak_rss_bytes": 78348288,
+          "process_wall_s": 6.605025457974989,
+          "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+          "sim_s_per_wall_s": 18.1562,
+          "step_wall_s": 5.50775,
+          "trial": 5,
+          "warmup_steps": 20
+        },
+        {
+          "avg_step_ms": 56.5582,
+          "measured_simulated_s": 100.0,
+          "measured_steps": 100,
+          "memory_calibration": {
+            "observed_peak_field_equivalents": 99.66666666666667,
+            "phases": [
+              {
+                "field_equivalents": 48.666666666666664,
+                "peak_rss_bytes": 38273024,
+                "phase": "startup_ready",
+                "plan_margin_bytes": 37486592
+              },
+              {
+                "field_equivalents": 48.666666666666664,
+                "peak_rss_bytes": 38273024,
+                "phase": "first_radiation",
+                "plan_margin_bytes": 37486592
+              },
+              {
+                "field_equivalents": 48.6875,
+                "peak_rss_bytes": 38289408,
+                "phase": "first_boundary_layer",
+                "plan_margin_bytes": 37470208
+              },
+              {
+                "field_equivalents": 93.47916666666667,
+                "peak_rss_bytes": 73515008,
+                "phase": "first_dynamics",
+                "plan_margin_bytes": 2244608
+              }
+            ],
+            "plan_margin_bytes": -2621440,
+            "within_plan": false
+          },
+          "memory_milestones": [
+            {
+              "peak_rss_bytes": 38273024,
+              "phase": "startup_ready"
+            },
+            {
+              "peak_rss_bytes": 38273024,
+              "phase": "first_radiation"
+            },
+            {
+              "peak_rss_bytes": 38289408,
+              "phase": "first_boundary_layer"
+            },
+            {
+              "peak_rss_bytes": 73515008,
+              "phase": "first_dynamics"
+            }
+          ],
+          "memory_plan": {
+            "cells": 196608,
+            "field_bytes": 786432,
+            "fixed_overhead_bytes": 16777216,
+            "predicted_bytes": 75759616,
+            "predicted_fields": 75
+          },
+          "peak_rss_bytes": 78381056,
+          "process_wall_s": 6.790980625024531,
+          "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+          "sim_s_per_wall_s": 17.6809,
+          "step_wall_s": 5.65582,
+          "trial": 6,
+          "warmup_steps": 20
+        },
+        {
+          "avg_step_ms": 55.0613,
+          "measured_simulated_s": 100.0,
+          "measured_steps": 100,
+          "memory_calibration": {
+            "observed_peak_field_equivalents": 99.66666666666667,
+            "phases": [
+              {
+                "field_equivalents": 48.625,
+                "peak_rss_bytes": 38240256,
+                "phase": "startup_ready",
+                "plan_margin_bytes": 37519360
+              },
+              {
+                "field_equivalents": 48.625,
+                "peak_rss_bytes": 38240256,
+                "phase": "first_radiation",
+                "plan_margin_bytes": 37519360
+              },
+              {
+                "field_equivalents": 48.645833333333336,
+                "peak_rss_bytes": 38256640,
+                "phase": "first_boundary_layer",
+                "plan_margin_bytes": 37502976
+              },
+              {
+                "field_equivalents": 93.4375,
+                "peak_rss_bytes": 73482240,
+                "phase": "first_dynamics",
+                "plan_margin_bytes": 2277376
+              }
+            ],
+            "plan_margin_bytes": -2621440,
+            "within_plan": false
+          },
+          "memory_milestones": [
+            {
+              "peak_rss_bytes": 38240256,
+              "phase": "startup_ready"
+            },
+            {
+              "peak_rss_bytes": 38240256,
+              "phase": "first_radiation"
+            },
+            {
+              "peak_rss_bytes": 38256640,
+              "phase": "first_boundary_layer"
+            },
+            {
+              "peak_rss_bytes": 73482240,
+              "phase": "first_dynamics"
+            }
+          ],
+          "memory_plan": {
+            "cells": 196608,
+            "field_bytes": 786432,
+            "fixed_overhead_bytes": 16777216,
+            "predicted_bytes": 75759616,
+            "predicted_fields": 75
+          },
+          "peak_rss_bytes": 78381056,
+          "process_wall_s": 6.596485457965173,
+          "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+          "sim_s_per_wall_s": 18.1616,
+          "step_wall_s": 5.50613,
+          "trial": 7,
+          "warmup_steps": 20
+        }
+      ]
+    },
+    {
+      "aggregate": {
+        "avg_step_ms": {
+          "max": 38.2894,
+          "median": 36.8922,
+          "min": 36.5548,
+          "p95_nearest_rank": 38.2894
+        },
+        "peak_rss_bytes": {
+          "max": 78561280.0,
+          "median": 78528512.0,
+          "min": 78495744.0,
+          "p95_nearest_rank": 78561280.0
+        },
+        "process_wall_s": {
+          "max": 4.588558457966428,
+          "median": 4.421504667028785,
+          "min": 4.388042042031884,
+          "p95_nearest_rank": 4.588558457966428
+        },
+        "sim_s_per_wall_s": {
+          "max": 27.3562,
+          "median": 27.106,
+          "min": 26.1169,
+          "p95_nearest_rank": 27.3562
+        },
+        "step_wall_s": {
+          "max": 3.82894,
+          "median": 3.68922,
+          "min": 3.65548,
+          "p95_nearest_rank": 3.82894
+        }
+      },
+      "build": {
+        "binary": "/Users/victortiradoegas/Desktop/PersonalProjects/Nimbus/bin/nimbus_sim_cpu_benchmark",
+        "binary_sha256": "7dfc41ebcea53a5aa04952fc58fce727a1822439a941f51b8c54d4d70868e25c",
+        "compiler": {
+          "command": "g++",
+          "version": "Apple clang version 21.0.0 (clang-2100.0.123.102)"
+        },
+        "cxxflags": "-std=c++17 -I include -I src -march=native -mtune=native -I vulkan/include -I/opt/homebrew/opt/vulkan-headers/include -Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include -DEXPORT_NPY -DHAVE_ZFP -I/Users/victortiradoegas/.local/include -DHAVE_NETCDF -I/opt/homebrew/Cellar/netcdf/4.10.1/include -O3 -DNDEBUG",
+        "ldflags": " -L/opt/homebrew/opt/libomp/lib -lomp -L/Users/victortiradoegas/.local/lib -Wl,-rpath,/Users/victortiradoegas/.local/lib -lzfp -L/opt/homebrew/Cellar/netcdf/4.10.1/lib -lnetcdf",
+        "profile": "release-like -O3 -DNDEBUG"
+      },
+      "generated_at_utc": "2026-07-26T03:33:25.467218+00:00",
+      "host": {
+        "logical_cpu_count": 16,
+        "machine": "arm64",
+        "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+        "processor": "arm",
+        "release": "25.5.0",
+        "system": "Darwin"
+      },
+      "regression_policy": null,
+      "run": {
+        "cleared_inherited_environment_prefixes": [
+          "NIMBUS_",
+          "OMP_",
+          "KMP_",
+          "GOMP_"
+        ],
+        "command": [
+          "/Users/victortiradoegas/Desktop/PersonalProjects/Nimbus/bin/nimbus_sim_cpu_benchmark",
+          "--headless",
+          "--config=/Users/victortiradoegas/Desktop/PersonalProjects/Nimbus/configs/benchmark/cpu_scaling_student.yaml",
+          "--compute-backend=cpu",
+          "--log-profile=normal",
+          "--timing",
+          "--timing-every=0"
+        ],
+        "config": "/Users/victortiradoegas/Desktop/PersonalProjects/Nimbus/configs/benchmark/cpu_scaling_student.yaml",
+        "config_sha256": "2e70b06397c0728b12d3dc1fef20f48747ee5c3a62f8c1f715834ba3ef92a699",
+        "environment": {
+          "OMP_NUM_THREADS": "8"
+        },
+        "measured_simulated_s": 100.0,
+        "measured_steps": 100,
+        "memory_plan": {
+          "cells": 196608,
+          "field_bytes": 786432,
+          "fixed_overhead_bytes": 16777216,
+          "predicted_bytes": 75759616,
+          "predicted_fields": 75
+        },
+        "metric_scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+        "threads": 8,
+        "trials": 7,
+        "warmup_steps": 20
+      },
+      "schema": "nimbus.cpu-benchmark.v1",
+      "trials": [
+        {
+          "avg_step_ms": 36.7193,
+          "measured_simulated_s": 100.0,
+          "measured_steps": 100,
+          "memory_calibration": {
+            "observed_peak_field_equivalents": 99.85416666666667,
+            "phases": [
+              {
+                "field_equivalents": 48.854166666666664,
+                "peak_rss_bytes": 38420480,
+                "phase": "startup_ready",
+                "plan_margin_bytes": 37339136
+              },
+              {
+                "field_equivalents": 48.854166666666664,
+                "peak_rss_bytes": 38420480,
+                "phase": "first_radiation",
+                "plan_margin_bytes": 37339136
+              },
+              {
+                "field_equivalents": 48.875,
+                "peak_rss_bytes": 38436864,
+                "phase": "first_boundary_layer",
+                "plan_margin_bytes": 37322752
+              },
+              {
+                "field_equivalents": 93.6875,
+                "peak_rss_bytes": 73678848,
+                "phase": "first_dynamics",
+                "plan_margin_bytes": 2080768
+              }
+            ],
+            "plan_margin_bytes": -2768896,
+            "within_plan": false
+          },
+          "memory_milestones": [
+            {
+              "peak_rss_bytes": 38420480,
+              "phase": "startup_ready"
+            },
+            {
+              "peak_rss_bytes": 38420480,
+              "phase": "first_radiation"
+            },
+            {
+              "peak_rss_bytes": 38436864,
+              "phase": "first_boundary_layer"
+            },
+            {
+              "peak_rss_bytes": 73678848,
+              "phase": "first_dynamics"
+            }
+          ],
+          "memory_plan": {
+            "cells": 196608,
+            "field_bytes": 786432,
+            "fixed_overhead_bytes": 16777216,
+            "predicted_bytes": 75759616,
+            "predicted_fields": 75
+          },
+          "peak_rss_bytes": 78528512,
+          "process_wall_s": 4.411683125013951,
+          "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+          "sim_s_per_wall_s": 27.2336,
+          "step_wall_s": 3.67193,
+          "trial": 1,
+          "warmup_steps": 20
+        },
+        {
+          "avg_step_ms": 37.0342,
+          "measured_simulated_s": 100.0,
+          "measured_steps": 100,
+          "memory_calibration": {
+            "observed_peak_field_equivalents": 99.875,
+            "phases": [
+              {
+                "field_equivalents": 48.875,
+                "peak_rss_bytes": 38436864,
+                "phase": "startup_ready",
+                "plan_margin_bytes": 37322752
+              },
+              {
+                "field_equivalents": 48.875,
+                "peak_rss_bytes": 38436864,
+                "phase": "first_radiation",
+                "plan_margin_bytes": 37322752
+              },
+              {
+                "field_equivalents": 48.895833333333336,
+                "peak_rss_bytes": 38453248,
+                "phase": "first_boundary_layer",
+                "plan_margin_bytes": 37306368
+              },
+              {
+                "field_equivalents": 93.6875,
+                "peak_rss_bytes": 73678848,
+                "phase": "first_dynamics",
+                "plan_margin_bytes": 2080768
+              }
+            ],
+            "plan_margin_bytes": -2785280,
+            "within_plan": false
+          },
+          "memory_milestones": [
+            {
+              "peak_rss_bytes": 38436864,
+              "phase": "startup_ready"
+            },
+            {
+              "peak_rss_bytes": 38436864,
+              "phase": "first_radiation"
+            },
+            {
+              "peak_rss_bytes": 38453248,
+              "phase": "first_boundary_layer"
+            },
+            {
+              "peak_rss_bytes": 73678848,
+              "phase": "first_dynamics"
+            }
+          ],
+          "memory_plan": {
+            "cells": 196608,
+            "field_bytes": 786432,
+            "fixed_overhead_bytes": 16777216,
+            "predicted_bytes": 75759616,
+            "predicted_fields": 75
+          },
+          "peak_rss_bytes": 78544896,
+          "process_wall_s": 4.473192750010639,
+          "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+          "sim_s_per_wall_s": 27.0021,
+          "step_wall_s": 3.70342,
+          "trial": 2,
+          "warmup_steps": 20
+        },
+        {
+          "avg_step_ms": 36.5548,
+          "measured_simulated_s": 100.0,
+          "measured_steps": 100,
+          "memory_calibration": {
+            "observed_peak_field_equivalents": 99.85416666666667,
+            "phases": [
+              {
+                "field_equivalents": 48.875,
+                "peak_rss_bytes": 38436864,
+                "phase": "startup_ready",
+                "plan_margin_bytes": 37322752
+              },
+              {
+                "field_equivalents": 48.875,
+                "peak_rss_bytes": 38436864,
+                "phase": "first_radiation",
+                "plan_margin_bytes": 37322752
+              },
+              {
+                "field_equivalents": 48.895833333333336,
+                "peak_rss_bytes": 38453248,
+                "phase": "first_boundary_layer",
+                "plan_margin_bytes": 37306368
+              },
+              {
+                "field_equivalents": 93.66666666666667,
+                "peak_rss_bytes": 73662464,
+                "phase": "first_dynamics",
+                "plan_margin_bytes": 2097152
+              }
+            ],
+            "plan_margin_bytes": -2768896,
+            "within_plan": false
+          },
+          "memory_milestones": [
+            {
+              "peak_rss_bytes": 38436864,
+              "phase": "startup_ready"
+            },
+            {
+              "peak_rss_bytes": 38436864,
+              "phase": "first_radiation"
+            },
+            {
+              "peak_rss_bytes": 38453248,
+              "phase": "first_boundary_layer"
+            },
+            {
+              "peak_rss_bytes": 73662464,
+              "phase": "first_dynamics"
+            }
+          ],
+          "memory_plan": {
+            "cells": 196608,
+            "field_bytes": 786432,
+            "fixed_overhead_bytes": 16777216,
+            "predicted_bytes": 75759616,
+            "predicted_fields": 75
+          },
+          "peak_rss_bytes": 78528512,
+          "process_wall_s": 4.388042042031884,
+          "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+          "sim_s_per_wall_s": 27.3562,
+          "step_wall_s": 3.65548,
+          "trial": 3,
+          "warmup_steps": 20
+        },
+        {
+          "avg_step_ms": 38.2894,
+          "measured_simulated_s": 100.0,
+          "measured_steps": 100,
+          "memory_calibration": {
+            "observed_peak_field_equivalents": 99.85416666666667,
+            "phases": [
+              {
+                "field_equivalents": 48.895833333333336,
+                "peak_rss_bytes": 38453248,
+                "phase": "startup_ready",
+                "plan_margin_bytes": 37306368
+              },
+              {
+                "field_equivalents": 48.895833333333336,
+                "peak_rss_bytes": 38453248,
+                "phase": "first_radiation",
+                "plan_margin_bytes": 37306368
+              },
+              {
+                "field_equivalents": 48.916666666666664,
+                "peak_rss_bytes": 38469632,
+                "phase": "first_boundary_layer",
+                "plan_margin_bytes": 37289984
+              },
+              {
+                "field_equivalents": 93.6875,
+                "peak_rss_bytes": 73678848,
+                "phase": "first_dynamics",
+                "plan_margin_bytes": 2080768
+              }
+            ],
+            "plan_margin_bytes": -2768896,
+            "within_plan": false
+          },
+          "memory_milestones": [
+            {
+              "peak_rss_bytes": 38453248,
+              "phase": "startup_ready"
+            },
+            {
+              "peak_rss_bytes": 38453248,
+              "phase": "first_radiation"
+            },
+            {
+              "peak_rss_bytes": 38469632,
+              "phase": "first_boundary_layer"
+            },
+            {
+              "peak_rss_bytes": 73678848,
+              "phase": "first_dynamics"
+            }
+          ],
+          "memory_plan": {
+            "cells": 196608,
+            "field_bytes": 786432,
+            "fixed_overhead_bytes": 16777216,
+            "predicted_bytes": 75759616,
+            "predicted_fields": 75
+          },
+          "peak_rss_bytes": 78528512,
+          "process_wall_s": 4.588558457966428,
+          "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+          "sim_s_per_wall_s": 26.1169,
+          "step_wall_s": 3.82894,
+          "trial": 4,
+          "warmup_steps": 20
+        },
+        {
+          "avg_step_ms": 36.6786,
+          "measured_simulated_s": 100.0,
+          "measured_steps": 100,
+          "memory_calibration": {
+            "observed_peak_field_equivalents": 99.8125,
+            "phases": [
+              {
+                "field_equivalents": 48.8125,
+                "peak_rss_bytes": 38387712,
+                "phase": "startup_ready",
+                "plan_margin_bytes": 37371904
+              },
+              {
+                "field_equivalents": 48.8125,
+                "peak_rss_bytes": 38387712,
+                "phase": "first_radiation",
+                "plan_margin_bytes": 37371904
+              },
+              {
+                "field_equivalents": 48.833333333333336,
+                "peak_rss_bytes": 38404096,
+                "phase": "first_boundary_layer",
+                "plan_margin_bytes": 37355520
+              },
+              {
+                "field_equivalents": 93.64583333333333,
+                "peak_rss_bytes": 73646080,
+                "phase": "first_dynamics",
+                "plan_margin_bytes": 2113536
+              }
+            ],
+            "plan_margin_bytes": -2736128,
+            "within_plan": false
+          },
+          "memory_milestones": [
+            {
+              "peak_rss_bytes": 38387712,
+              "phase": "startup_ready"
+            },
+            {
+              "peak_rss_bytes": 38387712,
+              "phase": "first_radiation"
+            },
+            {
+              "peak_rss_bytes": 38404096,
+              "phase": "first_boundary_layer"
+            },
+            {
+              "peak_rss_bytes": 73646080,
+              "phase": "first_dynamics"
+            }
+          ],
+          "memory_plan": {
+            "cells": 196608,
+            "field_bytes": 786432,
+            "fixed_overhead_bytes": 16777216,
+            "predicted_bytes": 75759616,
+            "predicted_fields": 75
+          },
+          "peak_rss_bytes": 78495744,
+          "process_wall_s": 4.398252792016137,
+          "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+          "sim_s_per_wall_s": 27.2639,
+          "step_wall_s": 3.66786,
+          "trial": 5,
+          "warmup_steps": 20
+        },
+        {
+          "avg_step_ms": 37.7299,
+          "measured_simulated_s": 100.0,
+          "measured_steps": 100,
+          "memory_calibration": {
+            "observed_peak_field_equivalents": 99.89583333333333,
+            "phases": [
+              {
+                "field_equivalents": 48.875,
+                "peak_rss_bytes": 38436864,
+                "phase": "startup_ready",
+                "plan_margin_bytes": 37322752
+              },
+              {
+                "field_equivalents": 48.875,
+                "peak_rss_bytes": 38436864,
+                "phase": "first_radiation",
+                "plan_margin_bytes": 37322752
+              },
+              {
+                "field_equivalents": 48.895833333333336,
+                "peak_rss_bytes": 38453248,
+                "phase": "first_boundary_layer",
+                "plan_margin_bytes": 37306368
+              },
+              {
+                "field_equivalents": 93.70833333333333,
+                "peak_rss_bytes": 73695232,
+                "phase": "first_dynamics",
+                "plan_margin_bytes": 2064384
+              }
+            ],
+            "plan_margin_bytes": -2801664,
+            "within_plan": false
+          },
+          "memory_milestones": [
+            {
+              "peak_rss_bytes": 38436864,
+              "phase": "startup_ready"
+            },
+            {
+              "peak_rss_bytes": 38436864,
+              "phase": "first_radiation"
+            },
+            {
+              "peak_rss_bytes": 38453248,
+              "phase": "first_boundary_layer"
+            },
+            {
+              "peak_rss_bytes": 73695232,
+              "phase": "first_dynamics"
+            }
+          ],
+          "memory_plan": {
+            "cells": 196608,
+            "field_bytes": 786432,
+            "fixed_overhead_bytes": 16777216,
+            "predicted_bytes": 75759616,
+            "predicted_fields": 75
+          },
+          "peak_rss_bytes": 78561280,
+          "process_wall_s": 4.521383541985415,
+          "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+          "sim_s_per_wall_s": 26.5042,
+          "step_wall_s": 3.77299,
+          "trial": 6,
+          "warmup_steps": 20
+        },
+        {
+          "avg_step_ms": 36.8922,
+          "measured_simulated_s": 100.0,
+          "measured_steps": 100,
+          "memory_calibration": {
+            "observed_peak_field_equivalents": 99.875,
+            "phases": [
+              {
+                "field_equivalents": 48.833333333333336,
+                "peak_rss_bytes": 38404096,
+                "phase": "startup_ready",
+                "plan_margin_bytes": 37355520
+              },
+              {
+                "field_equivalents": 48.833333333333336,
+                "peak_rss_bytes": 38404096,
+                "phase": "first_radiation",
+                "plan_margin_bytes": 37355520
+              },
+              {
+                "field_equivalents": 48.854166666666664,
+                "peak_rss_bytes": 38420480,
+                "phase": "first_boundary_layer",
+                "plan_margin_bytes": 37339136
+              },
+              {
+                "field_equivalents": 93.6875,
+                "peak_rss_bytes": 73678848,
+                "phase": "first_dynamics",
+                "plan_margin_bytes": 2080768
+              }
+            ],
+            "plan_margin_bytes": -2785280,
+            "within_plan": false
+          },
+          "memory_milestones": [
+            {
+              "peak_rss_bytes": 38404096,
+              "phase": "startup_ready"
+            },
+            {
+              "peak_rss_bytes": 38404096,
+              "phase": "first_radiation"
+            },
+            {
+              "peak_rss_bytes": 38420480,
+              "phase": "first_boundary_layer"
+            },
+            {
+              "peak_rss_bytes": 73678848,
+              "phase": "first_dynamics"
+            }
+          ],
+          "memory_plan": {
+            "cells": 196608,
+            "field_bytes": 786432,
+            "fixed_overhead_bytes": 16777216,
+            "predicted_bytes": 75759616,
+            "predicted_fields": 75
+          },
+          "peak_rss_bytes": 78544896,
+          "process_wall_s": 4.421504667028785,
+          "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+          "sim_s_per_wall_s": 27.106,
+          "step_wall_s": 3.68922,
+          "trial": 7,
+          "warmup_steps": 20
+        }
+      ]
+    },
+    {
+      "aggregate": {
+        "avg_step_ms": {
+          "max": 37.0281,
+          "median": 32.7184,
+          "min": 32.4979,
+          "p95_nearest_rank": 37.0281
+        },
+        "peak_rss_bytes": {
+          "max": 78725120.0,
+          "median": 78626816.0,
+          "min": 78561280.0,
+          "p95_nearest_rank": 78725120.0
+        },
+        "process_wall_s": {
+          "max": 4.420313792012166,
+          "median": 3.92640991602093,
+          "min": 3.9039851669804193,
+          "p95_nearest_rank": 4.420313792012166
+        },
+        "sim_s_per_wall_s": {
+          "max": 30.7712,
+          "median": 30.5639,
+          "min": 27.0065,
+          "p95_nearest_rank": 30.7712
+        },
+        "step_wall_s": {
+          "max": 3.70281,
+          "median": 3.27184,
+          "min": 3.24979,
+          "p95_nearest_rank": 3.70281
+        }
+      },
+      "build": {
+        "binary": "/Users/victortiradoegas/Desktop/PersonalProjects/Nimbus/bin/nimbus_sim_cpu_benchmark",
+        "binary_sha256": "7dfc41ebcea53a5aa04952fc58fce727a1822439a941f51b8c54d4d70868e25c",
+        "compiler": {
+          "command": "g++",
+          "version": "Apple clang version 21.0.0 (clang-2100.0.123.102)"
+        },
+        "cxxflags": "-std=c++17 -I include -I src -march=native -mtune=native -I vulkan/include -I/opt/homebrew/opt/vulkan-headers/include -Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include -DEXPORT_NPY -DHAVE_ZFP -I/Users/victortiradoegas/.local/include -DHAVE_NETCDF -I/opt/homebrew/Cellar/netcdf/4.10.1/include -O3 -DNDEBUG",
+        "ldflags": " -L/opt/homebrew/opt/libomp/lib -lomp -L/Users/victortiradoegas/.local/lib -Wl,-rpath,/Users/victortiradoegas/.local/lib -lzfp -L/opt/homebrew/Cellar/netcdf/4.10.1/lib -lnetcdf",
+        "profile": "release-like -O3 -DNDEBUG"
+      },
+      "generated_at_utc": "2026-07-26T03:33:25.467325+00:00",
+      "host": {
+        "logical_cpu_count": 16,
+        "machine": "arm64",
+        "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+        "processor": "arm",
+        "release": "25.5.0",
+        "system": "Darwin"
+      },
+      "regression_policy": null,
+      "run": {
+        "cleared_inherited_environment_prefixes": [
+          "NIMBUS_",
+          "OMP_",
+          "KMP_",
+          "GOMP_"
+        ],
+        "command": [
+          "/Users/victortiradoegas/Desktop/PersonalProjects/Nimbus/bin/nimbus_sim_cpu_benchmark",
+          "--headless",
+          "--config=/Users/victortiradoegas/Desktop/PersonalProjects/Nimbus/configs/benchmark/cpu_scaling_student.yaml",
+          "--compute-backend=cpu",
+          "--log-profile=normal",
+          "--timing",
+          "--timing-every=0"
+        ],
+        "config": "/Users/victortiradoegas/Desktop/PersonalProjects/Nimbus/configs/benchmark/cpu_scaling_student.yaml",
+        "config_sha256": "2e70b06397c0728b12d3dc1fef20f48747ee5c3a62f8c1f715834ba3ef92a699",
+        "environment": {
+          "OMP_NUM_THREADS": "12"
+        },
+        "measured_simulated_s": 100.0,
+        "measured_steps": 100,
+        "memory_plan": {
+          "cells": 196608,
+          "field_bytes": 786432,
+          "fixed_overhead_bytes": 16777216,
+          "predicted_bytes": 75759616,
+          "predicted_fields": 75
+        },
+        "metric_scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+        "threads": 12,
+        "trials": 7,
+        "warmup_steps": 20
+      },
+      "schema": "nimbus.cpu-benchmark.v1",
+      "trials": [
+        {
+          "avg_step_ms": 32.4979,
+          "measured_simulated_s": 100.0,
+          "measured_steps": 100,
+          "memory_calibration": {
+            "observed_peak_field_equivalents": 99.91666666666667,
+            "phases": [
+              {
+                "field_equivalents": 48.875,
+                "peak_rss_bytes": 38436864,
+                "phase": "startup_ready",
+                "plan_margin_bytes": 37322752
+              },
+              {
+                "field_equivalents": 48.875,
+                "peak_rss_bytes": 38436864,
+                "phase": "first_radiation",
+                "plan_margin_bytes": 37322752
+              },
+              {
+                "field_equivalents": 48.895833333333336,
+                "peak_rss_bytes": 38453248,
+                "phase": "first_boundary_layer",
+                "plan_margin_bytes": 37306368
+              },
+              {
+                "field_equivalents": 93.72916666666667,
+                "peak_rss_bytes": 73711616,
+                "phase": "first_dynamics",
+                "plan_margin_bytes": 2048000
+              }
+            ],
+            "plan_margin_bytes": -2818048,
+            "within_plan": false
+          },
+          "memory_milestones": [
+            {
+              "peak_rss_bytes": 38436864,
+              "phase": "startup_ready"
+            },
+            {
+              "peak_rss_bytes": 38436864,
+              "phase": "first_radiation"
+            },
+            {
+              "peak_rss_bytes": 38453248,
+              "phase": "first_boundary_layer"
+            },
+            {
+              "peak_rss_bytes": 73711616,
+              "phase": "first_dynamics"
+            }
+          ],
+          "memory_plan": {
+            "cells": 196608,
+            "field_bytes": 786432,
+            "fixed_overhead_bytes": 16777216,
+            "predicted_bytes": 75759616,
+            "predicted_fields": 75
+          },
+          "peak_rss_bytes": 78577664,
+          "process_wall_s": 3.9039851669804193,
+          "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+          "sim_s_per_wall_s": 30.7712,
+          "step_wall_s": 3.24979,
+          "trial": 1,
+          "warmup_steps": 20
+        },
+        {
+          "avg_step_ms": 37.0281,
+          "measured_simulated_s": 100.0,
+          "measured_steps": 100,
+          "memory_calibration": {
+            "observed_peak_field_equivalents": 99.95833333333333,
+            "phases": [
+              {
+                "field_equivalents": 48.958333333333336,
+                "peak_rss_bytes": 38502400,
+                "phase": "startup_ready",
+                "plan_margin_bytes": 37257216
+              },
+              {
+                "field_equivalents": 48.958333333333336,
+                "peak_rss_bytes": 38502400,
+                "phase": "first_radiation",
+                "plan_margin_bytes": 37257216
+              },
+              {
+                "field_equivalents": 48.979166666666664,
+                "peak_rss_bytes": 38518784,
+                "phase": "first_boundary_layer",
+                "plan_margin_bytes": 37240832
+              },
+              {
+                "field_equivalents": 93.77083333333333,
+                "peak_rss_bytes": 73744384,
+                "phase": "first_dynamics",
+                "plan_margin_bytes": 2015232
+              }
+            ],
+            "plan_margin_bytes": -2850816,
+            "within_plan": false
+          },
+          "memory_milestones": [
+            {
+              "peak_rss_bytes": 38502400,
+              "phase": "startup_ready"
+            },
+            {
+              "peak_rss_bytes": 38502400,
+              "phase": "first_radiation"
+            },
+            {
+              "peak_rss_bytes": 38518784,
+              "phase": "first_boundary_layer"
+            },
+            {
+              "peak_rss_bytes": 73744384,
+              "phase": "first_dynamics"
+            }
+          ],
+          "memory_plan": {
+            "cells": 196608,
+            "field_bytes": 786432,
+            "fixed_overhead_bytes": 16777216,
+            "predicted_bytes": 75759616,
+            "predicted_fields": 75
+          },
+          "peak_rss_bytes": 78610432,
+          "process_wall_s": 4.420313792012166,
+          "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+          "sim_s_per_wall_s": 27.0065,
+          "step_wall_s": 3.70281,
+          "trial": 2,
+          "warmup_steps": 20
+        },
+        {
+          "avg_step_ms": 32.6369,
+          "measured_simulated_s": 100.0,
+          "measured_steps": 100,
+          "memory_calibration": {
+            "observed_peak_field_equivalents": 99.89583333333333,
+            "phases": [
+              {
+                "field_equivalents": 48.895833333333336,
+                "peak_rss_bytes": 38453248,
+                "phase": "startup_ready",
+                "plan_margin_bytes": 37306368
+              },
+              {
+                "field_equivalents": 48.895833333333336,
+                "peak_rss_bytes": 38453248,
+                "phase": "first_radiation",
+                "plan_margin_bytes": 37306368
+              },
+              {
+                "field_equivalents": 48.916666666666664,
+                "peak_rss_bytes": 38469632,
+                "phase": "first_boundary_layer",
+                "plan_margin_bytes": 37289984
+              },
+              {
+                "field_equivalents": 93.6875,
+                "peak_rss_bytes": 73678848,
+                "phase": "first_dynamics",
+                "plan_margin_bytes": 2080768
+              }
+            ],
+            "plan_margin_bytes": -2801664,
+            "within_plan": false
+          },
+          "memory_milestones": [
+            {
+              "peak_rss_bytes": 38453248,
+              "phase": "startup_ready"
+            },
+            {
+              "peak_rss_bytes": 38453248,
+              "phase": "first_radiation"
+            },
+            {
+              "peak_rss_bytes": 38469632,
+              "phase": "first_boundary_layer"
+            },
+            {
+              "peak_rss_bytes": 73678848,
+              "phase": "first_dynamics"
+            }
+          ],
+          "memory_plan": {
+            "cells": 196608,
+            "field_bytes": 786432,
+            "fixed_overhead_bytes": 16777216,
+            "predicted_bytes": 75759616,
+            "predicted_fields": 75
+          },
+          "peak_rss_bytes": 78561280,
+          "process_wall_s": 3.9224583750474267,
+          "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+          "sim_s_per_wall_s": 30.6402,
+          "step_wall_s": 3.26369,
+          "trial": 3,
+          "warmup_steps": 20
+        },
+        {
+          "avg_step_ms": 32.9443,
+          "measured_simulated_s": 100.0,
+          "measured_steps": 100,
+          "memory_calibration": {
+            "observed_peak_field_equivalents": 100.10416666666667,
+            "phases": [
+              {
+                "field_equivalents": 49.125,
+                "peak_rss_bytes": 38633472,
+                "phase": "startup_ready",
+                "plan_margin_bytes": 37126144
+              },
+              {
+                "field_equivalents": 49.125,
+                "peak_rss_bytes": 38633472,
+                "phase": "first_radiation",
+                "plan_margin_bytes": 37126144
+              },
+              {
+                "field_equivalents": 49.145833333333336,
+                "peak_rss_bytes": 38649856,
+                "phase": "first_boundary_layer",
+                "plan_margin_bytes": 37109760
+              },
+              {
+                "field_equivalents": 93.9375,
+                "peak_rss_bytes": 73875456,
+                "phase": "first_dynamics",
+                "plan_margin_bytes": 1884160
+              }
+            ],
+            "plan_margin_bytes": -2965504,
+            "within_plan": false
+          },
+          "memory_milestones": [
+            {
+              "peak_rss_bytes": 38633472,
+              "phase": "startup_ready"
+            },
+            {
+              "peak_rss_bytes": 38633472,
+              "phase": "first_radiation"
+            },
+            {
+              "peak_rss_bytes": 38649856,
+              "phase": "first_boundary_layer"
+            },
+            {
+              "peak_rss_bytes": 73875456,
+              "phase": "first_dynamics"
+            }
+          ],
+          "memory_plan": {
+            "cells": 196608,
+            "field_bytes": 786432,
+            "fixed_overhead_bytes": 16777216,
+            "predicted_bytes": 75759616,
+            "predicted_fields": 75
+          },
+          "peak_rss_bytes": 78725120,
+          "process_wall_s": 3.9651287909946404,
+          "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+          "sim_s_per_wall_s": 30.3543,
+          "step_wall_s": 3.29443,
+          "trial": 4,
+          "warmup_steps": 20
+        },
+        {
+          "avg_step_ms": 32.7184,
+          "measured_simulated_s": 100.0,
+          "measured_steps": 100,
+          "memory_calibration": {
+            "observed_peak_field_equivalents": 99.97916666666667,
+            "phases": [
+              {
+                "field_equivalents": 48.9375,
+                "peak_rss_bytes": 38486016,
+                "phase": "startup_ready",
+                "plan_margin_bytes": 37273600
+              },
+              {
+                "field_equivalents": 48.9375,
+                "peak_rss_bytes": 38486016,
+                "phase": "first_radiation",
+                "plan_margin_bytes": 37273600
+              },
+              {
+                "field_equivalents": 48.958333333333336,
+                "peak_rss_bytes": 38502400,
+                "phase": "first_boundary_layer",
+                "plan_margin_bytes": 37257216
+              },
+              {
+                "field_equivalents": 93.79166666666667,
+                "peak_rss_bytes": 73760768,
+                "phase": "first_dynamics",
+                "plan_margin_bytes": 1998848
+              }
+            ],
+            "plan_margin_bytes": -2867200,
+            "within_plan": false
+          },
+          "memory_milestones": [
+            {
+              "peak_rss_bytes": 38486016,
+              "phase": "startup_ready"
+            },
+            {
+              "peak_rss_bytes": 38486016,
+              "phase": "first_radiation"
+            },
+            {
+              "peak_rss_bytes": 38502400,
+              "phase": "first_boundary_layer"
+            },
+            {
+              "peak_rss_bytes": 73760768,
+              "phase": "first_dynamics"
+            }
+          ],
+          "memory_plan": {
+            "cells": 196608,
+            "field_bytes": 786432,
+            "fixed_overhead_bytes": 16777216,
+            "predicted_bytes": 75759616,
+            "predicted_fields": 75
+          },
+          "peak_rss_bytes": 78626816,
+          "process_wall_s": 3.9295987079967745,
+          "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+          "sim_s_per_wall_s": 30.5639,
+          "step_wall_s": 3.27184,
+          "trial": 5,
+          "warmup_steps": 20
+        },
+        {
+          "avg_step_ms": 32.6876,
+          "measured_simulated_s": 100.0,
+          "measured_steps": 100,
+          "memory_calibration": {
+            "observed_peak_field_equivalents": 100.0,
+            "phases": [
+              {
+                "field_equivalents": 49.020833333333336,
+                "peak_rss_bytes": 38551552,
+                "phase": "startup_ready",
+                "plan_margin_bytes": 37208064
+              },
+              {
+                "field_equivalents": 49.020833333333336,
+                "peak_rss_bytes": 38551552,
+                "phase": "first_radiation",
+                "plan_margin_bytes": 37208064
+              },
+              {
+                "field_equivalents": 49.041666666666664,
+                "peak_rss_bytes": 38567936,
+                "phase": "first_boundary_layer",
+                "plan_margin_bytes": 37191680
+              },
+              {
+                "field_equivalents": 93.8125,
+                "peak_rss_bytes": 73777152,
+                "phase": "first_dynamics",
+                "plan_margin_bytes": 1982464
+              }
+            ],
+            "plan_margin_bytes": -2883584,
+            "within_plan": false
+          },
+          "memory_milestones": [
+            {
+              "peak_rss_bytes": 38551552,
+              "phase": "startup_ready"
+            },
+            {
+              "peak_rss_bytes": 38551552,
+              "phase": "first_radiation"
+            },
+            {
+              "peak_rss_bytes": 38567936,
+              "phase": "first_boundary_layer"
+            },
+            {
+              "peak_rss_bytes": 73777152,
+              "phase": "first_dynamics"
+            }
+          ],
+          "memory_plan": {
+            "cells": 196608,
+            "field_bytes": 786432,
+            "fixed_overhead_bytes": 16777216,
+            "predicted_bytes": 75759616,
+            "predicted_fields": 75
+          },
+          "peak_rss_bytes": 78643200,
+          "process_wall_s": 3.92640991602093,
+          "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+          "sim_s_per_wall_s": 30.5926,
+          "step_wall_s": 3.26876,
+          "trial": 6,
+          "warmup_steps": 20
+        },
+        {
+          "avg_step_ms": 32.7348,
+          "measured_simulated_s": 100.0,
+          "measured_steps": 100,
+          "memory_calibration": {
+            "observed_peak_field_equivalents": 100.04166666666667,
+            "phases": [
+              {
+                "field_equivalents": 49.020833333333336,
+                "peak_rss_bytes": 38551552,
+                "phase": "startup_ready",
+                "plan_margin_bytes": 37208064
+              },
+              {
+                "field_equivalents": 49.020833333333336,
+                "peak_rss_bytes": 38551552,
+                "phase": "first_radiation",
+                "plan_margin_bytes": 37208064
+              },
+              {
+                "field_equivalents": 49.041666666666664,
+                "peak_rss_bytes": 38567936,
+                "phase": "first_boundary_layer",
+                "plan_margin_bytes": 37191680
+              },
+              {
+                "field_equivalents": 93.85416666666667,
+                "peak_rss_bytes": 73809920,
+                "phase": "first_dynamics",
+                "plan_margin_bytes": 1949696
+              }
+            ],
+            "plan_margin_bytes": -2916352,
+            "within_plan": false
+          },
+          "memory_milestones": [
+            {
+              "peak_rss_bytes": 38551552,
+              "phase": "startup_ready"
+            },
+            {
+              "peak_rss_bytes": 38551552,
+              "phase": "first_radiation"
+            },
+            {
+              "peak_rss_bytes": 38567936,
+              "phase": "first_boundary_layer"
+            },
+            {
+              "peak_rss_bytes": 73809920,
+              "phase": "first_dynamics"
+            }
+          ],
+          "memory_plan": {
+            "cells": 196608,
+            "field_bytes": 786432,
+            "fixed_overhead_bytes": 16777216,
+            "predicted_bytes": 75759616,
+            "predicted_fields": 75
+          },
+          "peak_rss_bytes": 78675968,
+          "process_wall_s": 3.9259079580078833,
+          "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+          "sim_s_per_wall_s": 30.5485,
+          "step_wall_s": 3.27348,
+          "trial": 7,
+          "warmup_steps": 20
+        }
+      ]
+    },
+    {
+      "aggregate": {
+        "avg_step_ms": {
+          "max": 36.6004,
+          "median": 36.197,
+          "min": 36.1274,
+          "p95_nearest_rank": 36.6004
+        },
+        "peak_rss_bytes": {
+          "max": 78774272.0,
+          "median": 78757888.0,
+          "min": 78708736.0,
+          "p95_nearest_rank": 78774272.0
+        },
+        "process_wall_s": {
+          "max": 4.389908417011611,
+          "median": 4.34883675002493,
+          "min": 4.340754125034437,
+          "p95_nearest_rank": 4.389908417011611
+        },
+        "sim_s_per_wall_s": {
+          "max": 27.6798,
+          "median": 27.6266,
+          "min": 27.3221,
+          "p95_nearest_rank": 27.6798
+        },
+        "step_wall_s": {
+          "max": 3.66004,
+          "median": 3.6197,
+          "min": 3.61274,
+          "p95_nearest_rank": 3.66004
+        }
+      },
+      "build": {
+        "binary": "/Users/victortiradoegas/Desktop/PersonalProjects/Nimbus/bin/nimbus_sim_cpu_benchmark",
+        "binary_sha256": "7dfc41ebcea53a5aa04952fc58fce727a1822439a941f51b8c54d4d70868e25c",
+        "compiler": {
+          "command": "g++",
+          "version": "Apple clang version 21.0.0 (clang-2100.0.123.102)"
+        },
+        "cxxflags": "-std=c++17 -I include -I src -march=native -mtune=native -I vulkan/include -I/opt/homebrew/opt/vulkan-headers/include -Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include -DEXPORT_NPY -DHAVE_ZFP -I/Users/victortiradoegas/.local/include -DHAVE_NETCDF -I/opt/homebrew/Cellar/netcdf/4.10.1/include -O3 -DNDEBUG",
+        "ldflags": " -L/opt/homebrew/opt/libomp/lib -lomp -L/Users/victortiradoegas/.local/lib -Wl,-rpath,/Users/victortiradoegas/.local/lib -lzfp -L/opt/homebrew/Cellar/netcdf/4.10.1/lib -lnetcdf",
+        "profile": "release-like -O3 -DNDEBUG"
+      },
+      "generated_at_utc": "2026-07-26T03:33:25.467429+00:00",
+      "host": {
+        "logical_cpu_count": 16,
+        "machine": "arm64",
+        "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+        "processor": "arm",
+        "release": "25.5.0",
+        "system": "Darwin"
+      },
+      "regression_policy": null,
+      "run": {
+        "cleared_inherited_environment_prefixes": [
+          "NIMBUS_",
+          "OMP_",
+          "KMP_",
+          "GOMP_"
+        ],
+        "command": [
+          "/Users/victortiradoegas/Desktop/PersonalProjects/Nimbus/bin/nimbus_sim_cpu_benchmark",
+          "--headless",
+          "--config=/Users/victortiradoegas/Desktop/PersonalProjects/Nimbus/configs/benchmark/cpu_scaling_student.yaml",
+          "--compute-backend=cpu",
+          "--log-profile=normal",
+          "--timing",
+          "--timing-every=0"
+        ],
+        "config": "/Users/victortiradoegas/Desktop/PersonalProjects/Nimbus/configs/benchmark/cpu_scaling_student.yaml",
+        "config_sha256": "2e70b06397c0728b12d3dc1fef20f48747ee5c3a62f8c1f715834ba3ef92a699",
+        "environment": {
+          "OMP_NUM_THREADS": "16"
+        },
+        "measured_simulated_s": 100.0,
+        "measured_steps": 100,
+        "memory_plan": {
+          "cells": 196608,
+          "field_bytes": 786432,
+          "fixed_overhead_bytes": 16777216,
+          "predicted_bytes": 75759616,
+          "predicted_fields": 75
+        },
+        "metric_scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+        "threads": 16,
+        "trials": 7,
+        "warmup_steps": 20
+      },
+      "schema": "nimbus.cpu-benchmark.v1",
+      "trials": [
+        {
+          "avg_step_ms": 36.197,
+          "measured_simulated_s": 100.0,
+          "measured_steps": 100,
+          "memory_calibration": {
+            "observed_peak_field_equivalents": 100.08333333333333,
+            "phases": [
+              {
+                "field_equivalents": 49.0625,
+                "peak_rss_bytes": 38584320,
+                "phase": "startup_ready",
+                "plan_margin_bytes": 37175296
+              },
+              {
+                "field_equivalents": 49.0625,
+                "peak_rss_bytes": 38584320,
+                "phase": "first_radiation",
+                "plan_margin_bytes": 37175296
+              },
+              {
+                "field_equivalents": 49.083333333333336,
+                "peak_rss_bytes": 38600704,
+                "phase": "first_boundary_layer",
+                "plan_margin_bytes": 37158912
+              },
+              {
+                "field_equivalents": 93.875,
+                "peak_rss_bytes": 73826304,
+                "phase": "first_dynamics",
+                "plan_margin_bytes": 1933312
+              }
+            ],
+            "plan_margin_bytes": -2949120,
+            "within_plan": false
+          },
+          "memory_milestones": [
+            {
+              "peak_rss_bytes": 38584320,
+              "phase": "startup_ready"
+            },
+            {
+              "peak_rss_bytes": 38584320,
+              "phase": "first_radiation"
+            },
+            {
+              "peak_rss_bytes": 38600704,
+              "phase": "first_boundary_layer"
+            },
+            {
+              "peak_rss_bytes": 73826304,
+              "phase": "first_dynamics"
+            }
+          ],
+          "memory_plan": {
+            "cells": 196608,
+            "field_bytes": 786432,
+            "fixed_overhead_bytes": 16777216,
+            "predicted_bytes": 75759616,
+            "predicted_fields": 75
+          },
+          "peak_rss_bytes": 78708736,
+          "process_wall_s": 4.34883675002493,
+          "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+          "sim_s_per_wall_s": 27.6266,
+          "step_wall_s": 3.6197,
+          "trial": 1,
+          "warmup_steps": 20
+        },
+        {
+          "avg_step_ms": 36.2042,
+          "measured_simulated_s": 100.0,
+          "measured_steps": 100,
+          "memory_calibration": {
+            "observed_peak_field_equivalents": 100.16666666666667,
+            "phases": [
+              {
+                "field_equivalents": 49.1875,
+                "peak_rss_bytes": 38682624,
+                "phase": "startup_ready",
+                "plan_margin_bytes": 37076992
+              },
+              {
+                "field_equivalents": 49.1875,
+                "peak_rss_bytes": 38682624,
+                "phase": "first_radiation",
+                "plan_margin_bytes": 37076992
+              },
+              {
+                "field_equivalents": 49.208333333333336,
+                "peak_rss_bytes": 38699008,
+                "phase": "first_boundary_layer",
+                "plan_margin_bytes": 37060608
+              },
+              {
+                "field_equivalents": 93.97916666666667,
+                "peak_rss_bytes": 73908224,
+                "phase": "first_dynamics",
+                "plan_margin_bytes": 1851392
+              }
+            ],
+            "plan_margin_bytes": -3014656,
+            "within_plan": false
+          },
+          "memory_milestones": [
+            {
+              "peak_rss_bytes": 38682624,
+              "phase": "startup_ready"
+            },
+            {
+              "peak_rss_bytes": 38682624,
+              "phase": "first_radiation"
+            },
+            {
+              "peak_rss_bytes": 38699008,
+              "phase": "first_boundary_layer"
+            },
+            {
+              "peak_rss_bytes": 73908224,
+              "phase": "first_dynamics"
+            }
+          ],
+          "memory_plan": {
+            "cells": 196608,
+            "field_bytes": 786432,
+            "fixed_overhead_bytes": 16777216,
+            "predicted_bytes": 75759616,
+            "predicted_fields": 75
+          },
+          "peak_rss_bytes": 78774272,
+          "process_wall_s": 4.34973654197529,
+          "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+          "sim_s_per_wall_s": 27.6211,
+          "step_wall_s": 3.62042,
+          "trial": 2,
+          "warmup_steps": 20
+        },
+        {
+          "avg_step_ms": 36.6004,
+          "measured_simulated_s": 100.0,
+          "measured_steps": 100,
+          "memory_calibration": {
+            "observed_peak_field_equivalents": 100.16666666666667,
+            "phases": [
+              {
+                "field_equivalents": 49.145833333333336,
+                "peak_rss_bytes": 38649856,
+                "phase": "startup_ready",
+                "plan_margin_bytes": 37109760
+              },
+              {
+                "field_equivalents": 49.145833333333336,
+                "peak_rss_bytes": 38649856,
+                "phase": "first_radiation",
+                "plan_margin_bytes": 37109760
+              },
+              {
+                "field_equivalents": 49.166666666666664,
+                "peak_rss_bytes": 38666240,
+                "phase": "first_boundary_layer",
+                "plan_margin_bytes": 37093376
+              },
+              {
+                "field_equivalents": 94.0,
+                "peak_rss_bytes": 73924608,
+                "phase": "first_dynamics",
+                "plan_margin_bytes": 1835008
+              }
+            ],
+            "plan_margin_bytes": -3014656,
+            "within_plan": false
+          },
+          "memory_milestones": [
+            {
+              "peak_rss_bytes": 38649856,
+              "phase": "startup_ready"
+            },
+            {
+              "peak_rss_bytes": 38649856,
+              "phase": "first_radiation"
+            },
+            {
+              "peak_rss_bytes": 38666240,
+              "phase": "first_boundary_layer"
+            },
+            {
+              "peak_rss_bytes": 73924608,
+              "phase": "first_dynamics"
+            }
+          ],
+          "memory_plan": {
+            "cells": 196608,
+            "field_bytes": 786432,
+            "fixed_overhead_bytes": 16777216,
+            "predicted_bytes": 75759616,
+            "predicted_fields": 75
+          },
+          "peak_rss_bytes": 78774272,
+          "process_wall_s": 4.389908417011611,
+          "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+          "sim_s_per_wall_s": 27.3221,
+          "step_wall_s": 3.66004,
+          "trial": 3,
+          "warmup_steps": 20
+        },
+        {
+          "avg_step_ms": 36.24,
+          "measured_simulated_s": 100.0,
+          "measured_steps": 100,
+          "memory_calibration": {
+            "observed_peak_field_equivalents": 100.14583333333333,
+            "phases": [
+              {
+                "field_equivalents": 49.125,
+                "peak_rss_bytes": 38633472,
+                "phase": "startup_ready",
+                "plan_margin_bytes": 37126144
+              },
+              {
+                "field_equivalents": 49.125,
+                "peak_rss_bytes": 38633472,
+                "phase": "first_radiation",
+                "plan_margin_bytes": 37126144
+              },
+              {
+                "field_equivalents": 49.145833333333336,
+                "peak_rss_bytes": 38649856,
+                "phase": "first_boundary_layer",
+                "plan_margin_bytes": 37109760
+              },
+              {
+                "field_equivalents": 93.97916666666667,
+                "peak_rss_bytes": 73908224,
+                "phase": "first_dynamics",
+                "plan_margin_bytes": 1851392
+              }
+            ],
+            "plan_margin_bytes": -2998272,
+            "within_plan": false
+          },
+          "memory_milestones": [
+            {
+              "peak_rss_bytes": 38633472,
+              "phase": "startup_ready"
+            },
+            {
+              "peak_rss_bytes": 38633472,
+              "phase": "first_radiation"
+            },
+            {
+              "peak_rss_bytes": 38649856,
+              "phase": "first_boundary_layer"
+            },
+            {
+              "peak_rss_bytes": 73908224,
+              "phase": "first_dynamics"
+            }
+          ],
+          "memory_plan": {
+            "cells": 196608,
+            "field_bytes": 786432,
+            "fixed_overhead_bytes": 16777216,
+            "predicted_bytes": 75759616,
+            "predicted_fields": 75
+          },
+          "peak_rss_bytes": 78757888,
+          "process_wall_s": 4.352570624963846,
+          "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+          "sim_s_per_wall_s": 27.5938,
+          "step_wall_s": 3.624,
+          "trial": 4,
+          "warmup_steps": 20
+        },
+        {
+          "avg_step_ms": 36.1696,
+          "measured_simulated_s": 100.0,
+          "measured_steps": 100,
+          "memory_calibration": {
+            "observed_peak_field_equivalents": 100.16666666666667,
+            "phases": [
+              {
+                "field_equivalents": 49.145833333333336,
+                "peak_rss_bytes": 38649856,
+                "phase": "startup_ready",
+                "plan_margin_bytes": 37109760
+              },
+              {
+                "field_equivalents": 49.145833333333336,
+                "peak_rss_bytes": 38649856,
+                "phase": "first_radiation",
+                "plan_margin_bytes": 37109760
+              },
+              {
+                "field_equivalents": 49.166666666666664,
+                "peak_rss_bytes": 38666240,
+                "phase": "first_boundary_layer",
+                "plan_margin_bytes": 37093376
+              },
+              {
+                "field_equivalents": 94.0,
+                "peak_rss_bytes": 73924608,
+                "phase": "first_dynamics",
+                "plan_margin_bytes": 1835008
+              }
+            ],
+            "plan_margin_bytes": -3014656,
+            "within_plan": false
+          },
+          "memory_milestones": [
+            {
+              "peak_rss_bytes": 38649856,
+              "phase": "startup_ready"
+            },
+            {
+              "peak_rss_bytes": 38649856,
+              "phase": "first_radiation"
+            },
+            {
+              "peak_rss_bytes": 38666240,
+              "phase": "first_boundary_layer"
+            },
+            {
+              "peak_rss_bytes": 73924608,
+              "phase": "first_dynamics"
+            }
+          ],
+          "memory_plan": {
+            "cells": 196608,
+            "field_bytes": 786432,
+            "fixed_overhead_bytes": 16777216,
+            "predicted_bytes": 75759616,
+            "predicted_fields": 75
+          },
+          "peak_rss_bytes": 78774272,
+          "process_wall_s": 4.343883791996632,
+          "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+          "sim_s_per_wall_s": 27.6475,
+          "step_wall_s": 3.61696,
+          "trial": 5,
+          "warmup_steps": 20
+        },
+        {
+          "avg_step_ms": 36.1274,
+          "measured_simulated_s": 100.0,
+          "measured_steps": 100,
+          "memory_calibration": {
+            "observed_peak_field_equivalents": 100.08333333333333,
+            "phases": [
+              {
+                "field_equivalents": 49.104166666666664,
+                "peak_rss_bytes": 38617088,
+                "phase": "startup_ready",
+                "plan_margin_bytes": 37142528
+              },
+              {
+                "field_equivalents": 49.104166666666664,
+                "peak_rss_bytes": 38617088,
+                "phase": "first_radiation",
+                "plan_margin_bytes": 37142528
+              },
+              {
+                "field_equivalents": 49.125,
+                "peak_rss_bytes": 38633472,
+                "phase": "first_boundary_layer",
+                "plan_margin_bytes": 37126144
+              },
+              {
+                "field_equivalents": 93.91666666666667,
+                "peak_rss_bytes": 73859072,
+                "phase": "first_dynamics",
+                "plan_margin_bytes": 1900544
+              }
+            ],
+            "plan_margin_bytes": -2949120,
+            "within_plan": false
+          },
+          "memory_milestones": [
+            {
+              "peak_rss_bytes": 38617088,
+              "phase": "startup_ready"
+            },
+            {
+              "peak_rss_bytes": 38617088,
+              "phase": "first_radiation"
+            },
+            {
+              "peak_rss_bytes": 38633472,
+              "phase": "first_boundary_layer"
+            },
+            {
+              "peak_rss_bytes": 73859072,
+              "phase": "first_dynamics"
+            }
+          ],
+          "memory_plan": {
+            "cells": 196608,
+            "field_bytes": 786432,
+            "fixed_overhead_bytes": 16777216,
+            "predicted_bytes": 75759616,
+            "predicted_fields": 75
+          },
+          "peak_rss_bytes": 78708736,
+          "process_wall_s": 4.340754125034437,
+          "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+          "sim_s_per_wall_s": 27.6798,
+          "step_wall_s": 3.61274,
+          "trial": 6,
+          "warmup_steps": 20
+        },
+        {
+          "avg_step_ms": 36.1582,
+          "measured_simulated_s": 100.0,
+          "measured_steps": 100,
+          "memory_calibration": {
+            "observed_peak_field_equivalents": 100.08333333333333,
+            "phases": [
+              {
+                "field_equivalents": 49.104166666666664,
+                "peak_rss_bytes": 38617088,
+                "phase": "startup_ready",
+                "plan_margin_bytes": 37142528
+              },
+              {
+                "field_equivalents": 49.104166666666664,
+                "peak_rss_bytes": 38617088,
+                "phase": "first_radiation",
+                "plan_margin_bytes": 37142528
+              },
+              {
+                "field_equivalents": 49.125,
+                "peak_rss_bytes": 38633472,
+                "phase": "first_boundary_layer",
+                "plan_margin_bytes": 37126144
+              },
+              {
+                "field_equivalents": 93.91666666666667,
+                "peak_rss_bytes": 73859072,
+                "phase": "first_dynamics",
+                "plan_margin_bytes": 1900544
+              }
+            ],
+            "plan_margin_bytes": -2949120,
+            "within_plan": false
+          },
+          "memory_milestones": [
+            {
+              "peak_rss_bytes": 38617088,
+              "phase": "startup_ready"
+            },
+            {
+              "peak_rss_bytes": 38617088,
+              "phase": "first_radiation"
+            },
+            {
+              "peak_rss_bytes": 38633472,
+              "phase": "first_boundary_layer"
+            },
+            {
+              "peak_rss_bytes": 73859072,
+              "phase": "first_dynamics"
+            }
+          ],
+          "memory_plan": {
+            "cells": 196608,
+            "field_bytes": 786432,
+            "fixed_overhead_bytes": 16777216,
+            "predicted_bytes": 75759616,
+            "predicted_fields": 75
+          },
+          "peak_rss_bytes": 78708736,
+          "process_wall_s": 4.345847042044625,
+          "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+          "sim_s_per_wall_s": 27.6562,
+          "step_wall_s": 3.61582,
+          "trial": 7,
+          "warmup_steps": 20
+        }
+      ]
+    }
+  ]
+}

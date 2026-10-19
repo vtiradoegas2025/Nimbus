@@ -1,0 +1,492 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_spirv_intrinsics : require
+spirv_execution_mode(extensions = ["SPV_KHR_float_controls"], capabilities = [4466], 4461, 32);
+spirv_execution_mode(extensions = ["SPV_KHR_float_controls"], capabilities = [4467], 4462, 32);
+layout(local_size_x = 64) in;
+layout(set = 0, binding = 0) readonly buffer B0
+{
+    float input_0[];
+};
+layout(set = 0, binding = 1) readonly buffer B1
+{
+    float input_1[];
+};
+layout(set = 0, binding = 2) readonly buffer B2
+{
+    float input_2[];
+};
+layout(set = 0, binding = 3) readonly buffer B3
+{
+    float input_3[];
+};
+layout(set = 0, binding = 4) readonly buffer B4
+{
+    float input_4[];
+};
+layout(set = 0, binding = 5) readonly buffer B5
+{
+    float input_5[];
+};
+layout(set = 0, binding = 6) readonly buffer B6
+{
+    float input_6[];
+};
+layout(set = 0, binding = 7) readonly buffer B7
+{
+    float input_7[];
+};
+layout(set = 0, binding = 8) writeonly buffer B8
+{
+    float output_0[];
+};
+layout(set = 0, binding = 9) writeonly buffer B9
+{
+    float output_1[];
+};
+layout(set = 0, binding = 10) writeonly buffer B10
+{
+    float output_2[];
+};
+layout(set = 0, binding = 11) writeonly buffer B11
+{
+    float output_3[];
+};
+layout(set = 0, binding = 12) writeonly buffer B12
+{
+    float output_4[];
+};
+layout(set = 0, binding = 13) writeonly buffer B13
+{
+    float output_5[];
+};
+layout(set = 0, binding = 14) writeonly buffer B14
+{
+    float output_6[];
+};
+layout(set = 0, binding = 15) writeonly buffer B15
+{
+    float output_7[];
+};
+layout(set = 0, binding = 16) writeonly buffer B16
+{
+    float output_8[];
+};
+layout(set = 0, binding = 17) writeonly buffer B17
+{
+    float output_9[];
+};
+layout(set = 0, binding = 18) writeonly buffer B18
+{
+    float output_10[];
+};
+layout(set = 0, binding = 19) writeonly buffer B19
+{
+    float output_11[];
+};
+layout(set = 0, binding = 20) writeonly buffer B20
+{
+    float output_12[];
+};
+layout(set = 0, binding = 21) writeonly buffer B21
+{
+    float output_13[];
+};
+layout(set = 0, binding = 22) writeonly buffer B22
+{
+    float output_14[];
+};
+layout(set = 0, binding = 23) writeonly buffer B23
+{
+    float output_15[];
+};
+layout(set = 0, binding = 24) writeonly buffer B24
+{
+    float output_16[];
+};
+layout(set = 0, binding = 25) writeonly buffer B25
+{
+    float output_17[];
+};
+layout(set = 0, binding = 26) writeonly buffer B26
+{
+    float output_18[];
+};
+layout(set = 0, binding = 27) writeonly buffer B27
+{
+    float output_19[];
+};
+layout(push_constant) uniform PushConstants
+{
+    int   nx;
+    int   ny;
+    int   nz;
+    int   operation;
+    int   scheme;
+    int   smoothed;
+    float dx_high;
+    float dx_low;
+    float dy_high;
+    float dy_low;
+    float dz_high;
+    float dz_low;
+    float height_high;
+    float height_low;
+    float width_high;
+    float width_low;
+    float wavelength_high;
+    float wavelength_low;
+    float decay_high;
+    float decay_low;
+    float x_high;
+    float x_low;
+    float y_high;
+    float y_low;
+    float shift_x_high;
+    float shift_x_low;
+    float shift_y_high;
+    float shift_y_low;
+};
+#include "../microphysics/compensated_fma.glsl"
+void store_pair(int field, int n, vec2 value)
+{
+    if (field == 0)
+    {
+        output_0[n] = value.x;
+        output_1[n] = value.y;
+    }
+    if (field == 1)
+    {
+        output_2[n] = value.x;
+        output_3[n] = value.y;
+    }
+    if (field == 2)
+    {
+        output_4[n] = value.x;
+        output_5[n] = value.y;
+    }
+    if (field == 3)
+    {
+        output_6[n] = value.x;
+        output_7[n] = value.y;
+    }
+    if (field == 4)
+    {
+        output_8[n] = value.x;
+        output_9[n] = value.y;
+    }
+    if (field == 5)
+    {
+        output_10[n] = value.x;
+        output_11[n] = value.y;
+    }
+    if (field == 6)
+    {
+        output_12[n] = value.x;
+        output_13[n] = value.y;
+    }
+    if (field == 7)
+    {
+        output_14[n] = value.x;
+        output_15[n] = value.y;
+    }
+    if (field == 8)
+    {
+        output_16[n] = value.x;
+        output_17[n] = value.y;
+    }
+    if (field == 9)
+    {
+        output_18[n] = value.x;
+        output_19[n] = value.y;
+    }
+}
+vec2 integer_pair(int value)
+{
+    float leading = float(value);
+    return vec2(leading, float(value - int(leading)));
+}
+bool less_pair(vec2 a, vec2 b)
+{
+    return a.x < b.x || (a.x == b.x && a.y < b.y);
+}
+vec2 invalid_value()
+{
+    return vec2(uintBitsToFloat(0x7fc00000u));
+}
+vec2 terrain_node(int i, int j)
+{
+    vec2 px = df_mul(df_add(vec2(x_high, x_low), integer_pair(i)), vec2(dx_high, dx_low));
+    vec2 py = df_mul(df_add(vec2(y_high, y_low), integer_pair(j)), vec2(dy_high, dy_low));
+    vec2 a  = vec2(width_high, width_low);
+    vec2 u = df_div(px, a), v = df_div(py, a);
+    vec2 h = vec2(height_high, height_low);
+    if (scheme == 2)
+    {
+        vec2 u2 = df_mul(u, u);
+        if (u2.x > 103)
+            return vec2(0);
+        vec2  periods  = df_div(px, vec2(wavelength_high, wavelength_low));
+        float leading  = floor(periods.x + 0.5);
+        vec2  residual = df_sub(periods, vec2(leading, 0));
+        residual       = df_sub(residual, vec2(floor(residual.x + 0.5), 0));
+        vec2 angle     = df_mul(residual, vec2(3.1415927410125732, -8.742277657347586e-8));
+        vec2 square = -df_mul(angle, angle), term = vec2(1, 0), cosine = term;
+        for (int order = 1; order <= 14; ++order)
+        {
+            term   = df_div(df_mul(term, square), vec2(float((2 * order - 1) * (2 * order)), 0));
+            cosine = df_add(cosine, term);
+        }
+        return df_mul(df_mul(h, df_exp(-u2)), df_mul(cosine, cosine));
+    }
+    if (abs(u.x) > 1e12 || (scheme == 1 && abs(v.x) > 1e12))
+    {
+        vec2 scale     = abs(u.x) >= abs(v.x) || scheme == 0 ? (u.x < 0 ? -u : u) : (v.x < 0 ? -v : v);
+        vec2 inverse   = df_div(vec2(1, 0), scale);
+        vec2 reduced_u = df_mul(u, inverse), reduced_v = df_mul(v, inverse);
+        vec2 base      = df_add(df_mul(inverse, inverse), df_mul(reduced_u, reduced_u));
+        vec2 numerator = df_mul(df_mul(h, inverse), inverse);
+        if (scheme == 1)
+        {
+            base      = df_add(base, df_mul(reduced_v, reduced_v));
+            base      = df_mul(base, df_sqrt(base));
+            numerator = df_mul(numerator, inverse);
+        }
+        return df_div(numerator, base);
+    }
+    vec2 denominator = df_add(vec2(1, 0), df_mul(u, u));
+    if (scheme == 1)
+    {
+        denominator = df_add(denominator, df_mul(v, v));
+        denominator = df_mul(denominator, df_sqrt(denominator));
+    }
+    return df_div(h, denominator);
+}
+int floor_pair(vec2 value)
+{
+    int  whole    = int(floor(value.x));
+    vec2 residual = df_sub(value, integer_pair(whole));
+    if (less_pair(residual, vec2(0)))
+        --whole;
+    else if (!less_pair(residual, vec2(1, 0)))
+        ++whole;
+    return whole;
+}
+vec2 sample_node(int i, int j)
+{
+    if (i < 0 || j < 0 || i >= nx + 4 || j >= ny + 4)
+        return invalid_value();
+    int n = i * (ny + 4) + j;
+    return vec2(input_0[n], input_1[n]);
+}
+vec2 surface_height(vec2 x, vec2 y)
+{
+    int  i = floor_pair(x), j = floor_pair(y);
+    vec2 tx = df_sub(x, integer_pair(i)), ty = df_sub(y, integer_pair(j));
+    vec2 a = sample_node(i, j), b = sample_node(i + 1, j);
+    vec2 c = sample_node(i, j + 1), d = sample_node(i + 1, j + 1);
+    vec2 lower = df_add(a, df_mul(tx, df_sub(b, a)));
+    vec2 upper = df_add(c, df_mul(tx, df_sub(d, c)));
+    return df_add(lower, df_mul(ty, df_sub(upper, lower)));
+}
+vec2 line_mean(vec2 x, vec2 y, bool x_face)
+{
+    vec2 begin = x_face ? y : x;
+    vec2 end   = df_add(begin, vec2(1, 0));
+    vec2 cut   = integer_pair(floor_pair(begin) + 1);
+    if (less_pair(end, cut))
+        cut = end;
+    vec2 result = vec2(0);
+    for (int part = 0; part < 2; ++part)
+    {
+        vec2 a = part == 0 ? begin : cut, b = part == 0 ? cut : end;
+        if (!less_pair(a, b))
+            continue;
+        vec2 sum = x_face ? df_add(surface_height(x, a), surface_height(x, b))
+                          : df_add(surface_height(a, y), surface_height(b, y));
+        result   = df_add(result, df_mul(df_mul(vec2(0.5, 0), df_sub(b, a)), sum));
+    }
+    return result;
+}
+vec2 cell_mean(vec2 x, vec2 y)
+{
+    vec2 ex = df_add(x, vec2(1, 0)), ey = df_add(y, vec2(1, 0));
+    vec2 cx = integer_pair(floor_pair(x) + 1), cy = integer_pair(floor_pair(y) + 1);
+    if (less_pair(ex, cx))
+        cx = ex;
+    if (less_pair(ey, cy))
+        cy = ey;
+    vec2 result = vec2(0);
+    for (int ix = 0; ix < 2; ++ix)
+        for (int iy = 0; iy < 2; ++iy)
+        {
+            vec2 a = ix == 0 ? x : cx, b = ix == 0 ? cx : ex, c = iy == 0 ? y : cy, d = iy == 0 ? cy : ey;
+            if (!less_pair(a, b) || !less_pair(c, d))
+                continue;
+            vec2 sum = df_add(df_add(surface_height(a, c), surface_height(b, c)),
+                              df_add(surface_height(a, d), surface_height(b, d)));
+            result   = df_add(result, df_mul(df_mul(vec2(0.25, 0), df_mul(df_sub(b, a), df_sub(d, c))), sum));
+        }
+    return result;
+}
+vec2 height_mean(int i, int j, int field, vec2 ox, vec2 oy)
+{
+    vec2 px = df_add(ox, integer_pair(i)), py = df_add(oy, integer_pair(j));
+    if (field == 0)
+        return cell_mean(px, py);
+    return line_mean(px, py, field == 1);
+}
+vec2 averaged_mean(int i, int j, int field)
+{
+    vec2 start_x = vec2(x_high, x_low), start_y = vec2(y_high, y_low);
+    if (scheme == 0)
+        return height_mean(i, j, field, start_x, start_y);
+    vec2 delta_x = vec2(shift_x_high, shift_x_low), delta_y = vec2(shift_y_high, shift_y_low);
+    vec2 cuts[6];
+    cuts[0]   = vec2(0);
+    cuts[1]   = vec2(1, 0);
+    int count = 2;
+    for (int axis = 0; axis < 2; ++axis)
+    {
+        vec2 start = axis == 0 ? start_x : start_y, delta = axis == 0 ? delta_x : delta_y;
+        if (delta.x == 0 && delta.y == 0)
+            continue;
+        for (int edge = 1; edge <= 2; ++edge)
+        {
+            vec2 cut = df_div(df_sub(integer_pair(edge), start), delta);
+            if (less_pair(vec2(0), cut) && less_pair(cut, vec2(1, 0)))
+                cuts[count++] = cut;
+        }
+    }
+    for (int a = 0; a < count; ++a)
+        for (int b = a + 1; b < count; ++b)
+            if (less_pair(cuts[b], cuts[a]))
+            {
+                vec2 temporary = cuts[a];
+                cuts[a]        = cuts[b];
+                cuts[b]        = temporary;
+            }
+    vec2 result = vec2(0);
+    // Bilinear cell means are piecewise quartics along the moving frame.
+    for (int part = 1; part < count; ++part)
+    {
+        vec2 midpoint  = df_mul(vec2(0.5, 0), df_add(cuts[part - 1], cuts[part]));
+        vec2 half_span = df_mul(vec2(0.5, 0), df_sub(cuts[part], cuts[part - 1]));
+        if (!less_pair(vec2(0), half_span))
+            continue;
+        for (int q = 0; q < 3; ++q)
+        {
+            vec2 node = vec2(0), weight = vec2(0.8888888955116272, -6.622738357719982e-9);
+            if (q != 1)
+            {
+                node = vec2(0.7745966911315918, -2.1890109280775505e-8);
+                if (q == 0)
+                    node = -node;
+                weight = vec2(0.5555555820465088, -2.6490953430879927e-8);
+            }
+            vec2 time  = df_add(midpoint, df_mul(half_span, node));
+            vec2 value = height_mean(
+                i, j, field, df_add(start_x, df_mul(time, delta_x)), df_add(start_y, df_mul(time, delta_y)));
+            result = df_add(result, df_mul(df_mul(half_span, weight), value));
+        }
+    }
+    return result;
+}
+vec2 vertical_weight(vec2 level)
+{
+    vec2 fraction = df_div(level, integer_pair(nz));
+    vec2 weight   = df_sub(vec2(1, 0), fraction);
+    return smoothed != 0 ? df_mul(weight, df_exp(-df_mul(vec2(decay_high, decay_low), fraction))) : weight;
+}
+void evaluate(uint gid)
+{
+    int plane = (nx + 4) * (ny + 4);
+    if (gid >= uint(plane) * uint(operation >= 2 ? nz + 1 : 1))
+        return;
+    int n = int(gid), k = n / plane, xy = n % plane, i = xy / (ny + 4), j = xy % (ny + 4);
+    output_0[n]  = 0;
+    output_1[n]  = 0;
+    output_2[n]  = 0;
+    output_3[n]  = 0;
+    output_4[n]  = 0;
+    output_5[n]  = 0;
+    output_6[n]  = 0;
+    output_7[n]  = 0;
+    output_8[n]  = 0;
+    output_9[n]  = 0;
+    output_10[n] = 0;
+    output_11[n] = 0;
+    output_12[n] = 0;
+    output_13[n] = 0;
+    output_14[n] = 0;
+    output_15[n] = 0;
+    output_16[n] = 0;
+    output_17[n] = 0;
+    output_18[n] = 0;
+    output_19[n] = 0;
+    if (operation == 0)
+    {
+        store_pair(0, n, terrain_node(i, j));
+        return;
+    }
+    if (operation == 1)
+    {
+        if (i < nx && j < ny)
+            store_pair(0, n, averaged_mean(i, j, 0));
+        if (i <= nx && j < ny)
+            store_pair(1, n, averaged_mean(i, j, 1));
+        if (i < nx && j <= ny)
+            store_pair(2, n, averaged_mean(i, j, 2));
+        return;
+    }
+    if (operation == 3)
+    {
+        vec2 logical = df_mul(df_mul(vec2(dx_high, dx_low), vec2(dy_high, dy_low)), vec2(dz_high, dz_low));
+        store_pair(0, n, df_mul(vec2(input_0[n], input_1[n]), df_mul(logical, vec2(shift_x_high, shift_x_low))));
+        store_pair(1, n, df_mul(vec2(input_2[n], input_3[n]), df_mul(logical, vec2(shift_y_high, shift_y_low))));
+        return;
+    }
+    if (i > nx || j > ny)
+        return;
+    vec2 h      = vec2(input_0[xy], input_1[xy]);
+    vec2 face_x = vec2(input_2[xy], input_3[xy]), face_y = vec2(input_4[xy], input_5[xy]);
+    vec2 step = vec2(dz_high, dz_low), level = integer_pair(k), weight = vertical_weight(level);
+    vec2 next_weight = vertical_weight(df_add(level, vec2(1, 0)));
+    if (k < nz)
+    {
+        if (i <= nx && j < ny)
+            store_pair(6, n, df_add(vec2(1, 0), df_div(df_mul(face_x, df_sub(next_weight, weight)), step)));
+        if (i < nx && j <= ny)
+            store_pair(7, n, df_add(vec2(1, 0), df_div(df_mul(face_y, df_sub(next_weight, weight)), step)));
+    }
+    if (i >= nx || j >= ny)
+        return;
+    vec2 hx     = df_div(df_sub(vec2(input_2[xy + ny + 4], input_3[xy + ny + 4]), face_x), vec2(dx_high, dx_low));
+    vec2 hy     = df_div(df_sub(vec2(input_4[xy + 1], input_5[xy + 1]), face_y), vec2(dy_high, dy_low));
+    vec2 face_z = df_add(df_mul(level, step), df_mul(weight, h));
+    store_pair(5, n, face_z);
+    store_pair(8, n, -df_mul(weight, hx));
+    store_pair(9, n, -df_mul(weight, hy));
+    if (k == nz)
+        return;
+    store_pair(1, n, df_add(vec2(1, 0), df_div(df_mul(h, df_sub(next_weight, weight)), step)));
+    vec2 center = df_add(level, vec2(0.5, 0)), center_weight = vertical_weight(center);
+    vec2 zeta = df_mul(center, step), top = df_mul(integer_pair(nz), step);
+    vec2 fraction = df_div(center, integer_pair(nz)), decay_factor = vec2(1, 0), derivative = vec2(1, 0);
+    if (smoothed != 0)
+    {
+        decay_factor = df_exp(-df_mul(vec2(decay_high, decay_low), fraction));
+        derivative   = df_add(vec2(1, 0), df_mul(vec2(decay_high, decay_low), df_sub(vec2(1, 0), fraction)));
+    }
+    vec2 point_j = df_sub(vec2(1, 0), df_div(df_mul(df_mul(h, decay_factor), derivative), top));
+    if (!less_pair(vec2(1e-12, 0), point_j))
+        point_j = invalid_value();
+    store_pair(0, n, df_add(zeta, df_mul(center_weight, h)));
+    store_pair(2, n, -df_div(df_mul(center_weight, hx), point_j));
+    store_pair(3, n, -df_div(df_mul(center_weight, hy), point_j));
+    store_pair(4, n, zeta);
+}
+void main()
+{
+    evaluate(gl_GlobalInvocationID.x);
+}

@@ -1,0 +1,114 @@
+# SCI-026 strict-v1 source-to-runtime qualification fixture.
+#
+# The duration-zero run exercises configuration loading, branch projection,
+# source construction, sounding generation, and requested/realized diagnostic
+# publication without advancing the model state.
+schema: nimbus.v1
+
+grid:
+  coordinate_system: cartesian
+  staggering: c_grid
+  nx: 16
+  ny: 16
+  nz: 64
+  dx: 2000
+  dy: 2000
+  dz: 250
+  ztop: 16000
+
+time:
+  # The integration gate overrides this to duration zero after strict loading.
+  run_time: 1
+  dt_large: 1
+  acoustic_substeps: 6
+  adaptive_dt: false
+  cfl_safety: 0.7
+  output_interval: 0
+
+dynamics:
+  scheme: klemp_wilhelmson_split_cartesian_cgrid
+  axisymmetric: false
+
+boundary_conditions:
+  lateral:
+    west: rigid
+    east: rigid
+    south: rigid
+    north: rigid
+  bottom: rigid_slip
+  top: rigid
+
+damping:
+  enabled: false
+  z_d: 12000
+  alpha: 0.00333
+  mode: explicit
+
+coriolis:
+  enabled: false
+  mode: f_plane
+  latitude_deg: 35
+
+microphysics:
+  scheme: none
+
+turbulence:
+  scheme: none
+  mode: 3d
+  Cs: 0.18
+  Pr_t: 0.7
+  Sc_t: 0.7
+
+advection:
+  scheme: tvd
+
+diffusion:
+  scheme: explicit
+  operator_order: 2
+  K_h: 0
+  K_v: 0
+  apply_to: scalars
+
+surface:
+  scheme: none
+  apply_fluxes: false
+
+boundary_layer:
+  scheme: none
+
+radiation:
+  scheme: none
+
+initial_conditions:
+  sounding:
+    type: parametric_targets
+    cape_jkg: 2500
+    cin_jkg: 50
+    lcl_m: 1100
+    lfc_m: 1500
+    el_m: 12000
+    surface_theta_k: 300
+  hodograph:
+    type: wk_param
+    u_sfc_ms: 4
+    v_sfc_ms: 1
+    u_1km_ms: 14
+    v_1km_ms: 6
+    u_6km_ms: 28
+    v_6km_ms: 22
+  trigger:
+    type: none
+
+output:
+  preset: minimal
+  format: npy_3d
+  async_io: false
+  live_shm: false
+
+extensions:
+  compute:
+    backend: cpu
+  diagnostics:
+    scientific_every_steps: 0
+  validation:
+    guard_mode: error

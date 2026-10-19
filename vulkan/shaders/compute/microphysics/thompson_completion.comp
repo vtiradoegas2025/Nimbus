@@ -1,0 +1,130 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_spirv_intrinsics : require
+spirv_execution_mode(extensions = ["SPV_KHR_float_controls"], capabilities = [4466], 4461, 32);
+spirv_execution_mode(extensions = ["SPV_KHR_float_controls"], capabilities = [4467], 4462, 32);
+layout(local_size_x = 64) in;
+layout(set = 0, binding = 0) readonly buffer Input
+{
+    float input_data[];
+};
+layout(set = 0, binding = 1) readonly buffer Coefficients
+{
+    float coefficients[];
+};
+layout(set = 0, binding = 2) writeonly buffer Output
+{
+    float output_data[];
+};
+layout(push_constant) uniform PushConstants
+{
+    int   cells;
+    float dt_high;
+    float dt_low;
+};
+#include "thompson_completion_math.glsl"
+#include "thompson_completion_processes.glsl"
+float value(int n, int slot)
+{
+    return input_data[n * 51 + slot];
+}
+vec2 pair_value(int n, int slot)
+{
+    return vec2(value(n, slot), value(n, slot + 1));
+}
+void evaluate(uint gid)
+{
+    if (gid >= uint(cells))
+        return;
+    int n      = int(gid);
+    failed     = false;
+    snow_speed = 1.0;
+    ice_index  = -1.0;
+    rs_index   = -1.0;
+    rg_index   = -1.0;
+    for (int f = 0; f < 18; ++f)
+        output_data[n * 18 + f] = 0.0;
+    output_data[n * 18 + 17] = -1.0;
+    t                        = vec2(value(n, 0), 0);
+    p                        = vec2(value(n, 1), 0);
+    rho                      = vec2(value(n, 2), 0);
+    step                     = vec2(dt_high, dt_low);
+    for (int f = 0; f < 7; ++f)
+    {
+        q[f]          = vec2(value(n, 3 + f), 0);
+        original_q[f] = q[f];
+    }
+    for (int f = 0; f < 5; ++f)
+    {
+        original_n[f] = value(n, 10 + f);
+        rates[f]      = 0.0;
+    }
+    q[0] = df_add(q[0], vec2(value(n, 15), value(n, 49)));
+    q[1] = df_sub(q[1], vec2(value(n, 15), value(n, 49)));
+    heat = vec2(value(n, 16), value(n, 50));
+    transfer_mass(1, 2, pair_value(n, 19), vec2(0));
+    transfer_mass(2, 0, pair_value(n, 21), vec2(0));
+    heat     = df_add(heat, pair_value(n, 23));
+    rates[0] = value(n, 25);
+    rates[1] = value(n, 26);
+    rates[3] = value(n, 27);
+    if (df_sub(t, vec2(273.14999389648438, 6.1035156022626325e-06)).x < 0.0)
+    {
+        for (int f = 0; f < 3; ++f)
+        {
+            vec2 amount = pair_value(n, 28 + 2 * f);
+            if (amount.x >= 0.0)
+                transfer_mass(0, 3 + f, amount, vec2(0));
+            else
+                transfer_mass(3 + f, 0, -amount, vec2(0));
+        }
+        heat       = df_add(heat, pair_value(n, 34));
+        rates[2]   = value(n, 36);
+        snow_vapor = pair_value(n, 37);
+        transfer_mass(2, 3, pair_value(n, 41), df_div(vec2(334000.0, 0.0), vec2(1004.0, 0.0)));
+        transfer_mass(2, 5, pair_value(n, 43), df_div(vec2(334000.0, 0.0), vec2(1004.0, 0.0)));
+        transfer_mass(1, 3, pair_value(n, 39), df_div(vec2(334000.0, 0.0), vec2(1004.0, 0.0)));
+        rates[0] = value(n, 45);
+        rates[1] = value(n, 46);
+        rates[2] += value(n, 47);
+        rates[2] += value(n, 48);
+        nucleation();
+        riming_process();
+        ice_to_snow();
+    }
+    vec2 tw = wet_bulb(q[0]);
+    if (df_sub(t, vec2(273.14999389648438, 6.1035156022626325e-06)).x >= 0.0)
+        melting(tw);
+    vec2 rain_number = collection(tw);
+    scavenging(rain_number);
+    vec2 ice_mass = df_mul(q[3], rho);
+    vec2 ice_target = df_sub(ice_mass, vec2(9.999999960041972e-13, 3.9958027796366288e-21)).x > 0.0
+        ? df_div(df_min(vec2(999000.0, 0.0), ice_sorted(ice_mass, df_mul(current_number(2), rho))), rho)
+        : current_number(2);
+    store_number(2, ice_target);
+    output_data[n * 18] = scalar(df_div(heat, step));
+    for (int f = 0; f < 7; ++f)
+    {
+        float rate                  = scalar(df_div(df_sub(q[f], original_q[f]), step));
+        output_data[n * 18 + 1 + f] = rate;
+        if (isnan(rate) || isinf(rate) || !finite_pair(q[f]) || q[f].x < 0.0)
+            failed = true;
+    }
+    for (int f = 0; f < 5; ++f)
+    {
+        output_data[n * 18 + 8 + f] = rates[f];
+        if (isnan(rates[f]) || isinf(rates[f]))
+            failed = true;
+    }
+    output_data[n * 18 + 13] = snow_speed;
+    output_data[n * 18 + 14] = ice_index;
+    output_data[n * 18 + 15] = rs_index;
+    output_data[n * 18 + 16] = rg_index;
+    if (!finite_pair(heat))
+        failed = true;
+    output_data[n * 18 + 17] = failed ? -1.0 : 0.0;
+}
+void main()
+{
+    evaluate(gl_GlobalInvocationID.x);
+}

@@ -1,0 +1,75 @@
+{
+  "schema": "nimbus.evidence.moving_nested_reference_geometry_failure",
+  "schema_version": 1,
+  "status": "invalid_fail_closed",
+  "reason": "unresolved_breached_face",
+  "simulation_time_s": 3090.0,
+  "completed_step": 2060,
+  "source": {
+    "campaign": "nimbus_moving_reference_frontier_v2_20260811",
+    "binary_sha256": "98073653547ec4c94b198a5d155e3db82c77e1ef8ac45e2de7dd744e3efba7ab",
+    "configuration_snapshot_sha256": "1ab8df04efc9bb54356ae2200693d268f1838821f0f9dd066bcf298825b9ba9e",
+    "scientific_validity_sha256": "f887e54bc6684e35616dfd56f18538906d5cf048571516bdcef1fc2d17fb5e53",
+    "last_safe_tracker_sha256": "d9cb38e09118c86e840933db32e48210a34a57e50f0dd522aba366e914436f35",
+    "failing_tracker_sha256": "0d0b93263140bf69b00bc2b7619b4dd1c899c99771450125ad7805663668891d"
+  },
+  "last_safe_sample": {
+    "simulation_time_s": 3060.0,
+    "authoritative_branch_id": 1,
+    "envelope_faces_m": {
+      "west": 65400.0,
+      "east": 92400.0,
+      "south": 38400.0,
+      "north": 74400.0
+    },
+    "child_clearance_m": {
+      "west": 22200.0,
+      "east": 20400.0,
+      "south": 15600.0,
+      "north": 15600.0
+    },
+    "movement_status": "cooldown",
+    "movement_reason": "cooldown_active"
+  },
+  "failing_sample": {
+    "authoritative_branch_id": 1,
+    "continuity_confidence": 0.9561438786066583,
+    "topology": "single",
+    "topology_reorganization": false,
+    "envelope_faces_m": {
+      "west": 65400.0,
+      "east": 98400.0,
+      "south": 39000.0,
+      "north": 75000.0
+    },
+    "child_clearance_m": {
+      "west": 22200.0,
+      "east": 14400.0,
+      "south": 16200.0,
+      "north": 15000.0
+    },
+    "envelope_face_velocity_ms": {
+      "west": 0.0,
+      "east": 200.0,
+      "south": 20.0,
+      "north": 20.0
+    },
+    "movement_status": "ineligible",
+    "movement_reason": "opposite_release_margin_insufficient",
+    "moving_nest_scientific_validity": "invalid"
+  },
+  "forensic_classification": {
+    "owner": "reference_geometry_and_parent_lattice_v1",
+    "classification": "operational_child_geometry_insufficient",
+    "inner_margin_m": 15600.0,
+    "relaxation_width_m": 4800.0,
+    "parent_shift_spacing_m": 1200.0,
+    "causal_axis": "y",
+    "explanation": "The 36.0 km y envelope left exactly 31.2 km total clearance. A 600 m envelope translation changed 15.6/15.6 km clearance to 16.2/15.0 km, while every legal child move changes both clearances by 1.2 km. No parent-aligned placement could restore both 15.6 km inner margins.",
+    "tracker_defect": false,
+    "cooldown_defect": false,
+    "cadence_defect": false,
+    "shift_cap_defect": false
+  },
+  "disposition": "The failed candidate is invalid and cannot be compared or promoted. This evidence supports only a versioned operational-geometry repair followed by a fresh immutable candidate."
+}

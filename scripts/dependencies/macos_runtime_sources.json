@@ -1,0 +1,35 @@
+{
+  "minimum_macos": "12.0",
+  "components": {
+    "libomp": {
+      "version": "22.1.1",
+      "url": "https://github.com/llvm/llvm-project/releases/download/llvmorg-22.1.1/llvm-project-22.1.1.src.tar.xz",
+      "sha256": "9c6f37f6f5f68d38f435d25f770fc48c62d92b2412205767a16dac2c942f0c95"
+    },
+    "hdf5": {
+      "version": "2.1.1",
+      "url": "https://github.com/HDFGroup/hdf5/releases/download/2.1.1/hdf5-2.1.1.tar.gz",
+      "sha256": "efff93b5a904d66e8f626d7da60b5eedc9faf544be27dbabbaa87967b8ad798b"
+    },
+    "netcdf": {
+      "version": "4.10.1",
+      "url": "https://github.com/Unidata/netcdf-c/archive/refs/tags/v4.10.1.tar.gz",
+      "sha256": "33c27231c478c3b35da7c7758fbdd02da1fe407abcb16ddfe195f69d164f930d"
+    },
+    "zstd": {
+      "version": "1.5.7",
+      "url": "https://github.com/facebook/zstd/archive/refs/tags/v1.5.7.tar.gz",
+      "sha256": "37d7284556b20954e56e1ca85b80226768902e2edabd3b649e9e72c0c9012ee3"
+    },
+    "libaec": {
+      "version": "1.1.7",
+      "url": "https://github.com/Deutsches-Klimarechenzentrum/libaec/releases/download/v1.1.7/libaec-1.1.7.tar.gz",
+      "sha256": "cc7b93be9002e25a88b45d6b8d5f6120756cb5e1000613f91d803ce0beba24d9"
+    },
+    "zfp": {
+      "version": "1.0.1",
+      "url": "https://github.com/llnl/zfp/releases/download/1.0.1/zfp-1.0.1.tar.gz",
+      "sha256": "ca0f7b4ae88044ffdda12faead30723fe83dd8f5bb0db74125df84589e60e52b"
+    }
+  }
+}

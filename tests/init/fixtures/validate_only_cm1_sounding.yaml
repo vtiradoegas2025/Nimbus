@@ -1,0 +1,53 @@
+schema: nimbus.v1
+
+grid:
+  coordinate_system: cartesian
+  staggering: c_grid
+  nx: 16
+  ny: 16
+  nz: 32
+  dx: 500
+  dy: 500
+  dz: 500
+  ztop: 16000
+
+time:
+  run_time: 60
+  dt_large: 1
+  output_interval: 0
+
+dynamics:
+  scheme: klemp_wilhelmson_split_cartesian_cgrid
+
+microphysics:
+  scheme: none
+
+turbulence:
+  scheme: none
+  mode: 3d
+
+diffusion:
+  scheme: explicit
+  operator_order: 2
+  K_h: 0
+  K_v: 0
+  apply_to: scalars
+
+surface:
+  scheme: none
+  apply_fluxes: false
+
+boundary_layer:
+  scheme: none
+
+radiation:
+  scheme: none
+
+initial_conditions:
+  sounding:
+    type: file
+    file_path: tests/fixtures/soundings/cm1/HIGHCAPENEW_QUARTERCIRCLE
+  hodograph:
+    type: auto
+  trigger:
+    type: none

@@ -1,0 +1,510 @@
+/**
+ * @file volume.frag
+ * @brief Multi-field volumetric raymarch shader for tornado visualization.
+ *
+ * Intersects camera rays with a unit volume, samples normalized density fields,
+ * and accumulates physically motivated in-scatter/transmittance terms. Supports
+ * isolated/cycled component rendering or blended supercell composites with
+ * per-field palettes and optional cinematic black-and-white grading.
+ */
+
+#version 450
+
+layout(location = 0) in vec2 v_uv;
+layout(location = 0) out vec4 out_color;
+
+const int MAX_COMPONENTS = 8;
+
+layout(set = 0, binding = 0) uniform sampler3D u_volume[MAX_COMPONENTS];
+
+layout(push_constant) uniform PushConstants {
+    vec4 camera_pos;      // xyz=position, w=selected component index
+    vec4 camera_forward;  // xyz used, w=render mode (0=supercell, 1=composite, 2=isolated/cycle)
+    vec4 render0;         // x=aspect, y=tanHalfFov, z=opacityScale, w=threshold
+    vec4 render1;         // x=brightness, y=ambient, z=anisotropy, w=maxDistance
+    vec4 render2;         // xyz=sun direction, w=mode flags (bit0=supercell, bit1=cinematic-bw, bit2=natural-detail)
+    vec4 volume_dims;     // xyz=normalized physical world scale, w=maximum step count
+    vec4 diverge_neg;     // xyz=negative-pole color (downdraft), w=bipolar-component bitmask
+    vec4 diverge_pos;     // xyz=positive-pole color (updraft), w=active component count
+} pc;
+
+const float PI = 3.14159265359;
+
+/** @brief Ray-box intersection for unit-volume bounds testing. */
+bool intersect_aabb(vec3 ro, vec3 rd, vec3 bmin, vec3 bmax, out float t_near, out float t_far) {
+    vec3 inv_dir = 1.0 / rd;
+    vec3 t0 = (bmin - ro) * inv_dir;
+    vec3 t1 = (bmax - ro) * inv_dir;
+
+    vec3 tmin = min(t0, t1);
+    vec3 tmax = max(t0, t1);
+
+    t_near = max(max(tmin.x, tmin.y), tmin.z);
+    t_far = min(min(tmax.x, tmax.y), tmax.z);
+
+    return t_far > max(t_near, 0.0);
+}
+
+/** @brief Convert normalized sample value into opacity-driving density. */
+float density_from_sample(float sample_value, float threshold) {
+    float d = smoothstep(threshold, 1.0, sample_value);
+    return d * d;
+}
+
+/** @brief Whether component i is a signed (bipolar) field rendered diverging. */
+bool component_is_bipolar(int component_index) {
+    int mask = int(pc.diverge_neg.w + 0.5);
+    return (mask & (1 << component_index)) != 0;
+}
+
+/**
+ * @brief Diverging color for a signed value t in [-1, 1].
+ *
+ * Near-white (transparent, via low density) at t=0, ramping to the tunable
+ * negative pole (downdraft) for t<0 and positive pole (updraft) for t>0.
+ * Matches the blue<->white<->red w/vorticity scales used in storm renders.
+ */
+vec3 diverging_color(float t, bool cinematic_bw) {
+    float m = clamp(abs(t), 0.0, 1.0);
+    if (cinematic_bw) {
+        return vec3(mix(0.95, 0.30, m));
+    }
+    vec3 pole = (t >= 0.0) ? pc.diverge_pos.xyz : pc.diverge_neg.xyz;
+    const vec3 pale = vec3(0.90, 0.92, 0.95);  // near-white center
+    return mix(pale, pole, smoothstep(0.0, 0.85, m));
+}
+
+/** @brief Signed distance from point to line segment in 2D. */
+float line_segment_sdf(vec2 p, vec2 a, vec2 b) {
+    vec2 ab = b - a;
+    float t = clamp(dot(p - a, ab) / max(dot(ab, ab), 1e-8), 0.0, 1.0);
+    return length(p - (a + t * ab));
+}
+
+/** @brief Render a single axis letter glyph (X=0, Y=1, Z=2) as line segments. */
+float glyph_sdf(vec2 p, int letter, float half_size) {
+    float d = 1e6;
+    if (letter == 0) {
+        // X: two crossing diagonals
+        d = min(d, line_segment_sdf(p, vec2(-half_size, -half_size), vec2(half_size, half_size)));
+        d = min(d, line_segment_sdf(p, vec2(-half_size, half_size), vec2(half_size, -half_size)));
+    } else if (letter == 1) {
+        // Y: two diagonals meeting at center, vertical stem downward
+        d = min(d, line_segment_sdf(p, vec2(-half_size, -half_size), vec2(0.0, 0.0)));
+        d = min(d, line_segment_sdf(p, vec2(half_size, -half_size), vec2(0.0, 0.0)));
+        d = min(d, line_segment_sdf(p, vec2(0.0, 0.0), vec2(0.0, half_size)));
+    } else {
+        // Z: top bar, diagonal, bottom bar
+        d = min(d, line_segment_sdf(p, vec2(-half_size, -half_size), vec2(half_size, -half_size)));
+        d = min(d, line_segment_sdf(p, vec2(half_size, -half_size), vec2(-half_size, half_size)));
+        d = min(d, line_segment_sdf(p, vec2(-half_size, half_size), vec2(half_size, half_size)));
+    }
+    return d;
+}
+
+/** @brief Stable world-space pseudo-turbulence used to break synthetic smoothness. */
+float procedural_detail(vec3 uvw, float seed) {
+    vec3 q = uvw * 15.0 + vec3(seed, seed * 1.41, seed * 2.07);
+    float n0 = sin(dot(q, vec3(11.73, 19.91, 7.27)));
+    float n1 = sin(dot(q * 1.87 + vec3(0.37, 0.91, 0.53), vec3(17.13, 5.77, 13.39)));
+    return clamp(0.5 + 0.28 * n0 + 0.22 * n1, 0.0, 1.0);
+}
+
+/** @brief Apply small-scale heterogeneity while keeping the macro flow intact. */
+float apply_texture_detail(float density, vec3 uvw, float seed, bool natural_texture) {
+    if (!natural_texture) {
+        return density;
+    }
+
+    float d = procedural_detail(uvw, seed);
+    float modulation = mix(0.78, 1.24, d);
+    return clamp(density * modulation, 0.0, 1.0);
+}
+
+/** @brief Clamp and fetch one component sample from descriptor array. */
+float sample_component(int component_index, vec3 uvw) {
+    int idx = clamp(component_index, 0, MAX_COMPONENTS - 1);
+    vec3 coordinate = clamp(uvw, 0.0, 1.0);
+    // Literal descriptor indices avoid requiring
+    // shaderSampledImageArrayDynamicIndexing on the logical device.
+    switch (idx) {
+        case 0: return texture(u_volume[0], coordinate).r;
+        case 1: return texture(u_volume[1], coordinate).r;
+        case 2: return texture(u_volume[2], coordinate).r;
+        case 3: return texture(u_volume[3], coordinate).r;
+        case 4: return texture(u_volume[4], coordinate).r;
+        case 5: return texture(u_volume[5], coordinate).r;
+        case 6: return texture(u_volume[6], coordinate).r;
+        default: return texture(u_volume[7], coordinate).r;
+    }
+}
+
+/** @brief Return palette seed color for the requested atmospheric component index. */
+vec3 component_palette(int component_index, bool cinematic_bw) {
+    if (cinematic_bw) {
+        float tone = clamp(0.22 + 0.09 * float(component_index), 0.15, 0.92);
+        return vec3(tone);
+    }
+
+    const vec3 palette[MAX_COMPONENTS] = vec3[](
+        vec3(0.95, 0.57, 0.24),
+        vec3(0.28, 0.75, 0.98),
+        vec3(0.42, 0.83, 0.53),
+        vec3(0.23, 0.43, 0.92),
+        vec3(0.84, 0.95, 1.00),
+        vec3(0.73, 0.56, 0.94),
+        vec3(0.97, 0.83, 0.36),
+        vec3(0.94, 0.42, 0.64));
+    return palette[clamp(component_index, 0, MAX_COMPONENTS - 1)];
+}
+
+/** @brief Derive display color for one component sample and altitude. */
+vec3 component_color(int component_index, float sample_value, float height, bool cinematic_bw) {
+    vec3 base = component_palette(component_index, cinematic_bw);
+    vec3 high = cinematic_bw ? vec3(0.95) : mix(base, vec3(0.94, 0.97, 1.00), 0.45);
+    vec3 shaded = mix(base * 0.55, high, clamp(0.22 + 0.78 * height, 0.0, 1.0));
+
+    float energized = smoothstep(0.60, 1.0, sample_value);
+    vec3 spark = cinematic_bw ? vec3(0.98) : vec3(1.00, 0.91, 0.74);
+    return mix(shaded, spark, energized * 0.28);
+}
+
+/** @brief Sample the lighting-normal field used for gradient estimation. */
+float lighting_sample(vec3 uvw, int render_mode, int selected_component) {
+    if (render_mode == 2) {
+        return sample_component(selected_component, uvw);
+    }
+    return sample_component(0, uvw);
+}
+
+/** @brief Estimate local density gradient via central differences in texture space. */
+vec3 gradient_from_volume(vec3 uvw, vec3 texel, int render_mode, int selected_component) {
+    vec3 dx = vec3(texel.x, 0.0, 0.0);
+    vec3 dy = vec3(0.0, texel.y, 0.0);
+    vec3 dz = vec3(0.0, 0.0, texel.z);
+
+    float px = lighting_sample(clamp(uvw + dx, 0.0, 1.0), render_mode, selected_component);
+    float nx = lighting_sample(clamp(uvw - dx, 0.0, 1.0), render_mode, selected_component);
+    float py = lighting_sample(clamp(uvw + dy, 0.0, 1.0), render_mode, selected_component);
+    float ny = lighting_sample(clamp(uvw - dy, 0.0, 1.0), render_mode, selected_component);
+    float pz = lighting_sample(clamp(uvw + dz, 0.0, 1.0), render_mode, selected_component);
+    float nz = lighting_sample(clamp(uvw - dz, 0.0, 1.0), render_mode, selected_component);
+
+    return vec3(px - nx, py - ny, pz - nz); 
+}
+
+/** @brief Compute Henyey-Greenstein phase response for anisotropic scattering. */
+float henyey_greenstein(float cos_theta, float g) {
+    float g2 = g * g;
+    float denom = max(1.0 + g2 - 2.0 * g * cos_theta, 1e-3);
+    return (1.0 - g2) / (4.0 * PI * pow(denom, 1.5));
+}
+
+/** @brief Build procedural sky color used behind and through the volume. */
+vec3 sky_color(vec3 ray_dir, vec3 light_dir, bool cinematic_bw) {
+    float h = clamp(ray_dir.y * 0.5 + 0.5, 0.0, 1.0);
+    vec3 horizon = cinematic_bw ? vec3(0.0) : vec3(0.64, 0.73, 0.84);
+    vec3 zenith = cinematic_bw ? vec3(0.0) : vec3(0.20, 0.33, 0.57);
+    vec3 sky = mix(horizon, zenith, pow(h, 0.7));
+
+    float sun = pow(max(dot(ray_dir, light_dir), 0.0), 256.0);
+    vec3 sun_tint = cinematic_bw ? vec3(0.0) : vec3(1.0, 0.92, 0.78);
+    sky += sun * sun_tint * 0.35;
+    return sky;
+}
+
+/** @brief Sample one or many components and return density/color controls. */
+void sample_multi_field(vec3 uvw,
+                        int render_mode,
+                        int selected_component,
+                        int active_components,
+                        bool supercell_mode,
+                        bool cinematic_bw,
+                        bool natural_texture,
+                        out float out_density,
+                        out float out_peak_sample,
+                        out vec3 out_color) {
+    out_density = 0.0;
+    out_peak_sample = 0.0;
+    out_color = component_color(0, 0.0, uvw.z, cinematic_bw);
+
+    if (render_mode == 2) {
+        int idx = clamp(selected_component, 0, active_components - 1);
+        float sample_value = sample_component(idx, uvw);
+        if (component_is_bipolar(idx)) {
+            // Signed-centered sample -> diverging colormap; opacity from |t|.
+            float t = 2.0 * sample_value - 1.0;
+            float mag = abs(t);
+            out_density = density_from_sample(mag, pc.render0.w);
+            out_density = apply_texture_detail(out_density, uvw, float(idx) * 1.73, natural_texture);
+            out_peak_sample = mag;
+            out_color = diverging_color(t, cinematic_bw);
+        } else {
+            out_density = density_from_sample(sample_value, pc.render0.w);
+            out_density = apply_texture_detail(out_density, uvw, float(idx) * 1.73, natural_texture);
+            out_peak_sample = sample_value;
+            out_color = component_color(idx, sample_value, uvw.z, cinematic_bw);
+        }
+        return;
+    }
+
+    float weighted_density = 0.0;
+    float weight_sum = 0.0;
+    vec3 weighted_color = vec3(0.0);
+
+    for (int i = 0; i < MAX_COMPONENTS; ++i) {
+        if (i >= active_components) {
+            break;
+        }
+
+        float sample_value = sample_component(i, uvw);
+        float magnitude = sample_value;
+        vec3 comp_color = component_color(i, sample_value, uvw.z, cinematic_bw);
+        if (component_is_bipolar(i)) {
+            float t = 2.0 * sample_value - 1.0;
+            magnitude = abs(t);
+            comp_color = diverging_color(t, cinematic_bw);
+        }
+        float density = density_from_sample(magnitude, pc.render0.w);
+        density = apply_texture_detail(density, uvw, float(i) * 1.73, natural_texture);
+
+        float weight = (i == 0) ? 1.0 : 0.82;
+        // Keep hydrometeor bands from overpowering the thermodynamic structure in supercell mode.
+        if (supercell_mode && i >= 3) {
+            weight *= 0.78;
+        }
+
+        weighted_density += density * weight;
+        weight_sum += weight;
+        weighted_color += comp_color * density * weight;
+        out_peak_sample = max(out_peak_sample, magnitude);
+    }
+
+    out_density = (weight_sum > 0.0) ? clamp(weighted_density / weight_sum, 0.0, 1.0) : 0.0;
+    if (weighted_density > 1e-5) {
+        out_color = weighted_color / weighted_density;
+    }
+
+    if (supercell_mode) {
+        float anvil = smoothstep(0.58, 1.0, uvw.z) * smoothstep(0.30, 0.85, out_density);
+        vec3 anvil_tint = cinematic_bw ? vec3(0.92) : vec3(0.84, 0.89, 0.98);
+        out_color = mix(out_color, anvil_tint, anvil * 0.35);
+    }
+}
+
+/** @brief Raymarch the 3D density texture and emit final composited radiance. */
+void main() {
+    vec2 ndc = v_uv * 2.0 - 1.0;
+
+    vec3 ray_origin = pc.camera_pos.xyz;
+    vec3 camera_forward = normalize(pc.camera_forward.xyz);
+    vec3 camera_right_raw = cross(camera_forward, vec3(0.0, 1.0, 0.0));
+    vec3 camera_right = dot(camera_right_raw, camera_right_raw) < 1e-6
+        ? vec3(1.0, 0.0, 0.0)
+        : normalize(camera_right_raw);
+    vec3 camera_up = normalize(cross(camera_right, camera_forward));
+    vec3 ray_dir = normalize(
+        camera_forward +
+        ndc.x * pc.render0.x * pc.render0.y * camera_right +
+        ndc.y * pc.render0.y * camera_up);
+
+    vec3 light_dir = normalize(pc.render2.xyz);
+    int render_mode = clamp(int(pc.camera_forward.w + 0.5), 0, 2);
+    int active_components = clamp(int(pc.diverge_pos.w + 0.5), 1, MAX_COMPONENTS);
+    int selected_component = clamp(int(pc.camera_pos.w + 0.5), 0, active_components - 1);
+    int mode_flags = int(pc.render2.w + 0.5);
+    bool supercell_mode = (mode_flags & 1) != 0;
+    bool cinematic_bw = (mode_flags & 2) != 0;
+    bool natural_texture = (mode_flags & 4) != 0;
+
+    // Scale the AABB from physical extents supplied by the native loader.
+    // After the Y<->Z orientation swap: world Y = altitude (texture Z), while
+    // world Z = the second horizontal axis (texture Y).
+    vec3 world_scale = max(pc.volume_dims.xyz, vec3(1e-6));
+    vec3 aabb_half = 0.5 * world_scale;
+
+    float t_near = 0.0;
+    float t_far = 0.0;
+    bool volume_hit = intersect_aabb(ray_origin, ray_dir, -aabb_half, aabb_half, t_near, t_far);
+    if (volume_hit) {
+        t_near = max(t_near, 0.0);
+        t_far = min(t_far, pc.render1.w);
+        if (t_far <= t_near) volume_hit = false;
+    }
+
+    vec3 radiance = vec3(0.0);
+    float transmittance = 1.0;
+
+    if (volume_hit) {
+    vec3 texture_dims = max(vec3(textureSize(u_volume[0], 0)), vec3(1.0));
+    vec3 texel = 1.0 / texture_dims;
+    vec3 voxel_world = world_scale / vec3(texture_dims.x, texture_dims.z, texture_dims.y);
+    float path_length = t_far - t_near;
+    float projected_voxels = path_length * length(ray_dir / max(voxel_world, vec3(1e-6)));
+    int geometry_steps = max(32, int(ceil(projected_voxels)));
+    int step_ceiling = clamp(int(pc.volume_dims.w + 0.5), 32, 512);
+    int steps = clamp(min(geometry_steps, step_ceiling), 32, 512);
+    float dt = path_length / float(steps);
+    float t = t_near;
+
+    for (int i = 0; i < 512; ++i) {
+        if (i >= steps || transmittance < 0.01) {
+            break;
+        }
+
+        vec3 p = ray_origin + ray_dir * t;
+        // Map world space to texture UVW with Y<->Z orientation swap:
+        //   world X -> texture X (NR = horizontal)
+        //   world Y -> texture Z (NZ = vertical / altitude)
+        //   world Z -> texture Y (NTH = horizontal)
+        // Divide by the physical world scale so each AABB face maps to [0,1].
+        vec3 uvw = vec3(
+            p.x / world_scale.x + 0.5,
+            p.z / world_scale.z + 0.5,
+            p.y / world_scale.y + 0.5);
+
+        float density = 0.0;
+        float peak_sample = 0.0;
+        vec3 cloud_color = vec3(0.0);
+        sample_multi_field(
+            uvw,
+            render_mode,
+            selected_component,
+            active_components,
+            supercell_mode,
+            cinematic_bw,
+            natural_texture,
+            density,
+            peak_sample,
+            cloud_color);
+
+        if (density > 1e-4) {
+            vec3 grad_tex = gradient_from_volume(uvw, texel, render_mode, selected_component);
+            // Convert to physical display coordinates and apply the Y<->Z
+            // orientation swap. Dividing by anisotropic voxel size keeps
+            // lighting normals invariant under grid-resolution changes.
+            vec3 grad = vec3(
+                grad_tex.x / voxel_world.x,
+                grad_tex.z / voxel_world.y,
+                grad_tex.y / voxel_world.z);
+            // Epsilon avoids undefined normalize(0) when gradients flatten in quiescent regions.
+            vec3 normal = normalize(grad + vec3(1e-5, 1e-5, 1e-5));
+
+            float ndotl = max(dot(normal, light_dir), 0.0);
+            float mu = dot(-ray_dir, light_dir);
+            float phase = henyey_greenstein(mu, clamp(pc.render1.z, -0.85, 0.85));
+
+            // Altitude is uvw.z after the Y<->Z swap (maps to NZ = vertical).
+            float height = clamp(uvw.z, 0.0, 1.0);
+
+            float ambient = pc.render1.y * mix(0.35, 1.0, height);
+            float diffuse = 0.2 + 0.8 * ndotl;
+            vec3 ambient_tint = cinematic_bw ? vec3(0.72) : vec3(0.56, 0.63, 0.74);
+            vec3 direct_tint = cinematic_bw ? vec3(1.0) : vec3(1.00, 0.96, 0.90);
+
+            vec3 in_scatter = cloud_color * (
+                ambient * ambient_tint +
+                diffuse * direct_tint * (0.5 + 1.35 * phase));
+
+            float core = smoothstep(0.75, 1.0, peak_sample);
+            vec3 core_tint = cinematic_bw ? vec3(0.92) : vec3(1.0, 0.74, 0.50);
+            in_scatter += core * core_tint * (cinematic_bw ? 0.03 : 0.08);
+
+            float sigma_t = density * (2.3 * pc.render0.z);
+            float alpha = clamp(1.0 - exp(-sigma_t * dt), 0.0, 1.0);
+
+            // Beer-Lambert integration: accumulate in-scatter and decay residual throughput.
+            radiance += transmittance * alpha * in_scatter * pc.render1.x;
+            transmittance *= (1.0 - alpha);
+        }
+
+        t += dt;
+    }
+    } // volume_hit
+
+    vec3 sky = sky_color(ray_dir, light_dir, cinematic_bw);
+    vec3 color = radiance + transmittance * sky;
+
+    // --- 3D Axis Gizmo Overlay (bottom-left corner) ---
+    // Vulkan UV: (0,0)=top-left, (1,1)=bottom-right.
+    // "Bottom-left" visually = low UV.x, high UV.y.
+    {
+        vec2 gizmo_center = vec2(0.09, 0.88);
+        float gizmo_radius = 0.055;
+        float line_half_w = 0.0022;
+        float arrow_len = 0.013;
+        float arrow_angle = 0.45;
+        float label_offset = 0.018;
+        float label_half = 0.006;
+        float label_half_w = 0.0016;
+
+        vec2 local = v_uv - gizmo_center;
+        float dist_center = length(local);
+
+        if (dist_center < gizmo_radius * 1.6) {
+            vec3 cam_r = camera_right;
+            vec3 cam_u = camera_up;
+
+            // Background disc: dark on light scenes, lighter on dark scenes
+            // so the gizmo is always visible regardless of style.
+            float scene_luma = dot(color, vec3(0.299, 0.587, 0.114));
+            vec3 bg_color = scene_luma > 0.3 ? vec3(0.04, 0.02, 0.02) : vec3(0.18, 0.16, 0.16);
+            float bg_alpha = smoothstep(gizmo_radius * 1.45, gizmo_radius * 1.05, dist_center);
+            color = mix(color, bg_color, bg_alpha * 0.85);
+
+            // Thin ring border.
+            float ring = abs(dist_center - gizmo_radius * 1.15);
+            float ring_alpha = smoothstep(0.003, 0.001, ring) * bg_alpha;
+            color = mix(color, vec3(0.55, 0.55, 0.55), ring_alpha * 0.6);
+
+            // World-space axis directions with distinct colors visible in all styles.
+            vec3 axes[3] = vec3[](vec3(1, 0, 0), vec3(0, 1, 0), vec3(0, 0, 1));
+            vec3 colors[3] = vec3[](
+                vec3(1.0, 0.25, 0.20),   // X: red
+                vec3(0.30, 1.0, 0.30),   // Y: green (altitude)
+                vec3(0.35, 0.55, 1.0));  // Z: blue
+
+            for (int a = 0; a < 3; ++a) {
+                // Project world axis onto camera screen plane.
+                // UV.x increases rightward (matches camera_right).
+                // UV.y increases downward, so negate camera_up projection.
+                vec2 proj = vec2(dot(axes[a], cam_r), -dot(axes[a], cam_u));
+                float proj_len = length(proj);
+                if (proj_len < 0.01) continue;
+
+                vec2 dir2d = proj / proj_len;
+                float axis_len = gizmo_radius * clamp(proj_len, 0.35, 1.0);
+                vec2 tip = gizmo_center + dir2d * axis_len;
+
+                // Axis line.
+                float d = line_segment_sdf(v_uv, gizmo_center, tip);
+                float axis_a = smoothstep(line_half_w, line_half_w * 0.25, d);
+                color = mix(color, colors[a], axis_a);
+
+                // Arrowhead: two short lines angling off the tip.
+                float ca = cos(arrow_angle);
+                float sa = sin(arrow_angle);
+                vec2 back = -dir2d;
+                vec2 wing_l = vec2(back.x * ca - back.y * sa, back.x * sa + back.y * ca) * arrow_len;
+                vec2 wing_r = vec2(back.x * ca + back.y * sa, -back.x * sa + back.y * ca) * arrow_len;
+                float d_wl = line_segment_sdf(v_uv, tip, tip + wing_l);
+                float d_wr = line_segment_sdf(v_uv, tip, tip + wing_r);
+                float arrow_a = smoothstep(line_half_w, line_half_w * 0.25, min(d_wl, d_wr));
+                color = mix(color, colors[a], arrow_a);
+
+                // Axis label (X/Y/Z) near the tip.
+                vec2 label_pos = tip + dir2d * label_offset;
+                vec2 lp = v_uv - label_pos;
+                float gd = glyph_sdf(lp, a, label_half);
+                float label_a = smoothstep(label_half_w, label_half_w * 0.2, gd);
+                color = mix(color, colors[a], label_a);
+            }
+
+            // Small dot at gizmo origin.
+            float dot_d = smoothstep(0.004, 0.002, dist_center);
+            color = mix(color, vec3(0.85, 0.18, 0.14), dot_d);
+        }
+    }
+
+    out_color = vec4(color, 1.0);
+}

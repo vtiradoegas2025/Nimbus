@@ -1,0 +1,15 @@
+&param0
+  nx = 16,
+  ny = 16,
+  nz = 16,
+  dx = 1000.0,
+  dy = 1000.0,
+  dz = 1000.0,
+  stretch_z = .false.,
+  isnd = 7,
+  ptype = 1,
+/
+&param1
+  run_time = 30.0,
+  tapfrq = 10.0,
+/

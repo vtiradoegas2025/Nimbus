@@ -1,0 +1,72 @@
+// diffuse_cartesian.comp
+//
+// ARCHIVED / ORPHANED: constant-kappa 7-point Laplacian diffusion:
+//   q_out = q_in + dt*kappa * lap(q_in)
+// at interior cells (i, j, k all in [1, n-2]); boundary cells pass
+// through. Former GPU counterpart of the removed point filter in
+// src/numerics/advection/advection_cartesian.cpp. The former per-scalar
+// This shader is retained only as a provenance artifact. It is not loaded or
+// dispatched: an unweighted mixing-ratio Laplacian does not conserve rho*q
+// under variable density. Scalar diffusion belongs to the live-density
+// finite-volume diffusion scheme.
+//
+// dt*kappa and the inverse squared spacings are combined/divided in
+// fp64 on the host and rounded once. dx and dy are independent Cartesian
+// spacings; the host passes both explicitly.
+//
+// Data layout: row-major [nx][ny][nz]. Index (i, j, k) = (i*ny + j)*nz + k.
+
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) readonly buffer QInBuf   { float q_in[];  };
+layout(set = 0, binding = 1) writeonly buffer QOutBuf { float q_out[]; };
+
+// Push constants (32 bytes; mirrors DiffuseCartesianPushConstants).
+layout(push_constant) uniform PushConstants {
+    int   nx;
+    int   ny;
+    int   nz;
+    int   pad0;
+    float inv_dx2;
+    float inv_dy2;
+    float inv_dz2;
+    float dt_kappa;
+};
+
+void main()
+{
+    uint gid = gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * gl_NumWorkGroups.x * gl_WorkGroupSize.x;
+    uint total = uint(nx) * uint(ny) * uint(nz);
+    if (gid >= total)
+    {
+        return;
+    }
+
+    int k = int(gid % uint(nz));
+    uint ij = gid / uint(nz);
+    int j = int(ij % uint(ny));
+    int i = int(ij / uint(ny));
+
+    uint c = gid;
+
+    if (i < 1 || i > nx - 2 || j < 1 || j > ny - 2 || k < 1 || k > nz - 2)
+    {
+        q_out[c] = q_in[c];
+        return;
+    }
+
+    uint c_ip = uint(((i + 1) * ny + j) * nz + k);
+    uint c_im = uint(((i - 1) * ny + j) * nz + k);
+    uint c_jp = uint((i * ny + (j + 1)) * nz + k);
+    uint c_jm = uint((i * ny + (j - 1)) * nz + k);
+    uint c_kp = uint((i * ny + j) * nz + (k + 1));
+    uint c_km = uint((i * ny + j) * nz + (k - 1));
+
+    float q = q_in[c];
+    float lap = (q_in[c_ip] - 2.0 * q + q_in[c_im]) * inv_dx2
+              + (q_in[c_jp] - 2.0 * q + q_in[c_jm]) * inv_dy2
+              + (q_in[c_kp] - 2.0 * q + q_in[c_km]) * inv_dz2;
+    q_out[c] = q + dt_kappa * lap;
+}

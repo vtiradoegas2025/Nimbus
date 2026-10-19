@@ -1,0 +1,379 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_spirv_intrinsics : require
+spirv_execution_mode(extensions = ["SPV_KHR_float_controls"], capabilities = [4466], 4461, 32);
+spirv_execution_mode(extensions = ["SPV_KHR_float_controls"], capabilities = [4467], 4462, 32);
+layout(local_size_x = 64) in;
+layout(set = 0, binding = 0) readonly buffer B0
+{
+    float a0[];
+};
+layout(set = 0, binding = 1) readonly buffer B1
+{
+    float a1[];
+};
+layout(set = 0, binding = 2) readonly buffer B2
+{
+    float a2[];
+};
+layout(set = 0, binding = 3) readonly buffer B3
+{
+    float a3[];
+};
+layout(set = 0, binding = 4) readonly buffer B4
+{
+    float a4[];
+};
+layout(set = 0, binding = 5) readonly buffer B5
+{
+    float a5[];
+};
+layout(set = 0, binding = 6) readonly buffer B6
+{
+    float a6[];
+};
+layout(set = 0, binding = 7) writeonly buffer B7
+{
+    float o0[];
+};
+layout(set = 0, binding = 8) writeonly buffer B8
+{
+    float o1[];
+};
+layout(set = 0, binding = 9) writeonly buffer B9
+{
+    float o2[];
+};
+layout(set = 0, binding = 10) writeonly buffer B10
+{
+    float o3[];
+};
+layout(set = 0, binding = 11) writeonly buffer B11
+{
+    float o4[];
+};
+layout(push_constant) uniform PushConstants
+{
+    int   nx;
+    int   ny;
+    int   nz;
+    int   operation;
+    float idx_high;
+    float idx_low;
+    float idy_high;
+    float idy_low;
+    float idz_high;
+    float idz_low;
+    float step_high;
+    float step_low;
+    float gamma_high;
+    float gamma_low;
+    int   flags;
+    int   padding;
+};
+#include "../microphysics/compensated_fma.glsl"
+vec2 val(float a)
+{
+    return vec2(a, 0);
+}
+float stored(vec2 a)
+{
+    return fma(1.0, a.x, a.y);
+}
+// Preserve subnormal face-flux storage even when device arithmetic flushes underflow.
+float product_stored(vec2 a, vec2 b)
+{
+    vec2 result = df_mul(a, b);
+    if (result.x != 0 || a.x == 0 || b.x == 0)
+        return stored(result);
+    vec2 scaled   = df_mul(df_mul(a, val(18446744073709551616.0)), df_mul(b, val(18446744073709551616.0)));
+    bool negative = scaled.x < 0;
+    if (negative)
+        scaled = -scaled;
+    vec2  units     = df_mul(scaled, val(2097152.0));
+    float integral  = floor(units.x);
+    vec2  remainder = df_sub(units, val(integral));
+    uint  bits      = uint(integral);
+    if (remainder.x > .5 || (remainder.x == .5 && (remainder.y > 0 || (remainder.y == 0 && (bits & 1u) != 0u))))
+        ++bits;
+    return uintBitsToFloat(bits | (negative ? 0x80000000u : 0u));
+}
+vec2 scale(vec2 a, float b)
+{
+    return df_mul(a, val(b));
+}
+bool less_than(vec2 a, vec2 b)
+{
+    return a.x < b.x || (a.x == b.x && a.y < b.y);
+}
+vec2 minimum(vec2 a, vec2 b)
+{
+    return less_than(a, b) ? a : b;
+}
+vec2 absolute(vec2 a)
+{
+    return less_than(a, val(0)) ? -a : a;
+}
+vec2 square(vec2 a)
+{
+    return df_mul(a, a);
+}
+int at(int i, int j, int k)
+{
+    return (i * ny + j) * nz + k;
+}
+vec2 spacing(int axis)
+{
+    return axis == 0 ? vec2(idx_high, idx_low) : (axis == 1 ? vec2(idy_high, idy_low) : vec2(idz_high, idz_low));
+}
+vec2 mc(vec2 a, vec2 b, vec2 c)
+{
+    vec2 left = df_sub(b, a), right = df_sub(c, b);
+    if ((left.x <= 0 && right.x >= 0) || (left.x >= 0 && right.x <= 0))
+        return val(0);
+    vec2 magnitude =
+        minimum(scale(absolute(df_add(left, right)), .5), scale(minimum(absolute(left), absolute(right)), 2));
+    return left.x < 0 ? -magnitude : magnitude;
+}
+vec2 weno_face(float aa, float bb, float cc, float dd, float ee)
+{
+    float magnitude = max(max(abs(aa), abs(bb)), max(abs(cc), max(abs(dd), abs(ee))));
+    if (magnitude == 0)
+        return val(0);
+    vec2 a = df_div(val(aa), val(magnitude)), b = df_div(val(bb), val(magnitude));
+    vec2 c = df_div(val(cc), val(magnitude)), d = df_div(val(dd), val(magnitude)), e = df_div(val(ee), val(magnitude));
+    vec2 p0  = df_div(df_add(df_sub(scale(a, 2), scale(b, 7)), scale(c, 11)), val(6));
+    vec2 p1  = df_div(df_add(df_add(-b, scale(c, 5)), scale(d, 2)), val(6));
+    vec2 p2  = df_div(df_sub(df_add(scale(c, 2), scale(d, 5)), e), val(6));
+    vec2 s0a = df_add(df_sub(a, scale(b, 2)), c);
+    vec2 s0b = df_add(df_sub(a, scale(b, 4)), scale(c, 3));
+    vec2 s1a = df_add(df_sub(b, scale(c, 2)), d), s1b = df_sub(b, d);
+    vec2 s2a   = df_add(df_sub(c, scale(d, 2)), e);
+    vec2 s2b   = df_add(df_sub(scale(c, 3), scale(d, 4)), e);
+    vec2 beta0 = df_add(df_div(scale(square(s0a), 13), val(12)), scale(square(s0b), .25));
+    vec2 beta1 = df_add(df_div(scale(square(s1a), 13), val(12)), scale(square(s1b), .25));
+    vec2 beta2 = df_add(df_div(scale(square(s2a), 13), val(12)), scale(square(s2b), .25));
+    vec2 w0 = val(1), w1 = val(6), w2 = val(3);
+    if (magnitude > 1e-30)
+    {
+        vec2 epsilon  = df_add(vec2(9.999999974752427e-7, 2.5247572468697606e-15),
+                               square(df_div(vec2(9.999999682655225e-21, 3.1734477406256483e-28), val(magnitude))));
+        beta0         = df_add(beta0, epsilon);
+        beta1         = df_add(beta1, epsilon);
+        beta2         = df_add(beta2, epsilon);
+        vec2 smallest = minimum(beta0, minimum(beta1, beta2));
+        w0            = square(df_div(smallest, beta0));
+        w1            = scale(square(df_div(smallest, beta1)), 6);
+        w2            = scale(square(df_div(smallest, beta2)), 3);
+    }
+    vec2 weighted = df_add(df_add(df_mul(w0, p0), df_mul(w1, p1)), df_mul(w2, p2));
+    return df_mul(df_div(weighted, df_add(df_add(w0, w1), w2)), val(magnitude));
+}
+float face_flux(int c, int position, int extent, int stride, int axis, float carrier)
+{
+    if (position == extent - 1)
+        return axis == 2 && (flags & 4) != 0 ? product_stored(val(carrier), val(a0[c])) : 0;
+    bool periodic = axis < 2 && (flags & (1 << axis)) != 0;
+    if (periodic && (position == 0 || position == extent - 2))
+    {
+        int donor = carrier >= 0 ? c + (extent - 2 - position) * stride : c + (1 - position) * stride;
+        return product_stored(val(carrier), val(a0[donor]));
+    }
+    int  center    = carrier >= 0 ? c : c + stride;
+    int  pos       = carrier >= 0 ? position : position + 1;
+    int  direction = carrier >= 0 ? stride : -stride;
+    vec2 face      = val(a0[center]);
+    if ((flags & 8) != 0 && pos >= 2 && pos + 2 < extent)
+        face = weno_face(a0[center - 2 * direction],
+                         a0[center - direction],
+                         a0[center],
+                         a0[center + direction],
+                         a0[center + 2 * direction]);
+    else if (pos >= 1 && pos + 1 < extent)
+        face =
+            df_add(face, scale(mc(val(a0[center - stride]), face, val(a0[center + stride])), carrier >= 0 ? .5 : -.5));
+    return product_stored(val(carrier), face);
+}
+vec2 limited(float flux, int c, int position, int extent, int stride, int axis)
+{
+    if ((flags & 16) == 0 || flux == 0)
+        return val(flux);
+    int donor = flux > 0 || position == extent - 1 ? c : c + stride;
+    if (axis < 2 && (flags & (1 << axis)) != 0 && (position == 0 || position == extent - 2))
+        donor = c + ((flux > 0 ? extent - 2 : 1) - position) * stride;
+    return df_mul(val(flux), val(a5[donor]));
+}
+void evaluate(uint gid)
+{
+    if (gid >= uint(nx) * uint(ny) * uint(nz))
+        return;
+    int n = int(gid);
+    int i = n / (ny * nz), j = (n / nz) % ny, k = n % nz;
+    int sx = ny * nz, sy = nz;
+    o0[n] = 0;
+    o1[n] = 0;
+    o2[n] = 0;
+    o3[n] = 0;
+    o4[n] = 0;
+    if (operation == 13 || operation == 14)
+    {
+        float input_value = a0[n] < 0.0 ? 0.0 : a0[n];
+        o0[n] = operation == 14 ? stored(df_div(val(input_value), val(a1[n]))) : input_value;
+        return;
+    }
+    if (operation >= 8)
+    {
+        int   si     = i == 0 ? nx - 2 : (i == nx - 1 ? 1 : i);
+        int   sj     = j == 0 ? ny - 2 : (j == ny - 1 ? 1 : j);
+        int   sk     = (flags & 32) != 0 ? clamp(k, 1, nz - 2) : (operation == 9 && k == nz - 1 ? nz - 2 : k);
+        int   source = at(si, sj, sk);
+        float result = a0[source];
+        if (operation == 10 && (k == nz - 1 || ((flags & 32) != 0 && k == 0)))
+            result = 0.0;
+        if (operation == 12 && sk != k)
+        {
+            float perturbation = fma(1.0, a0[source], -a2[source]);
+            result             = fma(1.0, a2[n], perturbation);
+        }
+        if (operation == 11 && source != n && a1[source] != a1[n])
+            result = stored(df_mul(df_div(val(result), val(a1[source])), val(a1[n])));
+        o0[n] = result;
+        return;
+    }
+    if (operation == 0)
+    {
+        if (i < 1 || i >= nx - 1 || j < 1 || j >= ny - 1)
+            return;
+        vec2 divergence = df_add(df_add(df_mul(df_sub(val(a0[n]), val(a0[n - sx])), spacing(0)),
+                                        df_mul(df_sub(val(a1[n]), val(a1[n - sy])), spacing(1))),
+                                 df_mul(df_sub(val(a2[n]), val(k > 0 ? a2[n - 1] : 0)), spacing(2)));
+        o4[n]           = stored(-df_mul(df_mul(vec2(gamma_high, gamma_low), val(a4[n])), divergence));
+        vec2 mxp        = scale(df_mul(df_add(val(a3[n]), val(a3[n + sx])), val(a0[n])), .5);
+        vec2 mxm        = scale(df_mul(df_add(val(a3[n - sx]), val(a3[n])), val(a0[n - sx])), .5);
+        vec2 myp        = scale(df_mul(df_add(val(a3[n]), val(a3[n + sy])), val(a1[n])), .5);
+        vec2 mym        = scale(df_mul(df_add(val(a3[n - sy]), val(a3[n])), val(a1[n - sy])), .5);
+        vec2 mzp        = k < nz - 1 ? scale(df_mul(df_add(val(a3[n]), val(a3[n + 1])), val(a2[n])), .5)
+                                     : df_mul(val(a3[n]), val(a2[n]));
+        vec2 mzm        = k > 0 ? scale(df_mul(df_add(val(a3[n - 1]), val(a3[n])), val(a2[n - 1])), .5) : val(0);
+        o3[n] = stored(-df_add(df_add(df_mul(df_sub(mxp, mxm), spacing(0)), df_mul(df_sub(myp, mym), spacing(1))),
+                               df_mul(df_sub(mzp, mzm), spacing(2))));
+        if (k >= nz - 1)
+            return;
+        vec2 rx        = scale(df_add(val(a3[n]), val(a3[n + sx])), .5);
+        vec2 ry        = scale(df_add(val(a3[n]), val(a3[n + sy])), .5);
+        vec2 rz        = scale(df_add(val(a3[n]), val(a3[n + 1])), .5);
+        o0[n]          = stored(-df_div(df_mul(df_sub(val(a4[n + sx]), val(a4[n])), spacing(0)), rx));
+        o1[n]          = stored(-df_div(df_mul(df_sub(val(a4[n + sy]), val(a4[n])), spacing(1)), ry));
+        vec2 gradient  = df_mul(df_sub(val(a4[n + 1]), val(a4[n])), spacing(2));
+        vec2 reference = df_mul(df_sub(vec2(a5[n + 1], a6[n + 1]), vec2(a5[n], a6[n])), spacing(2));
+        o2[n]          = stored(-df_div(df_sub(gradient, reference), rz));
+        return;
+    }
+    if (operation == 1)
+    {
+        if ((flags & 32) != 0)
+        {
+            int xl = n, xh = n + sx, yl = n, yh = n + sy;
+            if ((flags & 1) != 0 && (i == 0 || i == nx - 2))
+            {
+                xl = at(nx - 2, j, k);
+                xh = at(1, j, k);
+            }
+            if ((flags & 2) != 0 && (j == 0 || j == ny - 2))
+            {
+                yl = at(i, ny - 2, k);
+                yh = at(i, 1, k);
+            }
+            if (i < nx - 1)
+                o0[n] = stored(scale(df_mul(df_add(val(a3[xl]), val(a3[xh])), df_add(val(a0[xl]), val(a0[xh]))), .25));
+            if (j < ny - 1)
+                o1[n] = stored(scale(df_mul(df_add(val(a3[yl]), val(a3[yh])), df_add(val(a1[yl]), val(a1[yh]))), .25));
+            if (k > 0 && k < nz - 2)
+                o2[n] =
+                    stored(scale(df_mul(df_add(val(a3[n]), val(a3[n + 1])), df_add(val(a2[n]), val(a2[n + 1]))), .25));
+            else if (k == nz - 2 && (flags & 4) != 0)
+                o2[n] = product_stored(val(a3[n + 1]), val(a2[n + 1]));
+            return;
+        }
+        if (i < nx - 1)
+            o0[n] = stored(scale(df_mul(df_add(val(a3[n]), val(a3[n + sx])), val(a0[n])), .5));
+        if (j < ny - 1)
+            o1[n] = stored(scale(df_mul(df_add(val(a3[n]), val(a3[n + sy])), val(a1[n])), .5));
+        if (k < nz - 1)
+            o2[n] = stored(scale(df_mul(df_add(val(a3[n]), val(a3[n + 1])), val(a2[n])), .5));
+        else if ((flags & 4) != 0)
+            o2[n] = stored(df_mul(val(a3[n]), val(a2[n])));
+        return;
+    }
+    if (operation == 3)
+    {
+        o0[n] = face_flux(n, i, nx, sx, 0, a1[n]);
+        o1[n] = face_flux(n, j, ny, sy, 1, a2[n]);
+        o2[n] = face_flux(n, k, nz, 1, 2, a3[n]);
+        return;
+    }
+    if (operation == 4)
+    {
+        vec2 rate = val(0);
+        if (i < nx - 1 && a1[n] > 0)
+            rate = df_add(rate, df_mul(val(a1[n]), spacing(0)));
+        if (i > 0 && a1[n - sx] < 0)
+            rate = df_sub(rate, df_mul(val(a1[n - sx]), spacing(0)));
+        if (j < ny - 1 && a2[n] > 0)
+            rate = df_add(rate, df_mul(val(a2[n]), spacing(1)));
+        if (j > 0 && a2[n - sy] < 0)
+            rate = df_sub(rate, df_mul(val(a2[n - sy]), spacing(1)));
+        if ((k < nz - 1 || (flags & 4) != 0) && a3[n] > 0)
+            rate = df_add(rate, df_mul(val(a3[n]), spacing(2)));
+        if (k > 0 && a3[n - 1] < 0)
+            rate = df_sub(rate, df_mul(val(a3[n - 1]), spacing(2)));
+        vec2 ratio = val(1);
+        if (rate.x > 0)
+        {
+            vec2 available = df_div(df_mul(val(a4[n]), val(max(a0[n], 0.0))), vec2(step_high, step_low));
+            // An inactive available/rate ratio can exceed the device exponent range.
+            if (less_than(available, rate))
+                ratio = df_div(available, rate);
+        }
+        float r = stored(ratio);
+        if (less_than(val(0), ratio) && less_than(ratio, val(1)))
+        {
+            r = fma(r, 0.999996185302734375, 0.0);
+            r = r > 0 ? uintBitsToFloat(floatBitsToUint(r) - 1u) : 0;
+        }
+        o0[n] = r;
+        return;
+    }
+    if (operation == 6)
+    {
+        o0[n] = stored(df_add(val(a0[n]), val(a1[n])));
+        return;
+    }
+    if (operation == 7)
+    {
+        o0[n] = stored(df_div(val(a0[n]), val(a1[n])));
+        return;
+    }
+    if (i < 1 || i >= nx - 1 || j < 1 || j >= ny - 1)
+        return;
+    if ((flags & 32) != 0 && (k == 0 || k == nz - 1))
+        return;
+    vec2 xp = val(a1[n]), xm = val(a1[n - sx]);
+    vec2 yp = val(a2[n]), ym = val(a2[n - sy]);
+    vec2 zp = val(a3[n]), zm = val(k > 0 ? a3[n - 1] : 0);
+    if (operation == 5)
+    {
+        xp = limited(a1[n], n, i, nx, sx, 0);
+        xm = limited(a1[n - sx], n - sx, i - 1, nx, sx, 0);
+        yp = limited(a2[n], n, j, ny, sy, 1);
+        ym = limited(a2[n - sy], n - sy, j - 1, ny, sy, 1);
+        zp = k < nz - 1 || (flags & 4) != 0 ? limited(a3[n], n, k, nz, 1, 2) : val(0);
+        zm = k > 0 ? limited(a3[n - 1], n - 1, k - 1, nz, 1, 2) : val(0);
+    }
+    o0[n] = stored(-df_add(df_add(df_mul(df_sub(xp, xm), spacing(0)), df_mul(df_sub(yp, ym), spacing(1))),
+                           df_mul(df_sub(zp, zm), spacing(2))));
+}
+void main()
+{
+    evaluate(gl_GlobalInvocationID.x);
+}

@@ -1,0 +1,35 @@
+---
+# Allman style enforcement for Nimbus
+BasedOnStyle: LLVM
+BreakBeforeBraces: Allman
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 120
+AccessModifierOffset: -4
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Never
+AlwaysBreakTemplateDeclarations: Yes
+PointerAlignment: Left
+SpaceAfterCStyleCast: false
+SpaceBeforeParens: ControlStatements
+SpacesInParentheses: false
+IncludeBlocks: Preserve
+SortIncludes: false
+NamespaceIndentation: None
+FixNamespaceComments: true
+BinPackArguments: false
+BinPackParameters: false
+AllowAllParametersOfDeclarationOnNextLine: true
+AlignAfterOpenBracket: Align
+# Preserve the codebase's intentional column alignment in declaration / config
+# blocks (e.g. the `bool   global_*` runtime-config and struct tables) instead of
+# collapsing it to single spaces. Without these, adopting clang-format would
+# un-align readable blocks and leave touched lines inconsistent with their
+# untouched aligned neighbors (ModularityAudit finding 9).
+AlignConsecutiveAssignments: true
+AlignConsecutiveDeclarations: true
+AlignTrailingComments: true
+---

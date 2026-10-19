@@ -1,0 +1,468 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_spirv_intrinsics : require
+spirv_execution_mode(extensions = ["SPV_KHR_float_controls"], capabilities = [4466], 4461, 32);
+spirv_execution_mode(extensions = ["SPV_KHR_float_controls"], capabilities = [4467], 4462, 32);
+layout(local_size_x = 64) in;
+layout(set = 0, binding = 0) readonly buffer Field0
+{
+    float temperature[];
+};
+layout(set = 0, binding = 1) readonly buffer Field1
+{
+    float density[];
+};
+layout(set = 0, binding = 2) readonly buffer Field2
+{
+    float cloud[];
+};
+layout(set = 0, binding = 3) readonly buffer Field3
+{
+    float rain[];
+};
+layout(set = 0, binding = 4) readonly buffer Field4
+{
+    float cloud_number[];
+};
+layout(set = 0, binding = 5) readonly buffer Field5
+{
+    float rain_number[];
+};
+layout(set = 0, binding = 6) readonly buffer Field6
+{
+    float ice_aerosol[];
+};
+layout(set = 0, binding = 7) readonly buffer Field7
+{
+    float cloud_vapor_change[];
+};
+layout(set = 0, binding = 8) readonly buffer Field8
+{
+    float conversion_high[];
+};
+layout(set = 0, binding = 9) readonly buffer Field9
+{
+    float conversion_low[];
+};
+layout(set = 0, binding = 10) readonly buffer Field10
+{
+    float evaporation_high[];
+};
+layout(set = 0, binding = 11) readonly buffer Field11
+{
+    float evaporation_low[];
+};
+layout(set = 0, binding = 12) readonly buffer Field12
+{
+    float cloud_number_source[];
+};
+layout(set = 0, binding = 13) readonly buffer Field13
+{
+    float rain_number_source[];
+};
+layout(set = 0, binding = 14) readonly buffer CloudVaporChangeLow
+{
+    float cloud_vapor_change_low[];
+};
+layout(set = 0, binding = 15) readonly buffer Field14
+{
+    float coefficients[];
+};
+layout(set = 0, binding = 16) writeonly buffer Field15
+{
+    float cloud_frozen_high[];
+};
+layout(set = 0, binding = 17) writeonly buffer Field16
+{
+    float cloud_frozen_low[];
+};
+layout(set = 0, binding = 18) writeonly buffer Field17
+{
+    float rain_ice_high[];
+};
+layout(set = 0, binding = 19) writeonly buffer Field18
+{
+    float rain_ice_low[];
+};
+layout(set = 0, binding = 20) writeonly buffer Field19
+{
+    float rain_graupel_high[];
+};
+layout(set = 0, binding = 21) writeonly buffer Field20
+{
+    float rain_graupel_low[];
+};
+layout(set = 0, binding = 22) writeonly buffer Field21
+{
+    float next_cloud_number_source[];
+};
+layout(set = 0, binding = 23) writeonly buffer Field22
+{
+    float next_rain_number_source[];
+};
+layout(set = 0, binding = 24) writeonly buffer Field23
+{
+    float rain_ice_number_source[];
+};
+layout(set = 0, binding = 25) writeonly buffer Field24
+{
+    float cloud_ice_number_source[];
+};
+layout(set = 0, binding = 26) writeonly buffer Field25
+{
+    float rain_lookup[];
+};
+layout(set = 0, binding = 27) writeonly buffer Field26
+{
+    float cloud_lookup[];
+};
+layout(set = 0, binding = 28) writeonly buffer Field27
+{
+    float status[];
+};
+layout(push_constant) uniform PushConstants
+{
+    int   nx;
+    int   ny;
+    int   nz;
+    int   i_begin;
+    int   i_end;
+    int   j_begin;
+    int   j_end;
+    int   k_begin;
+    int   k_end;
+    float dt_high;
+    float dt_low;
+};
+#include "thompson_compensated.glsl"
+#include "thompson_number_math.glsl"
+vec2 lower(vec2 a, vec2 b)
+{
+    return df_sub(a, b).x < 0.0 ? a : b;
+}
+vec2 upper(vec2 a, vec2 b)
+{
+    return df_sub(a, b).x > 0.0 ? a : b;
+}
+vec2 cube(vec2 a)
+{
+    return df_mul(df_mul(a, a), a);
+}
+vec2 real_power(vec2 a, vec2 b)
+{
+    return df_exp(df_mul(b, df_log(a)));
+}
+vec2 coefficient(int i)
+{
+    return vec2(coefficients[2 * i], coefficients[2 * i + 1]);
+}
+bool finite_pair(vec2 a)
+{
+    return !isnan(a.x) && !isnan(a.y) && !isinf(a.x) && !isinf(a.y);
+}
+int axis_index(vec2 value, int offset, int count)
+{
+    int low = 0, high = count;
+    while (high - low > 1)
+    {
+        int middle = (low + high) / 2;
+        if (df_sub(value, coefficient(offset + middle)).x >= 0.0)
+            low = middle;
+        else
+            high = middle;
+    }
+    return low;
+}
+float number_tendency(float initial, vec2 candidate)
+{
+    float rate      = stored_tendency(initial, upper(vec2(0, 0), candidate));
+    vec2  remaining = df_add(vec2(initial, 0.0), df_mul(vec2(dt_high, dt_low), vec2(rate, 0.0)));
+    if (dt_low != 0.0 && rate < 0.0 && remaining.x <= initial * 1e-13)
+    {
+        rate = uintBitsToFloat(floatBitsToUint(rate) - 1u);
+    }
+    return rate;
+}
+vec2 nuclei_number(int n)
+{
+    vec2 t   = df_sub(vec2(temperature[n], 0.0), vec2(273.14999389648438, 6.1035157159494702e-06));
+    vec2 rho = vec2(density[n], 0.0);
+    // DeMott uses the freezing-point reference density, distinct from the fall-speed reference.
+    vec2 reference = df_div(
+        vec2(101325, 0),
+        df_mul(vec2(287.04998779296875, 1.220703143189894e-05), vec2(273.14999389648438, 6.1035156022626325e-06)));
+    vec2 aerosol = df_div(df_mul(df_mul(df_mul(rho, vec2(ice_aerosol[n], 0.0)), reference),
+                                 vec2(9.9999999747524271e-07, 2.5247572468697606e-15)),
+                          rho);
+    aerosol      = upper(vec2(0.5, 0), aerosol);
+    return df_mul(df_div(df_mul(df_mul(vec2(5.9400001191534102e-05, -1.1915340675933139e-12),
+                                       real_power(-t, vec2(3.3299999237060547, 7.6293943607197434e-08))),
+                                real_power(aerosol,
+                                           df_add(df_mul(vec2(-0.026399999856948853, -1.4305115425550241e-10), t),
+                                                  vec2(0.0032999999821186066, 1.7881394281937801e-11)))),
+                         reference),
+                  df_mul(rho, vec2(1000, 0)));
+}
+vec2 sorted_rain(vec2 mass, vec2 number)
+{
+    if (df_sub(number, vec2(9.999999960041972e-13, 3.9958025776882371e-21)).x <= 0.0)
+        return number;
+    vec2 coefficient_mass = df_mul(vec2(3.1415927410125732, -8.7412573179790343e-08), vec2(1000, 0));
+    vec2 slope            = df_cbrt(df_div(df_mul(coefficient_mass, number), mass));
+    vec2 diameter         = df_div(vec2(3.6719999313354492, 6.8664547825392219e-08), slope);
+    if (df_sub(diameter, vec2(0.0024999999441206455, 5.5879353227927808e-11)).x > 0.0)
+        slope = df_div(vec2(3.6719999313354492, 6.8664547825392219e-08),
+                       vec2(0.0024999999441206455, 5.5879353227927808e-11));
+    else if (df_sub(diameter, vec2(3.7500001781154424e-05, -1.7811544340134988e-12)).x < 0.0)
+        slope = df_div(vec2(3.6719999313354492, 6.8664547825392219e-08),
+                       vec2(3.7500001781154424e-05, -1.7811544340134988e-12));
+    else
+        return number;
+    return df_div(df_mul(mass, cube(slope)), coefficient_mass);
+}
+vec2 sorted_cloud(vec2 mass, vec2 supplied)
+{
+    vec2 number     = lower(vec2(2000000000, 0), upper(vec2(2, 0), supplied));
+    vec2 coordinate = df_div(vec2(1000000000, 0), number);
+    int  shape      = coordinate.x >= 13.0 ? 15 : min(15, nonnegative_floor(df_add(coordinate, vec2(0.5, 0))) + 2);
+    vec2 ratio      = vec2(float((shape + 1) * (shape + 2) * (shape + 3)), 0.0);
+    vec2 coefficient_mass =
+        df_div(df_mul(vec2(3.1415927410125732, -8.7412573179790343e-08), vec2(1000, 0)), vec2(6, 0));
+    vec2 slope    = df_cbrt(df_div(df_mul(df_mul(number, coefficient_mass), ratio), mass));
+    vec2 diameter = df_div(vec2(float(shape + 4), 0.0), slope);
+    if (df_sub(diameter, vec2(9.9999999747524271e-07, 2.5247572468697606e-15)).x < 0.0)
+        slope = df_div(vec2(float(shape + 4), 0.0), vec2(9.9999999747524271e-07, 2.5247572468697606e-15));
+    else if (df_sub(diameter, vec2(9.9999997473787516e-05, 2.5262125290942405e-12)).x > 0.0)
+        slope = df_div(vec2(float(shape + 4), 0.0), vec2(9.9999997473787516e-05, 2.5262125290942405e-12));
+    else
+        return number;
+    return lower(vec2(2000000000, 0), df_div(df_mul(mass, cube(slope)), df_mul(coefficient_mass, ratio)));
+}
+void rain_cell(int      mass_index,
+               int      number_index,
+               int      temperature_index,
+               int      nuclei_index,
+               out vec2 ice_mass,
+               out vec2 graupel_mass,
+               out vec2 ice_count,
+               out vec2 graupel_count)
+{
+    ice_mass         = vec2(0, 0);
+    graupel_mass     = vec2(0, 0);
+    ice_count        = vec2(0, 0);
+    graupel_count    = vec2(0, 0);
+    int distribution = (number_index * 37 + mass_index) * 100;
+    int probability  = (nuclei_index * 45 + temperature_index) * 100;
+    for (int bin = 99; bin >= 0; --bin)
+    {
+        vec2 mass     = coefficient(137 + bin);
+        vec2 number   = coefficient(337 + distribution + bin);
+        vec2 fraction = coefficient(507237 + probability + bin);
+        vec2 count    = df_mul(fraction, number);
+        vec2 amount   = df_mul(count, mass);
+        if (df_sub(mass, vec2(1.2582078490197546e-08, 8.7470452102436327e-17)).x < 0.0)
+        {
+            ice_mass  = df_add(ice_mass, amount);
+            ice_count = df_add(ice_count, count);
+        }
+        else
+        {
+            graupel_mass  = df_add(graupel_mass, amount);
+            graupel_count = df_add(graupel_count, count);
+        }
+        if (df_sub(df_add(ice_mass, graupel_mass), coefficient(mass_index)).x >= 0.0)
+            break;
+    }
+}
+void cloud_cell(
+    int mass_index, int number_index, int temperature_index, int nuclei_index, vec2 content,
+    out vec2 ice_mass, out vec2 ice_count)
+{
+    ice_mass         = vec2(0, 0);
+    ice_count        = vec2(0, 0);
+    int distribution = (number_index * 37 + mass_index) * 100;
+    int probability  = (nuclei_index * 45 + temperature_index) * 100;
+    bool continuation = df_sub(content, coefficient(mass_index)).x < 0.0;
+    vec2 lambda_difference = vec2(0), log_scale = vec2(0);
+    if (continuation)
+    {
+        vec2 number = coefficient(37 + number_index);
+        vec2 coordinate = df_div(vec2(1000000000, 0), number);
+        int shape = coordinate.x >= 13.0 ? 15 : nonnegative_floor(df_add(coordinate, vec2(.5, 0))) + 2;
+        vec2 factor = df_mul(df_mul(number,
+            df_div(df_mul(vec2(3.1415927410125732, -8.7412573179790343e-08), vec2(1000, 0)), vec2(6, 0))),
+            vec2(float((shape+1)*(shape+2)*(shape+3)), 0));
+        vec2 reference_lambda = df_cbrt(df_div(factor, coefficient(mass_index)));
+        vec2 lambda = df_cbrt(df_div(factor, content));
+        lambda_difference = df_sub(lambda, reference_lambda);
+        log_scale = df_mul(vec2(float(shape+1), 0), df_log(df_div(lambda, reference_lambda)));
+    }
+    for (int bin = 0; bin < 100; ++bin)
+    {
+        vec2 mass     = coefficient(237 + bin);
+        vec2 number   = coefficient(137237 + distribution + bin);
+        if (continuation && number.x > 0.0)
+            number = df_exp(df_sub(df_add(df_log(number), log_scale),
+                df_mul(lambda_difference, df_mul(vec2(float(bin+1), 0),
+                    vec2(9.9999999747524271e-7, 2.5247572468697606e-15)))));
+        vec2 fraction = coefficient(754737 + probability + bin);
+        vec2 count    = df_mul(fraction, number);
+        ice_count     = lower(coefficient(37 + number_index), df_add(ice_count, count));
+        ice_mass      = df_add(ice_mass, df_mul(count, mass));
+        if (df_sub(ice_mass, content).x >= 0.0)
+            break;
+    }
+}
+void cloud_mass_cell(int mi, int ni, int ti, int ai, vec2 mass, out vec2 frozen, out vec2 count)
+{
+    cloud_cell(mi, ni, ti, ai, lower(mass, coefficient(mi)), frozen, count);
+    if (mi < 36 && df_sub(mass, coefficient(mi)).x > 0.0)
+    {
+        vec2 upper_mass, upper_number;
+        cloud_cell(mi + 1, ni, ti, ai, coefficient(mi + 1), upper_mass, upper_number);
+        vec2 weight = lower(vec2(1, 0), df_div(df_sub(mass, coefficient(mi)),
+            df_sub(coefficient(mi + 1), coefficient(mi))));
+        frozen = df_add(frozen, df_mul(weight, df_sub(upper_mass, frozen)));
+        count = df_add(count, df_mul(weight, df_sub(upper_number, count)));
+    }
+}
+void evaluate(uint gid)
+{
+    if (gid >= uint(nx * ny * nz))
+        return;
+    int n                       = int(gid);
+    cloud_frozen_high[n]        = 0.0;
+    cloud_frozen_low[n]         = 0.0;
+    rain_ice_high[n]            = 0.0;
+    rain_ice_low[n]             = 0.0;
+    rain_graupel_high[n]        = 0.0;
+    rain_graupel_low[n]         = 0.0;
+    next_cloud_number_source[n] = 0.0;
+    next_rain_number_source[n]  = 0.0;
+    rain_ice_number_source[n]   = 0.0;
+    cloud_ice_number_source[n]  = 0.0;
+    rain_lookup[n]              = 0.0;
+    cloud_lookup[n]             = 0.0;
+    status[n]                   = 0.0;
+    int k = n % nz, j = (n / nz) % ny, i = n / (ny * nz);
+    if (i < i_begin || i >= i_end || j < j_begin || j >= j_end || k < k_begin || k >= k_end)
+        return;
+    next_cloud_number_source[n] = cloud_number_source[n];
+    next_rain_number_source[n]  = rain_number_source[n];
+    rain_lookup[n]              = -1.0;
+    cloud_lookup[n]             = -1.0;
+    if (df_sub(vec2(temperature[n], 0.0), vec2(273.14999389648438, 6.1035157159494702e-06)).x >= 0.0)
+        return;
+    status[n]    = -1.0;
+    vec2 step_dt = vec2(dt_high, dt_low), rho = vec2(density[n], 0.0);
+    vec2 converted  = vec2(conversion_high[n], conversion_low[n]),
+         evaporated = vec2(evaporation_high[n], evaporation_low[n]);
+    vec2 q  = upper(vec2(0, 0), df_sub(df_sub(vec2(cloud[n], 0.0), vec2(cloud_vapor_change[n], cloud_vapor_change_low[n])), converted));
+    vec2 r  = upper(vec2(0, 0), df_sub(df_add(vec2(rain[n], 0.0), converted), evaporated));
+    vec2 nc = upper(vec2(0.0), df_add(vec2(cloud_number[n], 0.0), df_mul(step_dt, vec2(cloud_number_source[n], 0.0))));
+    vec2 nr = upper(vec2(0.0), df_add(vec2(rain_number[n], 0.0), df_mul(step_dt, vec2(rain_number_source[n], 0.0))));
+    if (!finite_pair(df_mul(rho, q)) || !finite_pair(df_mul(rho, r)) || !finite_pair(df_mul(rho, nc)) ||
+        !finite_pair(df_mul(rho, nr)) || !finite_pair(df_mul(rho, vec2(ice_aerosol[n], 0.0))))
+        return;
+    vec2 nuclei = nuclei_number(n);
+    if (!finite_pair(nuclei) || !finite_pair(nc) || !finite_pair(nr))
+        return;
+    int  ni           = axis_index(nuclei, 1002274, 55);
+    vec2 supercooling = df_sub(vec2(273.14999389648438, 6.1035157159494702e-06), vec2(temperature[n], 0.0));
+    int  ti = supercooling.x >= 45.0 ? 44 : clamp(nonnegative_floor(df_add(supercooling, vec2(0.5, 0))), 1, 45) - 1;
+    vec2 rain_mass = df_mul(rho, r), rain_count = df_mul(rho, nr);
+    vec2 ri = vec2(0, 0), rg = vec2(0, 0), rin = vec2(0, 0), rgn = vec2(0, 0);
+    if (df_sub(rain_mass, vec2(9.999999960041972e-13, 3.9958025776882371e-21)).x > 0.0)
+    {
+        if (df_sub(rain_mass, vec2(9.9999999747524271e-07, 2.5247572468697606e-15)).x <= 0.0)
+        {
+            rain_lookup[n] = -2.0;
+            if (df_sub(vec2(temperature[n], 0.0), vec2(235.16000366210938, -3.6621092931454768e-06)).x < 0.0)
+            {
+                ri  = rain_mass;
+                rin = rain_count;
+            }
+        }
+        else
+        {
+            vec2 sorted    = sorted_rain(rain_mass, rain_count);
+            vec2 slope     = df_cbrt(df_div(
+                df_mul(df_mul(vec2(3.1415927410125732, -8.7412573179790343e-08), vec2(1000, 0)), sorted), rain_mass));
+            vec2 intercept = df_div(df_mul(rain_mass, df_mul(cube(slope), slope)),
+                                    df_mul(vec2(3.1415927410125732, -8.7412573179790343e-08), vec2(1000, 0)));
+            int  mi = axis_index(rain_mass, 0, 37), ri_index = axis_index(intercept, 1002237, 37);
+            rain_lookup[n] = float(((ni * 45 + ti) * 37 + ri_index) * 37 + mi);
+            rain_cell(mi, ri_index, ti, ni, ri, rg, rin, rgn);
+            vec2 requested_mass = df_add(ri, rg), requested_number = df_add(rin, rgn);
+            vec2 factor = vec2(1, 0);
+            if (requested_mass.x > 0.0)
+                factor = lower(factor, df_div(rain_mass, requested_mass));
+            if (requested_number.x > 0.0)
+                factor = lower(factor, df_div(rain_count, requested_number));
+            ri  = df_mul(ri, factor);
+            rg  = df_mul(rg, factor);
+            rin = df_mul(rin, factor);
+            rgn = df_mul(rgn, factor);
+        }
+    }
+    vec2 cloud_mass = df_mul(rho, q), cloud_count = df_mul(rho, nc), ci = vec2(0, 0), cin = vec2(0, 0);
+    if (df_sub(cloud_mass, vec2(9.999999960041972e-13, 3.9958025776882371e-21)).x > 0.0)
+    {
+        if (df_sub(cloud_mass, vec2(9.9999999747524271e-07, 2.5247572468697606e-15)).x <= 0.0 &&
+            df_sub(vec2(temperature[n], 0), vec2(235.16000366210938, -3.6621092931454768e-06)).x < 0.0)
+        {
+            cloud_lookup[n] = -2.0;
+            if (df_sub(vec2(temperature[n], 0.0), vec2(235.16000366210938, -3.6621092931454768e-06)).x < 0.0)
+            {
+                ci  = cloud_mass;
+                cin = cloud_count;
+            }
+        }
+        else
+        {
+            vec2 sorted = sorted_cloud(cloud_mass, cloud_count);
+            int ci_index = axis_index(sorted, 37, 100);
+            int mi          = axis_index(cloud_mass, 0, 37);
+            cloud_lookup[n] = float(((ni * 45 + ti) * 100 + ci_index) * 37 + mi);
+            cloud_mass_cell(mi, ci_index, ti, ni, cloud_mass, ci, cin);
+            if (ci_index < 99 && df_sub(sorted, coefficient(37 + ci_index)).x > 0.0)
+            {
+                vec2 upper_mass, upper_number;
+                cloud_mass_cell(mi, ci_index + 1, ti, ni, cloud_mass, upper_mass, upper_number);
+                vec2 weight = lower(vec2(1, 0), df_div(df_log(df_div(sorted, coefficient(37 + ci_index))),
+                    df_log(df_div(coefficient(38 + ci_index), coefficient(37 + ci_index)))));
+                ci = df_add(ci, df_mul(weight, df_sub(upper_mass, ci)));
+                cin = df_add(cin, df_mul(weight, df_sub(upper_number, cin)));
+            }
+            vec2 amount = lower(cloud_mass, ci);
+            vec2 factor = ci.x > 0.0 ? df_div(amount, ci) : vec2(0, 0);
+            cin =
+                lower(cloud_count,
+                      lower(df_mul(cin, factor), df_div(amount, vec2(1.9999999920083944e-12, 7.9916051553764742e-21))));
+            ci = amount;
+        }
+    }
+    vec2  qc_loss = lower(q, df_div(ci, rho)), ri_gain = df_div(ri, rho), rg_gain = df_div(rg, rho);
+    float ncr        = number_tendency(cloud_number[n], df_sub(nc, df_div(cin, rho)));
+    float nrr        = number_tendency(rain_number[n], df_sub(nr, df_div(df_add(rin, rgn), rho)));
+    float rain_gain  = scalar(df_div(df_div(rin, step_dt), rho));
+    float cloud_gain = scalar(df_div(df_div(cin, step_dt), rho));
+    if (!finite_pair(qc_loss) || !finite_pair(ri_gain) || !finite_pair(rg_gain) || isnan(ncr) || isinf(ncr) ||
+        isnan(nrr) || isinf(nrr) || isnan(rain_gain) || isinf(rain_gain) || isnan(cloud_gain) || isinf(cloud_gain))
+        return;
+    cloud_frozen_high[n]        = qc_loss.x;
+    cloud_frozen_low[n]         = qc_loss.y;
+    rain_ice_high[n]            = ri_gain.x;
+    rain_ice_low[n]             = ri_gain.y;
+    rain_graupel_high[n]        = rg_gain.x;
+    rain_graupel_low[n]         = rg_gain.y;
+    next_cloud_number_source[n] = ncr;
+    next_rain_number_source[n]  = nrr;
+    rain_ice_number_source[n]   = rain_gain;
+    cloud_ice_number_source[n]  = cloud_gain;
+    status[n]                   = 0.0;
+}
+void main()
+{
+    evaluate(gl_GlobalInvocationID.x);
+}

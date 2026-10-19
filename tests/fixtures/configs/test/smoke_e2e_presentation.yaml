@@ -1,0 +1,106 @@
+schema: nimbus.v1
+
+# Small contributor smoke fixture. The vertically sheared but horizontally
+# uniform wind produces nonzero horizontal vorticity at t=0, allowing the E2E
+# gate to distinguish a freshly computed diagnostic from zero-filled storage.
+grid:
+  coordinate_system: cartesian
+  staggering: c_grid
+  nx: 32
+  ny: 32
+  nz: 32
+  dx: 2000
+  dy: 2000
+  dz: 500
+  ztop: 16000
+
+time:
+  run_time: 2
+  dt_large: 1.0
+  acoustic_substeps: 6
+  adaptive_dt: false
+  cfl_safety: 0.7
+  output_interval: 1
+
+dynamics:
+  scheme: klemp_wilhelmson_split_cartesian_cgrid
+  axisymmetric: false
+
+boundary_conditions:
+  lateral:
+    west: radiative
+    east: radiative
+    south: radiative
+    north: radiative
+  bottom: rigid_slip
+  top: rigid
+
+damping:
+  enabled: true
+  z_d: 14000
+  alpha: 0.00333
+  mode: explicit
+
+coriolis:
+  enabled: true
+  mode: f_plane
+  latitude_deg: 35
+
+microphysics:
+  scheme: none
+
+turbulence:
+  scheme: none
+  mode: 3d
+  Cs: 0.18
+  Pr_t: 0.7
+  Sc_t: 0.7
+
+diffusion:
+  scheme: explicit
+  operator_order: 2
+  K_h: 0
+  K_v: 0
+  apply_to: scalars
+
+surface:
+  scheme: none
+  apply_fluxes: false
+
+boundary_layer:
+  scheme: none
+
+radiation:
+  scheme: none
+
+initial_conditions:
+  sounding:
+    type: parametric_cape
+    cape_jkg: 0
+    tropopause_m: 12000
+    surface_theta_k: 300
+    moisture_qv_kgkg: 0.004
+  hodograph:
+    type: wk_param
+    u_sfc_ms: 4
+    v_sfc_ms: 1
+    u_1km_ms: 14
+    v_1km_ms: 6
+    u_6km_ms: 28
+    v_6km_ms: 22
+  trigger:
+    type: none
+
+output:
+  preset: presentation
+  format: npy_3d
+  async_io: true
+  live_shm: false
+
+extensions:
+  compute:
+    backend: cpu
+  diagnostics:
+    scientific_every_steps: 0
+  validation:
+    guard_mode: off

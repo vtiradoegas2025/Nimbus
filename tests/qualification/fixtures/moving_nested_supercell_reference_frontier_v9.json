@@ -1,0 +1,52 @@
+{
+  "schema": "nimbus.qualification.moving_nested_reference_frontier.policy",
+  "schema_version": 9,
+  "policy_id": "moving-nested-reference-frontier-v9-receding-trusted-face-amendment",
+  "policy_status": "ratified",
+  "scope": "same-equation 600 m moving-child versus oversized stationary Nimbus reference with inherited v8 thresholds, geometry, aperture, containment movement, orthogonal reserve, and a no-mutation receding trusted-face state",
+  "prior_policy": {
+    "path": "moving_nested_supercell_reference_frontier_v8.json",
+    "sha256": "71dc4c453eb5fdf9dd359b47294d9f31f7099436999536b6fdd567ce92dadd2a",
+    "schema_version": 8,
+    "policy_id": "moving-nested-reference-frontier-v8-orthogonal-containment-reserve-amendment"
+  },
+  "failure_evidence": {
+    "path": "../../../docs/evidence/moving_nested_reference_frontier_v8_receding_trusted_face_failure.json",
+    "sha256": "7cd978a0669fc103468907ba9eac3544352dd38b86bb75845ba330f67c2f5eed",
+    "schema_version": 1,
+    "reason": "trusted_receding_face_unrecognized"
+  },
+  "ratification": {
+    "decision": "post_failure_receding_trusted_face_amendment_of_v8_and_blinded_v2_thresholds",
+    "review_date": "2026-08-14",
+    "reviewer_role": "independent_science_policy_audit",
+    "failed_v8_receding_trusted_face_sequence_observed": true,
+    "candidate_metric_values_inspected": false,
+    "minimum_input_series_schema_version": 2,
+    "receding_trusted_face_amendment": {
+      "reason": "fail_closed_single_receding_trusted_face_unrecognized",
+      "algorithm": "qualified_envelope_hysteresis_v11",
+      "eligibility": "one or more inner-margin faces remain outside the immutable relaxation zone and no breached face is approaching by either selected motion or signed face motion",
+      "disposition": "trusted_interior_contained_without_mutation",
+      "all_breached_faces_outside_relaxation_required": true,
+      "no_breached_face_approaching_required": true,
+      "selected_motion_and_face_motion_both_authoritative": true,
+      "movement_performed": false,
+      "current_relaxation_entry_recoverable": false,
+      "ordinary_or_projected_movement_changed": false,
+      "orthogonal_containment_reserve_changed": false,
+      "maximum_shift_cap_parent_cells": 14,
+      "numerical_thresholds_changed": false,
+      "geometry_or_aperture_changed": false,
+      "measurement_cadence_changed": false,
+      "failed_candidate_disposition": "invalid_not_comparable"
+    }
+  },
+  "limitations": [
+    "All numerical thresholds, geometry, aperture, measurement cadence, movement caps, and v10 orthogonal containment-reserve rules are inherited from the immutable v8 policy chain.",
+    "No comparison metric from the invalid v8 candidate was inspected or used to alter a threshold.",
+    "The receding trusted-face disposition performs no movement and applies only while every breached face remains outside relaxation and none is approaching by either authoritative motion source.",
+    "Any current relaxation-zone entry remains unrecoverable, and ambiguity, topology, parent containment, finite evidence, approaching-breach relocation, and fail-closed trusted-interior checks remain unchanged.",
+    "A pass remains a bounded same-equation fixed-aperture comparison and does not enable public moving_nest selection or broaden supported physics/backend combinations."
+  ]
+}

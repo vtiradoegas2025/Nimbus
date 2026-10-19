@@ -1,0 +1,157 @@
+/* The budget ledger keeps its serif masthead and faintly green paper, but the
+ * six locals below now derive from theme tokens, so it stops rendering a fixed
+ * light card while the rest of the workspace is dark. */
+.resource-budget {
+  --rb-ink: var(--color-text);
+  --rb-muted: var(--color-text-muted);
+  --rb-rule: var(--color-border);
+  --rb-paper: color-mix(in oklch, var(--color-ok) 4%, var(--color-surface));
+  --rb-track: var(--color-surface-3);
+  --rb-fill: var(--color-ok);
+  container-type: inline-size;
+  max-block-size: min(46rem, 78vh);
+  overflow: auto;
+  color: var(--rb-ink);
+  background: var(--rb-paper);
+  border-block: 1px solid var(--rb-rule);
+  font-family: var(--font-sans);
+}
+
+.resource-budget__header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 2rem;
+  padding: clamp(1.1rem, 2.4vw, 1.75rem) clamp(1rem, 3vw, 2.25rem) 1rem;
+  border-block-end: 1px solid var(--rb-rule);
+}
+
+.resource-budget__eyebrow,
+.resource-budget__band-heading span {
+  display: block;
+  margin-block-end: .35rem;
+  color: var(--rb-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+}
+
+.resource-budget h3,
+.resource-budget h4,
+.resource-budget p,
+.resource-budget dl {
+  margin: 0;
+}
+
+.resource-budget h3 {
+  font-family: "Source Serif 4", Charter, Georgia, serif;
+  font-size: var(--font-size-2xl);
+  font-weight: 500;
+  letter-spacing: -.025em;
+}
+
+.resource-budget__header p {
+  margin-block-start: .3rem;
+  color: var(--rb-muted);
+  font-size: var(--font-size-sm);
+}
+
+.resource-budget button {
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  padding: .45rem .7rem;
+  font: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.resource-budget button:hover:not(:disabled) { background: var(--color-surface-2); border-color: var(--color-text-muted); }
+.resource-budget button:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
+.resource-budget button:disabled { cursor: not-allowed; opacity: .48; }
+
+.resource-budget__bands {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.resource-budget__band {
+  min-width: 0;
+  padding: clamp(1.15rem, 2.8vw, 2rem) clamp(1rem, 3vw, 2.25rem);
+}
+
+.resource-budget__band + .resource-budget__band { border-inline-start: 1px solid var(--rb-rule); }
+
+.resource-budget__band-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.resource-budget__band-heading h4 { font-size: var(--font-size-lg); font-weight: 600; }
+.resource-budget__band-heading > strong { font-size: var(--font-size-xl); font-weight: 500; letter-spacing: -.04em; }
+
+.resource-budget meter {
+  display: block;
+  width: 100%;
+  height: .42rem;
+  margin-block: 1rem .55rem;
+  border: 0;
+  background: var(--rb-track);
+}
+
+.resource-budget meter::-webkit-meter-bar { background: var(--rb-track); border: 0; border-radius: 0; }
+.resource-budget meter::-webkit-meter-optimum-value { background: var(--rb-fill); }
+.resource-budget meter::-moz-meter-bar { background: var(--rb-fill); }
+
+.resource-budget__measure { display: flex; align-items: baseline; gap: .4rem; }
+.resource-budget__measure--visualization { margin-block-start: 1rem; flex-wrap: wrap; }
+.resource-budget__measure strong { font-size: var(--font-size-2xl); font-weight: 500; letter-spacing: -.035em; }
+.resource-budget__measure span { color: var(--rb-muted); font-size: var(--font-size-sm); }
+
+.resource-budget__ledger {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-block: 1.35rem 1rem;
+  border-block-start: 1px solid var(--rb-rule);
+}
+
+.resource-budget__ledger--loader { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.resource-budget__ledger--visualization { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.resource-budget__ledger div { padding: .62rem .45rem .62rem 0; border-block-end: 1px solid var(--rb-rule); }
+.resource-budget__ledger div:not(:nth-child(2n + 1)) { padding-inline-start: .65rem; }
+.resource-budget__ledger dt { color: var(--rb-muted); font-size: var(--font-size-xs); }
+.resource-budget__ledger dd { margin: .16rem 0 0; font-size: var(--font-size-md); font-weight: 600; font-variant-numeric: tabular-nums; }
+.resource-budget__ledger--loader div:not(:nth-child(2n + 1)) { padding-inline-start: 0; }
+.resource-budget__ledger--loader div:not(:nth-child(3n + 1)) { padding-inline-start: .65rem; }
+
+.resource-budget__clear { margin-block-end: .85rem; }
+.resource-budget__boundary { max-width: 66ch; color: var(--rb-muted); font-size: var(--font-size-xs); line-height: 1.48; }
+/* A failed capability probe is a caveat on everything above it, not a muted
+ * footnote — the muted treatment reads as "informational, nothing is wrong". */
+.resource-budget__boundary--error { color: var(--color-warn); }
+
+.resource-budget__native { padding: 1.15rem clamp(1rem, 3vw, 2.25rem) 1.5rem; border-block-start: 1px solid var(--rb-rule); }
+.resource-budget__native h4 { margin: 0; font-size: var(--font-size-lg); }
+.resource-budget__native-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-block-start: 1rem; border-block-start: 1px solid var(--rb-rule); }
+.resource-budget__native-grid > div { min-width: 0; padding: .75rem .85rem .2rem 0; }
+.resource-budget__native-grid > div + div { padding-inline-start: .85rem; border-inline-start: 1px solid var(--rb-rule); }
+.resource-budget__native-grid dt { color: var(--rb-muted); font-size: var(--font-size-xs); }
+.resource-budget__native-grid dd { margin: .18rem 0 .3rem; font-size: var(--font-size-sm); font-weight: 600; }
+.resource-budget__native-grid span { color: var(--rb-muted); font-size: var(--font-size-xs); line-height: 1.4; }
+
+@container (max-width: 42rem) {
+  .resource-budget__bands { grid-template-columns: 1fr; }
+  .resource-budget__band + .resource-budget__band { border-inline-start: 0; border-block-start: 1px solid var(--rb-rule); }
+  .resource-budget__native-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@container (max-width: 25rem) {
+  .resource-budget__header { gap: .75rem; }
+  .resource-budget__ledger--loader { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .resource-budget__ledger--loader div:not(:nth-child(3n + 1)) { padding-inline-start: 0; }
+  .resource-budget__ledger--loader div:not(:nth-child(2n + 1)) { padding-inline-start: .65rem; }
+}

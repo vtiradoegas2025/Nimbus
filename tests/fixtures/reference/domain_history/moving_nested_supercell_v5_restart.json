@@ -1,0 +1,406 @@
+{
+  "binary_sha256": "60a9c9f3ddedc6d005ce9bc8d2a53be7fd64c7bf7d0310c254426a4fb1d0cb3f",
+  "changed_thread_count": true,
+  "checkpoint_exact": true,
+  "checkpoint_sidecars_validated": true,
+  "child_endpoint_fields_exact": true,
+  "config_sha256": "a60a47ad3a2e653141302f6d0079804d2e661d6995c124a21c24311ecb0d281c",
+  "continuous": {
+    "binary_sha256": "60a9c9f3ddedc6d005ce9bc8d2a53be7fd64c7bf7d0310c254426a4fb1d0cb3f",
+    "checkpoint_bytes": 534757092,
+    "checkpoint_count": 3,
+    "child_field_extrema": {
+      "accumulated_rainfall": {
+        "max": 0.3534427583217621,
+        "min": 0.0
+      },
+      "cold_pool_boundary": {
+        "max": 1.18878173828125,
+        "min": 0.0
+      },
+      "p": {
+        "max": 98217.5390625,
+        "min": 10837.4462890625
+      },
+      "precip_rate": {
+        "max": 14.50318431854248,
+        "min": 0.0
+      },
+      "qc": {
+        "max": 0.0036713294684886932,
+        "min": 0.0
+      },
+      "qr": {
+        "max": 0.010243323631584644,
+        "min": 0.0
+      },
+      "qv": {
+        "max": 0.012562171556055546,
+        "min": 3.31602459482383e-05
+      },
+      "rho": {
+        "max": 1.1471694707870483,
+        "min": 0.17083771526813507
+      },
+      "theta": {
+        "max": 417.1941833496094,
+        "min": 299.8524475097656
+      },
+      "u": {
+        "max": 40.972267150878906,
+        "min": 4.797121047973633
+      },
+      "v": {
+        "max": 33.65916442871094,
+        "min": 0.45604705810546875
+      },
+      "w": {
+        "max": 27.089412689208984,
+        "min": -8.336038589477539
+      }
+    },
+    "child_published_origins_earth_m": [
+      [
+        3000,
+        1800
+      ],
+      [
+        3000,
+        1800
+      ],
+      [
+        15000,
+        1800
+      ]
+    ],
+    "child_storage_shape": [
+      118,
+      114,
+      50
+    ],
+    "coherent_samples": 42,
+    "committed_movement_post_child_origins_earth_m": [
+      {
+        "x": 15000,
+        "y": 1800
+      }
+    ],
+    "committed_movement_shifts_parent_cells": [
+      {
+        "i": 10,
+        "j": 0
+      }
+    ],
+    "committed_movement_times_s": [
+      1200.0
+    ],
+    "committed_movements": 1,
+    "config_sha256": "a60a47ad3a2e653141302f6d0079804d2e661d6995c124a21c24311ecb0d281c",
+    "confirmation_headroom_to_relaxation_zone_m": 9600.0,
+    "continuity_reason_counts": {
+      "none": 42,
+      "weak_detection": 3
+    },
+    "duration_s": 1350,
+    "envelope_face_motion_samples": 41,
+    "horizontal_storage_cell_ratio_to_reference": 0.4955704407951599,
+    "inspector_sha256": "78bd34bea3d1a5508a8c5903eaabf536898f92725f1473bdf0e9cf9502248640",
+    "ledger_rows": {
+      "budget.csv": 2430,
+      "energy_budget.csv": 270,
+      "moisture_budget.csv": 270,
+      "momentum_budget.csv": 270,
+      "thermodynamic_source_budget.csv": 2700
+    },
+    "mature_selected_fraction": null,
+    "maximum_absolute_updraft_helicity_m2s2": 744.9123295159401,
+    "maximum_consecutive_unselected_samples": null,
+    "maximum_observed_outward_envelope_face_speed_ms": 40.0,
+    "maximum_one_cadence_outward_envelope_advance_m": 1200.0,
+    "maximum_reorganization_recovery_samples": null,
+    "maximum_selected_envelope_span_x_m": 20400.0,
+    "maximum_selected_envelope_span_y_m": 21000.0,
+    "maximum_tracker_updraft_ms": 27.61533832550049,
+    "measured_peak_rss_bytes": 1009106944,
+    "memory_milestones_peak_rss_bytes": {
+      "checkpoint_assembly_begin": 1001947136,
+      "checkpoint_write_complete": 1009090560,
+      "first_boundary_layer": 157204480,
+      "first_dynamics": 299876352,
+      "first_radiation": 157155328,
+      "output_assembly_begin": 1001947136,
+      "output_drain_complete": 1009106944,
+      "output_submission_complete": 1001947136,
+      "startup_ready": 123142144
+    },
+    "minimum_post_shift_selected_envelope_distance_to_child_boundary_by_side_m": {
+      "east": 14400.0,
+      "north": 19800.0,
+      "south": 17400.0,
+      "west": 22800.0
+    },
+    "minimum_post_shift_selected_envelope_distance_to_child_boundary_m": 14400.0,
+    "minimum_selected_envelope_distance_to_child_boundary_by_side_m": {
+      "east": 13800.0,
+      "north": 19800.0,
+      "south": 17400.0,
+      "west": 22800.0
+    },
+    "minimum_selected_envelope_distance_to_child_boundary_m": 13800.0,
+    "motion_available_samples": 40,
+    "movement_geometry_contract": {
+      "child_cell_reserve_m": 600.0,
+      "inner_margin_m": 15600.0,
+      "observed_maximum_envelope_span_m": {
+        "x": 36000.0,
+        "y": 33000.0
+      },
+      "observed_maximum_one_sample_advance_m": 10200.0,
+      "physical_child_extent_m": {
+        "x": 69600.0,
+        "y": 67200.0
+      },
+      "release_margin_m": 16800.0,
+      "required_clean_shift_cells": 10,
+      "required_maximum_shift_cells": 14
+    },
+    "movement_reason_counts": {
+      "confirmation_pending": 1,
+      "cooldown_active": 5,
+      "no_approaching_breach": 33,
+      "no_selected_feature": 3,
+      "request_ready": 1,
+      "tracker_not_authoritative": 2
+    },
+    "movement_sequences": [
+      1
+    ],
+    "output_bytes": 730401488,
+    "predicted_memory_bytes": 1099161916,
+    "reference_binding": {
+      "binary_sha256": "3329b2c07ab3bc6128210bed51d444a4ded7de4cf1e303bebe6f0f99ef4f8bc7",
+      "config": "configs/qualification/constant_velocity_supercell_lifetime.yaml",
+      "config_sha256": "e1fc209db116f116aba463ce098e4eab0ddf357431bc27b6aedd40ea418bc36c",
+      "evidence": "docs/evidence/constant_velocity_storm_lifetime.json",
+      "evidence_sha256": "2ca1cfd8a1f94363456688ca47d3ae43f78add1e61614c6f110efd108f88c8e3",
+      "summary": {
+        "maximum_absolute_updraft_helicity_m2s2": 716.938,
+        "maximum_output_updraft_ms": 45.8696,
+        "maximum_tracker_updraft_ms": 46.4365
+      }
+    },
+    "reference_summary": {
+      "maximum_absolute_updraft_helicity_m2s2": 716.938,
+      "maximum_output_updraft_ms": 45.8696,
+      "maximum_tracker_updraft_ms": 46.4365
+    },
+    "relaxation_zone_width_m": 4800.0,
+    "root_field_extrema": {
+      "accumulated_rainfall": {
+        "max": 0.15053606033325195,
+        "min": 0.0
+      },
+      "cold_pool_boundary": {
+        "max": 0.4727783203125,
+        "min": 0.0
+      },
+      "p": {
+        "max": 98223.84375,
+        "min": 10837.2646484375
+      },
+      "precip_rate": {
+        "max": 4.640508651733398,
+        "min": 0.0
+      },
+      "qc": {
+        "max": 0.0035583963617682457,
+        "min": 0.0
+      },
+      "qr": {
+        "max": 0.009187105111777782,
+        "min": 0.0
+      },
+      "qv": {
+        "max": 0.015200188383460045,
+        "min": 3.316006041131914e-05
+      },
+      "rho": {
+        "max": 1.1443796157836914,
+        "min": 0.17083565890789032
+      },
+      "theta": {
+        "max": 417.19195556640625,
+        "min": 300.5576171875
+      },
+      "u": {
+        "max": 37.22077178955078,
+        "min": 5.511754989624023
+      },
+      "v": {
+        "max": 31.568260192871094,
+        "min": 0.8104421496391296
+      },
+      "w": {
+        "max": 21.387895584106445,
+        "min": -7.000857830047607
+      }
+    },
+    "root_storage_shape": [
+      134,
+      105,
+      50
+    ],
+    "schema": "nimbus.qualification.moving_nested_supercell",
+    "schema_version": 2,
+    "scope": "internal_cpu_moving_nest_campaign_not_selectable",
+    "selected_motion_fraction": null,
+    "simulated_seconds_per_wall_second": 0.999304,
+    "status": "pass",
+    "storm_samples": 45,
+    "topology_reorganization_samples": 0,
+    "wall_seconds": 1353.9142555839971
+  },
+  "continuous_authority_path": null,
+  "continuous_authority_reused": false,
+  "continuous_threads": 12,
+  "continuous_wall_seconds": 1353.9142555839971,
+  "external_ledgers": "finite_only",
+  "final_checkpoint_completed_steps": 900,
+  "final_checkpoint_fnv1a64": "b69e122d9c76bf14",
+  "final_checkpoint_simulation_time_s": 1350.0,
+  "final_time_s": 1350,
+  "first_continuous_movement_time_s": 1200.0,
+  "first_restored_face_motion_sample_time_s": 930.0,
+  "resume_threads": 4,
+  "resumed": {
+    "child_field_extrema": {
+      "accumulated_rainfall": {
+        "max": 0.3534427583217621,
+        "min": 0.0
+      },
+      "cold_pool_boundary": {
+        "max": 1.18878173828125,
+        "min": 0.0
+      },
+      "p": {
+        "max": 98217.5390625,
+        "min": 10838.08984375
+      },
+      "precip_rate": {
+        "max": 14.50318431854248,
+        "min": 0.0
+      },
+      "qc": {
+        "max": 0.0022703777067363262,
+        "min": 0.0
+      },
+      "qr": {
+        "max": 0.010243323631584644,
+        "min": 0.0
+      },
+      "qv": {
+        "max": 0.012472403235733509,
+        "min": 3.316063521197066e-05
+      },
+      "rho": {
+        "max": 1.1471694707870483,
+        "min": 0.17085964977741241
+      },
+      "theta": {
+        "max": 417.19122314453125,
+        "min": 299.8524475097656
+      },
+      "u": {
+        "max": 39.84501647949219,
+        "min": 5.666057586669922
+      },
+      "v": {
+        "max": 33.51898956298828,
+        "min": 1.0794024467468262
+      },
+      "w": {
+        "max": 24.048599243164062,
+        "min": -8.336038589477539
+      }
+    },
+    "first_restored_face_motion_sample_time_s": 930.0,
+    "ledger_rows": {
+      "budget.csv": 810,
+      "energy_budget.csv": 90,
+      "moisture_budget.csv": 90,
+      "momentum_budget.csv": 90,
+      "thermodynamic_source_budget.csv": 900
+    },
+    "movement_sequences": [
+      1
+    ],
+    "movement_shifts_parent_cells": [
+      {
+        "i": 10,
+        "j": 0
+      }
+    ],
+    "movement_times_s": [
+      1200
+    ],
+    "root_field_extrema": {
+      "accumulated_rainfall": {
+        "max": 0.15053606033325195,
+        "min": 0.0
+      },
+      "cold_pool_boundary": {
+        "max": 0.4727783203125,
+        "min": 0.0
+      },
+      "p": {
+        "max": 98223.84375,
+        "min": 10837.2822265625
+      },
+      "precip_rate": {
+        "max": 4.640508651733398,
+        "min": 0.0
+      },
+      "qc": {
+        "max": 0.0018939372384920716,
+        "min": 0.0
+      },
+      "qr": {
+        "max": 0.009187105111777782,
+        "min": 0.0
+      },
+      "qv": {
+        "max": 0.012191426940262318,
+        "min": 3.316006041131914e-05
+      },
+      "rho": {
+        "max": 1.1443796157836914,
+        "min": 0.17083871364593506
+      },
+      "theta": {
+        "max": 417.19146728515625,
+        "min": 300.5576171875
+      },
+      "u": {
+        "max": 37.22077178955078,
+        "min": 5.624488353729248
+      },
+      "v": {
+        "max": 31.568260192871094,
+        "min": 1.1731200218200684
+      },
+      "w": {
+        "max": 21.387895584106445,
+        "min": -7.000857830047607
+      }
+    },
+    "tracker_suffix_samples": 15
+  },
+  "resumed_lineage_validated": true,
+  "resumed_wall_seconds": 582.0856751669999,
+  "root_endpoint_fields_exact": true,
+  "schema": "nimbus.qualification.moving_nested_supercell.restart",
+  "schema_version": 2,
+  "scope": "internal_cpu_live_storm_changed_thread_restart_not_selectable",
+  "split_time_s": 900.0,
+  "status": "pass"
+}

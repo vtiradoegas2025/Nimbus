@@ -1,0 +1,104 @@
+#version 450
+
+layout(local_size_x = 64) in;
+layout(set = 0, binding = 0) readonly buffer B0
+{
+    float rho[];
+};
+layout(set = 0, binding = 1) readonly buffer B1
+{
+    float energy[];
+};
+layout(set = 0, binding = 2) readonly buffer B2
+{
+    float K_tke[];
+};
+layout(set = 0, binding = 3) readonly buffer B3
+{
+    float shear[];
+};
+layout(set = 0, binding = 4) readonly buffer B4
+{
+    float buoyancy[];
+};
+layout(set = 0, binding = 5) readonly buffer B5
+{
+    float dissipation[];
+};
+layout(set = 0, binding = 6) readonly buffer B6
+{
+    float dz_prof[];
+};
+layout(set = 0, binding = 7) writeonly buffer B7
+{
+    float tendency[];
+};
+
+layout(push_constant) uniform PushConstants
+{
+    int   nx;
+    int   ny;
+    int   nz;
+    int   use_horizontal;
+    int   use_vertical;
+    int   periodic_x;
+    int   periodic_y;
+    int   closed_lateral;
+    float dx;
+    float dy;
+};
+
+uint at(int i, int j, int k)
+{
+    return uint((i * ny + j) * nz + k);
+}
+int previous(int i, int n, bool periodic)
+{
+    return periodic ? (i <= 1 ? n - 2 : i - 1) : max(i - 1, 0);
+}
+int next_cell(int i, int n, bool periodic)
+{
+    return periodic ? (i >= n - 2 ? 1 : i + 1) : min(i + 1, n - 1);
+}
+float flux(uint a, uint b, float distance)
+{
+    return 0.5 * (rho[a] * K_tke[a] + rho[b] * K_tke[b]) * (energy[b] - energy[a]) / distance;
+}
+void evaluate(uint gid)
+{
+    if (gid >= uint(nx) * uint(ny) * uint(nz))
+        return;
+    int k         = int(gid % uint(nz));
+    int j         = int((gid / uint(nz)) % uint(ny));
+    int i         = int(gid / (uint(ny) * uint(nz)));
+    tendency[gid] = 0.0;
+    if (i == 0 || i == nx - 1 || j == 0 || j == ny - 1)
+        return;
+    float div = 0.0;
+    if (use_horizontal != 0)
+    {
+        uint west = at(previous(i, nx, periodic_x != 0), j, k), east = at(next_cell(i, nx, periodic_x != 0), j, k);
+        uint south = at(i, previous(j, ny, periodic_y != 0), k), north = at(i, next_cell(j, ny, periodic_y != 0), k);
+        if (periodic_x == 0 && (closed_lateral & 1) != 0 && i == 1)
+            west = gid;
+        if (periodic_x == 0 && (closed_lateral & 2) != 0 && i == nx - 2)
+            east = gid;
+        if (periodic_y == 0 && (closed_lateral & 4) != 0 && j == 1)
+            south = gid;
+        if (periodic_y == 0 && (closed_lateral & 8) != 0 && j == ny - 2)
+            north = gid;
+        div += (flux(gid, east, dx) - flux(west, gid, dx)) / dx + (flux(gid, north, dy) - flux(south, gid, dy)) / dy;
+    }
+    if (use_vertical != 0)
+    {
+        float top    = k < nz - 1 ? flux(gid, at(i, j, k + 1), 0.5 * (dz_prof[k] + dz_prof[k + 1])) : 0.0;
+        float bottom = k > 0 ? flux(at(i, j, k - 1), gid, 0.5 * (dz_prof[k - 1] + dz_prof[k])) : 0.0;
+        div += (top - bottom) / dz_prof[k];
+    }
+    precise float transport = div / rho[gid];
+    tendency[gid]           = transport + shear[gid] + buoyancy[gid] - dissipation[gid];
+}
+void main()
+{
+    evaluate(gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * gl_NumWorkGroups.x * gl_WorkGroupSize.x);
+}

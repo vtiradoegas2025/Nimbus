@@ -1,0 +1,29 @@
+{
+  "description": "Stationary Bell Kessler CPU two-way endpoint from the pre-lattice active-terrain schema1 writer",
+  "checkpoint_sha256": "28740bd42002dc1237b782627c468858329232877efece2ac7e9aa7f8b70b3dc",
+  "compressed_sha256": "59009cd65f96dd50243e40789450a2eb089c0e5e9bf17ffc9ebbb609ed25463f",
+  "source_binary_sha256": "e37219d5762f7c033e87d90afb28ed4b2268b0764bec8584c642881328c8e438",
+  "configuration": "tests/fixtures/configs/qualification/stationary_mapped_nested_kessler_bell_tvd_cpu_ready.yaml",
+  "configuration_sha256": "7c3090c82fae67f20a2a752ab588abaac84fa88e4bb32626d89ad70799ab73f1",
+  "simulation_time_s": 1,
+  "completed_steps": 2,
+  "active_terrain_schema_version": 1,
+  "source_evidence": "reports/backend_repairs/20260918/mapped_two_way_coupling/summary.json",
+  "lifecycle": {
+    "schema": "nimbus.checkpoint.lifecycle",
+    "schema_version": 1,
+    "checkpoint_file": "checkpoint_step_000000002.nimbus",
+    "checkpoint_bytes": 1813453,
+    "checkpoint_fnv1a64": "46069abeec535c15",
+    "checkpoint_sha256": "28740bd42002dc1237b782627c468858329232877efece2ac7e9aa7f8b70b3dc",
+    "run_id": "6ff77d06ad137b490003fa3643710855",
+    "parent_run_id": "",
+    "parent_checkpoint": "",
+    "completed_steps": 2,
+    "simulation_time_s": 1,
+    "boundary": "completed_timestep",
+    "portable_across_compute_memory_topology": true,
+    "trajectory_state": null,
+    "domain_recycling": null
+  }
+}

@@ -1,0 +1,2200 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_spirv_intrinsics : require
+spirv_execution_mode(extensions = ["SPV_KHR_float_controls"], capabilities = [4466], 4461, 32);
+spirv_execution_mode(extensions = ["SPV_KHR_float_controls"], capabilities = [4467], 4462, 32);
+layout(local_size_x = 64) in;
+layout(set = 0, binding = 0) readonly buffer B0
+{
+    float states[];
+};
+layout(set = 0, binding = 1) readonly buffer B1
+{
+    float incoming[];
+};
+layout(set = 0, binding = 2) writeonly buffer B2
+{
+    float o0[];
+};
+layout(set = 0, binding = 3) writeonly buffer B3
+{
+    float o1[];
+};
+layout(set = 0, binding = 4) writeonly buffer B4
+{
+    float o2[];
+};
+layout(set = 0, binding = 5) writeonly buffer B5
+{
+    float o3[];
+};
+layout(set = 0, binding = 6) writeonly buffer B6
+{
+    float o4[];
+};
+layout(set = 0, binding = 7) writeonly buffer B7
+{
+    float o5[];
+};
+layout(set = 0, binding = 8) writeonly buffer B8
+{
+    float o6[];
+};
+layout(set = 0, binding = 9) writeonly buffer B9
+{
+    float o7[];
+};
+layout(set = 0, binding = 10) writeonly buffer B10
+{
+    float o8[];
+};
+layout(set = 0, binding = 11) writeonly buffer B11
+{
+    float o9[];
+};
+layout(set = 0, binding = 12) writeonly buffer B12
+{
+    float o10[];
+};
+layout(set = 0, binding = 13) writeonly buffer B13
+{
+    float o11[];
+};
+layout(set = 0, binding = 14) writeonly buffer B14
+{
+    float o12[];
+};
+layout(set = 0, binding = 15) writeonly buffer B15
+{
+    float o13[];
+};
+layout(push_constant) uniform PushConstants
+{
+    int   nx;
+    int   ny;
+    int   nz;
+    int   i_begin;
+    int   i_end;
+    int   j_begin;
+    int   j_end;
+    int   k_begin;
+    int   k_end;
+    int   enable_hail;
+    float dt_high;
+    float dt_low;
+};
+#include "compensated_fma.glsl"
+#include "milbrandt_thermodynamics.glsl"
+float value(vec2 x)
+{
+    return x.x + x.y;
+}
+bool equal_value(vec2 a, vec2 b)
+{
+    return !ml_greater(a, b) && !ml_greater(b, a);
+}
+bool finite_value(vec2 a)
+{
+    return !isnan(a.x) && !isnan(a.y) && !isinf(a.x) && !isinf(a.y);
+}
+vec2 minimum(vec2 a, vec2 b)
+{
+    return ml_greater(a, b) ? b : a;
+}
+vec2 maximum(vec2 a, vec2 b)
+{
+    return ml_greater(a, b) ? a : b;
+}
+vec2 bounded(vec2 a, vec2 lo, vec2 hi)
+{
+    return minimum(maximum(a, lo), hi);
+}
+vec2 absolute(vec2 a)
+{
+    return ml_greater(vec2(0), a) ? -a : a;
+}
+vec2 power(vec2 x, vec2 y)
+{
+    if (equal_value(y, vec2(0)))
+        return vec2(1, 0);
+    if (equal_value(x, vec2(0)) && ml_greater(y, vec2(0)))
+        return vec2(0);
+    if (equal_value(y, vec2(2, 0)))
+        return df_mul(x, x);
+    if (equal_value(y, vec2(3, 0)))
+        return df_mul(df_mul(x, x), x);
+    if (equal_value(y, vec2(4, 0)))
+    {
+        vec2 square = df_mul(x, x);
+        return df_mul(square, square);
+    }
+    return df_exp(df_mul(df_log(x), y));
+}
+vec2 cube_root(vec2 x)
+{
+    return power(x, vec2(0.3333333432674408, -9.9341074810688212e-09));
+}
+vec2 log_ten(vec2 x)
+{
+    return df_div(df_log(x), vec2(2.3025851249694824, -3.1975436520781386e-08));
+}
+vec2 saturation_water(vec2 T, vec2 p)
+{
+    return milbrandt_qsat(T, value(p));
+}
+vec2 saturation_ice_value(vec2 T, vec2 p)
+{
+    vec2 tc = df_sub(bounded(T, vec2(150, 0), vec2(400, 0)), vec2(273.14999389648438, 6.1035156022626325e-06));
+    vec2 es = df_mul(vec2(611.1500244140625, -2.4414062522737368e-05),
+                     df_exp(df_div(df_mul(df_sub(vec2(23.035999298095703, 7.0190429823924205e-07),
+                                                 df_div(tc, vec2(333.70001220703125, -1.2207031261368684e-05))),
+                                          tc),
+                                   df_add(vec2(279.82000732421875, -7.3242187568212103e-06), tc))));
+    return bounded(
+        df_div(df_mul(vec2(0.62198001146316528, -1.1463165305869438e-08), es), maximum(df_sub(p, es), vec2(1, 0))),
+        vec2(0, 0),
+        vec2(0.20000000298023224, -2.980232227667301e-09));
+}
+vec2 gamma_value(vec2 x)
+{
+    if (abs(value(x) - float(1)) < 1e-5)
+        return vec2(1, 0);
+    if (abs(value(x) - float(1.3700000047683716)) < 1e-5)
+        return vec2(0.88931351900100708, -1.1571905433882534e-08);
+    if (abs(value(x) - float(1.4099999666213989)) < 1e-5)
+        return vec2(0.88676464557647705, 1.2025024309636478e-08);
+    if (abs(value(x) - float(1.5)) < 1e-5)
+        return vec2(0.88622695207595825, -2.6623200422015714e-08);
+    if (abs(value(x) - float(1.6383999586105347)) < 1e-5)
+        return vec2(0.89841318130493164, 2.1553910989347003e-08);
+    if (abs(value(x) - float(1.6634999513626099)) < 1e-5)
+        return vec2(0.90222948789596558, 2.7225495413674139e-08);
+    if (abs(value(x) - float(2)) < 1e-5)
+        return vec2(1, 0);
+    if (abs(value(x) - float(2.3333332538604736)) < 1e-5)
+        return vec2(1.1906393766403198, -2.7881320807665588e-08);
+    if (abs(value(x) - float(2.6666667461395264)) < 1e-5)
+        return vec2(1.5045754909515381, -2.6999817936967929e-09);
+    if (abs(value(x) - float(2.684999942779541)) < 1e-5)
+        return vec2(1.5264110565185547, -5.5799026732472612e-08);
+    if (abs(value(x) - float(2.7049999237060547)) < 1e-5)
+        return vec2(1.5508606433868408, 3.8644841549029252e-08);
+    if (abs(value(x) - float(2.75)) < 1e-5)
+        return vec2(1.6083594560623169, -3.407677096056716e-08);
+    if (abs(value(x) - float(2.8192000389099121)) < 1e-5)
+        return vec2(1.7039004564285278, 3.8614455188934471e-08);
+    if (abs(value(x) - float(2.8317499160766602)) < 1e-5)
+        return vec2(1.7222044467926025, -5.5871287152342575e-08);
+    if (abs(value(x) - float(3)) < 1e-5)
+        return vec2(2, 0);
+    if (abs(value(x) - float(3.0780000686645508)) < 1e-5)
+        return vec2(2.1518194675445557, -1.9474724055612569e-08);
+    if (abs(value(x) - float(3.3333332538604736)) < 1e-5)
+        return vec2(2.77815842628479, 5.4152874184865141e-08);
+    if (abs(value(x) - float(3.4879999160766602)) < 1e-5)
+        return vec2(3.2797248363494873, 3.9754564973293327e-08);
+    if (abs(value(x) - float(3.6666667461395264)) < 1e-5)
+        return vec2(4.0122013092041016, -7.1999544104528468e-09);
+    if (abs(value(x) - float(4)) < 1e-5)
+        return vec2(6, 0);
+    if (abs(value(x) - float(4.0780000686645508)) < 1e-5)
+        return vec2(6.6233000755310059, 1.8562793702159297e-07);
+    if (abs(value(x) - float(4.369999885559082)) < 1e-5)
+        return vec2(9.7309150695800781, 4.6232504757881543e-07);
+    if (abs(value(x) - float(4.5)) < 1e-5)
+        return vec2(11.631728172302246, 2.2426520551732665e-07);
+    if (abs(value(x) - float(4.6384000778198242)) < 1e-5)
+        return vec2(14.130162239074707, -7.0008736585691622e-08);
+    if (abs(value(x) - float(4.6634998321533203)) < 1e-5)
+        return vec2(14.644978523254395, -2.2336606342321375e-07);
+    if (abs(value(x) - float(5)) < 1e-5)
+        return vec2(24, 0);
+    if (abs(value(x) - float(5.0780000686645508)) < 1e-5)
+        return vec2(27.009819030761719, -5.6575555973381597e-07);
+    if (abs(value(x) - float(6)) < 1e-5)
+        return vec2(120, 0);
+    return vec2(uintBitsToFloat(0x7fc00000u), 0);
+}
+struct GammaDistribution
+{
+    vec2 number_volume;
+    vec2 inverse_lambda;
+    vec2 intercept;
+    vec2 mean_mass_diameter;
+};
+struct AirTransport
+{
+    vec2 vapor_diffusivity;
+    vec2 thermal_conductivity;
+    vec2 kinematic_viscosity;
+    vec2 schmidt_one_third;
+    vec2 density_factor;
+};
+struct PairCollision
+{
+    vec2 first_mass;
+    vec2 second_mass;
+    vec2 first_number;
+    vec2 second_number;
+};
+const vec2 alpha_r_ = vec2(0, 0);
+const vec2 a_r_     = vec2(149.10000610351562, -6.1035156306843419e-06);
+const vec2 b_r_     = vec2(0.5, 0);
+const vec2 c_r_     = vec2(523.5987548828125, 2.0715187474706909e-05);
+const vec2 d_r_     = vec2(3, 0);
+const vec2 alpha_i_ = vec2(0, 0);
+const vec2 a_i_     = vec2(71.339996337890625, 3.6621093784106051e-06);
+const vec2 b_i_     = vec2(0.66350001096725464, -1.0967254659988157e-08);
+const vec2 c_i_     = vec2(440, 0);
+const vec2 d_i_     = vec2(3, 0);
+const vec2 alpha_s_ = vec2(0, 0);
+const vec2 a_s_     = vec2(11.720000267028809, -2.6702880795426154e-07);
+const vec2 b_s_     = vec2(0.40999999642372131, 3.576278662098531e-09);
+const vec2 c_s_     = vec2(0.15970000624656677, -6.2465667638456068e-09);
+const vec2 d_s_     = vec2(2.0780000686645508, -6.8664550934016688e-08);
+const vec2 alpha_g_ = vec2(0, 0);
+const vec2 a_g_     = vec2(19.299999237060547, 7.6293945383554274e-07);
+const vec2 b_g_     = vec2(0.37000000476837158, -4.7683715864721421e-09);
+const vec2 c_g_     = vec2(209.43951416015625, -3.9211562636864983e-06);
+const vec2 d_g_     = vec2(3, 0);
+const vec2 alpha_h_ = vec2(0, 0);
+const vec2 a_h_     = vec2(206.88999938964844, 6.1035154885757947e-07);
+const vec2 b_h_     = vec2(0.63840001821517944, -1.8215179475866705e-08);
+const vec2 c_h_     = vec2(471.2388916015625, 6.4364375020886655e-06);
+const vec2 d_h_     = vec2(3, 0);
+struct ColdState
+{
+    bool              conservative_admission;
+    vec2              pi;
+    vec2              embryo_ice_mass;
+    vec2              snow_embryo_diameter;
+    vec2              maximum_ice_number_m3;
+    vec2              T;
+    vec2              pressure;
+    vec2              density;
+    vec2              cloud_number_state;
+    vec2              rain_number_state;
+    vec2              ice_number_state;
+    vec2              snow_number_state;
+    vec2              graupel_number_state;
+    vec2              hail_number_state;
+    vec2              temperature_c;
+    vec2              vapor;
+    vec2              qsi;
+    vec2              saturation_ice;
+    AirTransport      air;
+    vec2              inverse_diffusion_resistance;
+    vec2              vapor_to_ice;
+    vec2              cloud_to_ice;
+    vec2              rain_to_frozen;
+    vec2              ice_to_snow;
+    vec2              nc_to_ice;
+    vec2              nr_to_frozen;
+    vec2              new_ice_number;
+    vec2              ice_number_sublimated;
+    vec2              snow_number_sublimated;
+    vec2              graupel_number_sublimated;
+    vec2              hail_number_sublimated;
+    vec2              ice_number_to_snow;
+    vec2              cloud_to_snow;
+    vec2              cloud_to_graupel;
+    vec2              cloud_to_hail;
+    vec2              cloud_number_to_snow;
+    vec2              cloud_number_to_graupel;
+    vec2              cloud_number_to_hail;
+    vec2              ice_collected_by_snow;
+    vec2              ice_collected_by_graupel;
+    vec2              ice_collected_by_hail;
+    vec2              ice_number_collected_by_snow;
+    vec2              ice_number_collected_by_graupel;
+    vec2              ice_number_collected_by_hail;
+    vec2              snow_self_collection;
+    vec2              splinter_mass_from_snow;
+    vec2              splinter_mass_from_graupel;
+    vec2              splinter_number_from_snow;
+    vec2              splinter_number_from_graupel;
+    vec2              rain_collected_by_ice;
+    vec2              ice_collected_by_rain;
+    vec2              rain_number_collected_by_ice;
+    vec2              ice_number_collected_by_rain;
+    vec2              rain_collected_by_snow;
+    vec2              snow_collected_by_rain;
+    vec2              rain_number_collected_by_snow;
+    vec2              snow_number_collected_by_rain;
+    vec2              rain_collected_by_graupel;
+    vec2              graupel_collected_by_rain;
+    vec2              rain_number_collected_by_graupel;
+    vec2              graupel_number_collected_by_rain;
+    vec2              collision_mass_to_snow;
+    vec2              collision_mass_to_graupel;
+    vec2              collision_mass_to_hail;
+    vec2              collision_number_to_snow;
+    vec2              collision_number_to_graupel;
+    vec2              collision_number_to_hail;
+    vec2              snow_to_graupel;
+    vec2              snow_number_to_graupel;
+    vec2              graupel_to_hail;
+    vec2              graupel_number_to_hail;
+    vec2              hail_number_from_graupel;
+    vec2              hail_to_graupel;
+    vec2              hail_number_to_graupel;
+    vec2              rain_collected_by_hail;
+    vec2              rain_number_collected_by_hail;
+    vec2              snow_collected_by_hail;
+    vec2              snow_number_collected_by_hail;
+    vec2              shed_rain_from_hail;
+    vec2              shed_rain_number;
+    vec2              cloud;
+    vec2              cloud_number;
+    vec2              ice_number_volume;
+    vec2              ice_deposition;
+    vec2              snow_deposition;
+    vec2              graupel_deposition;
+    vec2              hail_deposition;
+    vec2              nc_volume;
+    vec2              ni_mixing;
+    vec2              ni_volume;
+    vec2              alpha_cloud;
+    vec2              mu_cloud;
+    vec2              gamma_cloud_number;
+    vec2              cloud_inverse_lambda;
+    GammaDistribution ice_psd;
+    vec2              ice_mass_speed;
+    vec2              dynamic_viscosity;
+    vec2              ice_snow_efficiency;
+    vec2              ice_graupel_efficiency;
+    vec2              ns_volume;
+    vec2              splinters_per_kg;
+    vec2              rain;
+    vec2              rain_number;
+    vec2              rain_number_volume;
+    GammaDistribution rain_psd;
+    GammaDistribution snow_psd;
+    GammaDistribution graupel_psd;
+    GammaDistribution hail_psd;
+    vec2              rain_speed;
+    vec2              snow_speed;
+    vec2              graupel_speed;
+    vec2              hail_speed;
+    bool              ice_rain_collision;
+    bool              snow_rain_collision;
+    bool              graupel_rain_collision;
+    int               ice_rain_destination;
+    int               snow_rain_destination;
+    int               graupel_rain_destination;
+    vec2              snow_collision_bulk_density;
+    bool              rain_graupel_stays_graupel;
+    vec2              provisional_ice;
+    vec2              provisional_ice_number;
+    GammaDistribution ice_distribution;
+    vec2              deposition_total;
+    vec2              cell[16];
+    float             rates[14];
+    vec2              dt;
+};
+ColdState         cold;
+GammaDistribution zero_GammaDistribution()
+{
+    GammaDistribution result;
+    result.number_volume      = vec2(0);
+    result.inverse_lambda     = vec2(0);
+    result.intercept          = vec2(0);
+    result.mean_mass_diameter = vec2(0);
+    return result;
+}
+AirTransport zero_AirTransport()
+{
+    AirTransport result;
+    result.vapor_diffusivity    = vec2(0);
+    result.thermal_conductivity = vec2(0);
+    result.kinematic_viscosity  = vec2(0);
+    result.schmidt_one_third    = vec2(0);
+    result.density_factor       = vec2(0);
+    return result;
+}
+PairCollision zero_PairCollision()
+{
+    PairCollision result;
+    result.first_mass    = vec2(0);
+    result.second_mass   = vec2(0);
+    result.first_number  = vec2(0);
+    result.second_number = vec2(0);
+    return result;
+}
+
+GammaDistribution diagnose_distribution(
+    vec2 density, vec2 mixing_ratio, vec2 number_mixing_ratio, vec2 alpha, vec2 mass_coefficient, vec2 mass_exponent)
+{
+    GammaDistribution result = zero_GammaDistribution();
+    if ((((((!ml_greater(density, vec2(0, 0))) || (!ml_greater(mixing_ratio, vec2(0, 0)))) ||
+           (!ml_greater(number_mixing_ratio, vec2(0, 0)))) ||
+          (!ml_greater(mass_coefficient, vec2(0, 0)))) ||
+         (!ml_greater(mass_exponent, vec2(0, 0)))))
+    {
+        return result;
+    }
+    result.number_volume  = df_mul(density, number_mixing_ratio);
+    vec2 gamma_number     = gamma_value(df_add(vec2(1, 0), alpha));
+    vec2 gamma_mass       = gamma_value(df_add(df_add(vec2(1, 0), alpha), mass_exponent));
+    result.inverse_lambda = power(df_div(df_mul(df_mul(density, mixing_ratio), gamma_number),
+                                         df_mul(df_mul(mass_coefficient, result.number_volume), gamma_mass)),
+                                  df_div(vec2(1, 0), mass_exponent));
+    result.intercept =
+        df_div(result.number_volume, df_mul(gamma_number, power(result.inverse_lambda, df_add(vec2(1, 0), alpha))));
+    result.mean_mass_diameter =
+        power(df_div(df_mul(density, mixing_ratio), df_mul(mass_coefficient, result.number_volume)),
+              df_div(vec2(1, 0), mass_exponent));
+    if ((((!finite_value(result.inverse_lambda)) || (!finite_value(result.intercept))) ||
+         (!finite_value(result.mean_mass_diameter))))
+    {
+        return zero_GammaDistribution();
+    }
+    return result;
+}
+AirTransport diagnose_air_transport(vec2 temperature_k, vec2 pressure_pa, vec2 density)
+{
+    vec2         temperature_c = df_sub(temperature_k, vec2(273.14999389648438, 6.1035156022626325e-06));
+    AirTransport result        = zero_AirTransport();
+    result.vapor_diffusivity =
+        df_div(df_mul(df_add(vec2(2.2157000785227865e-05, -7.8522786349836081e-13),
+                             df_mul(vec2(1.5499999506118911e-07, 4.93881088742341e-15), temperature_c)),
+                      vec2(100000, 0)),
+               pressure_pa);
+    vec2 dynamic_viscosity =
+        df_mul(df_mul(vec2(1.720000000204891e-05, -2.0489083249041612e-15),
+                      df_div(vec2(393, 0), df_add(temperature_k, vec2(120, 0)))),
+               power(df_div(temperature_k, vec2(273.14999389648438, 6.1035156022626325e-06)), vec2(1.5, 0)));
+    result.kinematic_viscosity  = df_div(dynamic_viscosity, density);
+    result.schmidt_one_third    = cube_root(df_div(result.kinematic_viscosity, result.vapor_diffusivity));
+    result.thermal_conductivity = df_add(vec2(0.02397100068628788, -6.862878806912498e-10),
+                                         df_mul(vec2(7.7999997301958501e-05, 2.6980414972489764e-12), temperature_c));
+    result.density_factor       = df_sqrt(df_div(vec2(1.2250000238418579, -2.3841857821338408e-08), density));
+    return result;
+}
+vec2 ventilation_integral(GammaDistribution distribution, vec2 alpha, vec2 fall_a, vec2 fall_b, AirTransport air)
+{
+    if (((!ml_greater(distribution.inverse_lambda, vec2(0, 0))) || (!ml_greater(distribution.intercept, vec2(0, 0)))))
+    {
+        return vec2(0, 0);
+    }
+    vec2 ventilation_a  = vec2(0.77999997138977051, 2.8610229518832853e-08);
+    vec2 ventilation_b  = vec2(0.30000001192092896, -1.1920928966180355e-08);
+    vec2 inverse_lambda = distribution.inverse_lambda;
+    return df_add(df_mul(df_mul(ventilation_a, gamma_value(df_add(vec2(2, 0), alpha))),
+                         power(inverse_lambda, df_add(vec2(2, 0), alpha))),
+                  df_mul(df_mul(df_mul(df_mul(ventilation_b, air.schmidt_one_third),
+                                       df_sqrt(df_div(df_mul(air.density_factor, fall_a), air.kinematic_viscosity))),
+                                gamma_value(df_add(df_add(vec2(2.5, 0), df_mul(vec2(0.5, 0), fall_b)), alpha))),
+                         power(inverse_lambda, df_add(df_add(vec2(2.5, 0), df_mul(vec2(0.5, 0), fall_b)), alpha))));
+}
+vec2 distribution_moment(GammaDistribution distribution, vec2 alpha, vec2 exponent)
+{
+    if ((((!ml_greater(distribution.intercept, vec2(0, 0))) ||
+          (!ml_greater(distribution.inverse_lambda, vec2(0, 0)))) ||
+         (!ml_greater(exponent, df_sub((-vec2(1, 0)), alpha)))))
+    {
+        return vec2(0, 0);
+    }
+    return df_mul(df_mul(distribution.intercept, gamma_value(df_add(df_add(vec2(1, 0), alpha), exponent))),
+                  power(distribution.inverse_lambda, df_add(df_add(vec2(1, 0), alpha), exponent)));
+}
+vec2 mass_weighted_fall_speed(
+    GammaDistribution distribution, vec2 alpha, vec2 mass_exponent, vec2 fall_a, vec2 fall_b, AirTransport air)
+{
+    if ((!ml_greater(distribution.inverse_lambda, vec2(0, 0))))
+        return vec2(0, 0);
+    return df_div(df_mul(df_mul(df_mul(air.density_factor, fall_a), power(distribution.inverse_lambda, fall_b)),
+                         gamma_value(df_add(df_add(df_add(vec2(1, 0), alpha), mass_exponent), fall_b))),
+                  gamma_value(df_add(df_add(vec2(1, 0), alpha), mass_exponent)));
+}
+PairCollision collide_gamma_populations(vec2              density,
+                                        vec2              dt,
+                                        vec2              efficiency,
+                                        vec2              relative_speed,
+                                        vec2              first_q,
+                                        vec2              first_n,
+                                        GammaDistribution first,
+                                        vec2              first_alpha,
+                                        vec2              first_mass_coefficient,
+                                        vec2              first_mass_exponent,
+                                        vec2              second_q,
+                                        vec2              second_n,
+                                        GammaDistribution second,
+                                        vec2              second_alpha,
+                                        vec2              second_mass_coefficient,
+                                        vec2              second_mass_exponent)
+{
+    PairCollision result = zero_PairCollision();
+    if (((((((((((!ml_greater(density, vec2(0, 0))) || (!ml_greater(dt, vec2(0, 0)))) ||
+                (!ml_greater(efficiency, vec2(0, 0)))) ||
+               (!ml_greater(relative_speed, vec2(0, 0)))) ||
+              (!ml_greater(first_q, vec2(0, 0)))) ||
+             (!ml_greater(first_n, vec2(0, 0)))) ||
+            (!ml_greater(second_q, vec2(0, 0)))) ||
+           (!ml_greater(second_n, vec2(0, 0)))) ||
+          (!ml_greater(first.intercept, vec2(0, 0)))) ||
+         (!ml_greater(second.intercept, vec2(0, 0)))))
+    {
+        return result;
+    }
+    vec2 pi_over_four  = vec2(0.78539818525314331, -2.1855695031547384e-08);
+    vec2 common_factor = df_div(df_mul(df_mul(df_mul(dt, pi_over_four), efficiency), relative_speed), density);
+    vec2 collision_number_volume =
+        df_mul(df_mul(common_factor, density),
+               df_add(df_add(df_mul(distribution_moment(first, first_alpha, vec2(2, 0)),
+                                    distribution_moment(second, second_alpha, vec2(0, 0))),
+                             df_mul(df_mul(vec2(2, 0), distribution_moment(first, first_alpha, vec2(1, 0))),
+                                    distribution_moment(second, second_alpha, vec2(1, 0)))),
+                      df_mul(distribution_moment(first, first_alpha, vec2(0, 0)),
+                             distribution_moment(second, second_alpha, vec2(2, 0)))));
+    result.first_mass = df_mul(
+        df_mul(common_factor, first_mass_coefficient),
+        df_add(df_add(df_mul(distribution_moment(first, first_alpha, df_add(first_mass_exponent, vec2(2, 0))),
+                             distribution_moment(second, second_alpha, vec2(0, 0))),
+                      df_mul(df_mul(vec2(2, 0),
+                                    distribution_moment(first, first_alpha, df_add(first_mass_exponent, vec2(1, 0)))),
+                             distribution_moment(second, second_alpha, vec2(1, 0)))),
+               df_mul(distribution_moment(first, first_alpha, first_mass_exponent),
+                      distribution_moment(second, second_alpha, vec2(2, 0)))));
+    result.second_mass = df_mul(
+        df_mul(common_factor, second_mass_coefficient),
+        df_add(
+            df_add(df_mul(distribution_moment(second, second_alpha, df_add(second_mass_exponent, vec2(2, 0))),
+                          distribution_moment(first, first_alpha, vec2(0, 0))),
+                   df_mul(df_mul(vec2(2, 0),
+                                 distribution_moment(second, second_alpha, df_add(second_mass_exponent, vec2(1, 0)))),
+                          distribution_moment(first, first_alpha, vec2(1, 0)))),
+            df_mul(distribution_moment(second, second_alpha, second_mass_exponent),
+                   distribution_moment(first, first_alpha, vec2(2, 0)))));
+    result.first_mass  = bounded(result.first_mass, vec2(0, 0), first_q);
+    result.second_mass = bounded(result.second_mass, vec2(0, 0), second_q);
+    result.first_number =
+        bounded(minimum(df_div(collision_number_volume, density), df_div(df_mul(result.first_mass, first_n), first_q)),
+                vec2(0, 0),
+                first_n);
+    result.second_number = bounded(
+        minimum(df_div(collision_number_volume, density), df_div(df_mul(result.second_mass, second_n), second_q)),
+        vec2(0, 0),
+        second_n);
+    return result;
+}
+vec2 deposit_on_category(vec2       category_q,
+                         vec2       category_n,
+                         vec2       alpha,
+                         vec2       c_mass,
+                         vec2       d_mass,
+                         vec2       fall_a,
+                         vec2       fall_b,
+                         vec2       capacitance_factor,
+                         bool       remove_number_during_sublimation,
+                         inout vec2 number_sublimated,
+                         out vec2   raw_increment)
+{
+    raw_increment = vec2(0, 0);
+    GammaDistribution distribution = diagnose_distribution(cold.density, category_q, category_n, alpha, c_mass, d_mass);
+    if ((!ml_greater(distribution.intercept, vec2(0, 0))))
+        return vec2(0, 0);
+    vec2 ventilation = ventilation_integral(distribution, alpha, fall_a, fall_b, cold.air);
+    vec2 increment =
+        df_mul(df_mul(df_mul(df_mul(df_mul(df_mul(df_mul(df_div(cold.dt, cold.density), capacitance_factor),
+                                                  cold.inverse_diffusion_resistance),
+                                           vec2(2, 0)),
+                                    cold.pi),
+                             df_sub(cold.saturation_ice, vec2(1, 0))),
+                      distribution.intercept),
+               ventilation);
+    raw_increment = increment;
+    vec2 denominator = df_sub(cold.T, vec2(7.6599998474121094, 1.5258789076710855e-07));
+    vec2 saturation_response =
+        df_add(vec2(1, 0),
+               df_div(df_mul(df_mul(vec2(2834000, 0), vec2(2834000, 0)), cold.qsi),
+                      df_mul(df_mul(df_mul(vec2(1004, 0), vec2(461.5, 0)), denominator), denominator)));
+    vec2 vapor_limit = df_div(df_sub(cold.vapor, cold.qsi), saturation_response);
+    if (!ml_greater(vec2(1, 0), cold.saturation_ice))
+        increment = bounded(increment, vec2(0, 0), maximum(vec2(0, 0), vapor_limit));
+    else
+        increment = bounded(increment, (-category_q), vec2(0, 0));
+    if ((ml_greater(vec2(0, 0), increment) && remove_number_during_sublimation))
+    {
+        number_sublimated = minimum(vec2(0, 0), df_mul(df_div(category_n, category_q), increment));
+    }
+    return increment;
+}
+void collect_cloud(vec2       collector_q,
+                   vec2       collector_n,
+                   vec2       alpha,
+                   vec2       c_mass,
+                   vec2       d_mass,
+                   vec2       fall_a,
+                   vec2       fall_b,
+                   int        category,
+                   inout vec2 mass_increment,
+                   inout vec2 number_increment)
+{
+    if ((((!ml_greater(cold.cloud_inverse_lambda, vec2(0, 0))) ||
+          (!ml_greater(collector_q, vec2(9.9999998245167004e-15, 1.7548329954638096e-22)))) ||
+         (!ml_greater(collector_n, vec2(0, 0)))))
+        return;
+    GammaDistribution collector = diagnose_distribution(cold.density, collector_q, collector_n, alpha, c_mass, d_mass);
+    if ((!ml_greater(collector.inverse_lambda, vec2(0, 0))))
+        return;
+    vec2 collector_speed =
+        df_div(df_mul(df_mul(df_mul(cold.air.density_factor, fall_a), power(collector.inverse_lambda, fall_b)),
+                      gamma_value(df_add(df_add(df_add(vec2(1, 0), alpha), d_mass), fall_b))),
+               gamma_value(df_add(df_add(vec2(1, 0), alpha), d_mass)));
+    vec2 efficiency = vec2(0, 0);
+    if ((category == 0))
+    {
+        efficiency = df_mul(minimum(collector.mean_mass_diameter, vec2(0.0010000000474974513, -4.7497451284572723e-11)),
+                            vec2(1000, 0));
+        efficiency =
+            df_mul(df_mul(minimum(cube_root(df_div(df_mul(cold.density, cold.cloud), df_mul(c_r_, cold.nc_volume))),
+                                  vec2(2.9999999242136255e-05, 7.5786374585337137e-13)),
+                          vec2(33330, 0)),
+                   df_sqrt(efficiency));
+    }
+    else if ((category == 1))
+    {
+        if ((!ml_greater(collector.mean_mass_diameter, vec2(0, 0))))
+            return;
+        vec2 cloud_diameter = cube_root(df_div(df_mul(cold.density, cold.cloud), df_mul(c_r_, cold.nc_volume)));
+        vec2 stokes = df_div(df_mul(df_mul(df_mul(vec2(1000, 0), collector_speed), cloud_diameter), cloud_diameter),
+                             df_mul(df_mul(vec2(9, 0), cold.dynamic_viscosity), collector.mean_mass_diameter));
+        stokes      = bounded(stokes, vec2(1.5, 0), vec2(10, 0));
+        efficiency  = df_mul(vec2(0.55000001192092896, -1.1920928910669204e-08),
+                             log_ten(df_mul(vec2(2.5099999904632568, 9.5367429508996793e-09), stokes)));
+    }
+    else
+    {
+        vec2 cloud_diameter = cube_root(df_div(df_mul(cold.density, cold.cloud), df_mul(c_r_, cold.nc_volume)));
+        efficiency = df_exp(df_mul(df_mul((-vec2(8.6799997234265902e-07, 2.7657340969571096e-14)),
+                                          power(cloud_diameter, (-vec2(1.6000000238418579, -2.3841857821338408e-08)))),
+                                   collector.mean_mass_diameter));
+    }
+    efficiency         = bounded(efficiency, vec2(0, 0), vec2(1, 0));
+    vec2 ilc           = cold.cloud_inverse_lambda;
+    vec2 ilx           = collector.inverse_lambda;
+    vec2 gc11          = gamma_value(df_add(df_add(df_div(vec2(1, 0), cold.mu_cloud), vec2(1, 0)), cold.alpha_cloud));
+    vec2 gc12          = gamma_value(df_add(df_add(df_div(vec2(2, 0), cold.mu_cloud), vec2(1, 0)), cold.alpha_cloud));
+    vec2 gc13          = gamma_value(df_add(df_add(df_div(vec2(3, 0), cold.mu_cloud), vec2(1, 0)), cold.alpha_cloud));
+    vec2 gc14          = gamma_value(df_add(df_add(df_div(vec2(4, 0), cold.mu_cloud), vec2(1, 0)), cold.alpha_cloud));
+    vec2 gc15          = gamma_value(df_add(df_add(df_div(vec2(5, 0), cold.mu_cloud), vec2(1, 0)), cold.alpha_cloud));
+    vec2 gx1           = gamma_value(df_add(vec2(1, 0), alpha));
+    vec2 gx_b1         = gamma_value(df_add(df_add(vec2(1, 0), alpha), fall_b));
+    vec2 gx_b2         = df_mul(df_add(df_add(vec2(1, 0), alpha), fall_b), gx_b1);
+    vec2 gx_b3         = df_mul(df_add(df_add(vec2(2, 0), alpha), fall_b), gx_b2);
+    vec2 common_factor = df_div(df_mul(df_mul(df_mul(df_mul(df_mul(df_mul(cold.dt, cold.air.density_factor), fall_a),
+                                                            df_div(cold.pi, vec2(4, 0))),
+                                                     efficiency),
+                                              cold.nc_volume),
+                                       df_mul(cold.density, collector_n)),
+                                df_mul(cold.gamma_cloud_number, gx1));
+    mass_increment     = df_mul(
+        df_div(df_mul(common_factor, c_r_), cold.density),
+        df_add(df_add(df_mul(df_mul(df_mul(gc13, gx_b3), power(ilc, vec2(3, 0))),
+                             power(ilx, df_add(fall_b, vec2(2, 0)))),
+                      df_mul(df_mul(df_mul(df_mul(vec2(2, 0), gc14), gx_b2),
+                                    power(ilc, vec2(4, 0))),
+                             power(ilx, df_add(fall_b, vec2(1, 0))))),
+               df_mul(df_mul(df_mul(gc15, gx_b1), power(ilc, vec2(5, 0))), power(ilx, fall_b))));
+    number_increment = df_mul(
+        common_factor,
+        df_add(df_add(df_mul(df_mul(cold.gamma_cloud_number, gx_b3),
+                             power(ilx, df_add(fall_b, vec2(2, 0)))),
+                      df_mul(df_mul(df_mul(df_mul(vec2(2, 0), gc11), gx_b2), ilc),
+                             power(ilx, df_add(fall_b, vec2(1, 0))))),
+               df_mul(df_mul(df_mul(df_mul(gc12, gx_b1), ilc), ilc), power(ilx, fall_b))));
+    if ((category == 0))
+    {
+        mass_increment   = df_mul(mass_increment, vec2(0.63660001754760742, -1.7547607367163209e-08));
+        number_increment = df_mul(number_increment, vec2(0.63660001754760742, -1.7547607367163209e-08));
+    }
+    mass_increment   = bounded(mass_increment, vec2(0, 0), cold.cloud);
+    number_increment = bounded(df_div(number_increment, cold.density), vec2(0, 0), cold.cloud_number);
+}
+void collect_pristine_ice(vec2       collector_q,
+                          vec2       collector_n,
+                          vec2       alpha,
+                          vec2       c_mass,
+                          vec2       d_mass,
+                          vec2       fall_a,
+                          vec2       fall_b,
+                          vec2       efficiency,
+                          inout vec2 mass_increment,
+                          inout vec2 number_increment)
+{
+    if ((((((!ml_greater(cold.cell[6], vec2(9.9999998245167004e-15, 1.7548329954638096e-22))) ||
+            (!ml_greater(cold.ni_volume, vec2(0, 0)))) ||
+           (!ml_greater(collector_q, vec2(9.9999998245167004e-15, 1.7548329954638096e-22)))) ||
+          (!ml_greater(collector_n, vec2(0, 0)))) ||
+         (!ml_greater(cold.ice_psd.inverse_lambda, vec2(0, 0)))))
+        return;
+    GammaDistribution collector = diagnose_distribution(cold.density, collector_q, collector_n, alpha, c_mass, d_mass);
+    if ((!ml_greater(collector.inverse_lambda, vec2(0, 0))))
+        return;
+    vec2 collector_speed =
+        df_div(df_mul(df_mul(df_mul(cold.air.density_factor, fall_a), power(collector.inverse_lambda, fall_b)),
+                      gamma_value(df_add(df_add(df_add(vec2(1, 0), alpha), d_mass), fall_b))),
+               gamma_value(df_add(df_add(vec2(1, 0), alpha), d_mass)));
+    vec2 relative_speed = df_sqrt(df_add(
+        power(df_sub(collector_speed, cold.ice_mass_speed), vec2(2, 0)),
+        df_mul(df_mul(vec2(0.039999999105930328, 8.9406967246352664e-10), collector_speed), cold.ice_mass_speed)));
+    vec2 ili            = cold.ice_psd.inverse_lambda;
+    vec2 ilx            = collector.inverse_lambda;
+    vec2 common_number =
+        df_mul(df_mul(df_mul(df_mul(df_mul(cold.dt, df_div(cold.pi, vec2(4, 0))), efficiency), cold.ni_volume),
+                      df_mul(cold.density, collector_n)),
+               relative_speed);
+    mass_increment = df_mul(
+        df_mul(df_mul(df_mul(df_mul(df_mul(df_mul(df_div(df_mul(cold.dt, c_i_), cold.density), cold.pi), vec2(6, 0)),
+                                    efficiency),
+                             cold.ni_volume),
+                      df_mul(cold.density, collector_n)),
+               relative_speed),
+        df_add(df_add(df_mul(df_mul(df_mul(vec2(0.5, 0), ilx), ilx), power(ili, vec2(3, 0))),
+                      df_mul(df_mul(vec2(2, 0), ilx), power(ili, vec2(4, 0)))),
+               df_mul(vec2(5, 0), power(ili, vec2(5, 0)))));
+    vec2 number_collision =
+        df_mul(common_number,
+               df_add(df_add(df_mul(df_mul(gamma_value(df_add(vec2(3, 0), alpha_i_)), ilx), ilx),
+                             df_mul(df_mul(df_mul(vec2(2, 0), gamma_value(df_add(vec2(2, 0), alpha_i_))), ili), ilx)),
+                      df_mul(df_mul(gamma_value(df_add(vec2(1, 0), alpha_i_)), ili), ili)));
+    mass_increment   = bounded(mass_increment, vec2(0, 0), cold.cell[6]);
+    number_increment = bounded(
+        minimum(df_div(df_mul(mass_increment, cold.ni_mixing), cold.cell[6]), df_div(number_collision, cold.density)),
+        vec2(0, 0),
+        cold.ni_mixing);
+}
+vec2 relative_speed(vec2 first, vec2 second)
+{
+    return df_sqrt(df_add(df_mul(df_sub(first, second), df_sub(first, second)),
+                          df_mul(df_mul(vec2(0.039999999105930328, 8.9406967246352664e-10), first), second)));
+}
+void route_collision(vec2              first_mass,
+                     vec2              second_mass,
+                     vec2              first_number,
+                     vec2              second_number,
+                     GammaDistribution frozen_psd,
+                     vec2              frozen_bulk_density,
+                     int               destination)
+{
+    vec2 total_mass = df_add(first_mass, second_mass);
+    if ((!ml_greater(total_mass, vec2(0, 0))))
+        return;
+    vec2 maximum_diameter = maximum(frozen_psd.mean_mass_diameter, cold.rain_psd.mean_mass_diameter);
+    if ((!ml_greater(maximum_diameter, vec2(0, 0))))
+        return;
+    vec2 destination_density = vec2(400, 0);
+    if ((destination == 0))
+        destination_density = frozen_bulk_density;
+    else if ((destination == 2))
+        destination_density = vec2(900, 0);
+    vec2 combined_number =
+        df_div(total_mass,
+               df_mul(df_mul(df_mul(df_mul(destination_density, df_div(cold.pi, vec2(6, 0))), maximum_diameter),
+                             maximum_diameter),
+                      maximum_diameter));
+    vec2 admitted_number = minimum(combined_number, minimum(first_number, second_number));
+    if ((destination == 0))
+    {
+        cold.collision_mass_to_snow   = df_add(cold.collision_mass_to_snow, total_mass);
+        cold.collision_number_to_snow = df_add(cold.collision_number_to_snow, admitted_number);
+    }
+    else if ((destination == 1))
+    {
+        cold.collision_mass_to_graupel   = df_add(cold.collision_mass_to_graupel, total_mass);
+        cold.collision_number_to_graupel = df_add(cold.collision_number_to_graupel, admitted_number);
+    }
+    else
+    {
+        cold.collision_mass_to_hail   = df_add(cold.collision_mass_to_hail, total_mass);
+        cold.collision_number_to_hail = df_add(cold.collision_number_to_hail, admitted_number);
+    }
+}
+int density_destination(GammaDistribution frozen_psd, vec2 frozen_density, bool allow_snow)
+{
+    vec2 maximum_diameter = maximum(frozen_psd.mean_mass_diameter, cold.rain_psd.mean_mass_diameter);
+    if ((!ml_greater(maximum_diameter, vec2(0, 0))))
+        return 1;
+    vec2 combined_density = df_div(df_add(df_mul(frozen_density, power(frozen_psd.mean_mass_diameter, vec2(3, 0))),
+                                          df_mul(vec2(1000, 0), power(cold.rain_psd.mean_mass_diameter, vec2(3, 0)))),
+                                   power(maximum_diameter, vec2(3, 0)));
+    if ((allow_snow && !ml_greater(combined_density, df_mul(vec2(0.5, 0), df_add(frozen_density, vec2(400, 0))))))
+    {
+        return 0;
+    }
+    if ((((enable_hail != 0) &&
+          ml_greater(cold.rain_psd.mean_mass_diameter, vec2(0.0024999999441206455, 5.5879354528970415e-11))) &&
+         !ml_greater(vec2(650, 0), combined_density)))
+    {
+        return 2;
+    }
+    return 1;
+}
+vec2 admission_ratio(vec2 source, vec2 sink)
+{
+    if ((!ml_greater(sink, vec2(0, 0))))
+        return vec2(1, 0);
+    vec2 factor = bounded(df_div(maximum(vec2(0, 0), source), sink), vec2(0, 0), vec2(1, 0));
+    if (cold.conservative_admission && ml_greater(sink, source) && ml_greater(factor, vec2(0, 0)))
+        factor = df_mul(factor, vec2(1, -9.094947017729282379e-13));
+    return factor;
+}
+vec2 conservative_cloud_factor(vec2 factor)
+{
+    // Four individually capped consumers bound the factor below by 1/4, making the scaled high component integral.
+    vec2 scaled = df_mul(factor, vec2(1099511627776.0, 0));
+    vec2 integral = df_add(vec2(scaled.x, 0), vec2(floor(scaled.y), 0));
+    return df_mul(integral, vec2(9.094947017729282379e-13, 0));
+}
+bool cloud_allocation_valid()
+{
+    vec2 mass[4];
+    mass[0] = cold.cloud_to_ice;
+    mass[1] = cold.cloud_to_snow;
+    mass[2] = cold.cloud_to_graupel;
+    mass[3] = cold.cloud_to_hail;
+    vec2 number[4];
+    number[0] = cold.nc_to_ice;
+    number[1] = cold.cloud_number_to_snow;
+    number[2] = cold.cloud_number_to_graupel;
+    number[3] = cold.cloud_number_to_hail;
+    for (int channel = 0; channel < 4; ++channel)
+    {
+        if (!finite_value(mass[channel]) || ml_greater(vec2(0, 0), mass[channel]) ||
+            !finite_value(number[channel]) || ml_greater(vec2(0, 0), number[channel]))
+            return false;
+    }
+    return true;
+}
+bool cloud_allocation_closed()
+{
+    vec2 mass = df_add(df_add(df_add(cold.cloud_to_ice, cold.cloud_to_snow), cold.cloud_to_graupel), cold.cloud_to_hail);
+    vec2 number = df_add(df_add(df_add(cold.nc_to_ice, cold.cloud_number_to_snow), cold.cloud_number_to_graupel),
+        cold.cloud_number_to_hail);
+    return !ml_greater(mass, cold.cloud) && !ml_greater(number, cold.cloud_number);
+}
+vec2 routed_collision_mass(int destination)
+{
+    vec2 result = vec2(0, 0);
+    if ((cold.ice_rain_collision && (cold.ice_rain_destination == destination)))
+        result = df_add(result, df_add(cold.ice_collected_by_rain, cold.rain_collected_by_ice));
+    if ((cold.snow_rain_collision && (cold.snow_rain_destination == destination)))
+        result = df_add(result, df_add(cold.snow_collected_by_rain, cold.rain_collected_by_snow));
+    if ((cold.graupel_rain_collision && (cold.graupel_rain_destination == destination)))
+        result = df_add(result, df_add(cold.graupel_collected_by_rain, cold.rain_collected_by_graupel));
+    return result;
+}
+vec2 collision_number(vec2 first_mass, vec2 second_mass, vec2 first_number, vec2 second_number,
+                      GammaDistribution distribution, vec2 bulk_density, int destination)
+{
+    vec2 total = df_add(first_mass, second_mass);
+    vec2 diameter = maximum(distribution.mean_mass_diameter, cold.rain_psd.mean_mass_diameter);
+    if (!ml_greater(total, vec2(0, 0)) || !ml_greater(diameter, vec2(0, 0)))
+        return vec2(0, 0);
+    vec2 density = destination == 0 ? bulk_density : destination == 2 ? vec2(900, 0) : vec2(400, 0);
+    vec2 combined = df_div(total, df_mul(df_mul(df_mul(df_mul(density, df_div(cold.pi, vec2(6, 0))),
+                                                       diameter), diameter), diameter));
+    return minimum(combined, minimum(first_number, second_number));
+}
+vec2 routed_snow_number()
+{
+    vec2 result = vec2(0, 0);
+    if (cold.ice_rain_collision && cold.ice_rain_destination == 0)
+        result = df_add(result, collision_number(cold.ice_collected_by_rain, cold.rain_collected_by_ice,
+            cold.ice_number_collected_by_rain, cold.rain_number_collected_by_ice,
+            cold.ice_psd, vec2(500, 0), cold.ice_rain_destination));
+    if (cold.snow_rain_collision && cold.snow_rain_destination == 0)
+        result = df_add(result, collision_number(cold.snow_collected_by_rain, cold.rain_collected_by_snow,
+            cold.snow_number_collected_by_rain, cold.rain_number_collected_by_snow,
+            cold.snow_psd, cold.snow_collision_bulk_density, cold.snow_rain_destination));
+    if (cold.graupel_rain_collision && cold.graupel_rain_destination == 0)
+        result = df_add(result, collision_number(cold.graupel_collected_by_rain, cold.rain_collected_by_graupel,
+            cold.graupel_number_collected_by_rain, cold.rain_number_collected_by_graupel,
+            cold.graupel_psd, vec2(400, 0), cold.graupel_rain_destination));
+    return result;
+}
+vec2 snow_number_source()
+{
+    return df_add(df_add(cold.snow_number_state, cold.ice_number_to_snow), routed_snow_number());
+}
+vec2 snow_number_sink()
+{
+    return df_add(df_add(df_add(df_add(maximum(-cold.snow_number_sublimated, vec2(0, 0)),
+        cold.snow_number_collected_by_rain), cold.snow_number_collected_by_hail), cold.snow_self_collection),
+        cold.snow_number_to_graupel);
+}
+struct ColdAdmissionBudgets
+{
+    vec2 sources[7];
+    vec2 sinks[7];
+    vec2 number_source;
+    vec2 number_sink;
+};
+ColdAdmissionBudgets snapshot_budgets()
+{
+    ColdAdmissionBudgets budgets;
+    budgets.sources[0] = df_add(df_add(df_add(df_add(cold.vapor, maximum(-cold.ice_deposition, vec2(0, 0))),
+        maximum(-cold.snow_deposition, vec2(0, 0))), maximum(-cold.graupel_deposition, vec2(0, 0))),
+        maximum(-cold.hail_deposition, vec2(0, 0)));
+    budgets.sources[1] = cold.cloud;
+    budgets.sources[2] = cold.rain;
+    budgets.sources[3] = df_add(df_add(df_add(df_add(df_add(cold.cell[6], cold.cloud_to_ice), cold.vapor_to_ice),
+        maximum(cold.ice_deposition, vec2(0, 0))), cold.splinter_mass_from_snow), cold.splinter_mass_from_graupel);
+    budgets.sources[4] = df_add(df_add(df_add(df_add(df_add(cold.cell[7], maximum(cold.snow_deposition, vec2(0, 0))),
+        cold.cloud_to_snow), cold.ice_to_snow), cold.ice_collected_by_snow), routed_collision_mass(0));
+    budgets.sources[5] = df_add(df_add(df_add(df_add(df_add(df_add(df_add(cold.cell[8],
+        maximum(cold.graupel_deposition, vec2(0, 0))), cold.cloud_to_graupel), cold.ice_collected_by_graupel),
+        routed_collision_mass(1)), cold.snow_to_graupel), cold.hail_to_graupel),
+        enable_hail != 0 ? vec2(0, 0) : cold.rain_to_frozen);
+    budgets.sources[6] = df_add(df_add(df_add(df_add(df_add(df_add(df_add(df_add(cold.cell[9],
+        maximum(cold.hail_deposition, vec2(0, 0))), cold.cloud_to_hail), cold.ice_collected_by_hail),
+        cold.snow_collected_by_hail), cold.rain_collected_by_hail), routed_collision_mass(2)), cold.graupel_to_hail),
+        enable_hail != 0 ? cold.rain_to_frozen : vec2(0, 0));
+    budgets.sinks[0] = df_add(df_add(df_add(df_add(cold.vapor_to_ice, maximum(cold.ice_deposition, vec2(0, 0))),
+        maximum(cold.snow_deposition, vec2(0, 0))), maximum(cold.graupel_deposition, vec2(0, 0))),
+        maximum(cold.hail_deposition, vec2(0, 0)));
+    budgets.sinks[1] = df_add(df_add(df_add(cold.cloud_to_ice, cold.cloud_to_snow), cold.cloud_to_graupel), cold.cloud_to_hail);
+    budgets.sinks[2] = df_add(df_add(df_add(df_add(cold.rain_to_frozen, cold.rain_collected_by_ice),
+        cold.rain_collected_by_snow), cold.rain_collected_by_graupel), cold.rain_collected_by_hail);
+    budgets.sinks[3] = df_add(df_add(df_add(df_add(df_add(maximum(-cold.ice_deposition, vec2(0, 0)),
+        cold.ice_to_snow), cold.ice_collected_by_snow), cold.ice_collected_by_graupel), cold.ice_collected_by_hail),
+        cold.ice_collected_by_rain);
+    budgets.sinks[4] = df_add(df_add(df_add(df_add(maximum(-cold.snow_deposition, vec2(0, 0)),
+        cold.snow_collected_by_rain), cold.snow_collected_by_hail), cold.splinter_mass_from_snow), cold.snow_to_graupel);
+    budgets.sinks[5] = df_add(df_add(df_add(maximum(-cold.graupel_deposition, vec2(0, 0)),
+        cold.graupel_collected_by_rain), cold.splinter_mass_from_graupel), cold.graupel_to_hail);
+    budgets.sinks[6] = df_add(maximum(-cold.hail_deposition, vec2(0, 0)), cold.hail_to_graupel);
+    budgets.number_source = snow_number_source();
+    budgets.number_sink = snow_number_sink();
+    return budgets;
+}
+bool budgets_valid(ColdAdmissionBudgets budgets)
+{
+    for (int donor = 0; donor < 7; ++donor)
+    {
+        if (!finite_value(budgets.sources[donor]) || ml_greater(vec2(0, 0), budgets.sources[donor]) ||
+            !finite_value(budgets.sinks[donor]) || ml_greater(vec2(0, 0), budgets.sinks[donor]))
+            return false;
+    }
+    return finite_value(budgets.number_source) && !ml_greater(vec2(0, 0), budgets.number_source) &&
+        finite_value(budgets.number_sink) && !ml_greater(vec2(0, 0), budgets.number_sink);
+}
+bool budgets_closed(ColdAdmissionBudgets budgets)
+{
+    if (!budgets_valid(budgets))
+        return false;
+    for (int donor = 0; donor < 7; ++donor)
+    {
+        if (ml_greater(budgets.sinks[donor], budgets.sources[donor]))
+            return false;
+    }
+    return !ml_greater(budgets.number_sink, budgets.number_source);
+}
+void reject_cold_candidate()
+{
+    for (int field = 0; field < 14; ++field)
+        cold.rates[field] = uintBitsToFloat(0x7fc00000u);
+}
+void admit_vapor()
+{
+    vec2 source = df_add(df_add(df_add(df_add(cold.vapor, maximum(-cold.ice_deposition, vec2(0, 0))),
+        maximum(-cold.snow_deposition, vec2(0, 0))), maximum(-cold.graupel_deposition, vec2(0, 0))),
+        maximum(-cold.hail_deposition, vec2(0, 0)));
+    vec2 sink = df_add(df_add(df_add(df_add(cold.vapor_to_ice, maximum(cold.ice_deposition, vec2(0, 0))),
+        maximum(cold.snow_deposition, vec2(0, 0))), maximum(cold.graupel_deposition, vec2(0, 0))),
+        maximum(cold.hail_deposition, vec2(0, 0)));
+    vec2 scale = admission_ratio(source, sink);
+    if (ml_greater(vec2(1, 0), scale))
+    {
+        cold.vapor_to_ice = df_mul(cold.vapor_to_ice, scale);
+        cold.new_ice_number = df_mul(cold.new_ice_number, scale);
+        if (ml_greater(cold.ice_deposition, vec2(0, 0)))
+            cold.ice_deposition = df_mul(cold.ice_deposition, scale);
+        if (ml_greater(cold.snow_deposition, vec2(0, 0)))
+            cold.snow_deposition = df_mul(cold.snow_deposition, scale);
+        if (ml_greater(cold.graupel_deposition, vec2(0, 0)))
+            cold.graupel_deposition = df_mul(cold.graupel_deposition, scale);
+        if (ml_greater(cold.hail_deposition, vec2(0, 0)))
+            cold.hail_deposition = df_mul(cold.hail_deposition, scale);
+    }
+}
+void cold_processes()
+{
+    cold.conservative_admission = false;
+    float snow_mass_rate_before = cold.rates[3];
+    cold.pi                    = vec2(3.1415927410125732, -8.7422780126189537e-08);
+    cold.embryo_ice_mass       = vec2(9.999999960041972e-13, 3.9958027796366288e-21);
+    cold.snow_embryo_diameter  = vec2(0.00012500000593718141, -5.9371814105715903e-12);
+    cold.maximum_ice_number_m3 = vec2(10000000, 0);
+    cold.T                     = cold.cell[0];
+    if ((!ml_greater(vec2(273.14999389648438, 6.1035156022626325e-06), cold.T)))
+        return;
+    cold.pressure = cold.cell[1];
+    cold.density  = cold.cell[2];
+    cold.cloud_number_state =
+        maximum(vec2(0, 0), df_add(cold.cell[10], df_mul(cold.dt, vec2(float(cold.rates[8]), 0.0))));
+    cold.rain_number_state =
+        maximum(vec2(0, 0), df_add(cold.cell[11], df_mul(cold.dt, vec2(float(cold.rates[9]), 0.0))));
+    cold.ice_number_state =
+        maximum(vec2(0, 0), df_add(cold.cell[12], df_mul(cold.dt, vec2(float(cold.rates[10]), 0.0))));
+    cold.snow_number_state =
+        maximum(vec2(0, 0), df_add(cold.cell[13], df_mul(cold.dt, vec2(float(cold.rates[11]), 0.0))));
+    cold.graupel_number_state =
+        maximum(vec2(0, 0), df_add(cold.cell[14], df_mul(cold.dt, vec2(float(cold.rates[12]), 0.0))));
+    cold.hail_number_state =
+        maximum(vec2(0, 0), df_add(cold.cell[15], df_mul(cold.dt, vec2(float(cold.rates[13]), 0.0))));
+    cold.temperature_c  = df_sub(cold.T, vec2(273.14999389648438, 6.1035156022626325e-06));
+    cold.vapor          = cold.cell[3];
+    cold.qsi            = saturation_ice_value(cold.T, cold.pressure);
+    cold.saturation_ice = df_div(cold.vapor, maximum(cold.qsi, vec2(1.0000000031710769e-30, -3.1710767676346307e-39)));
+    cold.air            = diagnose_air_transport(cold.T, cold.pressure, cold.density);
+    cold.inverse_diffusion_resistance =
+        df_div(vec2(1, 0),
+               df_add(df_div(df_mul(vec2(2834000, 0), vec2(2834000, 0)),
+                             df_mul(df_mul(df_mul(cold.air.thermal_conductivity, vec2(461.5, 0)), cold.T), cold.T)),
+                      df_div(vec2(1, 0),
+                             df_mul(df_mul(cold.density,
+                                           maximum(cold.qsi, vec2(1.0000000031710769e-30, -3.1710767676346307e-39))),
+                                    cold.air.vapor_diffusivity))));
+    cold.vapor_to_ice                     = vec2(0, 0);
+    cold.cloud_to_ice                     = vec2(0, 0);
+    cold.rain_to_frozen                   = vec2(0, 0);
+    cold.ice_to_snow                      = vec2(0, 0);
+    cold.nc_to_ice                        = vec2(0, 0);
+    cold.nr_to_frozen                     = vec2(0, 0);
+    cold.new_ice_number                   = vec2(0, 0);
+    cold.ice_number_sublimated            = vec2(0, 0);
+    cold.snow_number_sublimated           = vec2(0, 0);
+    cold.graupel_number_sublimated        = vec2(0, 0);
+    cold.hail_number_sublimated           = vec2(0, 0);
+    cold.ice_number_to_snow               = vec2(0, 0);
+    cold.cloud_to_snow                    = vec2(0, 0);
+    cold.cloud_to_graupel                 = vec2(0, 0);
+    cold.cloud_to_hail                    = vec2(0, 0);
+    cold.cloud_number_to_snow             = vec2(0, 0);
+    cold.cloud_number_to_graupel          = vec2(0, 0);
+    cold.cloud_number_to_hail             = vec2(0, 0);
+    cold.ice_collected_by_snow            = vec2(0, 0);
+    cold.ice_collected_by_graupel         = vec2(0, 0);
+    cold.ice_collected_by_hail            = vec2(0, 0);
+    cold.ice_number_collected_by_snow     = vec2(0, 0);
+    cold.ice_number_collected_by_graupel  = vec2(0, 0);
+    cold.ice_number_collected_by_hail     = vec2(0, 0);
+    cold.snow_self_collection             = vec2(0, 0);
+    cold.splinter_mass_from_snow          = vec2(0, 0);
+    cold.splinter_mass_from_graupel       = vec2(0, 0);
+    cold.splinter_number_from_snow        = vec2(0, 0);
+    cold.splinter_number_from_graupel     = vec2(0, 0);
+    cold.rain_collected_by_ice            = vec2(0, 0);
+    cold.ice_collected_by_rain            = vec2(0, 0);
+    cold.rain_number_collected_by_ice     = vec2(0, 0);
+    cold.ice_number_collected_by_rain     = vec2(0, 0);
+    cold.rain_collected_by_snow           = vec2(0, 0);
+    cold.snow_collected_by_rain           = vec2(0, 0);
+    cold.rain_number_collected_by_snow    = vec2(0, 0);
+    cold.snow_number_collected_by_rain    = vec2(0, 0);
+    cold.rain_collected_by_graupel        = vec2(0, 0);
+    cold.graupel_collected_by_rain        = vec2(0, 0);
+    cold.rain_number_collected_by_graupel = vec2(0, 0);
+    cold.graupel_number_collected_by_rain = vec2(0, 0);
+    cold.collision_mass_to_snow           = vec2(0, 0);
+    cold.collision_mass_to_graupel        = vec2(0, 0);
+    cold.collision_mass_to_hail           = vec2(0, 0);
+    cold.collision_number_to_snow         = vec2(0, 0);
+    cold.collision_number_to_graupel      = vec2(0, 0);
+    cold.collision_number_to_hail         = vec2(0, 0);
+    cold.snow_to_graupel                  = vec2(0, 0);
+    cold.snow_number_to_graupel           = vec2(0, 0);
+    cold.graupel_to_hail                  = vec2(0, 0);
+    cold.graupel_number_to_hail           = vec2(0, 0);
+    cold.hail_number_from_graupel         = vec2(0, 0);
+    cold.hail_to_graupel                  = vec2(0, 0);
+    cold.hail_number_to_graupel           = vec2(0, 0);
+    cold.rain_collected_by_hail           = vec2(0, 0);
+    cold.rain_number_collected_by_hail    = vec2(0, 0);
+    cold.snow_collected_by_hail           = vec2(0, 0);
+    cold.snow_number_collected_by_hail    = vec2(0, 0);
+    cold.shed_rain_from_hail              = vec2(0, 0);
+    cold.shed_rain_number                 = vec2(0, 0);
+    cold.cloud                            = cold.cell[4];
+    cold.cloud_number                     = cold.cloud_number_state;
+    if ((ml_greater(cold.cloud, vec2(9.9999998245167004e-15, 1.7548329954638096e-22)) &&
+         ml_greater(cold.cloud_number, vec2(0, 0))))
+    {
+        vec2 tc2     = df_mul(cold.temperature_c, cold.temperature_c);
+        vec2 log10_j = maximum(
+            (-vec2(20, 0)),
+            df_sub(df_sub(df_sub(df_sub((-vec2(606.39520263671875, -2.6367187047071639e-06)),
+                                        df_mul(vec2(52.661098480224609, 1.5197753882034704e-06), cold.temperature_c)),
+                                 df_mul(vec2(1.743899941444397, 5.8555603033028092e-08), tc2)),
+                          df_mul(df_mul(vec2(0.026499999687075615, 3.1292438432140024e-10), tc2), cold.temperature_c)),
+                   df_mul(df_mul(vec2(0.00015360000543296337, -5.4329633782275455e-12), tc2), tc2)));
+        vec2 droplet_diameter_cubed_cm = df_div(df_mul(vec2(1000000, 0), cold.cloud), df_mul(cold.cloud_number, c_r_));
+        vec2 fraction = df_sub(vec2(1, 0),
+                               df_exp(df_mul(df_mul(df_mul((-power(vec2(10, 0), log10_j)), df_div(cold.pi, vec2(6, 0))),
+                                                    droplet_diameter_cubed_cm),
+                                             cold.dt)));
+        if (ml_greater(cold.temperature_c, (-vec2(30, 0))))
+            fraction = vec2(0, 0);
+        if (ml_greater((-vec2(50, 0)), cold.temperature_c))
+            fraction = vec2(1, 0);
+        fraction          = bounded(fraction, vec2(0, 0), vec2(1, 0));
+        cold.cloud_to_ice = df_mul(fraction, cold.cloud);
+        cold.nc_to_ice    = df_mul(fraction, cold.cloud_number);
+    }
+    cold.ice_number_volume = df_mul(cold.density, cold.ice_number_state);
+    if ((ml_greater((-vec2(5, 0)), cold.temperature_c) &&
+         ml_greater(cold.saturation_ice, vec2(1.0800000429153442, -4.2915344167226976e-08))))
+    {
+        vec2 target_number  = minimum(cold.maximum_ice_number_m3,
+                                      df_mul(vec2(5, 0),
+                                             df_exp(df_mul(vec2(0.30399999022483826, 9.7751617356145459e-09),
+                                                           df_sub(vec2(273.14999389648438, 6.1035156022626325e-06),
+                                                                  maximum(vec2(233, 0), cold.T))))));
+        cold.new_ice_number = maximum(vec2(0, 0), df_sub(target_number, cold.ice_number_volume));
+        vec2 maximum_number_from_vapor =
+            df_div(df_mul(cold.density, maximum(vec2(0, 0), df_sub(cold.vapor, cold.qsi))), cold.embryo_ice_mass);
+        cold.new_ice_number = minimum(cold.new_ice_number, maximum_number_from_vapor);
+        cold.vapor_to_ice =
+            df_add(cold.vapor_to_ice, df_div(df_mul(cold.embryo_ice_mass, cold.new_ice_number), cold.density));
+    }
+    vec2 unused_raw_increment;
+    vec2 snow_raw_increment;
+    cold.ice_deposition     = deposit_on_category(cold.cell[6],
+                                                  cold.ice_number_state,
+                                                  alpha_i_,
+                                                  c_i_,
+                                                  d_i_,
+                                                  a_i_,
+                                                  b_i_,
+                                                  vec2(0.5, 0),
+                                                  true,
+                                                  cold.ice_number_sublimated,
+                                                  unused_raw_increment);
+    cold.snow_deposition    = deposit_on_category(cold.cell[7],
+                                                  cold.snow_number_state,
+                                                  alpha_s_,
+                                                  c_s_,
+                                                  d_s_,
+                                                  a_s_,
+                                                  b_s_,
+                                                  vec2(0.5, 0),
+                                                  true,
+                                                  cold.snow_number_sublimated,
+                                                  snow_raw_increment);
+    cold.graupel_deposition = deposit_on_category(cold.cell[8],
+                                                  cold.graupel_number_state,
+                                                  alpha_g_,
+                                                  c_g_,
+                                                  d_g_,
+                                                  a_g_,
+                                                  b_g_,
+                                                  vec2(1, 0),
+                                                  false,
+                                                  cold.graupel_number_sublimated,
+                                                  unused_raw_increment);
+    cold.hail_deposition    = deposit_on_category(cold.cell[9],
+                                                  cold.hail_number_state,
+                                                  alpha_h_,
+                                                  c_h_,
+                                                  d_h_,
+                                                  a_h_,
+                                                  b_h_,
+                                                  vec2(1, 0),
+                                                  false,
+                                                  cold.hail_number_sublimated,
+                                                  unused_raw_increment);
+    cold.nc_volume          = df_mul(cold.density, cold.cloud_number);
+    cold.ni_mixing          = maximum(vec2(0, 0), cold.ice_number_state);
+    cold.ni_volume          = df_mul(cold.density, cold.ni_mixing);
+    cold.alpha_cloud        = vec2(1, 0);
+    cold.mu_cloud           = vec2(3, 0);
+    cold.gamma_cloud_number = gamma_value(df_add(vec2(1, 0), cold.alpha_cloud));
+    cold.cloud_inverse_lambda =
+        ((ml_greater(cold.cloud, vec2(9.9999998245167004e-15, 1.7548329954638096e-22)) &&
+          ml_greater(cold.nc_volume, vec2(0, 0)))
+             ? cube_root(df_div(df_div(df_mul(cold.density, cold.cloud), cold.nc_volume),
+                                df_div(df_mul(c_r_,
+                                              gamma_value(df_add(df_add(vec2(1, 0), cold.alpha_cloud),
+                                                                 df_div(vec2(3, 0), cold.mu_cloud)))),
+                                       cold.gamma_cloud_number)))
+             : vec2(0, 0));
+    cold.ice_psd = diagnose_distribution(cold.density, cold.cell[6], cold.ice_number_state, alpha_i_, c_i_, d_i_);
+    cold.ice_mass_speed =
+        (ml_greater(cold.ice_psd.inverse_lambda, vec2(0, 0))
+             ? df_div(df_mul(df_mul(df_mul(cold.air.density_factor, a_i_), power(cold.ice_psd.inverse_lambda, b_i_)),
+                             gamma_value(df_add(df_add(df_add(vec2(1, 0), alpha_i_), d_i_), b_i_))),
+                      gamma_value(df_add(df_add(vec2(1, 0), alpha_i_), d_i_)))
+             : vec2(0, 0));
+    cold.dynamic_viscosity = df_mul(cold.air.kinematic_viscosity, cold.density);
+    collect_cloud(cold.cell[7],
+                  cold.snow_number_state,
+                  alpha_s_,
+                  c_s_,
+                  d_s_,
+                  a_s_,
+                  b_s_,
+                  0,
+                  cold.cloud_to_snow,
+                  cold.cloud_number_to_snow);
+    collect_cloud(cold.cell[8],
+                  cold.graupel_number_state,
+                  alpha_g_,
+                  c_g_,
+                  d_g_,
+                  a_g_,
+                  b_g_,
+                  1,
+                  cold.cloud_to_graupel,
+                  cold.cloud_number_to_graupel);
+    collect_cloud(cold.cell[9],
+                  cold.hail_number_state,
+                  alpha_h_,
+                  c_h_,
+                  d_h_,
+                  a_h_,
+                  b_h_,
+                  2,
+                  cold.cloud_to_hail,
+                  cold.cloud_number_to_hail);
+    bool heated_snow = false;
+    if (ml_greater(cold.cloud_to_snow, vec2(0, 0)))
+    {
+        vec2 cloud_sink = df_add(df_add(df_add(cold.cloud_to_ice, cold.cloud_to_snow), cold.cloud_to_graupel),
+                                 cold.cloud_to_hail);
+        vec2 number_sink = df_add(df_add(df_add(cold.nc_to_ice, cold.cloud_number_to_snow),
+                                         cold.cloud_number_to_graupel), cold.cloud_number_to_hail);
+        vec2 scale = minimum(admission_ratio(cold.cloud, cloud_sink), admission_ratio(cold.cloud_number, number_sink));
+        vec2 original_mass[4];
+        original_mass[0] = cold.cloud_to_ice;
+        original_mass[1] = cold.cloud_to_snow;
+        original_mass[2] = cold.cloud_to_graupel;
+        original_mass[3] = cold.cloud_to_hail;
+        vec2 original_number[4];
+        original_number[0] = cold.nc_to_ice;
+        original_number[1] = cold.cloud_number_to_snow;
+        original_number[2] = cold.cloud_number_to_graupel;
+        original_number[3] = cold.cloud_number_to_hail;
+        bool quantized = ml_greater(vec2(1, 0), scale);
+        if (quantized)
+            scale = conservative_cloud_factor(scale);
+        for (int allocation = 0; allocation < 2; ++allocation)
+        {
+            cold.cloud_to_ice = df_mul(original_mass[0], scale);
+            cold.nc_to_ice = df_mul(original_number[0], scale);
+            cold.cloud_to_snow = df_mul(original_mass[1], scale);
+            cold.cloud_number_to_snow = df_mul(original_number[1], scale);
+            cold.cloud_to_graupel = df_mul(original_mass[2], scale);
+            cold.cloud_number_to_graupel = df_mul(original_number[2], scale);
+            cold.cloud_to_hail = df_mul(original_mass[3], scale);
+            cold.cloud_number_to_hail = df_mul(original_number[3], scale);
+            if (!cloud_allocation_valid())
+            {
+                reject_cold_candidate();
+                return;
+            }
+            if (cloud_allocation_closed())
+                break;
+            if (allocation == 0 && quantized)
+            {
+                scale = df_sub(scale, vec2(9.094947017729282379e-13, 0));
+                continue;
+            }
+            reject_cold_candidate();
+            return;
+        }
+        heated_snow = ml_greater(cold.cloud_to_snow, vec2(0, 0));
+    }
+    cold.conservative_admission = heated_snow;
+    if (heated_snow)
+    {
+        vec2 riming_increment = df_mul(df_div(df_mul(df_mul(-cold.inverse_diffusion_resistance,
+                                                           vec2(2834000, 0)), vec2(334000, 0)),
+                                             df_mul(df_mul(df_mul(cold.air.thermal_conductivity, vec2(461.5, 0)),
+                                                           cold.T), cold.T)), cold.cloud_to_snow);
+        vec2 heated_increment = df_add(snow_raw_increment, riming_increment);
+        vec2 saturation_response =
+            df_add(vec2(1, 0),
+                   df_div(df_mul(df_mul(vec2(2834000, 0), vec2(2834000, 0)), cold.qsi),
+                          df_mul(df_mul(df_mul(vec2(1004, 0), vec2(461.5, 0)),
+                                        df_sub(cold.T, vec2(7.6599998474121094, 1.5258789076710855e-07))),
+                                 df_sub(cold.T, vec2(7.6599998474121094, 1.5258789076710855e-07)))));
+        vec2 vapor_limit     = df_div(df_sub(cold.vapor, cold.qsi), saturation_response);
+        cold.snow_deposition = ml_greater(vec2(0, 0), heated_increment)
+            ? maximum(heated_increment, -cold.cell[7])
+            : minimum(heated_increment, maximum(vec2(0, 0), vapor_limit));
+        cold.snow_number_sublimated =
+            ((ml_greater(vec2(0, 0), cold.snow_deposition) && ml_greater(cold.cell[7], vec2(0, 0)))
+                 ? df_mul(df_div(cold.snow_number_state, cold.cell[7]), cold.snow_deposition)
+                 : vec2(0, 0));
+    }
+    cold.ice_snow_efficiency =
+        minimum(vec2(1, 0),
+                df_mul(vec2(0.05000000074505806, -7.4505805691682525e-10),
+                       df_exp(df_mul(vec2(0.10000000149011612, -1.4901161138336505e-09), cold.temperature_c))));
+    cold.ice_graupel_efficiency =
+        minimum(vec2(1, 0),
+                df_mul(vec2(0.0099999997764825821, 2.2351741811588166e-10),
+                       df_exp(df_mul(vec2(0.10000000149011612, -1.4901161138336505e-09), cold.temperature_c))));
+    collect_pristine_ice(cold.cell[7],
+                         cold.snow_number_state,
+                         alpha_s_,
+                         c_s_,
+                         d_s_,
+                         a_s_,
+                         b_s_,
+                         cold.ice_snow_efficiency,
+                         cold.ice_collected_by_snow,
+                         cold.ice_number_collected_by_snow);
+    collect_pristine_ice(cold.cell[8],
+                         cold.graupel_number_state,
+                         alpha_g_,
+                         c_g_,
+                         d_g_,
+                         a_g_,
+                         b_g_,
+                         cold.ice_graupel_efficiency,
+                         cold.ice_collected_by_graupel,
+                         cold.ice_number_collected_by_graupel);
+    collect_pristine_ice(cold.cell[9],
+                         cold.hail_number_state,
+                         alpha_h_,
+                         c_h_,
+                         d_h_,
+                         a_h_,
+                         b_h_,
+                         cold.ice_graupel_efficiency,
+                         cold.ice_collected_by_hail,
+                         cold.ice_number_collected_by_hail);
+    cold.ns_volume = df_mul(cold.density, cold.snow_number_state);
+    if ((ml_greater(cold.cell[7], vec2(9.9999998245167004e-15, 1.7548329954638096e-22)) &&
+         ml_greater(cold.ns_volume, vec2(0, 0))))
+    {
+        cold.snow_self_collection = df_div(
+            minimum(
+                df_mul(vec2(0.5, 0), cold.ns_volume),
+                df_mul(df_mul(df_mul(df_mul(cold.dt, vec2(0.93952000141143799, -1.4114379665031151e-09)),
+                                     cold.ice_snow_efficiency),
+                              power(df_mul(cold.density, cold.cell[7]), df_div(df_add(vec2(2, 0), b_s_), vec2(3, 0)))),
+                       power(cold.ns_volume, df_div(df_sub(vec2(4, 0), b_s_), vec2(3, 0))))),
+            cold.density);
+    }
+    cold.splinters_per_kg = vec2(0, 0);
+    if ((!ml_greater((-vec2(8, 0)), cold.temperature_c) && !ml_greater(cold.temperature_c, (-vec2(5, 0)))))
+        cold.splinters_per_kg = df_div(df_mul(vec2(350000000, 0), df_add(cold.temperature_c, vec2(8, 0))), vec2(3, 0));
+    else if ((ml_greater(cold.temperature_c, (-vec2(5, 0))) && ml_greater((-vec2(3, 0)), cold.temperature_c)))
+        cold.splinters_per_kg =
+            df_mul(df_mul(vec2(350000000, 0), df_sub((-vec2(3, 0)), cold.temperature_c)), vec2(0.5, 0));
+    cold.splinter_number_from_snow    = df_mul(cold.splinters_per_kg, cold.cloud_to_snow);
+    cold.splinter_number_from_graupel = df_mul(cold.splinters_per_kg, cold.cloud_to_graupel);
+    cold.splinter_mass_from_snow =
+        minimum(cold.cloud_to_snow, df_mul(cold.embryo_ice_mass, cold.splinter_number_from_snow));
+    cold.splinter_mass_from_graupel =
+        minimum(cold.cloud_to_graupel, df_mul(cold.embryo_ice_mass, cold.splinter_number_from_graupel));
+    cold.rain               = cold.cell[5];
+    cold.rain_number        = cold.rain_number_state;
+    cold.rain_number_volume = df_mul(cold.density, cold.rain_number);
+    if (((ml_greater((-vec2(10, 0)), cold.temperature_c) &&
+          ml_greater(cold.rain, vec2(9.9999998245167004e-15, 1.7548329954638096e-22))) &&
+         ml_greater(cold.rain_number_volume, vec2(0, 0))))
+    {
+        vec2 frozen_number_volume =
+            minimum(cold.rain_number_volume,
+                    df_div(df_mul(df_mul(df_mul(df_mul((-cold.dt), vec2(100, 0)),
+                                                df_sub(df_exp(df_mul(vec2(0.6600000262260437, -2.622604367008563e-08),
+                                                                     cold.temperature_c)),
+                                                       vec2(1, 0))),
+                                         cold.density),
+                                  cold.rain),
+                           vec2(1000, 0)));
+        cold.nr_to_frozen   = df_div(frozen_number_volume, cold.density);
+        cold.rain_to_frozen = minimum(cold.rain, df_div(df_mul(cold.nr_to_frozen, cold.rain), cold.rain_number));
+    }
+    cold.rain_psd = diagnose_distribution(cold.density, cold.rain, cold.rain_number, alpha_r_, c_r_, d_r_);
+    cold.snow_psd = diagnose_distribution(cold.density, cold.cell[7], cold.snow_number_state, alpha_s_, c_s_, d_s_);
+    cold.graupel_psd =
+        diagnose_distribution(cold.density, cold.cell[8], cold.graupel_number_state, alpha_g_, c_g_, d_g_);
+    cold.hail_psd   = diagnose_distribution(cold.density, cold.cell[9], cold.hail_number_state, alpha_h_, c_h_, d_h_);
+    cold.rain_speed = mass_weighted_fall_speed(cold.rain_psd, alpha_r_, d_r_, a_r_, b_r_, cold.air);
+    cold.snow_speed = mass_weighted_fall_speed(cold.snow_psd, alpha_s_, d_s_, a_s_, b_s_, cold.air);
+    cold.graupel_speed               = mass_weighted_fall_speed(cold.graupel_psd, alpha_g_, d_g_, a_g_, b_g_, cold.air);
+    cold.hail_speed                  = mass_weighted_fall_speed(cold.hail_psd, alpha_h_, d_h_, a_h_, b_h_, cold.air);
+    cold.ice_rain_collision          = false;
+    cold.snow_rain_collision         = false;
+    cold.graupel_rain_collision      = false;
+    cold.ice_rain_destination        = 1;
+    cold.snow_rain_destination       = 1;
+    cold.graupel_rain_destination    = 1;
+    cold.snow_collision_bulk_density = vec2(100, 0);
+    cold.rain_graupel_stays_graupel  = false;
+    if ((ml_greater(cold.rain_psd.intercept, vec2(0, 0)) && ml_greater(cold.ice_psd.intercept, vec2(0, 0))))
+    {
+        PairCollision collision    = collide_gamma_populations(cold.density,
+                                                               cold.dt,
+                                                               vec2(1, 0),
+                                                               relative_speed(cold.ice_mass_speed, cold.rain_speed),
+                                                               cold.cell[6],
+                                                               cold.ice_number_state,
+                                                               cold.ice_psd,
+                                                               alpha_i_,
+                                                               c_i_,
+                                                               d_i_,
+                                                               cold.rain,
+                                                               cold.rain_number,
+                                                               cold.rain_psd,
+                                                               alpha_r_,
+                                                               c_r_,
+                                                               d_r_);
+        cold.ice_collected_by_rain = collision.first_mass;
+        cold.rain_collected_by_ice = collision.second_mass;
+        cold.ice_number_collected_by_rain = collision.first_number;
+        cold.rain_number_collected_by_ice = collision.second_number;
+        cold.ice_rain_collision           = true;
+        cold.ice_rain_destination         = density_destination(cold.ice_psd, vec2(500, 0), false);
+    }
+    if (((ml_greater((-vec2(5, 0)), cold.temperature_c) && ml_greater(cold.rain_psd.intercept, vec2(0, 0))) &&
+         ml_greater(cold.snow_psd.intercept, vec2(0, 0))))
+    {
+        PairCollision collision            = collide_gamma_populations(cold.density,
+                                                                       cold.dt,
+                                                                       vec2(1, 0),
+                                                                       relative_speed(cold.snow_speed, cold.rain_speed),
+                                                                       cold.cell[7],
+                                                                       cold.snow_number_state,
+                                                                       cold.snow_psd,
+                                                                       alpha_s_,
+                                                                       c_s_,
+                                                                       d_s_,
+                                                                       cold.rain,
+                                                                       cold.rain_number,
+                                                                       cold.rain_psd,
+                                                                       alpha_r_,
+                                                                       c_r_,
+                                                                       d_r_);
+        cold.snow_collected_by_rain        = collision.first_mass;
+        cold.rain_collected_by_snow        = collision.second_mass;
+        cold.snow_number_collected_by_rain = collision.first_number;
+        cold.rain_number_collected_by_snow = collision.second_number;
+        cold.snow_collision_bulk_density =
+            minimum(vec2(500, 0),
+                    df_mul(df_div(c_s_, df_div(cold.pi, vec2(6, 0))),
+                           power(cold.snow_psd.mean_mass_diameter, df_sub(d_s_, vec2(3, 0)))));
+        cold.snow_rain_collision   = true;
+        cold.snow_rain_destination = density_destination(cold.snow_psd, cold.snow_collision_bulk_density, true);
+    }
+    if (((ml_greater((-vec2(5, 0)), cold.temperature_c) && ml_greater(cold.rain_psd.intercept, vec2(0, 0))) &&
+         ml_greater(cold.graupel_psd.intercept, vec2(0, 0))))
+    {
+        vec2 stokes = df_div(df_mul(df_mul(df_mul(vec2(1000, 0), absolute(df_sub(cold.graupel_speed, cold.rain_speed))),
+                                           cold.rain_psd.mean_mass_diameter),
+                                    cold.rain_psd.mean_mass_diameter),
+                             df_mul(df_mul(vec2(9, 0), cold.dynamic_viscosity), cold.graupel_psd.mean_mass_diameter));
+        stokes      = bounded(stokes, vec2(1.5, 0), vec2(10, 0));
+        vec2 efficiency = bounded(df_mul(vec2(0.55000001192092896, -1.1920928910669204e-08),
+                                         log_ten(df_mul(vec2(2.5099999904632568, 9.5367429508996793e-09), stokes))),
+                                  vec2(0, 0),
+                                  vec2(1, 0));
+        PairCollision collision        = collide_gamma_populations(cold.density,
+                                                                   cold.dt,
+                                                                   efficiency,
+                                                                   relative_speed(cold.graupel_speed, cold.rain_speed),
+                                                                   cold.cell[8],
+                                                                   cold.graupel_number_state,
+                                                                   cold.graupel_psd,
+                                                                   alpha_g_,
+                                                                   c_g_,
+                                                                   d_g_,
+                                                                   cold.rain,
+                                                                   cold.rain_number,
+                                                                   cold.rain_psd,
+                                                                   alpha_r_,
+                                                                   c_r_,
+                                                                   d_r_);
+        cold.graupel_collected_by_rain = collision.first_mass;
+        cold.rain_collected_by_graupel = collision.second_mass;
+        cold.graupel_number_collected_by_rain = collision.first_number;
+        cold.rain_number_collected_by_graupel = collision.second_number;
+        cold.graupel_rain_collision           = true;
+        cold.graupel_rain_destination         = density_destination(cold.graupel_psd, vec2(400, 0), false);
+        cold.rain_graupel_stays_graupel       = (cold.graupel_rain_destination == 1);
+    }
+    if (ml_greater(cold.hail_psd.intercept, vec2(0, 0)))
+    {
+        PairCollision rain_hail = zero_PairCollision();
+        if (ml_greater(cold.rain_psd.intercept, vec2(0, 0)))
+        {
+            rain_hail                   = collide_gamma_populations(cold.density,
+                                                                    cold.dt,
+                                                                    vec2(1, 0),
+                                                                    relative_speed(cold.rain_speed, cold.hail_speed),
+                                                                    cold.rain,
+                                                                    cold.rain_number,
+                                                                    cold.rain_psd,
+                                                                    alpha_r_,
+                                                                    c_r_,
+                                                                    d_r_,
+                                                                    cold.cell[9],
+                                                                    cold.hail_number_state,
+                                                                    cold.hail_psd,
+                                                                    alpha_h_,
+                                                                    c_h_,
+                                                                    d_h_);
+            cold.rain_collected_by_hail = rain_hail.first_mass;
+            cold.rain_number_collected_by_hail = rain_hail.first_number;
+        }
+        PairCollision snow_hail = zero_PairCollision();
+        if (ml_greater(cold.snow_psd.intercept, vec2(0, 0)))
+        {
+            snow_hail                   = collide_gamma_populations(cold.density,
+                                                                    cold.dt,
+                                                                    cold.ice_graupel_efficiency,
+                                                                    relative_speed(cold.snow_speed, cold.hail_speed),
+                                                                    cold.cell[7],
+                                                                    cold.snow_number_state,
+                                                                    cold.snow_psd,
+                                                                    alpha_s_,
+                                                                    c_s_,
+                                                                    d_s_,
+                                                                    cold.cell[9],
+                                                                    cold.hail_number_state,
+                                                                    cold.hail_psd,
+                                                                    alpha_h_,
+                                                                    c_h_,
+                                                                    d_h_);
+            cold.snow_collected_by_hail = snow_hail.first_mass;
+            cold.snow_number_collected_by_hail = snow_hail.first_number;
+        }
+        vec2 hail_ventilation = ventilation_integral(cold.hail_psd, alpha_h_, a_h_, b_h_, cold.air);
+        vec2 water_saturation_at_freezing =
+            saturation_water(vec2(273.14999389648438, 6.1035156022626325e-06), cold.pressure);
+        vec2 liquid_heat_capacity   = vec2(4218, 0);
+        vec2 ice_heat_capacity      = vec2(2115.300048828125, -4.882812481810106e-05);
+        vec2 wet_growth_denominator = df_add(vec2(334000, 0), df_mul(liquid_heat_capacity, cold.temperature_c));
+        vec2 wet_growth_capacity    = vec2(0, 0);
+        if (ml_greater(wet_growth_denominator, vec2(0, 0)))
+        {
+            wet_growth_capacity = maximum(
+                vec2(0, 0),
+                df_add(
+                    df_mul(
+                        df_div(df_div(df_mul(df_mul(df_mul(df_mul(cold.dt, vec2(2, 0)), cold.pi),
+                                                    df_sub(df_mul(df_mul(df_mul(cold.density, vec2(2500000, 0)),
+                                                                         cold.air.vapor_diffusivity),
+                                                                  df_sub(water_saturation_at_freezing, cold.vapor)),
+                                                           df_mul(cold.air.thermal_conductivity, cold.temperature_c))),
+                                             cold.hail_psd.intercept),
+                                      cold.density),
+                               wet_growth_denominator),
+                        hail_ventilation),
+                    df_mul(df_add(df_div(cold.ice_collected_by_hail,
+                                         maximum(cold.ice_graupel_efficiency,
+                                                 vec2(9.999999960041972e-13, 3.9958027796366288e-21))),
+                                  df_div(cold.snow_collected_by_hail,
+                                         maximum(cold.ice_graupel_efficiency,
+                                                 vec2(9.999999960041972e-13, 3.9958027796366288e-21)))),
+                           df_sub(vec2(1, 0),
+                                  df_div(df_mul(ice_heat_capacity, cold.temperature_c), wet_growth_denominator)))));
+        }
+        vec2 dry_collection =
+            df_add(df_add(df_add(cold.cloud_to_hail, cold.rain_collected_by_hail), cold.ice_collected_by_hail),
+                   cold.snow_collected_by_hail);
+        if ((ml_greater(cold.temperature_c, (-vec2(40, 0))) && ml_greater(dry_collection, wet_growth_capacity)))
+        {
+            if (ml_greater(cold.ice_psd.intercept, vec2(0, 0)))
+            {
+                PairCollision wet_ice_hail =
+                    collide_gamma_populations(cold.density,
+                                              cold.dt,
+                                              vec2(1, 0),
+                                              relative_speed(cold.ice_mass_speed, cold.hail_speed),
+                                              cold.cell[6],
+                                              cold.ice_number_state,
+                                              cold.ice_psd,
+                                              alpha_i_,
+                                              c_i_,
+                                              d_i_,
+                                              cold.cell[9],
+                                              cold.hail_number_state,
+                                              cold.hail_psd,
+                                              alpha_h_,
+                                              c_h_,
+                                              d_h_);
+                cold.ice_collected_by_hail        = wet_ice_hail.first_mass;
+                cold.ice_number_collected_by_hail = wet_ice_hail.first_number;
+            }
+            if (ml_greater(cold.snow_psd.intercept, vec2(0, 0)))
+            {
+                PairCollision wet_snow_hail =
+                    collide_gamma_populations(cold.density,
+                                              cold.dt,
+                                              vec2(1, 0),
+                                              relative_speed(cold.snow_speed, cold.hail_speed),
+                                              cold.cell[7],
+                                              cold.snow_number_state,
+                                              cold.snow_psd,
+                                              alpha_s_,
+                                              c_s_,
+                                              d_s_,
+                                              cold.cell[9],
+                                              cold.hail_number_state,
+                                              cold.hail_psd,
+                                              alpha_h_,
+                                              c_h_,
+                                              d_h_);
+                cold.snow_collected_by_hail        = wet_snow_hail.first_mass;
+                cold.snow_number_collected_by_hail = wet_snow_hail.first_number;
+            }
+            vec2 retained_rain =
+                bounded(df_sub(df_sub(df_sub(wet_growth_capacity, cold.cloud_to_hail), cold.ice_collected_by_hail),
+                               cold.snow_collected_by_hail),
+                        vec2(0, 0),
+                        cold.rain_collected_by_hail);
+            cold.shed_rain_from_hail    = df_sub(cold.rain_collected_by_hail, retained_rain);
+            cold.rain_collected_by_hail = retained_rain;
+            vec2 shed_drop_diameter     = vec2(0.0010000000474974513, -4.7497451284572723e-11);
+            cold.shed_rain_number =
+                df_div(cold.shed_rain_from_hail,
+                       df_mul(df_mul(df_mul(c_r_, shed_drop_diameter), shed_drop_diameter), shed_drop_diameter));
+        }
+    }
+    if (heated_snow)
+        admit_vapor();
+    if (((ml_greater(cold.cell[7], vec2(9.9999998245167004e-15, 1.7548329954638096e-22)) &&
+          ml_greater(cold.cloud_to_snow, vec2(0, 0))) &&
+         ml_greater(cold.cloud_to_snow, cold.snow_deposition)))
+    {
+        cold.snow_to_graupel =
+            minimum(df_add(cold.cell[7], cold.cloud_to_snow),
+                    df_div(df_mul(vec2(4, 0), cold.cloud_to_snow), vec2(3, 0)));
+        cold.snow_number_to_graupel = minimum(
+            cold.snow_number_state,
+            df_div(df_mul(cold.snow_number_state, cold.snow_to_graupel), df_add(cold.cell[7], cold.cloud_to_snow)));
+    }
+    if (((((enable_hail != 0) && ml_greater(cold.cell[8], vec2(9.9999998245167004e-15, 1.7548329954638096e-22))) &&
+          ml_greater(cold.graupel_number_state, vec2(0, 0))) &&
+         ml_greater(cold.cloud_to_graupel, vec2(0, 0))))
+    {
+        vec2 liquid_loading =
+            maximum(vec2(1, 0),
+                    df_add(df_mul(df_mul(vec2(11000, 0), cold.density), df_add(cold.cell[4], cold.rain)), vec2(1, 0)));
+        vec2 size_limit = bounded(
+            df_mul(vec2(0.019999999552965164, 4.4703483623176332e-10),
+                   df_sub(df_exp(minimum(vec2(20, 0), df_div((-cold.temperature_c), liquid_loading))), vec2(1, 0))),
+            vec2(9.9999997473787516e-05, 2.5262124884366591e-12),
+            vec2(1, 0));
+        vec2 post_riming_graupel =
+            df_add(df_add(cold.cell[8], cold.cloud_to_graupel),
+                   (cold.rain_graupel_stays_graupel ? cold.rain_collected_by_graupel : vec2(0, 0)));
+        GammaDistribution post_riming_psd =
+            diagnose_distribution(cold.density, post_riming_graupel, cold.graupel_number_state, alpha_g_, c_g_, d_g_);
+        if (((ml_greater(post_riming_psd.intercept, vec2(0, 0)) &&
+              ml_greater(vec2(9.999999960041972e-13, 3.9958027796366288e-21), absolute(alpha_g_))) &&
+             ml_greater(vec2(9.999999960041972e-13, 3.9958027796366288e-21), absolute(df_sub(d_g_, vec2(3, 0))))))
+        {
+            vec2 inverse_lambda     = post_riming_psd.inverse_lambda;
+            vec2 exponential_tail   = df_exp(df_div((-size_limit), inverse_lambda));
+            vec2 tail_number_volume = df_mul(df_mul(post_riming_psd.intercept, inverse_lambda), exponential_tail);
+            if (ml_greater(tail_number_volume, vec2(1, 0)))
+            {
+                vec2 d = size_limit;
+                vec2 tail_mass =
+                    df_div(df_mul(df_mul(df_mul(c_g_, post_riming_psd.intercept), exponential_tail),
+                                  df_add(df_add(df_add(df_mul(df_mul(df_mul(d, d), d), inverse_lambda),
+                                                       df_mul(df_mul(df_mul(df_mul(vec2(3, 0), d), d), inverse_lambda),
+                                                              inverse_lambda)),
+                                                df_mul(df_mul(vec2(6, 0), d), power(inverse_lambda, vec2(3, 0)))),
+                                         df_mul(vec2(6, 0), power(inverse_lambda, vec2(4, 0))))),
+                           cold.density);
+                cold.graupel_to_hail = minimum(cold.cell[8], tail_mass);
+                cold.graupel_number_to_hail =
+                    minimum(cold.graupel_number_state, df_div(tail_number_volume, cold.density));
+                cold.hail_number_from_graupel = cold.graupel_number_to_hail;
+            }
+        }
+    }
+    if ((ml_greater(cold.hail_psd.mean_mass_diameter, vec2(0, 0)) &&
+         ml_greater(vec2(0.0010000000474974513, -4.7497451284572723e-11), cold.hail_psd.mean_mass_diameter)))
+    {
+        cold.hail_to_graupel        = cold.cell[9];
+        cold.hail_number_to_graupel = cold.hail_number_state;
+    }
+    cold.provisional_ice =
+        maximum(vec2(0, 0),
+                df_add(df_add(df_sub(df_sub(df_sub(df_sub(df_add(df_add(df_add(cold.cell[6], cold.cloud_to_ice),
+                                                                        cold.vapor_to_ice),
+                                                                 cold.ice_deposition),
+                                                          cold.ice_collected_by_snow),
+                                                   cold.ice_collected_by_graupel),
+                                            cold.ice_collected_by_hail),
+                                     cold.ice_collected_by_rain),
+                              cold.splinter_mass_from_snow),
+                       cold.splinter_mass_from_graupel));
+    cold.provisional_ice_number =
+        maximum(vec2(0, 0),
+                df_add(df_add(df_sub(df_sub(df_sub(df_sub(df_add(df_add(df_add(cold.ice_number_state, cold.nc_to_ice),
+                                                                        df_div(cold.new_ice_number, cold.density)),
+                                                                 cold.ice_number_sublimated),
+                                                          cold.ice_number_collected_by_snow),
+                                                   cold.ice_number_collected_by_graupel),
+                                            cold.ice_number_collected_by_hail),
+                                     cold.ice_number_collected_by_rain),
+                              cold.splinter_number_from_snow),
+                       cold.splinter_number_from_graupel));
+    cold.ice_distribution =
+        diagnose_distribution(cold.density, cold.provisional_ice, cold.provisional_ice_number, alpha_i_, c_i_, d_i_);
+    if (ml_greater(cold.ice_distribution.intercept, vec2(0, 0)))
+    {
+        vec2 inverse_lambda     = cold.ice_distribution.inverse_lambda;
+        vec2 exponential_tail   = df_exp(df_div((-cold.snow_embryo_diameter), inverse_lambda));
+        vec2 number_tail_volume = df_mul(df_mul(cold.ice_distribution.intercept, inverse_lambda), exponential_tail);
+        vec2 d                  = cold.snow_embryo_diameter;
+        vec2 mass_tail_volume   = df_mul(
+            df_mul(df_mul(c_i_, cold.ice_distribution.intercept), exponential_tail),
+            df_add(df_add(df_add(df_mul(df_mul(df_mul(d, d), d), inverse_lambda),
+                                 df_mul(df_mul(df_mul(df_mul(vec2(3, 0), d), d), inverse_lambda), inverse_lambda)),
+                          df_mul(df_mul(vec2(6, 0), d), power(inverse_lambda, vec2(3, 0)))),
+                   df_mul(vec2(6, 0), power(inverse_lambda, vec2(4, 0)))));
+        cold.ice_number_to_snow = minimum(cold.provisional_ice_number, df_div(number_tail_volume, cold.density));
+        cold.ice_to_snow        = minimum(cold.provisional_ice, df_div(mass_tail_volume, cold.density));
+    }
+    bool admission_closed = false;
+    int admission_limit = heated_snow ? 16 : 2;
+    for (int admission_pass = 0; admission_pass < admission_limit; ++admission_pass)
+    {
+        admit_vapor();
+        vec2 cloud_sink =
+            df_add(df_add(df_add(cold.cloud_to_ice, cold.cloud_to_snow), cold.cloud_to_graupel), cold.cloud_to_hail);
+        vec2 cloud_scale = admission_ratio(cold.cloud, cloud_sink);
+        if (ml_greater(vec2(1, 0), cloud_scale) && !heated_snow)
+        {
+            cold.cloud_to_ice                 = df_mul(cold.cloud_to_ice, cloud_scale);
+            cold.nc_to_ice                    = df_mul(cold.nc_to_ice, cloud_scale);
+            cold.cloud_to_snow                = df_mul(cold.cloud_to_snow, cloud_scale);
+            cold.cloud_number_to_snow         = df_mul(cold.cloud_number_to_snow, cloud_scale);
+            cold.cloud_to_graupel             = df_mul(cold.cloud_to_graupel, cloud_scale);
+            cold.cloud_number_to_graupel      = df_mul(cold.cloud_number_to_graupel, cloud_scale);
+            cold.cloud_to_hail                = df_mul(cold.cloud_to_hail, cloud_scale);
+            cold.cloud_number_to_hail         = df_mul(cold.cloud_number_to_hail, cloud_scale);
+            cold.splinter_mass_from_snow      = df_mul(cold.splinter_mass_from_snow, cloud_scale);
+            cold.splinter_mass_from_graupel   = df_mul(cold.splinter_mass_from_graupel, cloud_scale);
+            cold.splinter_number_from_snow    = df_mul(cold.splinter_number_from_snow, cloud_scale);
+            cold.splinter_number_from_graupel = df_mul(cold.splinter_number_from_graupel, cloud_scale);
+        }
+        vec2 rain_sink =
+            df_add(df_add(df_add(df_add(cold.rain_to_frozen, cold.rain_collected_by_ice), cold.rain_collected_by_snow),
+                          cold.rain_collected_by_graupel),
+                   cold.rain_collected_by_hail);
+        vec2 rain_scale = admission_ratio(cold.rain, rain_sink);
+        if (ml_greater(vec2(1, 0), rain_scale))
+        {
+            cold.rain_to_frozen                   = df_mul(cold.rain_to_frozen, rain_scale);
+            cold.nr_to_frozen                     = df_mul(cold.nr_to_frozen, rain_scale);
+            cold.rain_collected_by_ice            = df_mul(cold.rain_collected_by_ice, rain_scale);
+            cold.rain_number_collected_by_ice     = df_mul(cold.rain_number_collected_by_ice, rain_scale);
+            cold.rain_collected_by_snow           = df_mul(cold.rain_collected_by_snow, rain_scale);
+            cold.rain_number_collected_by_snow    = df_mul(cold.rain_number_collected_by_snow, rain_scale);
+            cold.rain_collected_by_graupel        = df_mul(cold.rain_collected_by_graupel, rain_scale);
+            cold.rain_number_collected_by_graupel = df_mul(cold.rain_number_collected_by_graupel, rain_scale);
+            cold.rain_collected_by_hail           = df_mul(cold.rain_collected_by_hail, rain_scale);
+            cold.rain_number_collected_by_hail    = df_mul(cold.rain_number_collected_by_hail, rain_scale);
+            cold.shed_rain_number                 = df_mul(cold.shed_rain_number, rain_scale);
+        }
+        vec2 ice_source = df_add(df_add(df_add(df_add(df_add(cold.cell[6], cold.cloud_to_ice), cold.vapor_to_ice),
+                                               maximum(cold.ice_deposition, vec2(0, 0))),
+                                        cold.splinter_mass_from_snow),
+                                 cold.splinter_mass_from_graupel);
+        vec2 ice_sink =
+            df_add(df_add(df_add(df_add(df_add(maximum((-cold.ice_deposition), vec2(0, 0)), cold.ice_to_snow),
+                                        cold.ice_collected_by_snow),
+                                 cold.ice_collected_by_graupel),
+                          cold.ice_collected_by_hail),
+                   cold.ice_collected_by_rain);
+        vec2 ice_scale = admission_ratio(ice_source, ice_sink);
+        if (ml_greater(vec2(1, 0), ice_scale))
+        {
+            if (ml_greater(vec2(0, 0), cold.ice_deposition))
+            {
+                cold.ice_deposition        = df_mul(cold.ice_deposition, ice_scale);
+                cold.ice_number_sublimated = df_mul(cold.ice_number_sublimated, ice_scale);
+            }
+            cold.ice_to_snow                     = df_mul(cold.ice_to_snow, ice_scale);
+            cold.ice_number_to_snow              = df_mul(cold.ice_number_to_snow, ice_scale);
+            cold.ice_collected_by_snow           = df_mul(cold.ice_collected_by_snow, ice_scale);
+            cold.ice_number_collected_by_snow    = df_mul(cold.ice_number_collected_by_snow, ice_scale);
+            cold.ice_collected_by_graupel        = df_mul(cold.ice_collected_by_graupel, ice_scale);
+            cold.ice_number_collected_by_graupel = df_mul(cold.ice_number_collected_by_graupel, ice_scale);
+            cold.ice_collected_by_hail           = df_mul(cold.ice_collected_by_hail, ice_scale);
+            cold.ice_number_collected_by_hail    = df_mul(cold.ice_number_collected_by_hail, ice_scale);
+            cold.ice_collected_by_rain           = df_mul(cold.ice_collected_by_rain, ice_scale);
+            cold.ice_number_collected_by_rain    = df_mul(cold.ice_number_collected_by_rain, ice_scale);
+        }
+        vec2 snow_source = df_add(
+            df_add(df_add(df_add(df_add(cold.cell[7], maximum(cold.snow_deposition, vec2(0, 0))), cold.cloud_to_snow),
+                          cold.ice_to_snow),
+                   cold.ice_collected_by_snow),
+            routed_collision_mass(0));
+        vec2 snow_sink =
+            df_add(df_add(df_add(df_add(maximum((-cold.snow_deposition), vec2(0, 0)), cold.snow_collected_by_rain),
+                                 cold.snow_collected_by_hail),
+                          cold.splinter_mass_from_snow),
+                   cold.snow_to_graupel);
+        vec2 snow_scale = admission_ratio(snow_source, snow_sink);
+        if (heated_snow)
+            snow_scale = minimum(snow_scale, admission_ratio(snow_number_source(), snow_number_sink()));
+        if (ml_greater(vec2(1, 0), snow_scale))
+        {
+            if (ml_greater(vec2(0, 0), cold.snow_deposition))
+            {
+                cold.snow_deposition        = df_mul(cold.snow_deposition, snow_scale);
+                cold.snow_number_sublimated = df_mul(cold.snow_number_sublimated, snow_scale);
+            }
+            cold.snow_collected_by_rain        = df_mul(cold.snow_collected_by_rain, snow_scale);
+            cold.snow_number_collected_by_rain = df_mul(cold.snow_number_collected_by_rain, snow_scale);
+            cold.snow_collected_by_hail        = df_mul(cold.snow_collected_by_hail, snow_scale);
+            cold.snow_number_collected_by_hail = df_mul(cold.snow_number_collected_by_hail, snow_scale);
+            cold.splinter_mass_from_snow       = df_mul(cold.splinter_mass_from_snow, snow_scale);
+            cold.splinter_number_from_snow     = df_mul(cold.splinter_number_from_snow, snow_scale);
+            cold.snow_to_graupel               = df_mul(cold.snow_to_graupel, snow_scale);
+            cold.snow_number_to_graupel        = df_mul(cold.snow_number_to_graupel, snow_scale);
+            if (heated_snow)
+                cold.snow_self_collection = df_mul(cold.snow_self_collection, snow_scale);
+        }
+        vec2 graupel_source = df_add(
+            df_add(df_add(df_add(df_add(df_add(df_add(cold.cell[8], maximum(cold.graupel_deposition, vec2(0, 0))),
+                                               cold.cloud_to_graupel),
+                                        cold.ice_collected_by_graupel),
+                                 routed_collision_mass(1)),
+                          cold.snow_to_graupel),
+                   cold.hail_to_graupel),
+            ((enable_hail != 0) ? vec2(0, 0) : cold.rain_to_frozen));
+        vec2 graupel_sink =
+            df_add(df_add(df_add(maximum((-cold.graupel_deposition), vec2(0, 0)), cold.graupel_collected_by_rain),
+                          cold.splinter_mass_from_graupel),
+                   cold.graupel_to_hail);
+        vec2 graupel_scale = admission_ratio(graupel_source, graupel_sink);
+        if (ml_greater(vec2(1, 0), graupel_scale))
+        {
+            if (ml_greater(vec2(0, 0), cold.graupel_deposition))
+            {
+                cold.graupel_deposition        = df_mul(cold.graupel_deposition, graupel_scale);
+                cold.graupel_number_sublimated = df_mul(cold.graupel_number_sublimated, graupel_scale);
+            }
+            cold.graupel_collected_by_rain        = df_mul(cold.graupel_collected_by_rain, graupel_scale);
+            cold.graupel_number_collected_by_rain = df_mul(cold.graupel_number_collected_by_rain, graupel_scale);
+            cold.splinter_mass_from_graupel       = df_mul(cold.splinter_mass_from_graupel, graupel_scale);
+            cold.splinter_number_from_graupel     = df_mul(cold.splinter_number_from_graupel, graupel_scale);
+            cold.graupel_to_hail                  = df_mul(cold.graupel_to_hail, graupel_scale);
+            cold.graupel_number_to_hail           = df_mul(cold.graupel_number_to_hail, graupel_scale);
+            cold.hail_number_from_graupel         = df_mul(cold.hail_number_from_graupel, graupel_scale);
+        }
+        vec2 hail_source = df_add(
+            df_add(df_add(df_add(df_add(df_add(df_add(df_add(cold.cell[9], maximum(cold.hail_deposition, vec2(0, 0))),
+                                                      cold.cloud_to_hail),
+                                               cold.ice_collected_by_hail),
+                                        cold.snow_collected_by_hail),
+                                 cold.rain_collected_by_hail),
+                          routed_collision_mass(2)),
+                   cold.graupel_to_hail),
+            ((enable_hail != 0) ? cold.rain_to_frozen : vec2(0, 0)));
+        vec2 hail_sink  = df_add(maximum((-cold.hail_deposition), vec2(0, 0)), cold.hail_to_graupel);
+        vec2 hail_scale = admission_ratio(hail_source, hail_sink);
+        if (ml_greater(vec2(1, 0), hail_scale))
+        {
+            if (ml_greater(vec2(0, 0), cold.hail_deposition))
+            {
+                cold.hail_deposition        = df_mul(cold.hail_deposition, hail_scale);
+                cold.hail_number_sublimated = df_mul(cold.hail_number_sublimated, hail_scale);
+            }
+            cold.hail_to_graupel        = df_mul(cold.hail_to_graupel, hail_scale);
+            cold.hail_number_to_graupel = df_mul(cold.hail_number_to_graupel, hail_scale);
+        }
+        if (heated_snow)
+        {
+            ColdAdmissionBudgets budgets = snapshot_budgets();
+            if (!budgets_valid(budgets))
+            {
+                reject_cold_candidate();
+                return;
+            }
+            if (budgets_closed(budgets))
+            {
+                admission_closed = true;
+                break;
+            }
+        }
+    }
+    if (heated_snow && !admission_closed)
+    {
+        reject_cold_candidate();
+        return;
+    }
+    cold.collision_mass_to_snow      = vec2(0, 0);
+    cold.collision_mass_to_graupel   = vec2(0, 0);
+    cold.collision_mass_to_hail      = vec2(0, 0);
+    cold.collision_number_to_snow    = vec2(0, 0);
+    cold.collision_number_to_graupel = vec2(0, 0);
+    cold.collision_number_to_hail    = vec2(0, 0);
+    if (cold.ice_rain_collision)
+        route_collision(cold.ice_collected_by_rain,
+                        cold.rain_collected_by_ice,
+                        cold.ice_number_collected_by_rain,
+                        cold.rain_number_collected_by_ice,
+                        cold.ice_psd,
+                        vec2(500, 0),
+                        cold.ice_rain_destination);
+    if (cold.snow_rain_collision)
+        route_collision(cold.snow_collected_by_rain,
+                        cold.rain_collected_by_snow,
+                        cold.snow_number_collected_by_rain,
+                        cold.rain_number_collected_by_snow,
+                        cold.snow_psd,
+                        cold.snow_collision_bulk_density,
+                        cold.snow_rain_destination);
+    if (cold.graupel_rain_collision)
+        route_collision(cold.graupel_collected_by_rain,
+                        cold.rain_collected_by_graupel,
+                        cold.graupel_number_collected_by_rain,
+                        cold.rain_number_collected_by_graupel,
+                        cold.graupel_psd,
+                        vec2(400, 0),
+                        cold.graupel_rain_destination);
+    if (heated_snow)
+    {
+        ColdAdmissionBudgets budgets = snapshot_budgets();
+        vec2 mass = df_sub(budgets.sources[4], budgets.sinks[4]);
+        vec2 number = df_sub(budgets.number_source, budgets.number_sink);
+        if (!finite_value(mass) || ml_greater(vec2(0, 0), mass) ||
+            !finite_value(number) || ml_greater(vec2(0, 0), number) ||
+            (equal_value(mass, vec2(0, 0)) != equal_value(number, vec2(0, 0))))
+        {
+            reject_cold_candidate();
+            return;
+        }
+    }
+    cold.deposition_total = df_add(
+        df_add(df_add(df_add(cold.vapor_to_ice, cold.ice_deposition), cold.snow_deposition), cold.graupel_deposition),
+        cold.hail_deposition);
+    cold.rates[6] -= value(df_div(cold.deposition_total, cold.dt));
+    cold.rates[0] -= value(
+        df_div(df_add(df_add(df_add(cold.cloud_to_ice, cold.cloud_to_snow), cold.cloud_to_graupel), cold.cloud_to_hail),
+               cold.dt));
+    cold.rates[1] -= value(df_div(
+        df_add(df_add(df_add(df_add(cold.rain_to_frozen, cold.rain_collected_by_ice), cold.rain_collected_by_snow),
+                      cold.rain_collected_by_graupel),
+               cold.rain_collected_by_hail),
+        cold.dt));
+    cold.rates[2] += value(
+        df_div(df_add(df_add(df_sub(df_sub(df_sub(df_sub(df_sub(df_add(df_add(cold.cloud_to_ice, cold.vapor_to_ice),
+                                                                       cold.ice_deposition),
+                                                                cold.ice_to_snow),
+                                                         cold.ice_collected_by_snow),
+                                                  cold.ice_collected_by_graupel),
+                                           cold.ice_collected_by_hail),
+                                    cold.ice_collected_by_rain),
+                             cold.splinter_mass_from_snow),
+                      cold.splinter_mass_from_graupel),
+               cold.dt));
+    cold.rates[3] +=
+        value(df_div(df_sub(df_add(df_sub(df_sub(df_sub(df_add(df_add(df_add(cold.snow_deposition, cold.ice_to_snow),
+                                                                      cold.cloud_to_snow),
+                                                               cold.ice_collected_by_snow),
+                                                        cold.snow_collected_by_rain),
+                                                 cold.snow_collected_by_hail),
+                                          cold.splinter_mass_from_snow),
+                                   cold.collision_mass_to_snow),
+                            cold.snow_to_graupel),
+                     cold.dt));
+    if ((enable_hail != 0))
+    {
+        cold.rates[5] += value(
+            df_div(df_sub(df_add(df_add(df_add(df_add(df_add(df_add(df_add(cold.hail_deposition, cold.rain_to_frozen),
+                                                                    cold.cloud_to_hail),
+                                                             cold.ice_collected_by_hail),
+                                                      cold.snow_collected_by_hail),
+                                               cold.rain_collected_by_hail),
+                                        cold.collision_mass_to_hail),
+                                 cold.graupel_to_hail),
+                          cold.hail_to_graupel),
+                   cold.dt));
+        cold.rates[4] += value(df_div(
+            df_add(df_sub(df_add(df_add(df_sub(df_sub(df_add(df_add(cold.graupel_deposition, cold.cloud_to_graupel),
+                                                             cold.ice_collected_by_graupel),
+                                                      cold.graupel_collected_by_rain),
+                                               cold.splinter_mass_from_graupel),
+                                        cold.collision_mass_to_graupel),
+                                 cold.snow_to_graupel),
+                          cold.graupel_to_hail),
+                   cold.hail_to_graupel),
+            cold.dt));
+    }
+    else
+    {
+        cold.rates[5] += value(df_div(
+            df_sub(df_add(df_add(df_add(df_add(cold.hail_deposition, cold.cloud_to_hail), cold.ice_collected_by_hail),
+                                 cold.snow_collected_by_hail),
+                          cold.rain_collected_by_hail),
+                   cold.hail_to_graupel),
+            cold.dt));
+        cold.rates[4] += value(df_div(
+            df_add(df_add(df_add(df_sub(df_sub(df_add(df_add(df_add(cold.graupel_deposition, cold.rain_to_frozen),
+                                                             cold.cloud_to_graupel),
+                                                      cold.ice_collected_by_graupel),
+                                               cold.graupel_collected_by_rain),
+                                        cold.splinter_mass_from_graupel),
+                                 cold.collision_mass_to_graupel),
+                          cold.snow_to_graupel),
+                   cold.hail_to_graupel),
+            cold.dt));
+    }
+    cold.rates[7] += value(df_div(
+        df_add(df_mul(vec2(2834000, 0), cold.deposition_total),
+               df_mul(vec2(334000, 0),
+                      df_add(df_add(df_add(df_add(df_add(df_add(df_add(df_add(cold.cloud_to_ice, cold.rain_to_frozen),
+                                                                       cold.rain_collected_by_ice),
+                                                                cold.rain_collected_by_snow),
+                                                         cold.rain_collected_by_graupel),
+                                                  cold.rain_collected_by_hail),
+                                           cold.cloud_to_snow),
+                                    cold.cloud_to_graupel),
+                             cold.cloud_to_hail))),
+        df_mul(vec2(1004, 0), cold.dt)));
+    cold.rates[8] -=
+        value(df_div(df_add(df_add(df_add(cold.nc_to_ice, cold.cloud_number_to_snow), cold.cloud_number_to_graupel),
+                            cold.cloud_number_to_hail),
+                     cold.dt));
+    cold.rates[9] -=
+        value(df_div(df_sub(df_add(df_add(df_add(df_add(cold.nr_to_frozen, cold.rain_number_collected_by_ice),
+                                                 cold.rain_number_collected_by_snow),
+                                          cold.rain_number_collected_by_graupel),
+                                   cold.rain_number_collected_by_hail),
+                            cold.shed_rain_number),
+                     cold.dt));
+    cold.rates[10] += value(df_div(
+        df_add(df_add(df_sub(df_sub(df_sub(df_sub(df_sub(df_add(df_add(cold.nc_to_ice,
+                                                                       df_div(cold.new_ice_number, cold.density)),
+                                                                cold.ice_number_sublimated),
+                                                         cold.ice_number_to_snow),
+                                                  cold.ice_number_collected_by_snow),
+                                           cold.ice_number_collected_by_graupel),
+                                    cold.ice_number_collected_by_hail),
+                             cold.ice_number_collected_by_rain),
+                      cold.splinter_number_from_snow),
+               cold.splinter_number_from_graupel),
+        cold.dt));
+    cold.rates[11] +=
+        value(df_div(df_sub(df_add(df_sub(df_sub(df_sub(df_add(cold.snow_number_sublimated, cold.ice_number_to_snow),
+                                                        cold.snow_number_collected_by_rain),
+                                                 cold.snow_number_collected_by_hail),
+                                          cold.snow_self_collection),
+                                   cold.collision_number_to_snow),
+                            cold.snow_number_to_graupel),
+                     cold.dt));
+    cold.rates[12] +=
+        value(df_div(df_add(df_sub(df_add(df_add(df_sub(df_add(cold.graupel_number_sublimated,
+                                                               ((enable_hail != 0) ? vec2(0, 0) : cold.nr_to_frozen)),
+                                                        cold.graupel_number_collected_by_rain),
+                                                 cold.collision_number_to_graupel),
+                                          cold.snow_number_to_graupel),
+                                   cold.graupel_number_to_hail),
+                            cold.hail_number_to_graupel),
+                     cold.dt));
+    cold.rates[13] += value(df_div(
+        df_sub(df_add(df_add(df_add(cold.hail_number_sublimated, ((enable_hail != 0) ? cold.nr_to_frozen : vec2(0, 0))),
+                             cold.collision_number_to_hail),
+                      cold.hail_number_from_graupel),
+               cold.hail_number_to_graupel),
+        cold.dt));
+    if (heated_snow)
+    {
+        vec2 mass = df_add(cold.cell[7], df_mul(cold.dt,
+            df_sub(vec2(cold.rates[3], 0), vec2(snow_mass_rate_before, 0))));
+        vec2 number = df_add(cold.cell[13], df_mul(cold.dt, vec2(cold.rates[11], 0)));
+        float stored_mass = value(mass);
+        float stored_number = value(number);
+        if (!finite_value(mass) || ml_greater(vec2(0, 0), mass) ||
+            !finite_value(number) || ml_greater(vec2(0, 0), number) ||
+            (equal_value(mass, vec2(0, 0)) != equal_value(number, vec2(0, 0))) ||
+            isnan(stored_mass) || isinf(stored_mass) || stored_mass < 0.0 ||
+            isnan(stored_number) || isinf(stored_number) || stored_number < 0.0 ||
+            ((stored_mass == 0.0) != (stored_number == 0.0)))
+        {
+            reject_cold_candidate();
+            return;
+        }
+    }
+}
+void evaluate(uint gid)
+{
+    uint cells = uint(nx) * uint(ny) * uint(nz);
+    if (gid >= cells)
+        return;
+    cold.rates[0]  = incoming[0 * cells + gid];
+    o0[gid]        = cold.rates[0];
+    cold.rates[1]  = incoming[1 * cells + gid];
+    o1[gid]        = cold.rates[1];
+    cold.rates[2]  = incoming[2 * cells + gid];
+    o2[gid]        = cold.rates[2];
+    cold.rates[3]  = incoming[3 * cells + gid];
+    o3[gid]        = cold.rates[3];
+    cold.rates[4]  = incoming[4 * cells + gid];
+    o4[gid]        = cold.rates[4];
+    cold.rates[5]  = incoming[5 * cells + gid];
+    o5[gid]        = cold.rates[5];
+    cold.rates[6]  = incoming[6 * cells + gid];
+    o6[gid]        = cold.rates[6];
+    cold.rates[7]  = incoming[7 * cells + gid];
+    o7[gid]        = cold.rates[7];
+    cold.rates[8]  = incoming[8 * cells + gid];
+    o8[gid]        = cold.rates[8];
+    cold.rates[9]  = incoming[9 * cells + gid];
+    o9[gid]        = cold.rates[9];
+    cold.rates[10] = incoming[10 * cells + gid];
+    o10[gid]       = cold.rates[10];
+    cold.rates[11] = incoming[11 * cells + gid];
+    o11[gid]       = cold.rates[11];
+    cold.rates[12] = incoming[12 * cells + gid];
+    o12[gid]       = cold.rates[12];
+    cold.rates[13] = incoming[13 * cells + gid];
+    o13[gid]       = cold.rates[13];
+    int k = int(gid % uint(nz)), j = int(gid / uint(nz) % uint(ny)), i = int(gid / (uint(ny) * uint(nz)));
+    if (i < i_begin || i >= i_end || j < j_begin || j >= j_end || k < k_begin || k >= k_end)
+        return;
+    cold.dt       = vec2(dt_high, dt_low);
+    cold.cell[0]  = vec2(states[0 * cells + gid], 0);
+    cold.cell[1]  = vec2(states[1 * cells + gid], 0);
+    cold.cell[2]  = vec2(states[2 * cells + gid], 0);
+    cold.cell[3]  = vec2(states[3 * cells + gid], 0);
+    cold.cell[4]  = vec2(states[4 * cells + gid], 0);
+    cold.cell[5]  = vec2(states[5 * cells + gid], 0);
+    cold.cell[6]  = vec2(states[6 * cells + gid], 0);
+    cold.cell[7]  = vec2(states[7 * cells + gid], 0);
+    cold.cell[8]  = vec2(states[8 * cells + gid], 0);
+    cold.cell[9]  = vec2(states[9 * cells + gid], 0);
+    cold.cell[10] = vec2(states[10 * cells + gid], 0);
+    cold.cell[11] = vec2(states[11 * cells + gid], 0);
+    cold.cell[12] = vec2(states[12 * cells + gid], 0);
+    cold.cell[13] = vec2(states[13 * cells + gid], 0);
+    cold.cell[14] = vec2(states[14 * cells + gid], 0);
+    cold.cell[15] = vec2(states[15 * cells + gid], 0);
+
+    cold_processes();
+    o0[gid]  = cold.rates[0];
+    o1[gid]  = cold.rates[1];
+    o2[gid]  = cold.rates[2];
+    o3[gid]  = cold.rates[3];
+    o4[gid]  = cold.rates[4];
+    o5[gid]  = cold.rates[5];
+    o6[gid]  = cold.rates[6];
+    o7[gid]  = cold.rates[7];
+    o8[gid]  = cold.rates[8];
+    o9[gid]  = cold.rates[9];
+    o10[gid] = cold.rates[10];
+    o11[gid] = cold.rates[11];
+    o12[gid] = cold.rates[12];
+    o13[gid] = cold.rates[13];
+}
+void main()
+{
+    evaluate(gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * gl_NumWorkGroups.x * gl_WorkGroupSize.x);
+}

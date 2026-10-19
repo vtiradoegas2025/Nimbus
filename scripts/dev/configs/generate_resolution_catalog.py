@@ -1,0 +1,458 @@
+#!/usr/bin/env python3
+"""Generate the public, resolution-first Nimbus configuration catalog."""
+
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[3]
+CONFIG_ROOT = ROOT / "configs"
+RESOLUTIONS_M = (1000, 500, 450, 400, 350, 300, 250, 200, 150, 100, 50)
+SCHEMES = ("dry", "kessler", "lin", "thompson", "milbrandt")
+PROFILES = (
+    "baseline",
+    "radiation",
+    "ysu",
+    "ysu_radiation",
+    "les",
+    "les_radiation",
+    "tke",
+    "tke_radiation",
+)
+
+
+def even_horizontal_cells(resolution_m: int) -> int:
+    """Return an even cell count covering at least the 40 km public domain."""
+    cells = (40_000 + resolution_m - 1) // resolution_m
+    return cells if cells % 2 == 0 else cells + 1
+
+
+def microphysics_block(variant: str) -> str:
+    scheme = "none" if variant == "dry" else variant
+    lines = ["microphysics:", f"  scheme: {scheme}"]
+    if scheme in {"kessler", "lin", "thompson"}:
+        lines.extend(
+            [
+                "  shared:",
+                "    cloud_water_threshold_kgkg: 0.001",
+                "    autoconversion_rate_s_inv: 0.001",
+            ]
+        )
+    if scheme == "kessler":
+        lines.extend(
+            [
+                "  kessler:",
+                "    accretion_coefficient: 2.2",
+                "    evaporation_efficiency: 1.0",
+            ]
+        )
+    elif scheme == "lin":
+        lines.extend(
+            [
+                "  lin:",
+                "    accretion_coefficient: 2.2",
+                "    evaporation_rate_s_inv: 0.001",
+            ]
+        )
+    elif scheme == "thompson":
+        lines.extend(
+            [
+                "  thompson:",
+                "    evaporation_rate_s_inv: 0.001",
+            ]
+        )
+    elif scheme == "milbrandt":
+        lines.extend(
+            [
+                "  milbrandt:",
+                "    hail_processes: true",
+            ]
+        )
+    return "\n".join(lines)
+
+
+def profile_filename(profile: str) -> str:
+    """Return a stable, human-readable filename for one physics profile."""
+    if profile not in PROFILES:
+        raise ValueError(f"unknown public config profile: {profile}")
+    return f"{profile}.yaml"
+
+
+def legacy_variant_filename(microphysics: str, profile: str) -> str:
+    """Return the former flat filename, used only for bounded migration."""
+    suffix = "" if profile == "baseline" else f"_{profile}"
+    return f"{microphysics}{suffix}.yaml"
+
+
+def profile_blocks(profile: str) -> tuple[str, str, str]:
+    """Return turbulence, surface/PBL, and radiation YAML for a profile."""
+    if profile not in PROFILES:
+        raise ValueError(f"unknown public config profile: {profile}")
+
+    uses_radiation = profile.endswith("radiation")
+    vertical_profile = profile.removesuffix("_radiation")
+    if vertical_profile == "radiation":
+        vertical_profile = "baseline"
+
+    if vertical_profile in {"baseline", "ysu"}:
+        pbl_scheme = "slab" if vertical_profile == "baseline" else "ysu"
+        turbulence = """turbulence:
+  scheme: smagorinsky
+  mode: 2d
+  Cs: 0.18
+  Pr_t: 0.3333333333333333
+  Sc_t: 0.3333333333333333"""
+        surface_and_pbl = f"""surface:
+  scheme: slab
+  apply_fluxes: true
+  z0m_m: 0.1
+  z0h_m: 0.01
+  albedo: 0.2
+  emissivity: 0.95
+  tsk_k: 300
+  qsfc_kgkg: 0.014
+
+boundary_layer:
+  scheme: {pbl_scheme}"""
+    else:
+        turbulence_scheme = "smagorinsky" if vertical_profile == "les" else "tke"
+        turbulence = f"""turbulence:
+  scheme: {turbulence_scheme}
+  mode: 3d
+  Cs: 0.18
+  Pr_t: 0.3333333333333333
+  Sc_t: 0.3333333333333333"""
+        radiative_surface = "\n  emissivity: 0.95\n  tsk_k: 300" if uses_radiation else ""
+        surface_and_pbl = f"""surface:
+  scheme: none
+  apply_fluxes: false{radiative_surface}
+
+boundary_layer:
+  scheme: none"""
+
+    radiation_scheme = "simple_grey" if uses_radiation else "none"
+    radiation = f"""radiation:
+  scheme: {radiation_scheme}
+  solar_forcing: idealized_diurnal
+  latitude_deg: 35
+  declination_deg: 15
+  local_solar_time_at_start_h: 12
+  do_lw: true
+  do_sw: true
+  cadence_s: 300
+  clear_sky_only: true
+  tau_lw_ref: 6
+  tau_sw_ref: 0.22
+  n_lw: 4
+  n_sw: 2
+  terrain_sw_cosine_nodes: 4
+  terrain_sw_azimuth_nodes: 8
+  terrain_sw_maximum_bounces: 32
+  terrain_sw_relative_residual_tolerance: 1.0e-10
+  terrain_sw_absolute_residual_tolerance_w: 1.0e-9"""
+    return turbulence, surface_and_pbl, radiation
+
+
+def render_config(resolution_m: int, variant: str, profile: str) -> str:
+    cells = even_horizontal_cells(resolution_m)
+    domain_m = cells * resolution_m
+    center_m = domain_m // 2
+    dt_large = min(2.0, resolution_m / 400.0)
+    lateral_width = max(8, round(10_000 / resolution_m))
+    turbulence, surface_and_pbl, radiation = profile_blocks(profile)
+    return f"""# Generated by scripts/dev/configs/generate_resolution_catalog.py.
+# Horizontal resolution: {resolution_m} m; domain: {domain_m / 1000:g} km square.
+# Microphysics: {variant}; physics profile: {profile}.
+# This is an exploratory user preset, not a qualification fixture.
+schema: nimbus.v1
+
+grid:
+  coordinate_system: cartesian
+  staggering: c_grid
+  nx: {cells}
+  ny: {cells}
+  nz: 64
+  dx: {resolution_m}
+  dy: {resolution_m}
+  dz: 250
+  ztop: 16000
+
+time:
+  run_time: 900
+  dt_large: {dt_large:g}
+  acoustic_substeps: 8
+  adaptive_dt: false
+  cfl_safety: 0.6
+  output_interval: 300
+
+domain_motion:
+  mode: stationary
+  frame_velocity:
+    u_ms: 0
+    v_ms: 0
+  lifetime_planning:
+    enabled: false
+    action: error
+    motion_source: bunkers_right
+    explicit_u_ms: 0
+    explicit_v_ms: 0
+    upstream_buffer_m: 0
+    downstream_buffer_m: 0
+    cross_track_buffer_m: 0
+    motion_uncertainty_ms: 0
+  tracking:
+    enabled: false
+    recycle_domain: false
+    interval_s: 60
+    inner_margin_m: 8000
+    maximum_shift_cells: 0
+    cooldown_s: 300
+    minimum_confidence: 0.8
+    minimum_updraft_ms: 5
+    minimum_condensate_path_kgm2: 0.1
+    updraft_helicity_bottom_m_agl: 2000
+    updraft_helicity_top_m_agl: 5000
+    minimum_absolute_updraft_helicity_m2s2: 25
+    minimum_component_cells: 4
+    minimum_core_area_m2: 1000000
+    maximum_motion_speed_ms: 75
+    maximum_motion_acceleration_ms2: 0.25
+    minimum_continuity_samples: 3
+    lost_after_samples: 3
+    topology_confirmation_samples: 2
+    branch_preference: continuity
+    branch_velocity_uncertainty_ms: 5
+  nesting:
+    enabled: false
+    parent_ratio_x: 3
+    parent_ratio_y: 3
+    parent_time_step_ratio: 3
+    child_origin_parent_cell_i: 0
+    child_origin_parent_cell_j: 0
+    child_cells_x: 0
+    child_cells_y: 0
+    relaxation_width_child_cells: 0
+    boundary_stencil_parent_cells: 1
+    relaxation_e_folding_time_s: 2
+    feedback: one_way
+
+dynamics:
+  scheme: klemp_wilhelmson_split_cartesian_cgrid
+  axisymmetric: false
+
+boundary_conditions:
+  lateral:
+    west: radiative
+    east: radiative
+    south: radiative
+    north: radiative
+  bottom: rigid_slip
+  top: rigid_with_sponge
+
+damping:
+  enabled: true
+  z_d: 12000
+  alpha: 0.05
+  mode: explicit
+  lateral_width: {lateral_width}
+  lateral_alpha: 0.05
+  lateral_sponge_enabled: true
+  w_only_top_sponge: true
+  w_only_depth_cells: 8
+  w_only_alpha_max: 0.2
+
+coriolis:
+  enabled: true
+  mode: f_plane
+  latitude_deg: 35
+
+{microphysics_block(variant)}
+
+{turbulence}
+
+diffusion:
+  scheme: explicit
+  operator_order: 2
+  K_h: 0
+  K_v: 0
+  apply_to: scalars
+
+{surface_and_pbl}
+
+{radiation}
+
+terrain:
+  scheme: none
+  coordinate: btf
+  compute_derivatives: true
+  compute_metrics: true
+  smoothing_decay: 0.1
+  bell:
+    h0: 1000
+    a: 5000
+    axisymmetric: false
+  schar:
+    H: 1000
+    a: 5000
+    ell: 4000
+
+initial_conditions:
+  sounding:
+    type: parametric_cape
+    cape_jkg: 3000
+    tropopause_m: 12000
+    surface_theta_k: 301
+    moisture_qv_kgkg: 0.014
+  hodograph:
+    type: wk_param
+    u_sfc_ms: 4
+    v_sfc_ms: 1
+    u_1km_ms: 14
+    v_1km_ms: 6
+    u_6km_ms: 28
+    v_6km_ms: 22
+  trigger:
+    type: bubble
+    bubble:
+      dtheta_k: 4
+      radius_km: 4
+      center_x_m: {center_m}
+      center_y_m: {center_m}
+      center_z_m: 1500
+    vortex_seed:
+      r_max_m: 6000
+      v_max_ms: 40
+      z_top_m: 6000
+      center_x_m: {center_m}
+      center_y_m: {center_m}
+      center_z_m: 3000
+
+output:
+  preset: minimal
+  format: npy_3d
+  async_io: true
+  live_shm: false
+  live_shm_fields: [w, reflectivity_dbz, vorticity_z]
+  live_shm_interval_s: 1
+  live_shm_full_rate: false
+  qualification_diagnostics:
+    preset: none
+  trajectories: false
+  trajectory_seed_time_s: 300
+  trajectory_count: 5
+  trajectory_sample_interval_s: 10
+  trajectory_max_samples_per_parcel: 2048
+  netcdf_deflate_level: 2
+  netcdf_shuffle: true
+  netcdf_target_chunk_kib: 1024
+  zfp_tolerance: 0
+  zfp_mode: accuracy
+  zfp_precision_bits: 16
+  zfp_rate_bps: 8
+  zfp_keyframe_interval: 0
+  zfp_sparse_threshold: 0
+  zfp_float16_prefilter: false
+  zfp_predictive_delta: false
+  zfp_field_execution: serial
+  zfp_field_workers: 0
+  zfp_field_scratch_mib: 64
+  zfp_per_field_tolerances: false
+  zfp_tight_tolerance: 0.0001
+  zfp_moderate_tolerance: 0.001
+  zfp_loose_tolerance: 0.01
+  tiered_write_cadence: false
+  write_cadence_medium_s: 30
+  write_cadence_slow_s: 60
+  keep_last_frames: 3
+  minimum_free_space_mib: 4096
+  maximum_retained_history_files: 256
+
+extensions:
+  compute:
+    backend: cpu
+    memory_admission: reject
+    allow_fallback: false
+    validate_parity: false
+    gpu_apply_microphysics: true
+    gpu_apply_slow: false
+    gpu_apply_sgs: false
+  solver:
+    slow_rk2: true
+    lid_bc_gamma: -1
+    axis_u_m1_filter: false
+  chaos:
+    scheme: none
+    seed: 0
+    member_id: 0
+  execution:
+    mode: exploratory
+  checkpoint:
+    every_s: 0
+    keep_last: 2
+    minimum_free_space_mib: 4096
+    directory: data/checkpoints
+  validation:
+    guard_mode: warn
+  diagnostics:
+    scientific_every_steps: 10
+    deterministic_reductions: false
+  performance:
+    timing: true
+    report_every_steps: 100
+    warmup_steps: 5
+"""
+
+
+def generate(check: bool) -> int:
+    mismatches: list[str] = []
+    for resolution_m in RESOLUTIONS_M:
+        directory = CONFIG_ROOT / f"{resolution_m}meterResolution"
+        if not check:
+            directory.mkdir(parents=True, exist_ok=True)
+        for scheme in SCHEMES:
+            scheme_directory = directory / scheme
+            if not check:
+                scheme_directory.mkdir(parents=True, exist_ok=True)
+            for profile in PROFILES:
+                path = scheme_directory / profile_filename(profile)
+                legacy_path = directory / legacy_variant_filename(scheme, profile)
+                expected = render_config(resolution_m, scheme, profile)
+                if check:
+                    if not path.is_file() or path.read_text(encoding="utf-8") != expected:
+                        mismatches.append(path.relative_to(ROOT).as_posix())
+                    if legacy_path.is_file():
+                        mismatches.append(
+                            f"{legacy_path.relative_to(ROOT).as_posix()} (legacy flat path)"
+                        )
+                else:
+                    path.write_text(expected, encoding="utf-8")
+                    # Remove only filenames previously owned by this generator;
+                    # arbitrary user YAML at the resolution root is untouched.
+                    if legacy_path.is_file():
+                        legacy_path.unlink()
+    if mismatches:
+        print("Public config catalog is stale:")
+        for path in mismatches:
+            print(f"  {path}")
+        return 1
+    if not check:
+        print(
+            f"Generated {len(RESOLUTIONS_M) * len(SCHEMES) * len(PROFILES)} "
+            "configs across "
+            f"{len(RESOLUTIONS_M)} resolution folders."
+        )
+    return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--check", action="store_true", help="fail if checked-in configs differ"
+    )
+    return generate(parser.parse_args().check)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

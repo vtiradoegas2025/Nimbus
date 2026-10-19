@@ -1,0 +1,87 @@
+name: Windows physical parity qualification
+
+on:
+  workflow_dispatch:
+    inputs:
+      architecture:
+        description: Native Windows architecture to qualify
+        required: true
+        default: X64
+        type: choice
+        options:
+          - X64
+          - ARM64
+
+# This lane is intentionally manual and fail-closed. GitHub-hosted Windows
+# runners do not promise a physical Vulkan/WebGPU device, so release evidence
+# belongs on a labelled native Windows machine owned by the project. The label
+# also promises an interactive desktop session; a service-only runner cannot
+# provide truthful WebView2/Edge frame-time evidence.
+jobs:
+  native-windows-gpu:
+    name: Vulkan + WebGPU + Studio (physical Windows ${{ inputs.architecture }})
+    runs-on: [self-hosted, Windows, "${{ inputs.architecture }}", nimbus-windows-gpu]
+    timeout-minutes: 480
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the complete UI-first Windows product
+        shell: pwsh
+        run: .\scripts\setup.ps1 -Yes
+
+      - name: Seal the native Vulkan engine qualification
+        shell: pwsh
+        run: |
+          $env:NIMBUS_WINDOWS_ROOT = $env:GITHUB_WORKSPACE
+          if ('${{ inputs.architecture }}' -eq 'ARM64') {
+            $env:NIMBUS_WINDOWS_PREFIX = Join-Path $env:GITHUB_WORKSPACE "build\windows-prefix-arm64"
+            $MsysEnvironment = '-clangarm64'
+          } else {
+            $env:NIMBUS_WINDOWS_PREFIX = Join-Path $env:GITHUB_WORKSPACE "build\windows-prefix"
+            $MsysEnvironment = '-ucrt64'
+          }
+          & C:\msys64\msys2_shell.cmd -defterm -no-start $MsysEnvironment -here -c 'cd "$(cygpath -u "$NIMBUS_WINDOWS_ROOT")" && prefix="$(cygpath -u "$NIMBUS_WINDOWS_PREFIX")" && make REQUIRE_FULL_STACK=1 ZFP_PREFIX="$prefix" NETCDF=1 qualify-vulkan-evidence'
+          if ($LASTEXITCODE -ne 0) { throw "Physical Windows Vulkan qualification failed." }
+
+      - name: Prove hardware WebGPU renderer reconstruction and pixels
+        shell: pwsh
+        working-directory: ui
+        run: |
+          $Edge = @(
+            "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe",
+            "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe"
+          ) | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
+          if (-not $Edge) { throw "Microsoft Edge WebGPU runtime is unavailable." }
+          $env:NIMBUS_WEBGPU_HARDWARE = "1"
+          $env:NIMBUS_WEBGPU_EXECUTABLE = $Edge
+          & npx playwright test ../tests/ui/browser/specs/webgpu-hardware.spec.ts --project=chromium-webgpu-hardware
+          if ($LASTEXITCODE -ne 0) { throw "Physical Windows WebGPU qualification failed." }
+
+      - name: Measure physical Windows 3D interaction responsiveness
+        shell: pwsh
+        working-directory: ui
+        run: |
+          $Edge = @(
+            "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe",
+            "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe"
+          ) | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
+          if (-not $Edge) { throw "Microsoft Edge hardware runtime is unavailable." }
+          $env:NIMBUS_WINDOWS_UI_PERFORMANCE = "1"
+          $env:NIMBUS_WEBGPU_EXECUTABLE = $Edge
+          & npx playwright test ../tests/ui/browser/specs/supercell-responsiveness.spec.ts --project=chromium-windows-hardware-performance
+          if ($LASTEXITCODE -ne 0) { throw "Physical Windows 3D responsiveness qualification failed." }
+
+      - name: Upload immutable qualification evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: nimbus-windows-${{ inputs.architecture }}-physical-parity
+          path: |
+            reports/qualification/vulkan-qualification-current.json
+            reports/qualification/vulkan-qualification-current.log
+            reports/qualification/vulkan-combination-matrix-current.json
+            ui/build/qualification/webgpu-hardware/**
+            ui/build/test-results/playwright/**
+            ui/build/playwright-report/**
+            ui/src-tauri/target/release/bundle/nsis/*-setup.exe
+          if-no-files-found: error
+          retention-days: 30

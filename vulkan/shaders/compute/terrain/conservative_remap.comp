@@ -1,0 +1,222 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_spirv_intrinsics : require
+spirv_execution_mode(extensions = ["SPV_KHR_float_controls"], capabilities = [4466], 4461, 32);
+spirv_execution_mode(extensions = ["SPV_KHR_float_controls"], capabilities = [4467], 4462, 32);
+layout(local_size_x = 64) in;
+layout(set = 0, binding = 0) readonly buffer B0
+{
+    float value_high[];
+};
+layout(set = 0, binding = 1) readonly buffer B1
+{
+    float value_low[];
+};
+layout(set = 0, binding = 2) readonly buffer B2
+{
+    float density_begin[];
+};
+layout(set = 0, binding = 3) readonly buffer B3
+{
+    float density_end[];
+};
+layout(set = 0, binding = 4) readonly buffer B4
+{
+    float old_volume_high[];
+};
+layout(set = 0, binding = 5) readonly buffer B5
+{
+    float old_volume_low[];
+};
+layout(set = 0, binding = 6) readonly buffer B6
+{
+    float new_volume_high[];
+};
+layout(set = 0, binding = 7) readonly buffer B7
+{
+    float new_volume_low[];
+};
+layout(set = 0, binding = 8) readonly buffer B8
+{
+    float west_high[];
+};
+layout(set = 0, binding = 9) readonly buffer B9
+{
+    float west_low[];
+};
+layout(set = 0, binding = 10) readonly buffer B10
+{
+    float east_high[];
+};
+layout(set = 0, binding = 11) readonly buffer B11
+{
+    float east_low[];
+};
+layout(set = 0, binding = 12) readonly buffer B12
+{
+    float south_high[];
+};
+layout(set = 0, binding = 13) readonly buffer B13
+{
+    float south_low[];
+};
+layout(set = 0, binding = 14) readonly buffer B14
+{
+    float north_high[];
+};
+layout(set = 0, binding = 15) readonly buffer B15
+{
+    float north_low[];
+};
+layout(set = 0, binding = 16) writeonly buffer B16
+{
+    float result_high[];
+};
+layout(set = 0, binding = 17) writeonly buffer B17
+{
+    float result_low[];
+};
+layout(set = 0, binding = 18) writeonly buffer B18
+{
+    float initial_high[];
+};
+layout(set = 0, binding = 19) writeonly buffer B19
+{
+    float initial_low[];
+};
+layout(set = 0, binding = 20) writeonly buffer B20
+{
+    float final_high[];
+};
+layout(set = 0, binding = 21) writeonly buffer B21
+{
+    float final_low[];
+};
+layout(set = 0, binding = 22) writeonly buffer B22
+{
+    float boundary_high[];
+};
+layout(set = 0, binding = 23) writeonly buffer B23
+{
+    float boundary_low[];
+};
+layout(set = 0, binding = 24) writeonly buffer B24
+{
+    float rounding_high[];
+};
+layout(set = 0, binding = 25) writeonly buffer B25
+{
+    float rounding_low[];
+};
+layout(push_constant) uniform PushConstants
+{
+    int nx;
+    int ny;
+    int nz;
+    int mixing_ratio;
+    int store_float;
+    int lower_bound;
+};
+#include "../microphysics/compensated_fma.glsl"
+#include "compensated_storage.glsl"
+vec2 source_value(int n, bool scaled)
+{
+    return scaled ? vec2(scale_component(value_high[n]), scale_component(value_low[n]))
+                  : vec2(value_high[n], value_low[n]);
+}
+vec2 currency(int n, bool scaled)
+{
+    vec2 value = source_value(n, scaled);
+    return mixing_ratio != 0 ? df_mul(value, vec2(density_begin[n], 0)) : value;
+}
+bool negative(vec2 value)
+{
+    return value.x < 0 || (value.x == 0 && value.y < 0);
+}
+void evaluate(uint gid)
+{
+    if (gid >= uint(nx) * uint(ny) * uint(nz))
+        return;
+    int n = int(gid), i = n / (ny * nz), j = (n / nz) % ny;
+    result_high[n]   = value_high[n];
+    result_low[n]    = value_low[n];
+    initial_high[n]  = 0;
+    initial_low[n]   = 0;
+    final_high[n]    = 0;
+    final_low[n]     = 0;
+    boundary_high[n] = 0;
+    boundary_low[n]  = 0;
+    rounding_high[n] = 0;
+    rounding_low[n]  = 0;
+    if (i == 0 || i == nx - 1 || j == 0 || j == ny - 1)
+        return;
+    vec2 old_volume = vec2(old_volume_high[n], old_volume_low[n]);
+    vec2 new_volume = vec2(new_volume_high[n], new_volume_low[n]);
+    vec2 west = -vec2(west_high[n], west_low[n]), east = -vec2(east_high[n], east_low[n]);
+    vec2 south = -vec2(south_high[n], south_low[n]), north = -vec2(north_high[n], north_low[n]);
+    int  west_donor  = !negative(west) && (west.x != 0 || west.y != 0) ? n - ny * nz : n;
+    int  south_donor = !negative(south) && (south.x != 0 || south.y != 0) ? n - nz : n;
+    int  east_donor  = negative(east) ? n + ny * nz : n;
+    int  north_donor = negative(north) ? n + nz : n;
+    uint largest     = floatBitsToUint(value_high[n]) & 0x7fffffffu;
+    largest          = max(largest, floatBitsToUint(value_high[west_donor]) & 0x7fffffffu);
+    largest          = max(largest, floatBitsToUint(value_high[east_donor]) & 0x7fffffffu);
+    largest          = max(largest, floatBitsToUint(value_high[south_donor]) & 0x7fffffffu);
+    largest          = max(largest, floatBitsToUint(value_high[north_donor]) & 0x7fffffffu);
+    bool scaled      = largest != 0u && largest < 0x21800000u;
+    vec2 initial     = df_mul(currency(n, scaled), old_volume);
+    vec2 inventory = initial, boundary = vec2(0);
+    vec2 xminus = -df_mul(west, currency(west_donor, scaled));
+    vec2 yminus = -df_mul(south, currency(south_donor, scaled));
+    vec2 xplus  = df_mul(east, currency(east_donor, scaled));
+    vec2 yplus  = df_mul(north, currency(north_donor, scaled));
+    inventory   = df_sub(inventory, xminus);
+    inventory   = df_sub(inventory, yminus);
+    inventory   = df_sub(inventory, xplus);
+    inventory   = df_sub(inventory, yplus);
+    if (i == 1)
+        boundary = df_add(boundary, xminus);
+    if (j == 1)
+        boundary = df_add(boundary, yminus);
+    if (i == nx - 2)
+        boundary = df_add(boundary, xplus);
+    if (j == ny - 2)
+        boundary = df_add(boundary, yplus);
+    vec2 denominator = mixing_ratio != 0 ? df_mul(new_volume, vec2(density_end[n], 0)) : new_volume;
+    vec2 value       = df_div(inventory, denominator);
+    bool unchanged   = west.x == 0 && west.y == 0 && east.x == 0 && east.y == 0 && south.x == 0 && south.y == 0 &&
+                       north.x == 0 && north.y == 0 && old_volume.x == new_volume.x && old_volume.y == new_volume.y &&
+                       (mixing_ratio == 0 || density_begin[n] == density_end[n]);
+    if (unchanged)
+        value = source_value(n, scaled);
+    vec2 physical_value = unscale(value, scaled);
+    if (store_float != 0)
+    {
+        physical_value =
+            vec2(physical_value.y == 0 ? physical_value.x : fma(1.0, physical_value.x, physical_value.y), 0);
+    }
+    value = scaled ? vec2(scale_component(physical_value.x), scale_component(physical_value.y)) : physical_value;
+    if ((lower_bound > 0 && negative(value)) || (lower_bound == 2 && value.x == 0 && value.y == 0))
+        value = vec2(uintBitsToFloat(0x7fc00000u));
+    vec2 final_inventory = df_mul(value, denominator);
+    vec2 rounding        = df_sub(final_inventory, inventory);
+    physical_value       = unscale(value, scaled);
+    initial              = unscale(initial, scaled);
+    final_inventory      = unscale(final_inventory, scaled);
+    boundary             = unscale(boundary, scaled);
+    rounding             = unscale(rounding, scaled);
+    result_high[n]       = physical_value.x;
+    result_low[n]        = physical_value.y;
+    initial_high[n]      = initial.x;
+    initial_low[n]       = initial.y;
+    final_high[n]        = final_inventory.x;
+    final_low[n]         = final_inventory.y;
+    boundary_high[n]     = boundary.x;
+    boundary_low[n]      = boundary.y;
+    rounding_high[n]     = rounding.x;
+    rounding_low[n]      = rounding.y;
+}
+void main()
+{
+    evaluate(gl_GlobalInvocationID.x);
+}

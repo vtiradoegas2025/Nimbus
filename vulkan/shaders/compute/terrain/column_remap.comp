@@ -1,0 +1,177 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_spirv_intrinsics : require
+spirv_execution_mode(extensions = ["SPV_KHR_float_controls"], capabilities = [4466], 4461, 32);
+spirv_execution_mode(extensions = ["SPV_KHR_float_controls"], capabilities = [4467], 4462, 32);
+layout(local_size_x = 64) in;
+layout(set = 0, binding = 0) readonly buffer B0
+{
+    float input_values[];
+};
+layout(set = 0, binding = 1) writeonly buffer B1
+{
+    float output_values[];
+};
+layout(push_constant) uniform PushConstants
+{
+    int   nx;
+    int   ny;
+    int   nz;
+    int   mode;
+    float sx_high;
+    float sx_low;
+    float sy_high;
+    float sy_low;
+};
+#include "../microphysics/compensated_fma.glsl"
+#include "compensated_storage.glsl"
+float store_scaled(vec2 value, int exponent)
+{
+    if (any(isnan(value)) || any(isinf(value)))
+        return uintBitsToFloat(0x7fc00000u);
+    if (abs(value.x) >= ldexp(1.0, -125 - exponent))
+        return ldexp(value.y == 0 ? value.x : fma(1.0, value.x, value.y), exponent);
+    if (exponent < -150)
+        return 0;
+    uint sign  = floatBitsToUint(value.x) & 0x80000000u;
+    vec2 units = df_mul(sign == 0u ? value : -value, vec2(ldexp(1.0, exponent + 149), 0));
+    // Apply very small exponents in two steps to keep the scaling factor representable.
+    if (exponent + 149 < -126)
+        units =
+            df_mul(df_mul(sign == 0u ? value : -value, vec2(ldexp(1.0, exponent + 275), 0)), vec2(ldexp(1.0, -126), 0));
+    return round_storage_units(units, sign);
+}
+float normalize_stored(float value, int exponent)
+{
+    if (value == 0)
+        return 0;
+    uint bits = floatBitsToUint(value), magnitude = bits & 0x7fffffffu;
+    if (magnitude < 0x00800000u)
+    {
+        float normal = ldexp(float(magnitude), -149 - exponent);
+        return (bits & 0x80000000u) != 0u ? -normal : normal;
+    }
+    return ldexp(value, -exponent);
+}
+struct Scaled
+{
+    vec2 fraction;
+    int  exponent;
+};
+Scaled normalized(vec2 fraction, int exponent)
+{
+    Scaled result;
+    int    shift = 0;
+    if (fraction.x != 0)
+        frexp(fraction.x, shift);
+    result.fraction = vec2(ldexp(fraction.x, -shift), ldexp(fraction.y, -shift));
+    result.exponent = fraction.x == 0 ? 0 : exponent + shift;
+    return result;
+}
+Scaled value(int n, int channel)
+{
+    return normalized(vec2(input_values[9 * n + 2 * channel], input_values[9 * n + 2 * channel + 1]),
+                      int(input_values[9 * n + 6 + channel]));
+}
+Scaled product(Scaled a, Scaled b)
+{
+    return normalized(df_mul(a.fraction, b.fraction), a.exponent + b.exponent);
+}
+Scaled currency(int n, int channel)
+{
+    Scaled result = value(n, channel);
+    return mode == 2 && channel > 0 ? product(value(n, 0), result) : result;
+}
+vec2 aligned(Scaled value, int exponent)
+{
+    int shift = value.exponent - exponent;
+    // Below pair precision, this term cannot affect a nonzero larger operand.
+    if (shift < -100)
+        return vec2(0);
+    return vec2(ldexp(value.fraction.x, shift), ldexp(value.fraction.y, shift));
+}
+Scaled sum(Scaled a, Scaled b)
+{
+    if (a.fraction.x == 0)
+        return b;
+    if (b.fraction.x == 0)
+        return a;
+    int exponent = max(a.exponent, b.exponent);
+    return normalized(df_add(aligned(a, exponent), aligned(b, exponent)), exponent);
+}
+bool smaller(Scaled a, Scaled b)
+{
+    if (a.fraction.x == 0)
+        return b.fraction.x != 0;
+    if (b.fraction.x == 0)
+        return false;
+    return a.exponent < b.exponent || (a.exponent == b.exponent && abs(a.fraction.x) < abs(b.fraction.x));
+}
+Scaled remap(int n, int x, int y, int channel, vec2 ax, vec2 ay)
+{
+    vec2   weight = df_sub(df_sub(vec2(1, 0), ax), ay);
+    Scaled a      = product(normalized(weight, 0), currency(n, channel));
+    Scaled b      = product(normalized(ax, 0), currency(x, channel));
+    Scaled c      = product(normalized(ay, 0), currency(y, channel));
+    // Cancel the largest terms first so a much smaller third donor survives.
+    if (smaller(a, b))
+    {
+        Scaled temporary = a;
+        a                = b;
+        b                = temporary;
+    }
+    if (smaller(b, c))
+    {
+        Scaled temporary = b;
+        b                = c;
+        c                = temporary;
+    }
+    return sum(sum(a, b), c);
+}
+void write_pair(int n, int channel, Scaled result)
+{
+    output_values[11 * n + 2 * channel]     = result.fraction.x;
+    output_values[11 * n + 2 * channel + 1] = result.fraction.y;
+    output_values[11 * n + 8 + channel]     = float(result.exponent);
+}
+void evaluate(uint gid)
+{
+    if (gid >= uint(nx) * uint(ny) * uint(nz))
+        return;
+    int  n = int(gid), i = n / (ny * nz), j = (n / nz) % ny, k = n % nz;
+    int  ix = clamp(i + (sx_high >= 0 ? 1 : -1), 0, nx - 1), jy = clamp(j + (sy_high >= 0 ? 1 : -1), 0, ny - 1);
+    int  x = (ix * ny + j) * nz + k, y = (i * ny + jy) * nz + k;
+    vec2 ax = vec2(sx_high, sx_low), ay = vec2(sy_high, sy_low);
+    if (ax.x < 0)
+        ax = -ax;
+    if (ay.x < 0)
+        ay = -ay;
+    bool   stationary = sx_high == 0 && sx_low == 0 && sy_high == 0 && sy_low == 0;
+    Scaled h          = stationary ? value(n, 0) : remap(n, x, y, 0, ax, ay);
+    write_pair(n, 0, h);
+    for (int channel = 1; channel < 3; ++channel)
+    {
+        Scaled result = normalized(vec2(0), 0);
+        if (mode == 2)
+        {
+            Scaled inventory = remap(n, x, y, channel, ax, ay);
+            result = stationary ? value(n, channel)
+                                : normalized(df_div(inventory.fraction, h.fraction), inventory.exponent - h.exponent);
+        }
+        write_pair(n, channel, result);
+    }
+    output_values[11 * n + 6] = 0;
+    output_values[11 * n + 7] = 0;
+    if (mode == 0 || mode == 3)
+    {
+        float high                = store_scaled(h.fraction, h.exponent);
+        output_values[11 * n + 6] = high;
+        if (mode == 3)
+            output_values[11 * n + 7] =
+                store_scaled(df_sub(h.fraction, vec2(normalize_stored(high, h.exponent), 0)), h.exponent);
+    }
+}
+void main()
+{
+    evaluate(gl_GlobalInvocationID.x);
+}

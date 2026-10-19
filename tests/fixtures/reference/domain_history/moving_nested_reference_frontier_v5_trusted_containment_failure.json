@@ -1,0 +1,120 @@
+{
+  "schema": "nimbus.qualification.moving_nested_reference_frontier.movement_failure",
+  "schema_version": 1,
+  "status": "invalid",
+  "qualification_disposition": "incomplete",
+  "qualification_eligible": false,
+  "reason": "trusted_envelope_rejected_when_release_box_unattainable",
+  "scope": "ratified-v5 fixed-aperture same-equation frontier",
+  "campaign_root": "/private/tmp/nimbus_moving_reference_frontier_v5_20260812",
+  "comparison_performed": false,
+  "candidate_metric_values_inspected": false,
+  "frozen_inputs": {
+    "binary": {
+      "bytes": 6163776,
+      "sha256": "f52b5595593e35a4a81ba123946b1cffffeae126e69717d4d9eb605556e36618"
+    },
+    "moving_config_sha256": "c86663caaee2c1217d300809713fd5e3856ae141561aae256437267c8f2287f0",
+    "reference_config_sha256": "df57ab348dcb742177a9e3ae4740ebeed6ee18540cb26e296db8604c3b1f8925",
+    "policy": {
+      "path": "../../tests/qualification/fixtures/moving_nested_supercell_reference_frontier_v5.json",
+      "sha256": "1f12775281252f3e82792ef6400d277bd1bbd182c173c54f2dfe5c2779bc58a1",
+      "schema_version": 5,
+      "policy_id": "moving-nested-reference-frontier-v5-max-safe-projected-shift-amendment"
+    },
+    "threshold_policy_sha256": "130f39702e3c2d05823c98b6ba40dab5efe42d745e3766ffe55099fe32e76229",
+    "geometry_plan_sha256": "59ba6ddbb2f17e27f0287d565b28d814420dce87c9152a904e555a8cb0fd559c",
+    "qualification_aperture_sha256": "969ae21f9369d8d414fe9eea18208c3586a31faf21596125f7288a0c0779f6a9",
+    "extractor_sha256": "8b6d92b329b6c654eb15e3612fc52ab797ceae9f4b749db3443efb3c9884cae1",
+    "comparator_sha256": "ce58e0fb6383d865a241db4dcfe3267cb444b966b4ba32dce1fb0e330c533b50"
+  },
+  "completed_reference": {
+    "duration_s": 4500,
+    "tracker_samples": 150,
+    "diagnostic_samples": 150,
+    "runtime_log_sha256": "e0bcf63b37c242a2aa5f161a874e346ed53fad4eb355afe02b822d8bf5574508",
+    "run_manifest_sha256": "5508b76770f15bbdf398991abd8516fc42b2d95c6f1ecf63b059cca845582b0b",
+    "final_checkpoint": {
+      "simulation_time_s": 4500,
+      "completed_steps": 6000,
+      "bytes": 431767130,
+      "sha256": "be12944ca2c9eb81b61ee02a6e795dd6dd8ae61afe82a7c58547de1c8dd5e543",
+      "fnv1a64": "1ba477d4eda51009",
+      "sidecar_sha256": "3d35a0af5e63954f85c13101444cbaeacecb8fbbb609410ea8867c11205659d2"
+    }
+  },
+  "moving_failure": {
+    "runtime_log": {
+      "bytes": 14075023,
+      "sha256": "3732ed4f4b0b02bf625c54fe857c3b414951eb275ce91c0660da62c28cef9f58"
+    },
+    "scientific_invalidity": {
+      "bytes": 372,
+      "sha256": "5386b82b8520918b516f4efacead6b80da0cf79741549c9346390ca1d549fffe",
+      "simulation_time_s": 3540,
+      "completed_step": 2360,
+      "reason": "unresolved_breached_face"
+    },
+    "published_coverage": {
+      "tracker_samples": 118,
+      "tracker_last_time_s": 3540,
+      "diagnostic_samples": 117,
+      "diagnostic_last_time_s": 3510,
+      "invalid_step_history_or_checkpoint_published": false
+    },
+    "latest_restart_safe_checkpoint": {
+      "simulation_time_s": 3150,
+      "completed_steps": 2100,
+      "bytes": 253294210,
+      "sha256": "2de075f446990a842c86171e80e675d9c0e8cde1dff206d59308d78371640e1a",
+      "fnv1a64": "59dd8d1ead013469",
+      "sidecar_sha256": "202360dfe38fd72c70a4b257e1f6a780a4277302e8722477320ac8dc16249489"
+    }
+  },
+  "forensic_sequence": [
+    {
+      "simulation_time_s": 3510,
+      "tracker_sha256": "1bd79abf8dc502a1c5bfd52b812c9fd46e1a2729a02eb889747f9ad07b68db87",
+      "selected_clearance_m": {"west": 34200, "east": 11400, "south": 37800, "north": 9600},
+      "signed_face_velocity_ms": {"west": 20, "east": 440, "south": 0, "north": 320},
+      "movement_status": "requested",
+      "movement_reason": "projected_relaxation_risk",
+      "committed_shift_parent_cells": {"i": 14, "j": 14},
+      "movement_sequence": 3,
+      "post_shift_current_clearance_m": {"west": 17400, "east": 28200, "south": 21000, "north": 26400}
+    },
+    {
+      "simulation_time_s": 3540,
+      "tracker_sha256": "432c8d99cefb26b30b38ea804cab69972169fae689beba2a56ae5625266e58c9",
+      "selected_clearance_m": {"west": 18000, "east": 9000, "south": 21600, "north": 23400},
+      "signed_face_velocity_ms": {"west": 20, "east": 640, "south": 20, "north": 100},
+      "relaxation_width_m": {"x": 4800, "y": 4800},
+      "inner_trigger_margin_m": 15600,
+      "release_margin_m": 16800,
+      "trusted_interior": true,
+      "movement_status": "ineligible",
+      "movement_reason": "opposite_release_margin_insufficient",
+      "scientific_status": "invalid",
+      "scientific_reason": "unresolved_breached_face"
+    }
+  ],
+  "failure_classification": {
+    "class": "trusted_interior_conflated_with_release_hysteresis",
+    "v7_maximum_safe_projected_shift_executed": true,
+    "v7_shift_transaction_succeeded": true,
+    "original_v4_relaxation_entry_repaired": true,
+    "continuity_branch_jump": false,
+    "declared_topology_reorganization": false,
+    "all_current_faces_outside_relaxation": true,
+    "full_release_box_attainable": false,
+    "best_balancing_shift_parent_cells": {"i": 4, "j": 0},
+    "best_balanced_current_clearance_m": {"west": 13200, "east": 13800, "south": 21600, "north": 23400},
+    "intended_repair": "when the full release box is unattainable but the tracked envelope remains outside relaxation, admit an immediate whole-parent-cell containment move that maximizes the minimum clearance; reserve scientific invalidity for actual trusted-interior loss or an unrepairable current placement"
+  },
+  "limitations": [
+    "The moving branch is invalid and incomplete; the complete reference cannot make it comparable.",
+    "No moving/reference series or comparison report was produced, and no candidate metric value was inspected.",
+    "The proposed balancing shift is a current-containment diagnosis, not a qualification result or a claim that the next observed envelope will fit.",
+    "This evidence does not alter v2 numerical thresholds, geometry, aperture, measurement cadence, or public moving_nest status."
+  ]
+}

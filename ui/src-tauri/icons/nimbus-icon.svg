@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="face" x1="146" y1="92" x2="866" y2="936" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#263440"/>
+      <stop offset="0.48" stop-color="#16212b"/>
+      <stop offset="1" stop-color="#090f15"/>
+    </linearGradient>
+    <linearGradient id="storm" x1="424" y1="218" x2="516" y2="730" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f7fafb"/>
+      <stop offset="0.42" stop-color="#cbd3d8"/>
+      <stop offset="0.72" stop-color="#8b969e"/>
+      <stop offset="1" stop-color="#4c5862"/>
+    </linearGradient>
+    <linearGradient id="tower" x1="424" y1="360" x2="463" y2="792" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#dfe5e8"/>
+      <stop offset="0.58" stop-color="#9ba6ad"/>
+      <stop offset="1" stop-color="#56626b"/>
+    </linearGradient>
+    <linearGradient id="funnel" x1="478" y1="631" x2="488" y2="840" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#aeb8be"/>
+      <stop offset="0.56" stop-color="#707c84"/>
+      <stop offset="1" stop-color="#d4dadd"/>
+    </linearGradient>
+    <linearGradient id="bolt" x1="748" y1="444" x2="681" y2="701" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fff7a5"/>
+      <stop offset="0.38" stop-color="#ffe363"/>
+      <stop offset="1" stop-color="#f5b82e"/>
+    </linearGradient>
+    <linearGradient id="monogram" x1="205" y1="701" x2="371" y2="858" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f6f8f9"/>
+      <stop offset="1" stop-color="#aeb9c0"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="28" stdDeviation="34" flood-color="#03070b" flood-opacity="0.48"/>
+    </filter>
+    <filter id="storm-shadow" x="-20%" y="-20%" width="150%" height="160%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#02060a" flood-opacity="0.58"/>
+    </filter>
+    <filter id="bolt-glow" x="-80%" y="-40%" width="260%" height="200%">
+      <feDropShadow dx="0" dy="0" stdDeviation="13" flood-color="#ffd84f" flood-opacity="0.55"/>
+    </filter>
+    <clipPath id="face-clip">
+      <rect x="64" y="64" width="896" height="896" rx="208"/>
+    </clipPath>
+  </defs>
+
+  <g filter="url(#shadow)">
+    <rect x="64" y="64" width="896" height="896" rx="208" fill="url(#face)"/>
+    <rect x="66" y="66" width="892" height="892" rx="206" fill="none" stroke="#ffffff" stroke-opacity="0.12" stroke-width="4"/>
+  </g>
+
+  <g clip-path="url(#face-clip)">
+    <path d="M78 823C246 803 354 812 472 828C600 845 742 846 961 811V962H63Z" fill="#070b10"/>
+    <path d="M79 824C250 804 370 814 481 829C617 848 754 844 960 812" fill="none" stroke="#66717a" stroke-opacity="0.44" stroke-width="8" stroke-linecap="round"/>
+
+    <g filter="url(#storm-shadow)">
+      <!-- One continuous supercell silhouette: overshooting top, anvil, tower, wall cloud. -->
+      <path
+        d="M123 445C151 391 210 357 276 355C292 299 342 258 402 258C425 216 469 192 515 199C556 205 586 231 600 268C635 269 667 285 687 311C747 308 800 324 829 356C873 361 909 386 920 420C894 449 844 458 784 452C749 475 700 483 649 469C613 492 560 493 522 468C490 491 444 495 404 477C372 506 323 514 277 496C241 514 196 507 166 483C141 476 125 463 123 445Z"
+        fill="url(#storm)"
+      />
+      <path
+        d="M310 389C331 344 374 316 426 315C477 315 516 347 531 391C551 448 535 516 505 566C482 605 465 653 463 713C423 721 383 711 355 686C367 629 361 583 339 544C316 501 296 444 310 389Z"
+        fill="url(#tower)"
+      />
+      <path
+        d="M373 555C403 538 446 538 480 557C507 546 545 551 566 575C560 607 529 625 490 624C466 646 425 647 397 625C369 622 349 607 347 584C350 571 359 562 373 555Z"
+        fill="#737f87"
+      />
+      <path
+        d="M447 611C463 601 490 601 507 612C504 638 495 662 490 688C484 720 486 758 478 816C463 785 455 757 459 727C463 696 472 667 469 641C460 633 452 623 447 611Z"
+        fill="url(#funnel)"
+      />
+
+      <!-- Sparse shading carries the terminal artwork's ice-to-core greyscale ramp. -->
+      <path d="M171 414C260 376 366 385 439 418C514 452 613 443 690 397C760 355 840 372 891 411C827 406 770 417 717 444C641 482 550 482 476 448C380 405 281 410 171 444Z" fill="#ffffff" opacity="0.17"/>
+      <path d="M329 383C363 349 411 340 448 357C413 390 395 437 400 497C372 476 349 438 329 383Z" fill="#ffffff" opacity="0.21"/>
+      <path d="M529 434C613 435 699 409 760 374C812 377 855 390 888 416C814 417 756 435 698 461C636 480 577 468 529 434Z" fill="#5d6973" opacity="0.42"/>
+      <path d="M278 471C314 486 356 492 394 481C376 527 371 568 380 610C342 586 310 539 278 471Z" fill="#4a5660" opacity="0.48"/>
+    </g>
+
+    <path d="M747 439L691 566H741L668 711L690 594H638L708 439Z" fill="url(#bolt)" filter="url(#bolt-glow)"/>
+    <ellipse cx="478" cy="819" rx="38" ry="11" fill="#8d989f" opacity="0.58"/>
+
+    <!-- Compact Nimbus monogram, deliberately secondary to the storm. -->
+    <path d="M674 838V704L841 838V704" fill="none" stroke="url(#monogram)" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

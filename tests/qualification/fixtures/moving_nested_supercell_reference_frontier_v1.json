@@ -1,0 +1,96 @@
+{
+  "schema": "nimbus.qualification.moving_nested_reference_frontier.policy",
+  "schema_version": 1,
+  "policy_id": "moving-nested-reference-frontier-v1-draft",
+  "policy_status": "measurement_only",
+  "scope": "same-equation 600 m moving-child versus oversized stationary Nimbus reference",
+  "required_metric_families": [
+    "path",
+    "intensity",
+    "cold_pool",
+    "precipitation"
+  ],
+  "expected_contract": {
+    "coordinate_frame": "earth_absolute",
+    "detector_algorithm": "updraft_core_watershed_condensate_rotation_branches_v5",
+    "continuity_algorithm": "fixed_window_temporal_branch_association_v5",
+    "moving_tracking_source": "synchronized_nested_child",
+    "reference_tracking_source": "oversized_stationary_reference",
+    "moving_movement_algorithm": "qualified_envelope_hysteresis_v5",
+    "comparison_region": "moving_child_trusted_interior",
+    "relaxation_exclusion_cells": 8,
+    "horizontal_grid_spacing_m": {
+      "x": 600.0,
+      "y": 600.0
+    },
+    "sample_start_s": 30.0,
+    "sample_interval_s": 30.0,
+    "duration_s": 4500.0
+  },
+  "coverage_thresholds": {
+    "minimum_paired_selected_fraction": 0.95,
+    "maximum_consecutive_unpaired_samples": 2,
+    "require_final_paired_sample": true
+  },
+  "metric_thresholds": {
+    "path": {
+      "rmse_m": 6000.0,
+      "p95_m": 10000.0,
+      "maximum_m": 15000.0,
+      "final_m": 10000.0
+    },
+    "intensity": {
+      "maximum_updraft_normalized_rmse": 0.25,
+      "maximum_updraft_peak_relative_error": 0.30,
+      "maximum_updraft_peak_time_error_s": 300.0,
+      "maximum_absolute_uh_normalized_rmse": 0.30,
+      "maximum_absolute_uh_peak_relative_error": 0.35,
+      "maximum_absolute_uh_peak_time_error_s": 300.0,
+      "updraft_scale_floor_ms": 5.0,
+      "uh_scale_floor_m2s2": 25.0
+    },
+    "cold_pool": {
+      "area_normalized_rmse": 0.30,
+      "integrated_deficit_normalized_rmse": 0.30,
+      "minimum_theta_rho_perturbation_rmse_k": 2.0,
+      "centroid_rmse_m": 6000.0,
+      "area_scale_floor_m2": 1000000.0,
+      "integrated_deficit_scale_floor_k_m2": 1000000.0,
+      "minimum_active_samples": 1
+    },
+    "precipitation": {
+      "final_accumulated_mass_relative_error": 0.30,
+      "footprint_area_normalized_rmse": 0.35,
+      "p95_depth_normalized_rmse": 0.35,
+      "maximum_depth_normalized_rmse": 0.40,
+      "mass_scale_floor_kg": 1.0,
+      "area_scale_floor_m2": 1000000.0,
+      "depth_scale_floor_mm": 0.1
+    }
+  },
+  "derived_definitions": {
+    "cold_pool": {
+      "id": "surface_density_potential_temperature_deficit_v1",
+      "level": "first_physical_scalar_center",
+      "required_fields": ["theta", "qv", "qc", "qr", "qi", "qs", "qg", "qh"],
+      "theta_rho_formula": "theta * (1 + qv / epsilon) / (1 + qv + qc + qr + qi + qs + qg + qh), epsilon=Rd/Rv",
+      "environment_reference": "horizontally_homogeneous_initial_theta_rho_at_same_level",
+      "cold_pool_threshold_k": -2.0,
+      "integrated_deficit_definition": "sum(max(0,-theta_rho_perturbation_k) * coincident_cell_area_m2)",
+      "centroid_weight": "max(0,-theta_rho_perturbation_k)"
+    },
+    "precipitation": {
+      "id": "earth_aligned_accumulated_rainfall_v1",
+      "required_fields": ["accumulated_rainfall"],
+      "effective_depth_definition": "published accumulated_rainfall_mm, including the authoritative accumulation residual",
+      "accumulated_mass_definition": "sum(effective_depth_mm * coincident_cell_area_m2)",
+      "footprint_threshold_mm": 1.0
+    }
+  },
+  "limitations": [
+    "Thresholds are draft engineering candidates and are not scientifically ratified.",
+    "With policy_status=measurement_only this policy can never produce a pass disposition.",
+    "Ratification requires an independent review before observing the candidate campaign result.",
+    "This compares Nimbus nesting against Nimbus's oversized same-equation reference; it is not external CM1 or observational validation."
+  ]
+}

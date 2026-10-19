@@ -1,0 +1,33 @@
+{
+  "schema": "nimbus.maintained-canonical-baseline.v1",
+  "claimBoundary": "Reviewed exact strict-loader identities of 755 maintained YAMLs only; not the retained product combination universe or Ready evidence.",
+  "sourceCount": 755,
+  "uniqueEffectiveConfigs": 738,
+  "duplicateEffectiveConfigGroups": 17,
+  "familyCount": 58,
+  "physicalBackendCounts": {
+    "cpu": 387,
+    "metal": 182,
+    "vulkan": 186
+  },
+  "backendAliasCounts": {
+    "gpu": 186
+  },
+  "conditionalAutoAdvectionResolutions": 43,
+  "activeProductSetPaths": [
+    "tests/fixtures/configs/qualification/cgrid_radar_polarimetric_ready.yaml",
+    "tests/fixtures/configs/qualification/cgrid_radar_ready.yaml"
+  ],
+  "selectedRadarProductCounts": {
+    "kdp": 1,
+    "radial_velocity": 1,
+    "reflectivity_dbz": 1,
+    "rhohv": 1,
+    "zdr": 1
+  },
+  "literalLoaderEnumAxes": 44,
+  "axesWithUnseenEffectiveValues": 20,
+  "axesWithUnrepresentedEffectiveChoices": 19,
+  "loaderAxisRowsSha256": "92f7d29a1bbf740d7b4471ee22d4dfcf5bdd286a4ef7630f4e3829b13cc023af",
+  "uncompressedRecordSha256": "d67d7f2a8cfb0f962f732614e520a2fbcec8e5cd63bb99586e939622ab9c9451"
+}
