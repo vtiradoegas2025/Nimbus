@@ -87,6 +87,7 @@
 #include "compute/vulkan_pipeline_registry.hpp"
 #include "compute/vulkan_cuda_kernel.hpp"
 #include "compute/vulkan_residency_policy.hpp"
+#include "compute/vulkan_loader_policy.hpp"
 #include "util/log_profile.hpp"
 
 #if defined(__has_include)
@@ -165,13 +166,18 @@ bool distinct_field_destinations(std::initializer_list<float*> destinations,
 }
 
 #if defined(TMV_HAS_VULKAN_COMPUTE_HEADERS) && defined(TMV_HAS_VULKAN_COMPUTE_DLOPEN)
-void* open_dynamic_library(const char* path)
+bool open_dynamic_library(const char* path, void*& library, std::string& error)
 {
+    return tmv_vulkan::loader_policy::open_with_lifetime_policy(
+        [&]
+        {
 #if defined(_WIN32)
-    return reinterpret_cast<void*>(LoadLibraryA(path));
+            library = reinterpret_cast<void*>(LoadLibraryA(path));
 #else
-    return dlopen(path, RTLD_NOW | RTLD_LOCAL);
+            library = dlopen(path, RTLD_NOW | RTLD_LOCAL);
 #endif
+        },
+        error);
 }
 
 void* load_dynamic_symbol(void* library, const char* name)
@@ -10807,7 +10813,10 @@ private:
         const char* loader_override = std::getenv("TMV_VULKAN_LOADER_PATH");
         if (loader_override != nullptr && loader_override[0] != '\0')
         {
-            device_context_.loader_handle = open_dynamic_library(loader_override);
+            if (!open_dynamic_library(loader_override, device_context_.loader_handle, error))
+            {
+                return false;
+            }
             tried_candidates.push_back(loader_override);
         }
 
@@ -10817,7 +10826,10 @@ private:
             {
                 break;
             }
-            device_context_.loader_handle = open_dynamic_library(candidate);
+            if (!open_dynamic_library(candidate, device_context_.loader_handle, error))
+            {
+                return false;
+            }
             tried_candidates.emplace_back(candidate);
         }
 

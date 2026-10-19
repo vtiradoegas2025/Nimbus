@@ -2,7 +2,7 @@
   "schema": "nimbus.published-document-review.v1",
   "documents": {
     "docs/MATHEMATICS.pdf": "9aba76435bcc83a19061123339fb1cccaa7cc0a85ac0cb16da82ef9a07e02ffe",
-    "docs/ARCHITECTURE.pdf": "75fbef4c6617cddf0cb51f2fddec25857a11911f0b69d18ac6f895c2115876b9",
+    "docs/ARCHITECTURE.pdf": "21437d36781ed83cce6ae59bf682bf406544e0a4446aaa9200f3eb08865e799a",
     "docs/STUDIO.pdf": "08085f4d32f90e31f8e525884aea606f26f3418c2d8efcbd6e0bf7b2d35c2d47",
     "docs/NAMELIST.md": "364201388b8b896a64da6ac670eae229a57d8241ab76e9b2f4eb3092303865c3"
   },

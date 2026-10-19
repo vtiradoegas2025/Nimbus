@@ -817,7 +817,7 @@ bin/nimbus_kernel_ownership: tests/compute/kernel_ownership_main.cpp tests/compu
 bin/test_vulkan_startup_plan: tests/test_main.cpp tests/vulkan/test_kernel_startup_plan.cpp tests/vulkan/test_kernel_startup_profile_loader.cpp src/compute/kernel_manifest.cpp src/init/config/v1_loader.cpp $(CONFIG_CODEC_SRCS) src/core/runtime/yaml_helpers.cpp src/core/infra/coordinate_system.cpp $(TEST_HDRS) $(TEST_FLAGS_STAMP) | bin
 	$(CXX_COMPILE) $(TEST_CXXFLAGS) $(CPPFLAGS) $(filter %.cpp,$^) $(LDLIBS) -o $@
 
-bin/test_vulkan_backend: $(TEST_INFRA) tests/vulkan/test_compute_backend.cpp tests/vulkan/test_memory_plan.cpp $(BACKEND_COMMON_SRCS) | bin
+bin/test_vulkan_backend: $(TEST_INFRA) tests/vulkan/test_compute_backend.cpp tests/vulkan/test_memory_plan.cpp tests/vulkan/test_loader_lifetime.cpp vulkan/include/compute/vulkan_loader_policy.hpp $(BACKEND_COMMON_SRCS) | bin
 	$(CXX_COMPILE) $(TEST_CXXFLAGS) $(CPPFLAGS) $(filter %.cpp,$^) $(LDLIBS) -o $@
 
 bin/test_vulkan_required_dispatch: $(TEST_INFRA) tests/vulkan/test_gpu_required_dispatch.cpp $(BACKEND_COMMON_SRCS) | bin
