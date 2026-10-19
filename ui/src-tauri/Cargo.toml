@@ -6,7 +6,8 @@ authors = ["Nimbus"]
 license = ""
 repository = ""
 edition = "2021"
-rust-version = "1.77.2"
+# The Windows shell opener uses std::path::absolute, stabilized in Rust 1.79.
+rust-version = "1.79.0"
 
 [lib]
 name = "nimbus_studio_lib"
@@ -42,7 +43,7 @@ base64 = "0.22"
 # and makes the packaged application abort before its webview starts.
 # 0.4.x switched only the binding crate to edition 2024 while retaining the
 # same generated API and bundled ZFP 1.0.1 library. Keep the edition-2021
-# release so the shell's declared Rust 1.77.2 MSRV remains real.
+# release so the shell's declared Rust 1.79.0 MSRV remains real.
 zfp-sys = { version = "=0.3.0", features = ["static"] }
 # Zero-copy &[f32] -> &[u8] reinterpretation so the existing little-endian
 # reducers run on decoded ZFP volumes without an extra copy.
@@ -53,7 +54,7 @@ libc = "0.2"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 # Later patch releases require edition 2024 without declaring a higher MSRV.
-# Keep Tao's loader graph compatible with the shell's Rust 1.77.2 minimum.
+# Keep Tao's loader graph compatible with the shell's Rust 1.79.0 minimum.
 dlopen2 = "=0.8.0"
 dlopen2_derive = "=0.4.1"
 

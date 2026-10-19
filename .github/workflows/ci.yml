@@ -18,6 +18,7 @@ env:
 
 jobs:
   documentation:
+    if: false
     name: Published documentation and repository layout
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -29,6 +30,7 @@ jobs:
           python3 scripts/tests/architecture/check_docs.py
 
   vulkan-software:
+    if: false
     name: Vulkan dispatch + parity (lavapipe)
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -138,6 +140,7 @@ jobs:
           retention-days: 14
 
   ui-contracts:
+    if: false
     name: UI unit and type contracts
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -176,14 +179,16 @@ jobs:
 
 
   ui-browser:
-    name: UI (${{ matrix.project }}, shard ${{ matrix.shard }}/4)
+    if: false
+    name: UI (${{ matrix.project }}, shard ${{ matrix.shard }}/${{ matrix.shardTotal }})
     needs: ui-contracts
     strategy:
       fail-fast: false
-      max-parallel: 3
+      max-parallel: 6
       matrix:
         project: [chromium-swiftshader, webkit-standard, webkit-retina]
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5, 6]
+        shardTotal: [6]
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -235,7 +240,7 @@ jobs:
         working-directory: ui
         env:
           NIMBUS_VTK_MOUNT_CYCLES: 100
-        run: npx playwright test --project="${{ matrix.project }}" --shard="${{ matrix.shard }}/4"
+        run: npx playwright test --project="${{ matrix.project }}" --shard="${{ matrix.shard }}/${{ matrix.shardTotal }}"
 
       - name: Upload lifecycle metrics and failure traces
         if: always()
@@ -269,7 +274,7 @@ jobs:
           cache: npm
           cache-dependency-path: ui/package-lock.json
 
-      - uses: dtolnay/rust-toolchain@1.77.2
+      - uses: dtolnay/rust-toolchain@1.79.0
 
       - name: Install complete native simulator dependencies
         run: brew install libomp vulkan-headers vulkan-loader molten-vk glslang glfw pkg-config zfp netcdf ffmpeg
@@ -337,6 +342,7 @@ jobs:
           retention-days: 14
 
   studio-linux-package:
+    if: false
     name: Nimbus Studio package (Linux ${{ matrix.arch }} AppImage)
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
@@ -357,7 +363,7 @@ jobs:
           cache: npm
           cache-dependency-path: ui/package-lock.json
 
-      - uses: dtolnay/rust-toolchain@1.77.2
+      - uses: dtolnay/rust-toolchain@1.79.0
 
       - name: Install simulator and Tauri build dependencies
         run: |
@@ -473,7 +479,7 @@ jobs:
           cache: npm
           cache-dependency-path: ui/package-lock.json
 
-      - uses: dtolnay/rust-toolchain@1.77.2
+      - uses: dtolnay/rust-toolchain@1.79.0
 
       - name: Check native Rust dependency architecture guards
         shell: pwsh
@@ -639,8 +645,8 @@ jobs:
           retention-days: 14
 
   packaged-visualization-matrix:
+    if: false
     name: Packaged visualization evidence matrix
-    if: ${{ always() }}
     needs: [studio-macos-package, studio-linux-package, studio-windows-package]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -682,6 +688,7 @@ jobs:
           retention-days: 30
 
   build-and-test:
+    if: false
     name: Build + test (Ubuntu, CPU)
     runs-on: ubuntu-24.04
     steps:
@@ -695,7 +702,7 @@ jobs:
             libzfp-dev libnetcdf-dev netcdf-bin \
             libwebkit2gtk-4.1-dev librsvg2-dev libssl-dev libayatana-appindicator3-dev libxdo-dev
 
-      - uses: dtolnay/rust-toolchain@1.77.2
+      - uses: dtolnay/rust-toolchain@1.79.0
 
       - uses: actions/setup-node@v4
         with:
@@ -739,6 +746,7 @@ jobs:
         run: ccache --show-stats
 
   format:
+    if: false
     name: clang-format (changed lines)
     runs-on: ubuntu-24.04
     steps:

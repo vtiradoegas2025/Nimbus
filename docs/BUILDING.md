@@ -72,7 +72,10 @@ The script provisions the architecture-native C++ and Rust toolchains, builds
 the solver, stages its DLLs and produces an NSIS installer. The execution-policy
 setting applies only to that PowerShell process. The build selects native CMake
 and libclang for Rust's readers and checks that their architecture matches the
-Rust MSVC toolchain. Run the installer
+Rust MSVC toolchain. It also selects libclang's directory for DLL lookup in build
+child processes; an absolute libclang filename alone does not bind its dependent
+libraries. Bindgen uses the selected native Clang executable and the Rust MSVC
+target explicitly, including on ARM64. Run the installer
 path printed at completion, then launch **Nimbus Studio** from the Start menu.
 Follow the setup output if a tool installation requires a new terminal or a
 restart. Use this Windows route instead of the Bash packaging command. An
@@ -176,7 +179,7 @@ sudo apt install libzfp-dev libnetcdf-dev netcdf-bin
 
 Studio also needs Node/npm, Rust/Cargo and the operating system's Tauri build
 prerequisites. Use Node.js 22.13 or later within the 22.x series, or Node.js 24
-or later; CI selects Node.js 22. The crate declares Rust 1.77.2 as its minimum; the locked
+or later; CI selects Node.js 22. The crate declares Rust 1.79.0 as its minimum; the locked
 native dependency set and release checks determine the tested build toolchain.
 On Linux the setup route installs the required WebKitGTK and application
 integration libraries. FFmpeg is needed for movie export.

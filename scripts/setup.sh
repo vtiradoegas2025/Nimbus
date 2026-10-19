@@ -694,7 +694,7 @@ check_netcdf()
 # Studio is the Tauri 2 desktop app in ui/: Rust shell + React/TypeScript
 # frontend. See ui/README.md.
 NODE_22_MIN=22.13.0
-RUST_MIN=1.77.2
+RUST_MIN=1.79.0
 
 # Numeric dotted-version comparison: true when $1 >= $2.
 version_ge()

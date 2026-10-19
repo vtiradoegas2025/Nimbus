@@ -66,6 +66,16 @@ def run_bash(script: str, *arguments: str, env: dict[str, str] | None = None) ->
 node_range = ">=22.13.0 <23 || >=24"
 package = json.loads((ROOT / "ui/package.json").read_text())
 package_lock = json.loads((ROOT / "ui/package-lock.json").read_text())
+rust_minimum = re.search(r'^rust-version = "([^"]+)"$',
+                         (ROOT / "ui/src-tauri/Cargo.toml").read_text(), re.MULTILINE)
+require(rust_minimum is not None, "Studio must declare its minimum Rust version")
+rust_minimum = rust_minimum.group(1)
+require(f"RUST_MIN={rust_minimum}" in SETUP
+        and f'[version]"{rust_minimum}"' in WINDOWS_RUST_ENV,
+        "Bash and Windows setup must enforce the declared Rust minimum")
+require(re.findall(r"dtolnay/rust-toolchain@([0-9.]+)", CI_WORKFLOW)
+        and all(version == rust_minimum for version in re.findall(r"dtolnay/rust-toolchain@([0-9.]+)", CI_WORKFLOW)),
+        "native CI must exercise the declared Rust minimum")
 require(package["engines"]["node"] == node_range, "Studio must declare the supported Node range")
 require(
     package_lock["packages"][""]["engines"]["node"] == node_range,
@@ -272,7 +282,7 @@ for owner, content in (("setup", WINDOWS_SETUP), ("packager", WINDOWS_BUILDER), 
     require("Initialize-NimbusRustBuildEnvironment" in content,
             f"Windows {owner} must resolve the native Rust build dependencies")
 for evidence in ("0xAA64", "0x8664", "x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc",
-                 "Assert-NimbusNativePe $CmakePath", "Assert-NimbusNativePe $LibclangLibrary",
+                 "Assert-NimbusNativePe $CmakePath", "Assert-NimbusNativePe $LibclangLibrary", "Assert-NimbusNativePe $ClangPath",
                  "$env:LIBCLANG_PATH", "$env:CMAKE", "$env:CARGO_BUILD_TARGET"):
     require(evidence in WINDOWS_RUST_ENV, f"Windows Rust environment is missing {evidence}")
 require(WINDOWS_RUST_ENV.index("Assert-NimbusNativePe $LibclangLibrary") < WINDOWS_RUST_ENV.index("$env:CMAKE ="),

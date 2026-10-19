@@ -372,6 +372,7 @@ async function qualifyPreparedGpuCycle(
   let retired: Promise<void> | null = null;
   let confirmRetired: ((event: Event) => void) | undefined;
   let contextLossMessage: string | null = null;
+  let contextDescription: Record<string, unknown> | null = null;
   let renderingStage = "creation";
   const resources: VtkDisposable[] = [];
   const volumes: Array<ReturnType<typeof vtkVolume.newInstance>> = [];
@@ -395,6 +396,19 @@ async function qualifyPreparedGpuCycle(
     });
     canvas.addEventListener("webglcontextlost", confirmRetired!, { once: true });
     renderWindow.resize();
+    const initialContext = renderWindow.getApiSpecificRenderWindow().getContext() as WebGL2RenderingContext | null;
+    if (initialContext) {
+      const debug = initialContext.getExtension("WEBGL_debug_renderer_info");
+      contextDescription = {
+        renderer: initialContext.getParameter(debug?.UNMASKED_RENDERER_WEBGL ?? initialContext.RENDERER),
+        vendor: initialContext.getParameter(debug?.UNMASKED_VENDOR_WEBGL ?? initialContext.VENDOR),
+        version: initialContext.getParameter(initialContext.VERSION),
+        maximum3DTextureSize: initialContext.getParameter(initialContext.MAX_3D_TEXTURE_SIZE),
+        maximumTextureSize: initialContext.getParameter(initialContext.MAX_TEXTURE_SIZE),
+        textureBytes,
+        shape: prepared.map(input => input.shape),
+      };
+    }
     renderer = renderWindow.getRenderer();
     for (const input of prepared) {
       const image = vtkImageData.newInstance();
@@ -451,7 +465,7 @@ async function qualifyPreparedGpuCycle(
     await sampleMemory(`gpu-cycle-${cycle}-resident`);
     return evidence;
   } catch (error) {
-    throw new Error(`Physical GPU cycle ${cycle}, ${renderingStage}: ${error instanceof Error ? error.message : String(error)}; context loss: ${contextLossMessage ?? "no event delivered"}`, { cause: error });
+    throw new Error(`Physical GPU cycle ${cycle}, ${renderingStage}: ${error instanceof Error ? error.message : String(error)}; context loss: ${contextLossMessage ?? "no event delivered"}; context: ${JSON.stringify(contextDescription)}`, { cause: error });
   } finally {
     let timeout: ReturnType<typeof setTimeout> | undefined;
     try {

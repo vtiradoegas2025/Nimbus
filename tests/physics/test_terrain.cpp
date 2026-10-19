@@ -13,6 +13,7 @@
 
 #include <array>
 #include <cmath>
+#include <iomanip>
 #include <limits>
 #include <utility>
 
@@ -1149,13 +1150,61 @@ TEST_CASE("implicit terrain ground converts zero normal flow to physical w",
         terrain_transport::cgrid_ground_vertical_velocity(
             metrics, u_face, v_face, i, j);
     CHECK(physical_w == Approx(9.0 * slope_x - 5.0 * slope_y));
-    CHECK(physical_w - 9.0 * slope_x - (-5.0) * slope_y
-          == Approx(0.0).margin(2.0e-18));
+    const double residual = physical_w - 9.0 * slope_x - (-5.0) * slope_y;
+    constexpr double unit_roundoff = std::numeric_limits<double>::epsilon() / 2.0;
+    const auto upward = [](double value) {
+        return std::nextafter(value, std::numeric_limits<double>::infinity());
+    };
+    // w has error <= gamma_2*S. Its residual adds at most
+    // (1+u)*(gamma_2*(1+u)+2u+u*u)*S <= gamma_4*S for these normal
+    // binary64 operands, including either permitted FMA contraction.
+    const double gamma_four = upward(
+        4.0 * unit_roundoff / (1.0 - 4.0 * unit_roundoff));
+    const double product_scale = upward(
+        upward(std::abs(9.0 * slope_x)) + upward(std::abs(-5.0 * slope_y)));
+    const double roundoff_bound = upward(gamma_four * product_scale);
+    INFO(std::scientific << std::setprecision(17)
+         << "normal-flow residual=" << residual << ", bound=" << roundoff_bound);
+    CHECK(std::abs(residual) <= roundoff_bound);
 
     const TerrainMetrics3D flat = make_conservative_test_geometry(true);
     CHECK(terrain_transport::cgrid_ground_vertical_velocity(
               flat, u_face, v_face, i, j)
           == 0.0);
+}
+
+TEST_CASE("terrain ground velocity preserves exact slope signs and C-grid face averages",
+          "[physics][terrain][boundary][impermeable][staggering]")
+{
+    TerrainMetrics3D metrics = make_conservative_test_geometry(false);
+    const int nr = metrics.J.size_r();
+    const int nth = metrics.J.size_th();
+    const int nz = metrics.J.size_z();
+    Field3D u_face(nr, nth, nz, 32.0f);
+    Field3D v_face(nr, nth, nz, 64.0f);
+    constexpr int i = 2;
+    constexpr int j = 2;
+    u_face[i - 1][j][0] = 2.0f;
+    u_face[i][j][0] = 6.0f;
+    v_face[i][j - 1][0] = -2.0f;
+    v_face[i][j][0] = -6.0f;
+    for (const auto& sample : std::array<std::array<double, 3>, 4>{{
+             {{0.25, 0.125, 0.5}}, {{0.25, -0.125, 1.5}},
+             {{-0.25, 0.125, -1.5}}, {{-0.25, -0.125, -0.5}}}})
+    {
+        const double slope_x = sample[0];
+        const double slope_y = sample[1];
+        CAPTURE(slope_x, slope_y);
+        metrics.Gx_face(i, j, 0) = -slope_x;
+        metrics.Gy_face(i, j, 0) = -slope_y;
+        const double physical_w = terrain_transport::cgrid_ground_vertical_velocity(
+            metrics, u_face, v_face, i, j);
+        CHECK(physical_w == sample[2]);
+        CHECK(physical_w - 4.0 * slope_x - (-4.0) * slope_y == 0.0);
+    }
+    const TerrainMetrics3D flat = make_conservative_test_geometry(true);
+    CHECK(terrain_transport::cgrid_ground_vertical_velocity(
+              flat, u_face, v_face, i, j) == 0.0);
 }
 
 TEST_CASE("terrain ground surface frame closes normal flow and traction geometry",
