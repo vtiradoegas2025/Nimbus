@@ -1,0 +1,11 @@
+grid:
+  nx: 12
+  ny: 12
+  nz: 16
+  dx: 1000
+  dy: 1000
+  dz: 250
+microphysics:
+  scheme: kessler
+  milbrandt:
+    triple_moment: true

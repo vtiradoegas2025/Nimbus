@@ -1,0 +1,526 @@
+{
+  "checks": [
+    {
+      "detail": "the packaged WebView must expose module workers",
+      "name": "module-worker-api",
+      "passed": true
+    },
+    {
+      "detail": "production profile requires exact 40/120 MiB lattices (got 41943040/125829120 bytes)",
+      "name": "profile-byte-contract",
+      "passed": true
+    },
+    {
+      "detail": "scalar preparation must remain worker-owned",
+      "name": "cycle-1-scalar-worker-handle",
+      "passed": true
+    },
+    {
+      "detail": "worker scalar must fail closed on main",
+      "name": "cycle-1-scalar-main-resolution",
+      "passed": true
+    },
+    {
+      "detail": "worker contour must publish triangles (got 34684)",
+      "name": "cycle-1-contour-geometry",
+      "passed": true
+    },
+    {
+      "detail": "vector preparation must remain worker-owned",
+      "name": "cycle-1-vector-worker-handle",
+      "passed": true
+    },
+    {
+      "detail": "worker vector must fail closed on main",
+      "name": "cycle-1-vector-main-resolution",
+      "passed": true
+    },
+    {
+      "detail": "worker streamline extraction must integrate points (got 480)",
+      "name": "cycle-1-streamline-geometry",
+      "passed": true
+    },
+    {
+      "detail": "retirement must clear handles/references (got 0/0)",
+      "name": "cycle-1-registry-retired",
+      "passed": true
+    },
+    {
+      "detail": "retirement must release worker residency and reservations",
+      "name": "cycle-1-worker-residency-retired",
+      "passed": true
+    },
+    {
+      "detail": "scalar preparation must remain worker-owned",
+      "name": "cycle-2-scalar-worker-handle",
+      "passed": true
+    },
+    {
+      "detail": "worker scalar must fail closed on main",
+      "name": "cycle-2-scalar-main-resolution",
+      "passed": true
+    },
+    {
+      "detail": "worker contour must publish triangles (got 34684)",
+      "name": "cycle-2-contour-geometry",
+      "passed": true
+    },
+    {
+      "detail": "vector preparation must remain worker-owned",
+      "name": "cycle-2-vector-worker-handle",
+      "passed": true
+    },
+    {
+      "detail": "worker vector must fail closed on main",
+      "name": "cycle-2-vector-main-resolution",
+      "passed": true
+    },
+    {
+      "detail": "worker streamline extraction must integrate points (got 480)",
+      "name": "cycle-2-streamline-geometry",
+      "passed": true
+    },
+    {
+      "detail": "retirement must clear handles/references (got 0/0)",
+      "name": "cycle-2-registry-retired",
+      "passed": true
+    },
+    {
+      "detail": "retirement must release worker residency and reservations",
+      "name": "cycle-2-worker-residency-retired",
+      "passed": true
+    },
+    {
+      "detail": "worker execution must keep watchdog delay <= 500 ms (got 4.0 ms)",
+      "name": "ui-thread-watchdog",
+      "passed": true
+    },
+    {
+      "detail": "every packaged sample must include host-plus-descendants RSS coverage",
+      "name": "process-memory-coverage",
+      "passed": true
+    },
+    {
+      "detail": "sampled process-tree peak must remain monotonic across the lifecycle",
+      "name": "process-memory-monotonic",
+      "passed": true
+    }
+  ],
+  "crossOriginIsolated": false,
+  "cycles": [
+    {
+      "contourTriangles": 34684,
+      "integratedPoints": 480,
+      "timings": {
+        "contourExtractionMs": 852,
+        "scalarDispatchMs": 1,
+        "scalarPreparationMs": 203,
+        "streamlineExtractionMs": 16.000000000000455,
+        "vectorDispatchMs": 1,
+        "vectorPreparationMs": 985
+      }
+    },
+    {
+      "contourTriangles": 34684,
+      "integratedPoints": 480,
+      "timings": {
+        "contourExtractionMs": 830,
+        "scalarDispatchMs": 0,
+        "scalarPreparationMs": 216,
+        "streamlineExtractionMs": 14,
+        "vectorDispatchMs": 0,
+        "vectorPreparationMs": 954
+      }
+    }
+  ],
+  "elapsedMs": 4576,
+  "finalRegistry": {
+    "bytes": 0,
+    "handles": 0,
+    "mainBytes": 0,
+    "mainHandles": 0,
+    "references": 0,
+    "workerBytes": 0,
+    "workerHandles": 0
+  },
+  "finalResources": {
+    "allocations": 0,
+    "byStage": {
+      "decoded-field": {
+        "allocations": 0,
+        "capacityBytes": null,
+        "committedBytes": 0,
+        "highWaterBytes": 0,
+        "reservedBytes": 0,
+        "reservedHighWaterBytes": 0,
+        "residentBytes": 0,
+        "residentHighWaterBytes": 0
+      },
+      "gpu": {
+        "allocations": 0,
+        "capacityBytes": null,
+        "committedBytes": 0,
+        "highWaterBytes": 0,
+        "reservedBytes": 0,
+        "reservedHighWaterBytes": 0,
+        "residentBytes": 0,
+        "residentHighWaterBytes": 0
+      },
+      "handoff": {
+        "allocations": 0,
+        "capacityBytes": null,
+        "committedBytes": 0,
+        "highWaterBytes": 0,
+        "reservedBytes": 0,
+        "reservedHighWaterBytes": 0,
+        "residentBytes": 0,
+        "residentHighWaterBytes": 0
+      },
+      "native-read": {
+        "allocations": 0,
+        "capacityBytes": null,
+        "committedBytes": 0,
+        "highWaterBytes": 0,
+        "reservedBytes": 0,
+        "reservedHighWaterBytes": 0,
+        "residentBytes": 0,
+        "residentHighWaterBytes": 0
+      },
+      "prepared-main": {
+        "allocations": 0,
+        "capacityBytes": null,
+        "committedBytes": 0,
+        "highWaterBytes": 0,
+        "reservedBytes": 0,
+        "reservedHighWaterBytes": 0,
+        "residentBytes": 0,
+        "residentHighWaterBytes": 0
+      },
+      "retained-geometry": {
+        "allocations": 0,
+        "capacityBytes": null,
+        "committedBytes": 0,
+        "highWaterBytes": 971200,
+        "reservedBytes": 0,
+        "reservedHighWaterBytes": 0,
+        "residentBytes": 0,
+        "residentHighWaterBytes": 971200
+      },
+      "worker-resident": {
+        "allocations": 0,
+        "capacityBytes": null,
+        "committedBytes": 0,
+        "highWaterBytes": 293607424,
+        "reservedBytes": 0,
+        "reservedHighWaterBytes": 251664384,
+        "residentBytes": 0,
+        "residentHighWaterBytes": 167772160
+      },
+      "worker-scratch": {
+        "allocations": 0,
+        "capacityBytes": null,
+        "committedBytes": 0,
+        "highWaterBytes": 971200,
+        "reservedBytes": 0,
+        "reservedHighWaterBytes": 971200,
+        "residentBytes": 0,
+        "residentHighWaterBytes": 0
+      }
+    },
+    "capacityBytes": null,
+    "committedBytes": 0,
+    "hardware": {
+      "logicalCores": 16,
+      "source": "tauri",
+      "systemRamBytes": 51539607552
+    },
+    "highWaterBytes": 294578624,
+    "prediction": {
+      "actualBytes": 335544320,
+      "maxUnderpredictionBytes": 0,
+      "maxUtilization": 1,
+      "predictedBytes": 335556608,
+      "samples": 4,
+      "underpredictions": 0
+    },
+    "rejected": 0,
+    "released": 12,
+    "reservations": 0,
+    "reservedBytes": 0,
+    "reservedHighWaterBytes": 251664384,
+    "residentBytes": 0,
+    "residentHighWaterBytes": 168743360,
+    "schema": "nimbus.studio.visualization-resources",
+    "sequence": 35,
+    "transitions": 6,
+    "version": 3
+  },
+  "inputHandoffYieldMode": "message-channel",
+  "maximumWatchdogDelayMs": 4,
+  "memoryReconciliation": {
+    "accountedInputAndResidentHighWaterBytes": 336515520,
+    "baselineTreeRssBytes": 106561536,
+    "coverage": "host_plus_descendants",
+    "limitation": "Parent/descendant sampling may exclude detached WKWebView/WebView2/XPC renderer helpers; this is reconciliation evidence, not an enforceable universal capacity.",
+    "maximumSamplingMs": 19,
+    "observedMinusAccountedBytes": -335942080,
+    "processTreeCurrentHighBytes": 107134976,
+    "processTreeDeltaBytes": 573440,
+    "processTreePeakBytes": 107134976,
+    "syntheticInputBytes": 167772160,
+    "trackedCommittedHighWaterBytes": 294578624,
+    "trackedResidentHighWaterBytes": 168743360
+  },
+  "memorySamples": [
+    {
+      "elapsedMs": 32,
+      "label": "startup",
+      "memory": {
+        "currentRssBytes": null,
+        "measurement": "getrusage_peak",
+        "peakRssBytes": 106561536,
+        "processTreeCoverage": "host_plus_descendants",
+        "processTreePeakRssBytes": 106561536,
+        "processTreeProcessCount": 1,
+        "processTreeRssBytes": 106561536,
+        "schema": "nimbus.studio.process-memory",
+        "schemaVersion": 3
+      },
+      "samplingMs": 17
+    },
+    {
+      "elapsedMs": 131,
+      "label": "fixture-allocated",
+      "memory": {
+        "currentRssBytes": null,
+        "measurement": "getrusage_peak",
+        "peakRssBytes": 106921984,
+        "processTreeCoverage": "host_plus_descendants",
+        "processTreePeakRssBytes": 106921984,
+        "processTreeProcessCount": 1,
+        "processTreeRssBytes": 106921984,
+        "schema": "nimbus.studio.process-memory",
+        "schemaVersion": 3
+      },
+      "samplingMs": 16
+    },
+    {
+      "elapsedMs": 366,
+      "label": "cycle-1-scalar-resident",
+      "memory": {
+        "currentRssBytes": null,
+        "measurement": "getrusage_peak",
+        "peakRssBytes": 107429888,
+        "processTreeCoverage": "host_plus_descendants",
+        "processTreePeakRssBytes": 107020288,
+        "processTreeProcessCount": 1,
+        "processTreeRssBytes": 107020288,
+        "schema": "nimbus.studio.process-memory",
+        "schemaVersion": 3
+      },
+      "samplingMs": 15
+    },
+    {
+      "elapsedMs": 1251,
+      "label": "cycle-1-contour-published",
+      "memory": {
+        "currentRssBytes": null,
+        "measurement": "getrusage_peak",
+        "peakRssBytes": 107429888,
+        "processTreeCoverage": "host_plus_descendants",
+        "processTreePeakRssBytes": 107020288,
+        "processTreeProcessCount": 1,
+        "processTreeRssBytes": 107020288,
+        "schema": "nimbus.studio.process-memory",
+        "schemaVersion": 3
+      },
+      "samplingMs": 18
+    },
+    {
+      "elapsedMs": 2268,
+      "label": "cycle-1-scalar-vector-resident",
+      "memory": {
+        "currentRssBytes": null,
+        "measurement": "getrusage_peak",
+        "peakRssBytes": 107495424,
+        "processTreeCoverage": "host_plus_descendants",
+        "processTreePeakRssBytes": 107085824,
+        "processTreeProcessCount": 1,
+        "processTreeRssBytes": 107085824,
+        "schema": "nimbus.studio.process-memory",
+        "schemaVersion": 3
+      },
+      "samplingMs": 17
+    },
+    {
+      "elapsedMs": 2316,
+      "label": "cycle-1-streamline-published",
+      "memory": {
+        "currentRssBytes": null,
+        "measurement": "getrusage_peak",
+        "peakRssBytes": 107495424,
+        "processTreeCoverage": "host_plus_descendants",
+        "processTreePeakRssBytes": 107085824,
+        "processTreeProcessCount": 1,
+        "processTreeRssBytes": 107085824,
+        "schema": "nimbus.studio.process-memory",
+        "schemaVersion": 3
+      },
+      "samplingMs": 18.999999999999545
+    },
+    {
+      "elapsedMs": 2349,
+      "label": "cycle-1-shutdown",
+      "memory": {
+        "currentRssBytes": null,
+        "measurement": "getrusage_peak",
+        "peakRssBytes": 107495424,
+        "processTreeCoverage": "host_plus_descendants",
+        "processTreePeakRssBytes": 107085824,
+        "processTreeProcessCount": 1,
+        "processTreeRssBytes": 107085824,
+        "schema": "nimbus.studio.process-memory",
+        "schemaVersion": 3
+      },
+      "samplingMs": 19
+    },
+    {
+      "elapsedMs": 2603,
+      "label": "cycle-2-scalar-resident",
+      "memory": {
+        "currentRssBytes": null,
+        "measurement": "getrusage_peak",
+        "peakRssBytes": 107511808,
+        "processTreeCoverage": "host_plus_descendants",
+        "processTreePeakRssBytes": 107118592,
+        "processTreeProcessCount": 1,
+        "processTreeRssBytes": 107118592,
+        "schema": "nimbus.studio.process-memory",
+        "schemaVersion": 3
+      },
+      "samplingMs": 17
+    },
+    {
+      "elapsedMs": 3467,
+      "label": "cycle-2-contour-published",
+      "memory": {
+        "currentRssBytes": null,
+        "measurement": "getrusage_peak",
+        "peakRssBytes": 107511808,
+        "processTreeCoverage": "host_plus_descendants",
+        "processTreePeakRssBytes": 107118592,
+        "processTreeProcessCount": 1,
+        "processTreeRssBytes": 107118592,
+        "schema": "nimbus.studio.process-memory",
+        "schemaVersion": 3
+      },
+      "samplingMs": 16.999999999999545
+    },
+    {
+      "elapsedMs": 4453,
+      "label": "cycle-2-scalar-vector-resident",
+      "memory": {
+        "currentRssBytes": null,
+        "measurement": "getrusage_peak",
+        "peakRssBytes": 107511808,
+        "processTreeCoverage": "host_plus_descendants",
+        "processTreePeakRssBytes": 107118592,
+        "processTreeProcessCount": 1,
+        "processTreeRssBytes": 107118592,
+        "schema": "nimbus.studio.process-memory",
+        "schemaVersion": 3
+      },
+      "samplingMs": 16
+    },
+    {
+      "elapsedMs": 4499,
+      "label": "cycle-2-streamline-published",
+      "memory": {
+        "currentRssBytes": null,
+        "measurement": "getrusage_peak",
+        "peakRssBytes": 107511808,
+        "processTreeCoverage": "host_plus_descendants",
+        "processTreePeakRssBytes": 107118592,
+        "processTreeProcessCount": 1,
+        "processTreeRssBytes": 107118592,
+        "schema": "nimbus.studio.process-memory",
+        "schemaVersion": 3
+      },
+      "samplingMs": 16
+    },
+    {
+      "elapsedMs": 4530,
+      "label": "cycle-2-shutdown",
+      "memory": {
+        "currentRssBytes": null,
+        "measurement": "getrusage_peak",
+        "peakRssBytes": 107511808,
+        "processTreeCoverage": "host_plus_descendants",
+        "processTreePeakRssBytes": 107118592,
+        "processTreeProcessCount": 1,
+        "processTreeRssBytes": 107118592,
+        "schema": "nimbus.studio.process-memory",
+        "schemaVersion": 3
+      },
+      "samplingMs": 16
+    },
+    {
+      "elapsedMs": 4566,
+      "label": "final",
+      "memory": {
+        "currentRssBytes": null,
+        "measurement": "getrusage_peak",
+        "peakRssBytes": 107511808,
+        "processTreeCoverage": "host_plus_descendants",
+        "processTreePeakRssBytes": 107134976,
+        "processTreeProcessCount": 1,
+        "processTreeRssBytes": 107134976,
+        "schema": "nimbus.studio.process-memory",
+        "schemaVersion": 3
+      },
+      "samplingMs": 16
+    }
+  ],
+  "packagedRuntime": {
+    "appVersion": "0.1.0",
+    "buildMode": "release",
+    "targetArch": "aarch64",
+    "targetOs": "macos"
+  },
+  "platform": "MacIntel",
+  "profile": "production",
+  "scalarBytes": 41943040,
+  "schema": "nimbus.studio.packaged-visualization-qualification",
+  "schemaVersion": 1,
+  "setupMs": 73,
+  "shape": [
+    256,
+    256,
+    160
+  ],
+  "status": "passed",
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)",
+  "vectorBytes": 125829120,
+  "watchdog": {
+    "eventThresholdMs": 25,
+    "events": [],
+    "intervalMs": 50,
+    "maximumByStageMs": {
+      "cycle-1-contour-extraction": 4,
+      "cycle-1-retirement-checks": 0,
+      "cycle-1-scalar-preparation": 1,
+      "cycle-1-streamline-extraction": 0,
+      "cycle-1-vector-preparation": 3.0000000000002274,
+      "cycle-1-worker-shutdown": 0,
+      "cycle-2-contour-extraction": 3.0000000000004547,
+      "cycle-2-retirement-checks": 0,
+      "cycle-2-scalar-preparation": 3,
+      "cycle-2-streamline-extraction": 0,
+      "cycle-2-vector-preparation": 3,
+      "cycle-2-worker-shutdown": 0,
+      "initialization": 0,
+      "qualification-checks": 0
+    },
+    "maximumDelayMs": 4
+  }
+}

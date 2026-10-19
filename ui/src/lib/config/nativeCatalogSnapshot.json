@@ -1,0 +1,4625 @@
+{
+  "catalogVersion": 9,
+  "modules": [
+    {
+      "id": "dynamics",
+      "schemes": [
+        {
+          "aliases": [
+            "cartesian",
+            "cart",
+            "cartesian_cpu"
+          ],
+          "capabilities": {
+            "acceptedHodographSources": [
+              "auto",
+              "wk_param",
+              "zero"
+            ],
+            "acceptedSoundingSources": [
+              "parametric_cape",
+              "file",
+              "parametric_targets"
+            ],
+            "acceptedTriggerSources": [
+              "warm_bubble",
+              "none",
+              "vortex_seed"
+            ],
+            "backends": [
+              "cpu",
+              "gpu"
+            ],
+            "configValidationContract": "dynamics.scheme+grid.staggering",
+            "coordinateSystems": [
+              "cartesian"
+            ],
+            "cpuGpuParityCoverage": "covered",
+            "cpuReferenceCoverage": "covered",
+            "declared": true,
+            "gpuImplementationCoverage": "covered",
+            "optionalProducts": [
+              "vorticity_budget",
+              "angular_momentum",
+              "pressure_decomposition",
+              "split_explicit_acoustic_substeps"
+            ],
+            "producedStateFields": [
+              "du_dt",
+              "dv_dt",
+              "dw_dt",
+              "drho_dt",
+              "dp_dt"
+            ],
+            "recommendedTriggerSource": "warm_bubble",
+            "requiredStateFields": [
+              "u",
+              "v",
+              "w",
+              "rho",
+              "p",
+              "theta"
+            ],
+            "staggerings": [
+              "collocated"
+            ],
+            "storage": {
+              "coverage": "covered",
+              "note": "The dynamics object owns no persistent volumes; its declared scratch count excludes orchestration-owned tendencies and acoustic buffers budgeted by their runtime owners",
+              "peakScratchFieldsPerIntegratedField": 0,
+              "peakScratchFullVolumeFields": 0,
+              "persistentFieldsPerIntegratedField": 0,
+              "persistentFullVolumeFields": 0
+            }
+          },
+          "caveat": "Qualified for the flat collocated CPU family, including supported boundary pairs, Kessler, canonical Smagorinsky/TKE, slab/simple-grey, and YSU or MYNN/RRTMG column ownership; the stationary-Bell mapped CPU core; and the exact flat core's fallback-off Vulkan and Metal counterparts. The native profiles own slow tendencies, momentum-weighted continuity, nonlinear EOS, momentum, null-mode constraint, rigid boundaries, retained mass fluxes, and report-bearing transactional commit. The TKE and other retained active-physics closures are not part of these profiles; radiative lateral boundaries remain outside the declared A-grid scope.",
+          "constructible": true,
+          "displayName": "Cartesian A-grid (qualified flat and mapped CPU/native flat cores)",
+          "id": "klemp_wilhelmson_split_cartesian_agrid",
+          "maturity": "qualified",
+          "parameters": [],
+          "readinessState": "ready",
+          "runtimeSelectable": true
+        },
+        {
+          "aliases": [],
+          "capabilities": {
+            "acceptedHodographSources": [
+              "auto",
+              "wk_param",
+              "zero"
+            ],
+            "acceptedSoundingSources": [
+              "parametric_cape",
+              "file",
+              "parametric_targets"
+            ],
+            "acceptedTriggerSources": [
+              "warm_bubble",
+              "none",
+              "vortex_seed"
+            ],
+            "backends": [
+              "cpu",
+              "gpu"
+            ],
+            "configValidationContract": "dynamics.scheme+grid.staggering",
+            "coordinateSystems": [
+              "cartesian"
+            ],
+            "cpuGpuParityCoverage": "covered",
+            "cpuReferenceCoverage": "covered",
+            "declared": true,
+            "gpuImplementationCoverage": "covered",
+            "optionalProducts": [
+              "vorticity_budget",
+              "angular_momentum",
+              "pressure_decomposition",
+              "split_explicit_acoustic_substeps"
+            ],
+            "producedStateFields": [
+              "du_dt",
+              "dv_dt",
+              "dw_dt",
+              "drho_dt",
+              "dp_dt"
+            ],
+            "recommendedTriggerSource": "warm_bubble",
+            "requiredStateFields": [
+              "u",
+              "v",
+              "w",
+              "rho",
+              "p",
+              "theta"
+            ],
+            "staggerings": [
+              "c_grid"
+            ],
+            "storage": {
+              "coverage": "covered",
+              "note": "The dynamics object owns no persistent volumes; its declared scratch count excludes orchestration-owned tendencies and acoustic buffers budgeted by their runtime owners",
+              "peakScratchFieldsPerIntegratedField": 0,
+              "peakScratchFullVolumeFields": 5,
+              "persistentFieldsPerIntegratedField": 0,
+              "persistentFullVolumeFields": 0
+            }
+          },
+          "caveat": "",
+          "constructible": true,
+          "displayName": "klemp_wilhelmson_split_cartesian_cgrid",
+          "id": "klemp_wilhelmson_split_cartesian_cgrid",
+          "maturity": "qualified",
+          "parameters": [],
+          "readinessState": "ready",
+          "runtimeSelectable": true
+        }
+      ],
+      "selectionPath": "dynamics.scheme",
+      "studioSelection": {
+        "fixedSchemeId": "",
+        "mode": "form",
+        "reason": ""
+      }
+    },
+    {
+      "id": "advection",
+      "schemes": [
+        {
+          "aliases": [],
+          "capabilities": {
+            "acceptedHodographSources": [
+              "not_applicable"
+            ],
+            "acceptedSoundingSources": [
+              "not_applicable"
+            ],
+            "acceptedTriggerSources": [
+              "not_applicable"
+            ],
+            "backends": [
+              "cpu",
+              "gpu"
+            ],
+            "configValidationContract": "numerics.advection.scheme",
+            "coordinateSystems": [
+              "cartesian"
+            ],
+            "cpuGpuParityCoverage": "none",
+            "cpuReferenceCoverage": "covered",
+            "declared": true,
+            "gpuImplementationCoverage": "none",
+            "optionalProducts": [
+              "cfl",
+              "flux_diagnostics"
+            ],
+            "producedStateFields": [
+              "dqdt_adv",
+              "flux_z"
+            ],
+            "recommendedTriggerSource": "not_applicable",
+            "requiredStateFields": [
+              "q",
+              "w",
+              "grid_metrics"
+            ],
+            "staggerings": [
+              "collocated",
+              "c_grid"
+            ],
+            "storage": {
+              "coverage": "covered",
+              "note": "Vertical reconstruction uses column-local work; tendencies are caller-owned",
+              "peakScratchFieldsPerIntegratedField": 0,
+              "peakScratchFullVolumeFields": 0,
+              "persistentFieldsPerIntegratedField": 0,
+              "persistentFullVolumeFields": 0
+            }
+          },
+          "caveat": "The vertical factory remains host-owned. The exact canonical dry flat C-grid qualified Metal scope uses native conservative MC scalar transport with retained mass flux and strict transactional publication; other native RK and nested paths declare their own owners.",
+          "constructible": true,
+          "displayName": "tvd",
+          "id": "tvd",
+          "maturity": "qualified",
+          "parameters": [],
+          "readinessState": "ready",
+          "runtimeSelectable": true
+        },
+        {
+          "aliases": [
+            "weno"
+          ],
+          "capabilities": {
+            "acceptedHodographSources": [
+              "not_applicable"
+            ],
+            "acceptedSoundingSources": [
+              "not_applicable"
+            ],
+            "acceptedTriggerSources": [
+              "not_applicable"
+            ],
+            "backends": [
+              "cpu",
+              "gpu"
+            ],
+            "configValidationContract": "numerics.advection.scheme",
+            "coordinateSystems": [
+              "cartesian"
+            ],
+            "cpuGpuParityCoverage": "covered",
+            "cpuReferenceCoverage": "covered",
+            "declared": true,
+            "gpuImplementationCoverage": "covered",
+            "optionalProducts": [
+              "cfl",
+              "flux_diagnostics"
+            ],
+            "producedStateFields": [
+              "dqdt_adv",
+              "flux_z"
+            ],
+            "recommendedTriggerSource": "not_applicable",
+            "requiredStateFields": [
+              "q",
+              "w",
+              "grid_metrics"
+            ],
+            "staggerings": [
+              "collocated",
+              "c_grid"
+            ],
+            "storage": {
+              "coverage": "covered",
+              "note": "Vertical reconstruction uses column-local work; tendencies are caller-owned",
+              "peakScratchFieldsPerIntegratedField": 0,
+              "peakScratchFullVolumeFields": 0,
+              "persistentFieldsPerIntegratedField": 0,
+              "persistentFullVolumeFields": 0
+            }
+          },
+          "caveat": "Coupled RK applies WENO5 to unbounded potential temperature and conservative TVD/MC to bounded vapor, tracer, hydrometeor, and TKE fields.",
+          "constructible": true,
+          "displayName": "weno5",
+          "id": "weno5",
+          "maturity": "qualified",
+          "parameters": [],
+          "readinessState": "ready",
+          "runtimeSelectable": true
+        },
+        {
+          "aliases": [
+            "off",
+            "disabled"
+          ],
+          "capabilities": {
+            "acceptedHodographSources": [
+              "not_applicable"
+            ],
+            "acceptedSoundingSources": [
+              "not_applicable"
+            ],
+            "acceptedTriggerSources": [
+              "not_applicable"
+            ],
+            "backends": [
+              "cpu",
+              "gpu"
+            ],
+            "configValidationContract": "numerics.advection.scheme",
+            "coordinateSystems": [
+              "cartesian"
+            ],
+            "cpuGpuParityCoverage": "not_applicable",
+            "cpuReferenceCoverage": "covered",
+            "declared": true,
+            "gpuImplementationCoverage": "not_applicable",
+            "optionalProducts": [
+              "cfl",
+              "flux_diagnostics"
+            ],
+            "producedStateFields": [
+              "dqdt_adv",
+              "flux_z"
+            ],
+            "recommendedTriggerSource": "not_applicable",
+            "requiredStateFields": [
+              "q",
+              "w",
+              "grid_metrics"
+            ],
+            "staggerings": [
+              "collocated",
+              "c_grid"
+            ],
+            "storage": {
+              "coverage": "covered",
+              "note": "Vertical reconstruction uses column-local work; tendencies are caller-owned",
+              "peakScratchFieldsPerIntegratedField": 0,
+              "peakScratchFullVolumeFields": 0,
+              "persistentFieldsPerIntegratedField": 0,
+              "persistentFullVolumeFields": 0
+            }
+          },
+          "caveat": "Disables resolved transport of theta, water species, passive tracer, TKE, and private microphysics moments while retaining the selected dynamics momentum, continuity, pressure, and physics-source equations.",
+          "constructible": true,
+          "displayName": "None (hold transported scalars)",
+          "id": "none",
+          "maturity": "qualified",
+          "parameters": [],
+          "readinessState": "ready",
+          "runtimeSelectable": true
+        }
+      ],
+      "selectionPath": "advection.scheme",
+      "studioSelection": {
+        "fixedSchemeId": "",
+        "mode": "form",
+        "reason": ""
+      }
+    },
+    {
+      "id": "diffusion",
+      "schemes": [
+        {
+          "aliases": [],
+          "capabilities": {
+            "acceptedHodographSources": [
+              "not_applicable"
+            ],
+            "acceptedSoundingSources": [
+              "not_applicable"
+            ],
+            "acceptedTriggerSources": [
+              "not_applicable"
+            ],
+            "backends": [
+              "cpu",
+              "gpu"
+            ],
+            "configValidationContract": "numerics.diffusion.scheme+operator_order=2; explicit and implicit K_h/K_v use the same live-density conservative finite-volume scalar and staggered-momentum equations; implicit advances them with backward Euler; explicit linear_height owns prescribed vertical K at physical scalar-cell centers with K_v=0",
+            "coordinateSystems": [
+              "cartesian"
+            ],
+            "cpuGpuParityCoverage": "covered",
+            "cpuReferenceCoverage": "covered",
+            "declared": true,
+            "gpuImplementationCoverage": "covered",
+            "optionalProducts": [
+              "K_momentum",
+              "K_scalar",
+              "prescribed_vertical_K(linear_height_scalar_centers)",
+              "K_effective=max(K_h,K_v)",
+              "max_diffusion_number"
+            ],
+            "producedStateFields": [
+              "du_dt_diff",
+              "dv_dt_diff",
+              "dw_dt_diff",
+              "dtheta_dt_diff",
+              "dqv_dt_diff"
+            ],
+            "recommendedTriggerSource": "not_applicable",
+            "requiredStateFields": [
+              "grid_metrics",
+              "u",
+              "v",
+              "w",
+              "theta",
+              "qv",
+              "live_rho_when_diffusion_active"
+            ],
+            "staggerings": [
+              "collocated",
+              "c_grid"
+            ],
+            "storage": {
+              "coverage": "covered",
+              "note": "Reusable transactional updated-state storage only for selected fields; tendencies and optional diagnostics are caller-owned",
+              "peakScratchFieldsPerIntegratedField": 0,
+              "peakScratchFullVolumeFields": 1,
+              "persistentFieldsPerIntegratedField": 0,
+              "persistentFullVolumeFields": 0
+            }
+          },
+          "caveat": "",
+          "constructible": true,
+          "displayName": "explicit",
+          "id": "explicit",
+          "maturity": "qualified",
+          "parameters": [],
+          "readinessState": "ready",
+          "runtimeSelectable": true
+        },
+        {
+          "aliases": [],
+          "capabilities": {
+            "acceptedHodographSources": [
+              "not_applicable"
+            ],
+            "acceptedSoundingSources": [
+              "not_applicable"
+            ],
+            "acceptedTriggerSources": [
+              "not_applicable"
+            ],
+            "backends": [
+              "cpu",
+              "gpu"
+            ],
+            "configValidationContract": "numerics.diffusion.scheme+operator_order=2; explicit and implicit K_h/K_v use the same live-density conservative finite-volume scalar and staggered-momentum equations; implicit advances them with backward Euler; explicit linear_height owns prescribed vertical K at physical scalar-cell centers with K_v=0",
+            "coordinateSystems": [
+              "cartesian"
+            ],
+            "cpuGpuParityCoverage": "covered",
+            "cpuReferenceCoverage": "covered",
+            "declared": true,
+            "gpuImplementationCoverage": "covered",
+            "optionalProducts": [
+              "K_momentum",
+              "K_scalar",
+              "prescribed_vertical_K(linear_height_scalar_centers)",
+              "K_effective=max(K_h,K_v)",
+              "max_diffusion_number"
+            ],
+            "producedStateFields": [
+              "du_dt_diff",
+              "dv_dt_diff",
+              "dw_dt_diff",
+              "dtheta_dt_diff",
+              "dqv_dt_diff"
+            ],
+            "recommendedTriggerSource": "not_applicable",
+            "requiredStateFields": [
+              "grid_metrics",
+              "u",
+              "v",
+              "w",
+              "theta",
+              "qv",
+              "live_rho_when_diffusion_active"
+            ],
+            "staggerings": [
+              "collocated",
+              "c_grid"
+            ],
+            "storage": {
+              "coverage": "covered",
+              "note": "Bounded linear-solver vectors, atomic target staging and device transfer buffers",
+              "peakScratchFieldsPerIntegratedField": 0,
+              "peakScratchFullVolumeFields": 64,
+              "persistentFieldsPerIntegratedField": 0,
+              "persistentFullVolumeFields": 0
+            }
+          },
+          "caveat": "Native selection is Ready for the exact flat C-grid implicit/RRTMG references; broader native couplings remain engineering incomplete",
+          "constructible": true,
+          "displayName": "implicit",
+          "id": "implicit",
+          "maturity": "qualified",
+          "parameters": [],
+          "readinessState": "ready",
+          "runtimeSelectable": true
+        }
+      ],
+      "selectionPath": "diffusion.scheme",
+      "studioSelection": {
+        "fixedSchemeId": "",
+        "mode": "form",
+        "reason": ""
+      }
+    },
+    {
+      "id": "time_stepping",
+      "schemes": [
+        {
+          "aliases": [
+            "ssprk3"
+          ],
+          "capabilities": {
+            "acceptedHodographSources": [
+              "not_applicable"
+            ],
+            "acceptedSoundingSources": [
+              "not_applicable"
+            ],
+            "acceptedTriggerSources": [
+              "not_applicable"
+            ],
+            "backends": [
+              "cpu",
+              "gpu"
+            ],
+            "configValidationContract": "flat Cartesian CPU families and periodic stationary native C-grid/collocated RK with no-advection/TVD/mixed-WENO public/private staging, explicit/implicit constant diffusion, and admitted physics compositions",
+            "coordinateSystems": [
+              "cartesian"
+            ],
+            "cpuGpuParityCoverage": "covered",
+            "cpuReferenceCoverage": "covered",
+            "declared": true,
+            "gpuImplementationCoverage": "covered",
+            "optionalProducts": [
+              "step_count",
+              "max_cfl",
+              "dt_history"
+            ],
+            "producedStateFields": [
+              "advanced_prognostic_state"
+            ],
+            "recommendedTriggerSource": "not_applicable",
+            "requiredStateFields": [
+              "time_stepping_state",
+              "rhs_callback"
+            ],
+            "staggerings": [
+              "collocated",
+              "c_grid"
+            ],
+            "storage": {
+              "coverage": "covered",
+              "note": "Persistent stage and RHS buffers scale with integrated field count",
+              "peakScratchFieldsPerIntegratedField": 0,
+              "peakScratchFullVolumeFields": 0,
+              "persistentFieldsPerIntegratedField": 4,
+              "persistentFullVolumeFields": 0
+            }
+          },
+          "caveat": "Other retained boundary, moving-domain, terrain and nesting combinations remain tracked for engineering completion.",
+          "constructible": true,
+          "displayName": "SSPRK3 coupled runtime integration supports maintained flat CPU families and periodic native C-grid/collocated profiles with staged public/private state and admitted physics compositions.",
+          "id": "rk3",
+          "maturity": "qualified",
+          "parameters": [],
+          "readinessState": "ready",
+          "runtimeSelectable": true
+        },
+        {
+          "aliases": [],
+          "capabilities": {
+            "acceptedHodographSources": [
+              "not_applicable"
+            ],
+            "acceptedSoundingSources": [
+              "not_applicable"
+            ],
+            "acceptedTriggerSources": [
+              "not_applicable"
+            ],
+            "backends": [
+              "cpu",
+              "gpu"
+            ],
+            "configValidationContract": "flat Cartesian CPU families and periodic stationary native C-grid/collocated RK with no-advection/TVD/mixed-WENO public/private staging, explicit/implicit constant diffusion, and admitted physics compositions",
+            "coordinateSystems": [
+              "cartesian"
+            ],
+            "cpuGpuParityCoverage": "covered",
+            "cpuReferenceCoverage": "covered",
+            "declared": true,
+            "gpuImplementationCoverage": "covered",
+            "optionalProducts": [
+              "step_count",
+              "max_cfl",
+              "dt_history"
+            ],
+            "producedStateFields": [
+              "advanced_prognostic_state"
+            ],
+            "recommendedTriggerSource": "not_applicable",
+            "requiredStateFields": [
+              "time_stepping_state",
+              "rhs_callback"
+            ],
+            "staggerings": [
+              "collocated",
+              "c_grid"
+            ],
+            "storage": {
+              "coverage": "covered",
+              "note": "Persistent stage and RHS buffers scale with integrated field count",
+              "peakScratchFieldsPerIntegratedField": 0,
+              "peakScratchFullVolumeFields": 0,
+              "persistentFieldsPerIntegratedField": 7,
+              "persistentFullVolumeFields": 0
+            }
+          },
+          "caveat": "Other retained boundary, moving-domain, terrain and nesting combinations remain tracked for engineering completion.",
+          "constructible": true,
+          "displayName": "RK4 coupled runtime integration supports maintained flat CPU families and periodic native C-grid/collocated profiles with staged public/private state and admitted physics compositions.",
+          "id": "rk4",
+          "maturity": "qualified",
+          "parameters": [],
+          "readinessState": "ready",
+          "runtimeSelectable": true
+        },
+        {
+          "aliases": [
+            "split_explicit_rk3",
+            "klemp_wilhelmson"
+          ],
+          "capabilities": {
+            "acceptedHodographSources": [
+              "not_applicable"
+            ],
+            "acceptedSoundingSources": [
+              "not_applicable"
+            ],
+            "acceptedTriggerSources": [
+              "not_applicable"
+            ],
+            "backends": [
+              "cpu",
+              "gpu"
+            ],
+            "configValidationContract": "numerics.time_stepping.scheme+split_acoustic=true",
+            "coordinateSystems": [
+              "any"
+            ],
+            "cpuGpuParityCoverage": "covered",
+            "cpuReferenceCoverage": "covered",
+            "declared": true,
+            "gpuImplementationCoverage": "covered",
+            "optionalProducts": [
+              "step_count",
+              "max_cfl",
+              "dt_history"
+            ],
+            "producedStateFields": [
+              "advanced_prognostic_state"
+            ],
+            "recommendedTriggerSource": "not_applicable",
+            "requiredStateFields": [
+              "slow_tendency_callbacks",
+              "fast_acoustic_callbacks",
+              "boundary_condition_callback"
+            ],
+            "staggerings": [
+              "any"
+            ],
+            "storage": {
+              "coverage": "covered",
+              "note": "Five reusable fast-tendency buffers; callback storage is caller-owned",
+              "peakScratchFieldsPerIntegratedField": 0,
+              "peakScratchFullVolumeFields": 0,
+              "persistentFieldsPerIntegratedField": 0,
+              "persistentFullVolumeFields": 5
+            }
+          },
+          "caveat": "",
+          "constructible": true,
+          "displayName": "split_explicit",
+          "id": "split_explicit",
+          "maturity": "qualified",
+          "parameters": [],
+          "readinessState": "ready",
+          "runtimeSelectable": true
+        }
+      ],
+      "selectionPath": "time.integrator",
+      "studioSelection": {
+        "fixedSchemeId": "",
+        "mode": "form",
+        "reason": ""
+      }
+    },
+    {
+      "id": "microphysics",
+      "schemes": [
+        {
+          "aliases": [],
+          "capabilities": {
+            "acceptedHodographSources": [
+              "not_applicable"
+            ],
+            "acceptedSoundingSources": [
+              "not_applicable"
+            ],
+            "acceptedTriggerSources": [
+              "not_applicable"
+            ],
+            "backends": [
+              "cpu",
+              "gpu"
+            ],
+            "configValidationContract": "microphysics.scheme",
+            "coordinateSystems": [
+              "cartesian"
+            ],
+            "cpuGpuParityCoverage": "covered",
+            "cpuReferenceCoverage": "covered",
+            "declared": true,
+            "gpuImplementationCoverage": "covered",
+            "optionalProducts": [],
+            "producedStateFields": [
+              "dtheta_dt",
+              "dqv_dt",
+              "dqc_dt",
+              "dqr_dt"
+            ],
+            "recommendedTriggerSource": "not_applicable",
+            "requiredStateFields": [
+              "p",
+              "theta",
+              "rho",
+              "qv",
+              "qc",
+              "qr"
+            ],
+            "staggerings": [
+              "collocated",
+              "c_grid"
+            ],
+            "storage": {
+              "coverage": "covered",
+              "note": "Kessler uses three pooled CPU work fields",
+              "peakScratchFieldsPerIntegratedField": 0,
+              "peakScratchFullVolumeFields": 3,
+              "persistentFieldsPerIntegratedField": 0,
+              "persistentFullVolumeFields": 0
+            }
+          },
+          "caveat": "Qualified canonical qv/qc/qr warm rain only inside the exact admitted stationary and moving nested profiles; native accelerator process kernels retain the FP64 CPU state commit, while noncanonical parameters and other cross-products remain exploratory.",
+          "constructible": true,
+          "displayName": "Kessler (warm rain)",
+          "id": "kessler",
+          "maturity": "qualified",
+          "parameters": [
+            {
+              "default": 0.001,
+              "description": "Cloud-water mixing ratio above which autoconversion can begin.",
+              "displayName": "Cloud-water conversion threshold",
+              "kind": "float",
+              "maximum": null,
+              "minimum": 0,
+              "path": "microphysics.shared.cloud_water_threshold_kgkg",
+              "step": 0.0001,
+              "unit": "kg/kg"
+            },
+            {
+              "default": 0.001,
+              "description": "Rate coefficient converting cloud water above the threshold to rain.",
+              "displayName": "Autoconversion rate",
+              "kind": "float",
+              "maximum": null,
+              "minimum": 0,
+              "path": "microphysics.shared.autoconversion_rate_s_inv",
+              "step": 0.0001,
+              "unit": "s\u207b\u00b9"
+            },
+            {
+              "default": 2.2,
+              "description": "Coefficient for rain collecting cloud water.",
+              "displayName": "Rain accretion coefficient",
+              "kind": "float",
+              "maximum": null,
+              "minimum": 0,
+              "path": "microphysics.kessler.accretion_coefficient",
+              "step": 0.1,
+              "unit": ""
+            },
+            {
+              "default": 1,
+              "description": "Dimensionless multiplier on the published Kessler diffusion/ventilation evaporation kernel; 1 is the reference equation.",
+              "displayName": "Rain evaporation efficiency",
+              "kind": "float",
+              "maximum": null,
+              "minimum": 0,
+              "path": "microphysics.kessler.evaporation_efficiency",
+              "step": 0.05,
+              "unit": ""
+            }
+          ],
+          "readinessState": "ready",
+          "runtimeSelectable": true
+        },
+        {
+          "aliases": [],
+          "capabilities": {
+            "acceptedHodographSources": [
+              "not_applicable"
+            ],
+            "acceptedSoundingSources": [
+              "not_applicable"
+            ],
+            "acceptedTriggerSources": [
+              "not_applicable"
+            ],
+            "backends": [
+              "cpu",
+              "gpu"
+            ],
+            "configValidationContract": "microphysics.scheme",
+            "coordinateSystems": [
+              "cartesian"
+            ],
+            "cpuGpuParityCoverage": "covered",
+            "cpuReferenceCoverage": "covered",
+            "declared": true,
+            "gpuImplementationCoverage": "covered",
+            "optionalProducts": [],
+            "producedStateFields": [
+              "dtheta_dt",
+              "dqv_dt",
+              "dqc_dt",
+              "dqr_dt",
+              "dqi_dt",
+              "dqs_dt",
+              "dqg_dt",
+              "dqh_dt"
+            ],
+            "recommendedTriggerSource": "not_applicable",
+            "requiredStateFields": [
+              "p",
+              "theta",
+              "rho",
+              "qv",
+              "qc",
+              "qr",
+              "qi",
+              "qs",
+              "qg",
+              "qh"
+            ],
+            "staggerings": [
+              "collocated",
+              "c_grid"
+            ],
+            "storage": {
+              "coverage": "covered",
+              "note": "Lin reserves eight transactional tendencies, eight readback or parity fields, and three layer-thickness equivalents",
+              "peakScratchFieldsPerIntegratedField": 0,
+              "peakScratchFullVolumeFields": 19,
+              "persistentFieldsPerIntegratedField": 0,
+              "persistentFullVolumeFields": 0
+            }
+          },
+          "caveat": "Qualified canonical single-moment mixed-phase Lin process chain on flat C-grid CPU/Vulkan/Metal and collocated profiles. Native pointwise/fallout honors physical-cell ownership and layer thickness; the strict host transaction retains state commit and FP64 ledgers. Additional coupled profiles remain tracked for completion.",
+          "constructible": true,
+          "displayName": "Lin (single-moment ice)",
+          "id": "lin",
+          "maturity": "qualified",
+          "parameters": [
+            {
+              "default": 0.001,
+              "description": "Cloud-water mixing ratio above which autoconversion can begin.",
+              "displayName": "Cloud-water conversion threshold",
+              "kind": "float",
+              "maximum": null,
+              "minimum": 0,
+              "path": "microphysics.shared.cloud_water_threshold_kgkg",
+              "step": 0.0001,
+              "unit": "kg/kg"
+            },
+            {
+              "default": 0.001,
+              "description": "Rate coefficient converting cloud water above the threshold to rain.",
+              "displayName": "Autoconversion rate",
+              "kind": "float",
+              "maximum": null,
+              "minimum": 0,
+              "path": "microphysics.shared.autoconversion_rate_s_inv",
+              "step": 0.0001,
+              "unit": "s\u207b\u00b9"
+            },
+            {
+              "default": 2.2,
+              "description": "Coefficient for rain collecting cloud water in the Lin process chain.",
+              "displayName": "Rain accretion coefficient",
+              "kind": "float",
+              "maximum": null,
+              "minimum": 0,
+              "path": "microphysics.lin.accretion_coefficient",
+              "step": 0.1,
+              "unit": ""
+            },
+            {
+              "default": 0.001,
+              "description": "Subsaturation-driven rain evaporation rate coefficient.",
+              "displayName": "Rain evaporation rate",
+              "kind": "float",
+              "maximum": null,
+              "minimum": 0,
+              "path": "microphysics.lin.evaporation_rate_s_inv",
+              "step": 0.0001,
+              "unit": "s\u207b\u00b9"
+            }
+          ],
+          "readinessState": "ready",
+          "runtimeSelectable": true
+        },
+        {
+          "aliases": [],
+          "capabilities": {
+            "acceptedHodographSources": [
+              "not_applicable"
+            ],
+            "acceptedSoundingSources": [
+              "not_applicable"
+            ],
+            "acceptedTriggerSources": [
+              "not_applicable"
+            ],
+            "backends": [
+              "cpu",
+              "gpu"
+            ],
+            "configValidationContract": "microphysics.scheme",
+            "coordinateSystems": [
+              "cartesian"
+            ],
+            "cpuGpuParityCoverage": "covered",
+            "cpuReferenceCoverage": "covered",
+            "declared": true,
+            "gpuImplementationCoverage": "covered",
+            "optionalProducts": [],
+            "producedStateFields": [
+              "dtheta_dt",
+              "dqv_dt",
+              "dqc_dt",
+              "dqr_dt",
+              "dqi_dt",
+              "dqs_dt",
+              "dqg_dt",
+              "dqh_dt"
+            ],
+            "recommendedTriggerSource": "not_applicable",
+            "requiredStateFields": [
+              "p",
+              "theta",
+              "rho",
+              "qv",
+              "qc",
+              "qr",
+              "qi",
+              "qs",
+              "qg",
+              "qh"
+            ],
+            "staggerings": [
+              "collocated",
+              "c_grid"
+            ],
+            "storage": {
+              "coverage": "covered",
+              "note": "Thompson owns five number moments, five pending tendencies and a surface ledger; the conservative scratch reserve includes transactional process state, native freezing and sedimentation staging, and device work buffers",
+              "peakScratchFieldsPerIntegratedField": 0,
+              "peakScratchFullVolumeFields": 384,
+              "persistentFieldsPerIntegratedField": 0,
+              "persistentFullVolumeFields": 11
+            }
+          },
+          "caveat": "Thompson\u2013Eidhammer CPU profiles and native C-grid process/sedimentation reference with transported Nc, Nr, Ni, Nwfa, and Nifa. The host retains the explicit FP64 transactional state commit and ledgers; long campaigns and independent scientific review remain pending.",
+          "constructible": true,
+          "displayName": "Thompson\u2013Eidhammer (aerosol-aware)",
+          "id": "thompson",
+          "maturity": "qualified",
+          "parameters": [
+            {
+              "default": 0.001,
+              "description": "Cloud-water mixing ratio above which autoconversion can begin.",
+              "displayName": "Cloud-water conversion threshold",
+              "kind": "float",
+              "maximum": null,
+              "minimum": 0,
+              "path": "microphysics.shared.cloud_water_threshold_kgkg",
+              "step": 0.0001,
+              "unit": "kg/kg"
+            },
+            {
+              "default": 0.001,
+              "description": "Rate coefficient converting cloud water above the threshold to rain.",
+              "displayName": "Autoconversion rate",
+              "kind": "float",
+              "maximum": null,
+              "minimum": 0,
+              "path": "microphysics.shared.autoconversion_rate_s_inv",
+              "step": 0.0001,
+              "unit": "s\u207b\u00b9"
+            },
+            {
+              "default": 0.001,
+              "description": "Canonical compatibility parameter retained in portable identity; initialized Thompson\u2013Eidhammer execution uses the pinned diffusion and ventilation equation.",
+              "displayName": "Compatibility evaporation rate",
+              "kind": "float",
+              "maximum": null,
+              "minimum": 0,
+              "path": "microphysics.thompson.evaporation_rate_s_inv",
+              "step": 0.0001,
+              "unit": "s\u207b\u00b9"
+            },
+            {
+              "default": 350000000,
+              "description": "Total surface endpoint of the fixed aerosol-aware Thompson CCN profile.",
+              "displayName": "Surface water-friendly aerosol number",
+              "kind": "float",
+              "maximum": null,
+              "minimum": 0,
+              "path": "microphysics.thompson.water_friendly_aerosol_surface_m3",
+              "step": 10000000,
+              "unit": "m\u207b\u00b3"
+            },
+            {
+              "default": 2000000,
+              "description": "Total surface endpoint of the fixed aerosol-aware Thompson IN profile.",
+              "displayName": "Surface ice-friendly aerosol number",
+              "kind": "float",
+              "maximum": null,
+              "minimum": 0,
+              "path": "microphysics.thompson.ice_friendly_aerosol_surface_m3",
+              "step": 100000,
+              "unit": "m\u207b\u00b3"
+            }
+          ],
+          "readinessState": "ready",
+          "runtimeSelectable": true
+        },
+        {
+          "aliases": [],
+          "capabilities": {
+            "acceptedHodographSources": [
+              "not_applicable"
+            ],
+            "acceptedSoundingSources": [
+              "not_applicable"
+            ],
+            "acceptedTriggerSources": [
+              "not_applicable"
+            ],
+            "backends": [
+              "cpu",
+              "gpu"
+            ],
+            "configValidationContract": "microphysics.scheme",
+            "coordinateSystems": [
+              "cartesian"
+            ],
+            "cpuGpuParityCoverage": "covered",
+            "cpuReferenceCoverage": "covered",
+            "declared": true,
+            "gpuImplementationCoverage": "covered",
+            "optionalProducts": [],
+            "producedStateFields": [
+              "dtheta_dt",
+              "dqv_dt",
+              "dqc_dt",
+              "dqr_dt",
+              "dqi_dt",
+              "dqs_dt",
+              "dqg_dt",
+              "dqh_dt"
+            ],
+            "recommendedTriggerSource": "not_applicable",
+            "requiredStateFields": [
+              "p",
+              "theta",
+              "rho",
+              "qv",
+              "qc",
+              "qr",
+              "qi",
+              "qs",
+              "qg",
+              "qh"
+            ],
+            "staggerings": [
+              "collocated",
+              "c_grid"
+            ],
+            "storage": {
+              "coverage": "covered",
+              "note": "Milbrandt owns six number moments and six pending tendencies; the conservative scratch reserve includes native process staging, packed cold inputs, column transport work, and transactional host assembly",
+              "peakScratchFieldsPerIntegratedField": 0,
+              "peakScratchFullVolumeFields": 256,
+              "persistentFieldsPerIntegratedField": 0,
+              "persistentFullVolumeFields": 12
+            }
+          },
+          "caveat": "Milbrandt-Yau CPU profiles and a native C-grid process/sedimentation reference with six transported number moments. The host retains FP64 transfer assembly, transactional number-state commit and ledgers; long campaigns and independent scientific review remain pending.",
+          "constructible": true,
+          "displayName": "Milbrandt-Yau (double moment)",
+          "id": "milbrandt",
+          "maturity": "qualified",
+          "parameters": [
+            {
+              "default": true,
+              "description": "Enable production of hail; any existing hail remains physically treated by melting, sublimation, collection, and sedimentation.",
+              "displayName": "New hail production",
+              "kind": "boolean",
+              "maximum": null,
+              "minimum": null,
+              "path": "microphysics.milbrandt.hail_processes",
+              "step": null,
+              "unit": ""
+            }
+          ],
+          "readinessState": "ready",
+          "runtimeSelectable": true
+        },
+        {
+          "aliases": [],
+          "capabilities": {
+            "acceptedHodographSources": [
+              "not_applicable"
+            ],
+            "acceptedSoundingSources": [
+              "not_applicable"
+            ],
+            "acceptedTriggerSources": [
+              "not_applicable"
+            ],
+            "backends": [
+              "cpu",
+              "gpu"
+            ],
+            "configValidationContract": "microphysics.scheme",
+            "coordinateSystems": [
+              "cartesian"
+            ],
+            "cpuGpuParityCoverage": "not_applicable",
+            "cpuReferenceCoverage": "covered",
+            "declared": true,
+            "gpuImplementationCoverage": "not_applicable",
+            "optionalProducts": [],
+            "producedStateFields": [],
+            "recommendedTriggerSource": "not_applicable",
+            "requiredStateFields": [],
+            "staggerings": [
+              "collocated",
+              "c_grid"
+            ],
+            "storage": {
+              "coverage": "not_applicable",
+              "note": "No-op scheme owns no storage",
+              "peakScratchFieldsPerIntegratedField": 0,
+              "peakScratchFullVolumeFields": 0,
+              "persistentFieldsPerIntegratedField": 0,
+              "persistentFullVolumeFields": 0
+            }
+          },
+          "caveat": "Disables cloud and precipitation microphysics.",
+          "constructible": true,
+          "displayName": "None (dry dynamics)",
+          "id": "none",
+          "maturity": "qualified",
+          "parameters": [],
+          "readinessState": "ready",
+          "runtimeSelectable": true
+        }
+      ],
+      "selectionPath": "microphysics.scheme",
+      "studioSelection": {
+        "fixedSchemeId": "",
+        "mode": "form",
+        "reason": ""
+      }
+    },
+    {
+      "id": "radiation",
+      "schemes": [
+        {
+          "aliases": [
+            "simple-grey",
+            "simplegray",
+            "simplegrey",
+            "gray",
+            "grey"
+          ],
+          "capabilities": {
+            "acceptedHodographSources": [
+              "not_applicable"
+            ],
+            "acceptedSoundingSources": [
+              "not_applicable"
+            ],
+            "acceptedTriggerSources": [
+              "not_applicable"
+            ],
+            "backends": [
+              "cpu",
+              "gpu"
+            ],
+            "configValidationContract": "radiation.scheme+versioned_absorbing_water_cloud_optics+explicit_mass_absorption_coefficients+subcycle_and_diagnostic_contract",
+            "coordinateSystems": [
+              "cartesian"
+            ],
+            "cpuGpuParityCoverage": "covered",
+            "cpuReferenceCoverage": "covered",
+            "declared": true,
+            "gpuImplementationCoverage": "covered",
+            "optionalProducts": [
+              "longwave_fluxes",
+              "shortwave_fluxes"
+            ],
+            "producedStateFields": [
+              "dT_dt_rad",
+              "dT_dt_lw",
+              "dT_dt_sw"
+            ],
+            "recommendedTriggerSource": "not_applicable",
+            "requiredStateFields": [
+              "temperature",
+              "p",
+              "p_interfaces",
+              "rho",
+              "z_interfaces",
+              "dz",
+              "solar_geometry",
+              "surface_radiative_state",
+              "qv",
+              "qc",
+              "qi"
+            ],
+            "staggerings": [
+              "collocated",
+              "c_grid"
+            ],
+            "storage": {
+              "coverage": "covered",
+              "note": "One held per-cell atmospheric-power field plus two reusable transactional full-volume candidates and caller-owned O(NZ) column work; mapped shortwave adds configuration-sized spectral/angular workspaces and a bounded geometry cache through the runtime memory policy",
+              "peakScratchFieldsPerIntegratedField": 0,
+              "peakScratchFullVolumeFields": 2,
+              "persistentFieldsPerIntegratedField": 0,
+              "persistentFullVolumeFields": 1
+            }
+          },
+          "caveat": "Qualified pressure-coordinate clear-sky and versioned pure-absorption cloudy lanes with explicit vapor, liquid, and ice mass-path coefficients, retained interface fluxes, and cadence subcycling. It excludes cloud scattering and does not claim observational all-sky accuracy.",
+          "constructible": true,
+          "displayName": "Pressure-coordinate and absorbing water/cloud-path simple-grey radiation",
+          "id": "simple_grey",
+          "maturity": "qualified",
+          "parameters": [],
+          "readinessState": "ready",
+          "runtimeSelectable": true
+        },
+        {
+          "aliases": [
+            "rrtmg_lw",
+            "rrtmg_sw",
+            "rrtmg_lw_sw"
+          ],
+          "capabilities": {
+            "acceptedHodographSources": [
+              "not_applicable"
+            ],
+            "acceptedSoundingSources": [
+              "not_applicable"
+            ],
+            "acceptedTriggerSources": [
+              "not_applicable"
+            ],
+            "backends": [
+              "cpu",
+              "gpu"
+            ],
+            "configValidationContract": "radiation.scheme+explicit_idealized_solar_geometry+lw_sw_options+rrtmg_composition",
+            "coordinateSystems": [
+              "cartesian"
+            ],
+            "cpuGpuParityCoverage": "covered",
+            "cpuReferenceCoverage": "covered",
+            "declared": true,
+            "gpuImplementationCoverage": "covered",
+            "optionalProducts": [
+              "longwave_fluxes",
+              "shortwave_fluxes"
+            ],
+            "producedStateFields": [
+              "dT_dt_rad",
+              "dT_dt_lw",
+              "dT_dt_sw"
+            ],
+            "recommendedTriggerSource": "not_applicable",
+            "requiredStateFields": [
+              "temperature",
+              "p",
+              "p_interfaces",
+              "rho",
+              "z_interfaces",
+              "dz",
+              "solar_geometry",
+              "surface_radiative_state",
+              "qv",
+              "qc",
+              "qi"
+            ],
+            "staggerings": [
+              "collocated",
+              "c_grid"
+            ],
+            "storage": {
+              "coverage": "covered",
+              "note": "One held per-cell atmospheric-power field plus two reusable transactional full-volume candidates and caller-owned O(NZ) column work; mapped shortwave adds configuration-sized spectral/angular workspaces and a bounded geometry cache through the runtime memory policy",
+              "peakScratchFieldsPerIntegratedField": 0,
+              "peakScratchFullVolumeFields": 2,
+              "persistentFieldsPerIntegratedField": 0,
+              "persistentFullVolumeFields": 1
+            }
+          },
+          "caveat": "Native major/minor-gas, continuum, resolved liquid/ice cloud optics, and longwave/shortwave transfer pass official 52-interface clear and overcast MLS reference gates. Bounded coupled, restart, conservation, transactional, threaded, and accelerator tests pass. CPU mapped terrain additionally owns a conservative 112-point transport-corrected scattering and sloped-reflection solve; sustained campaigns and external review remain.",
+          "constructible": true,
+          "displayName": "RRTMG",
+          "id": "rrtmg",
+          "maturity": "qualified",
+          "parameters": [],
+          "readinessState": "ready",
+          "runtimeSelectable": true
+        },
+        {
+          "aliases": [
+            "off",
+            "disabled"
+          ],
+          "capabilities": {
+            "acceptedHodographSources": [
+              "not_applicable"
+            ],
+            "acceptedSoundingSources": [
+              "not_applicable"
+            ],
+            "acceptedTriggerSources": [
+              "not_applicable"
+            ],
+            "backends": [
+              "cpu",
+              "gpu"
+            ],
+            "configValidationContract": "radiation.scheme+explicit_idealized_solar_geometry+lw_sw_options",
+            "coordinateSystems": [
+              "cartesian"
+            ],
+            "cpuGpuParityCoverage": "not_applicable",
+            "cpuReferenceCoverage": "not_applicable",
+            "declared": true,
+            "gpuImplementationCoverage": "not_applicable",
+            "optionalProducts": [],
+            "producedStateFields": [],
+            "recommendedTriggerSource": "not_applicable",
+            "requiredStateFields": [],
+            "staggerings": [
+              "collocated",
+              "c_grid"
+            ],
+            "storage": {
+              "coverage": "covered",
+              "note": "No-op radiation owns no persistent field",
+              "peakScratchFieldsPerIntegratedField": 0,
+              "peakScratchFullVolumeFields": 0,
+              "persistentFieldsPerIntegratedField": 0,
+              "persistentFullVolumeFields": 0
+            }
+          },
+          "caveat": "",
+          "constructible": true,
+          "displayName": "none",
+          "id": "none",
+          "maturity": "qualified",
+          "parameters": [],
+          "readinessState": "ready",
+          "runtimeSelectable": true
+        }
+      ],
+      "selectionPath": "radiation.scheme",
+      "studioSelection": {
+        "fixedSchemeId": "",
+        "mode": "form",
+        "reason": ""
+      }
+    },
+    {
+      "id": "boundary_layer",
+      "schemes": [
+        {
+          "aliases": [
+            "mixed_layer",
+            "mixed-layer"
+          ],
+          "capabilities": {
+            "acceptedHodographSources": [
+              "not_applicable"
+            ],
+            "acceptedSoundingSources": [
+              "not_applicable"
+            ],
+            "acceptedTriggerSources": [
+              "not_applicable"
+            ],
+            "backends": [
+              "cpu",
+              "gpu"
+            ],
+            "configValidationContract": "boundary_layer.scheme+surface",
+            "coordinateSystems": [
+              "cartesian"
+            ],
+            "cpuGpuParityCoverage": "covered",
+            "cpuReferenceCoverage": "covered",
+            "declared": true,
+            "gpuImplementationCoverage": "covered",
+            "optionalProducts": [
+              "pbl_height",
+              "surface_fluxes"
+            ],
+            "producedStateFields": [
+              "du_dt_pbl",
+              "dv_dt_pbl",
+              "dtheta_dt_pbl",
+              "dqv_dt_pbl",
+              "dtke_dt_pbl"
+            ],
+            "recommendedTriggerSource": "not_applicable",
+            "requiredStateFields": [
+              "u",
+              "v",
+              "theta",
+              "qv",
+              "p",
+              "rho",
+              "z_interfaces",
+              "surface_state"
+            ],
+            "staggerings": [
+              "collocated",
+              "c_grid"
+            ],
+            "storage": {
+              "coverage": "covered",
+              "note": "Four conserved held-source volumes persist; a transactional refresh owns five tendency and four source candidates plus O(NZ) column work",
+              "peakScratchFieldsPerIntegratedField": 0,
+              "peakScratchFullVolumeFields": 9,
+              "persistentFieldsPerIntegratedField": 0,
+              "persistentFullVolumeFields": 4
+            }
+          },
+          "caveat": "",
+          "constructible": true,
+          "displayName": "slab",
+          "id": "slab",
+          "maturity": "qualified",
+          "parameters": [],
+          "readinessState": "ready",
+          "runtimeSelectable": true
+        },
+        {
+          "aliases": [
+            "yonsei",
+            "yonsei_university"
+          ],
+          "capabilities": {
+            "acceptedHodographSources": [
+              "not_applicable"
+            ],
+            "acceptedSoundingSources": [
+              "not_applicable"
+            ],
+            "acceptedTriggerSources": [
+              "not_applicable"
+            ],
+            "backends": [
+              "cpu",
+              "gpu"
+            ],
+            "configValidationContract": "boundary_layer.scheme+surface",
+            "coordinateSystems": [
+              "cartesian"
+            ],
+            "cpuGpuParityCoverage": "none",
+            "cpuReferenceCoverage": "covered",
+            "declared": true,
+            "gpuImplementationCoverage": "none",
+            "optionalProducts": [
+              "pbl_height",
+              "surface_fluxes",
+              "cloud_top_radiative_mixing"
+            ],
+            "producedStateFields": [
+              "du_dt_pbl",
+              "dv_dt_pbl",
+              "dtheta_dt_pbl",
+              "dqv_dt_pbl",
+              "dtke_dt_pbl",
+              "dqc_dt_pbl",
+              "dqi_dt_pbl"
+            ],
+            "recommendedTriggerSource": "not_applicable",
+            "requiredStateFields": [
+              "u",
+              "v",
+              "theta",
+              "qv",
+              "p",
+              "rho",
+              "z_interfaces",
+              "surface_state",
+              "qc",
+              "qi",
+              "dtheta_dt_rad"
+            ],
+            "staggerings": [
+              "collocated",
+              "c_grid"
+            ],
+            "storage": {
+              "coverage": "covered",
+              "note": "Six conserved held-source volumes persist; a transactional refresh owns seven tendency and six source candidates plus O(NZ) column work",
+              "peakScratchFieldsPerIntegratedField": 0,
+              "peakScratchFullVolumeFields": 13,
+              "persistentFieldsPerIntegratedField": 0,
+              "persistentFullVolumeFields": 6
+            }
+          },
+          "caveat": "Hong-Noh-Dudhia nonlocal K-profile with countergradient transport, explicit inversion entrainment, Richardson-dependent outer mixing, and an exact CPU surface-coupled Lock cloud-top radiative lane transporting linearized liquid-water potential temperature and qv/qc/qi; elevated decoupled clouds and campaigns remain separate.",
+          "constructible": true,
+          "displayName": "YSU",
+          "id": "ysu",
+          "maturity": "qualified",
+          "parameters": [],
+          "readinessState": "ready",
+          "runtimeSelectable": true
+        },
+        {
+          "aliases": [
+            "mynn2",
+            "mellor_yamada_nakanishi_niino"
+          ],
+          "capabilities": {
+            "acceptedHodographSources": [
+              "not_applicable"
+            ],
+            "acceptedSoundingSources": [
+              "not_applicable"
+            ],
+            "acceptedTriggerSources": [
+              "not_applicable"
+            ],
+            "backends": [
+              "cpu",
+              "gpu"
+            ],
+            "configValidationContract": "boundary_layer.scheme+surface",
+            "coordinateSystems": [
+              "cartesian"
+            ],
+            "cpuGpuParityCoverage": "covered",
+            "cpuReferenceCoverage": "covered",
+            "declared": true,
+            "gpuImplementationCoverage": "covered",
+            "optionalProducts": [
+              "pbl_height",
+              "surface_fluxes"
+            ],
+            "producedStateFields": [
+              "du_dt_pbl",
+              "dv_dt_pbl",
+              "dtheta_dt_pbl",
+              "dqv_dt_pbl",
+              "dtke_dt_pbl"
+            ],
+            "recommendedTriggerSource": "not_applicable",
+            "requiredStateFields": [
+              "u",
+              "v",
+              "theta",
+              "qv",
+              "p",
+              "rho",
+              "z_interfaces",
+              "surface_state"
+            ],
+            "staggerings": [
+              "collocated",
+              "c_grid"
+            ],
+            "storage": {
+              "coverage": "covered",
+              "note": "Four conserved held-source volumes persist; a transactional refresh owns five tendency and four source candidates plus O(NZ) column work",
+              "peakScratchFieldsPerIntegratedField": 0,
+              "peakScratchFullVolumeFields": 9,
+              "persistentFieldsPerIntegratedField": 0,
+              "persistentFullVolumeFields": 4
+            }
+          },
+          "caveat": "Nakanishi-Niino level-2.5 local closure with bounded coupled, restart, conservation, transactional, threaded, and accelerator coverage; sustained campaigns and external review remain.",
+          "constructible": true,
+          "displayName": "MYNN",
+          "id": "mynn",
+          "maturity": "qualified",
+          "parameters": [],
+          "readinessState": "ready",
+          "runtimeSelectable": true
+        },
+        {
+          "aliases": [
+            "off",
+            "disabled"
+          ],
+          "capabilities": {
+            "acceptedHodographSources": [
+              "not_applicable"
+            ],
+            "acceptedSoundingSources": [
+              "not_applicable"
+            ],
+            "acceptedTriggerSources": [
+              "not_applicable"
+            ],
+            "backends": [
+              "cpu",
+              "gpu"
+            ],
+            "configValidationContract": "boundary_layer.scheme+surface",
+            "coordinateSystems": [
+              "cartesian"
+            ],
+            "cpuGpuParityCoverage": "not_applicable",
+            "cpuReferenceCoverage": "covered",
+            "declared": true,
+            "gpuImplementationCoverage": "not_applicable",
+            "optionalProducts": [],
+            "producedStateFields": [],
+            "recommendedTriggerSource": "not_applicable",
+            "requiredStateFields": [],
+            "staggerings": [
+              "collocated",
+              "c_grid"
+            ],
+            "storage": {
+              "coverage": "not_applicable",
+              "note": "No-op scheme owns no storage",
+              "peakScratchFieldsPerIntegratedField": 0,
+              "peakScratchFullVolumeFields": 0,
+              "persistentFieldsPerIntegratedField": 0,
+              "persistentFullVolumeFields": 0
+            }
+          },
+          "caveat": "",
+          "constructible": true,
+          "displayName": "none",
+          "id": "none",
+          "maturity": "qualified",
+          "parameters": [],
+          "readinessState": "ready",
+          "runtimeSelectable": true
+        }
+      ],
+      "selectionPath": "boundary_layer.scheme",
+      "studioSelection": {
+        "fixedSchemeId": "",
+        "mode": "form",
+        "reason": ""
+      }
+    },
+    {
+      "id": "turbulence",
+      "schemes": [
+        {
+          "aliases": [
+            "smag",
+            "smagorinsky_lilly",
+            "smagorinsky-lilly"
+          ],
+          "capabilities": {
+            "acceptedHodographSources": [
+              "not_applicable"
+            ],
+            "acceptedSoundingSources": [
+              "not_applicable"
+            ],
+            "acceptedTriggerSources": [
+              "not_applicable"
+            ],
+            "backends": [
+              "cpu",
+              "gpu"
+            ],
+            "configValidationContract": "turbulence.scheme+turbulence.mode+turbulence.filter_width+turbulence.dynamic_coefficient+turbulence.stability_correction",
+            "coordinateSystems": [
+              "cartesian"
+            ],
+            "cpuGpuParityCoverage": "covered",
+            "cpuReferenceCoverage": "covered",
+            "declared": true,
+            "gpuImplementationCoverage": "covered",
+            "optionalProducts": [
+              "eddy_viscosity",
+              "mixing_length"
+            ],
+            "producedStateFields": [
+              "du_dt",
+              "dv_dt",
+              "dw_dt",
+              "dtheta_dt",
+              "dqv_dt",
+              "dtke_dt"
+            ],
+            "recommendedTriggerSource": "not_applicable",
+            "requiredStateFields": [
+              "u",
+              "v",
+              "w",
+              "theta",
+              "qv",
+              "rho"
+            ],
+            "staggerings": [
+              "collocated",
+              "c_grid"
+            ],
+            "storage": {
+              "coverage": "covered",
+              "note": "Three closure coefficients; parity sampling may copy all three",
+              "peakScratchFieldsPerIntegratedField": 0,
+              "peakScratchFullVolumeFields": 3,
+              "persistentFieldsPerIntegratedField": 0,
+              "persistentFullVolumeFields": 3
+            }
+          },
+          "caveat": "Dynamic Germano-Lilly coefficients are Ready only for the exact flat periodic C-grid CPU profile; Richardson selection uses the versioned Lilly-equilibrium balance in its exact flat CPU reference profile",
+          "constructible": true,
+          "displayName": "smagorinsky",
+          "id": "smagorinsky",
+          "maturity": "qualified",
+          "parameters": [],
+          "readinessState": "ready",
+          "runtimeSelectable": true
+        },
+        {
+          "aliases": [
+            "1.5",
+            "1.5order",
+            "1.5-order"
+          ],
+          "capabilities": {
+            "acceptedHodographSources": [
+              "not_applicable"
+            ],
+            "acceptedSoundingSources": [
+              "not_applicable"
+            ],
+            "acceptedTriggerSources": [
+              "not_applicable"
+            ],
+            "backends": [
+              "cpu",
+              "gpu"
+            ],
+            "configValidationContract": "turbulence.scheme+turbulence.mode+turbulence.filter_width+turbulence.stability_correction+turbulence.Pr_t+turbulence.Sc_t",
+            "coordinateSystems": [
+              "cartesian"
+            ],
+            "cpuGpuParityCoverage": "covered",
+            "cpuReferenceCoverage": "covered",
+            "declared": true,
+            "gpuImplementationCoverage": "covered",
+            "optionalProducts": [
+              "eddy_viscosity",
+              "mixing_length"
+            ],
+            "producedStateFields": [
+              "du_dt",
+              "dv_dt",
+              "dw_dt",
+              "dtheta_dt",
+              "dqv_dt",
+              "dtke_dt"
+            ],
+            "recommendedTriggerSource": "not_applicable",
+            "requiredStateFields": [
+              "u",
+              "v",
+              "w",
+              "theta",
+              "qv",
+              "rho",
+              "tke"
+            ],
+            "staggerings": [
+              "collocated",
+              "c_grid"
+            ],
+            "storage": {
+              "coverage": "covered",
+              "note": "TKE state plus four coefficients and two pooled production fields",
+              "peakScratchFieldsPerIntegratedField": 0,
+              "peakScratchFullVolumeFields": 2,
+              "persistentFieldsPerIntegratedField": 0,
+              "persistentFullVolumeFields": 5
+            }
+          },
+          "caveat": "The tke_based stability correction is Ready in the declared flat C-grid, A-grid, and mapped CPU families and the exact flat Vulkan/Metal TKE/RRTMG reference; broader native combinations remain engineering incomplete",
+          "constructible": true,
+          "displayName": "Deardorff-Moeng prognostic TKE",
+          "id": "tke",
+          "maturity": "qualified",
+          "parameters": [],
+          "readinessState": "ready",
+          "runtimeSelectable": true
+        },
+        {
+          "aliases": [
+            "off",
+            "disabled"
+          ],
+          "capabilities": {
+            "acceptedHodographSources": [
+              "not_applicable"
+            ],
+            "acceptedSoundingSources": [
+              "not_applicable"
+            ],
+            "acceptedTriggerSources": [
+              "not_applicable"
+            ],
+            "backends": [
+              "cpu",
+              "gpu"
+            ],
+            "configValidationContract": "turbulence.scheme",
+            "coordinateSystems": [
+              "cartesian"
+            ],
+            "cpuGpuParityCoverage": "not_applicable",
+            "cpuReferenceCoverage": "covered",
+            "declared": true,
+            "gpuImplementationCoverage": "not_applicable",
+            "optionalProducts": [],
+            "producedStateFields": [],
+            "recommendedTriggerSource": "not_applicable",
+            "requiredStateFields": [],
+            "staggerings": [
+              "collocated",
+              "c_grid"
+            ],
+            "storage": {
+              "coverage": "not_applicable",
+              "note": "No-op scheme owns no storage",
+              "peakScratchFieldsPerIntegratedField": 0,
+              "peakScratchFullVolumeFields": 0,
+              "persistentFieldsPerIntegratedField": 0,
+              "persistentFullVolumeFields": 0
+            }
+          },
+          "caveat": "",
+          "constructible": true,
+          "displayName": "none",
+          "id": "none",
+          "maturity": "qualified",
+          "parameters": [],
+          "readinessState": "ready",
+          "runtimeSelectable": true
+        }
+      ],
+      "selectionPath": "turbulence.scheme",
+      "studioSelection": {
+        "fixedSchemeId": "",
+        "mode": "form",
+        "reason": ""
+      }
+    },
+    {
+      "id": "chaos",
+      "schemes": [
+        {
+          "aliases": [],
+          "capabilities": {
+            "acceptedHodographSources": [
+              "not_applicable"
+            ],
+            "acceptedSoundingSources": [
+              "not_applicable"
+            ],
+            "acceptedTriggerSources": [
+              "not_applicable"
+            ],
+            "backends": [
+              "cpu",
+              "gpu"
+            ],
+            "configValidationContract": "chaos.scheme+apply_to_fields+amplitude_maps",
+            "coordinateSystems": [
+              "cartesian"
+            ],
+            "cpuGpuParityCoverage": "not_applicable",
+            "cpuReferenceCoverage": "not_applicable",
+            "declared": true,
+            "gpuImplementationCoverage": "not_applicable",
+            "optionalProducts": [
+              "noise_field",
+              "realized_variance",
+              "multiplier_extrema"
+            ],
+            "producedStateFields": [],
+            "recommendedTriggerSource": "not_applicable",
+            "requiredStateFields": [],
+            "staggerings": [
+              "collocated",
+              "c_grid"
+            ],
+            "storage": {
+              "coverage": "not_applicable",
+              "note": "No-op scheme owns no storage",
+              "peakScratchFieldsPerIntegratedField": 0,
+              "peakScratchFullVolumeFields": 0,
+              "persistentFieldsPerIntegratedField": 0,
+              "persistentFullVolumeFields": 0
+            }
+          },
+          "caveat": "",
+          "constructible": true,
+          "displayName": "none",
+          "id": "none",
+          "maturity": "qualified",
+          "parameters": [],
+          "readinessState": "ready",
+          "runtimeSelectable": true
+        },
+        {
+          "aliases": [
+            "ic"
+          ],
+          "capabilities": {
+            "acceptedHodographSources": [
+              "not_applicable"
+            ],
+            "acceptedSoundingSources": [
+              "not_applicable"
+            ],
+            "acceptedTriggerSources": [
+              "not_applicable"
+            ],
+            "backends": [
+              "cpu",
+              "gpu"
+            ],
+            "configValidationContract": "chaos.scheme+apply_to_fields+amplitude_maps",
+            "coordinateSystems": [
+              "cartesian"
+            ],
+            "cpuGpuParityCoverage": "none",
+            "cpuReferenceCoverage": "covered",
+            "declared": true,
+            "gpuImplementationCoverage": "none",
+            "optionalProducts": [
+              "noise_field",
+              "realized_variance",
+              "multiplier_extrema"
+            ],
+            "producedStateFields": [
+              "perturbed_initial_state"
+            ],
+            "recommendedTriggerSource": "not_applicable",
+            "requiredStateFields": [
+              "u",
+              "v",
+              "w",
+              "theta",
+              "qv",
+              "qc",
+              "qr",
+              "grid_metrics"
+            ],
+            "staggerings": [
+              "collocated",
+              "c_grid"
+            ],
+            "storage": {
+              "coverage": "partial",
+              "note": "Earth-control storage is an explicit function of domain shape and Lx/Ly (bounded below by quarter-cell control spacing); initial-condition fields are processed sequentially, boundary-layer owns one current/previous process, and full-stochastic owns three",
+              "peakScratchFieldsPerIntegratedField": 0,
+              "peakScratchFullVolumeFields": -1,
+              "persistentFieldsPerIntegratedField": 0,
+              "persistentFullVolumeFields": -1
+            }
+          },
+          "caveat": "Qualified on flat collocated A-grid and flat or mapped C-grid CPU state for explicit physical-cell targets, including deterministic threading, closure-plane preservation, physical-height tapering, EOS closure, and transactional fail-closed validation. Moisture perturbations require a profile-appropriate amplitude. The native accelerator Ready scope is limited to the exact full-stochastic domain-recycling profile.",
+          "constructible": true,
+          "displayName": "Earth-addressed initial-condition perturbations",
+          "id": "initial_conditions",
+          "maturity": "qualified",
+          "parameters": [],
+          "readinessState": "ready",
+          "runtimeSelectable": true
+        },
+        {
+          "aliases": [
+            "pbl",
+            "pbl_perturbation",
+            "pbl_perturbations",
+            "bl_perturbation",
+            "bl_perturbations",
+            "boundary_layer_perturbation",
+            "boundary_layer_perturbations"
+          ],
+          "capabilities": {
+            "acceptedHodographSources": [
+              "not_applicable"
+            ],
+            "acceptedSoundingSources": [
+              "not_applicable"
+            ],
+            "acceptedTriggerSources": [
+              "not_applicable"
+            ],
+            "backends": [
+              "cpu",
+              "gpu"
+            ],
+            "configValidationContract": "chaos.scheme+apply_to_fields+amplitude_maps",
+            "coordinateSystems": [
+              "cartesian"
+            ],
+            "cpuGpuParityCoverage": "none",
+            "cpuReferenceCoverage": "covered",
+            "declared": true,
+            "gpuImplementationCoverage": "none",
+            "optionalProducts": [
+              "noise_field",
+              "realized_variance",
+              "multiplier_extrema"
+            ],
+            "producedStateFields": [
+              "stochastically_scaled_tendencies"
+            ],
+            "recommendedTriggerSource": "not_applicable",
+            "requiredStateFields": [
+              "physics_tendencies",
+              "grid_metrics",
+              "pbl_height"
+            ],
+            "staggerings": [
+              "collocated",
+              "c_grid"
+            ],
+            "storage": {
+              "coverage": "partial",
+              "note": "Earth-control storage is an explicit function of domain shape and Lx/Ly (bounded below by quarter-cell control spacing); initial-condition fields are processed sequentially, boundary-layer owns one current/previous process, and full-stochastic owns three",
+              "peakScratchFieldsPerIntegratedField": 0,
+              "peakScratchFullVolumeFields": -1,
+              "persistentFieldsPerIntegratedField": 0,
+              "persistentFullVolumeFields": -1
+            }
+          },
+          "caveat": "Qualified for conservative held-source perturbation on stationary or constant-velocity flat Cartesian A-grid and flat or mapped Cartesian C-grid profiles, deterministic threading, closure preservation, restart, continuous subcell Earth reconstruction, and whole-cell Earth-window translation. The native accelerator Ready scope is limited to the exact full-stochastic domain-recycling profile.",
+          "constructible": true,
+          "displayName": "Earth-addressed stochastic boundary-layer perturbations",
+          "id": "boundary_layer",
+          "maturity": "qualified",
+          "parameters": [],
+          "readinessState": "ready",
+          "runtimeSelectable": true
+        },
+        {
+          "aliases": [
+            "full"
+          ],
+          "capabilities": {
+            "acceptedHodographSources": [
+              "not_applicable"
+            ],
+            "acceptedSoundingSources": [
+              "not_applicable"
+            ],
+            "acceptedTriggerSources": [
+              "not_applicable"
+            ],
+            "backends": [
+              "cpu",
+              "gpu"
+            ],
+            "configValidationContract": "chaos.scheme+apply_to_fields+amplitude_maps",
+            "coordinateSystems": [
+              "cartesian"
+            ],
+            "cpuGpuParityCoverage": "none",
+            "cpuReferenceCoverage": "covered",
+            "declared": true,
+            "gpuImplementationCoverage": "none",
+            "optionalProducts": [
+              "noise_field",
+              "realized_variance",
+              "multiplier_extrema"
+            ],
+            "producedStateFields": [
+              "perturbed_initial_state",
+              "stochastically_scaled_tendencies"
+            ],
+            "recommendedTriggerSource": "not_applicable",
+            "requiredStateFields": [
+              "u",
+              "v",
+              "w",
+              "theta",
+              "qv",
+              "qc",
+              "qr",
+              "grid_metrics",
+              "physics_tendencies",
+              "grid_metrics",
+              "pbl_height"
+            ],
+            "staggerings": [
+              "collocated",
+              "c_grid"
+            ],
+            "storage": {
+              "coverage": "partial",
+              "note": "Earth-control storage is an explicit function of domain shape and Lx/Ly (bounded below by quarter-cell control spacing); initial-condition fields are processed sequentially, boundary-layer owns one current/previous process, and full-stochastic owns three",
+              "peakScratchFieldsPerIntegratedField": 0,
+              "peakScratchFullVolumeFields": -1,
+              "persistentFieldsPerIntegratedField": 0,
+              "persistentFullVolumeFields": -1
+            }
+          },
+          "caveat": "Qualified for conservative microphysics, PBL, and Smagorinsky-coefficient perturbations on stationary or constant-velocity flat Cartesian A-grid, plus the established microphysics/PBL/SGS profile on flat and mapped Cartesian C-grid, including deterministic threading, closure preservation, restart, continuous subcell Earth reconstruction, and whole-cell Earth-window translation. Exact fallback-off Vulkan and Metal domain-recycling profiles own Earth-control initialization, AR evolution, and reconstruction natively; rendering and application remain host-owned.",
+          "constructible": true,
+          "displayName": "Earth-addressed stochastic physics",
+          "id": "full_stochastic",
+          "maturity": "qualified",
+          "parameters": [],
+          "readinessState": "ready",
+          "runtimeSelectable": true
+        }
+      ],
+      "selectionPath": "extensions.chaos.scheme",
+      "studioSelection": {
+        "fixedSchemeId": "",
+        "mode": "form",
+        "reason": ""
+      }
+    },
+    {
+      "id": "terrain",
+      "schemes": [
+        {
+          "aliases": [
+            "flat"
+          ],
+          "capabilities": {
+            "acceptedHodographSources": [
+              "not_applicable"
+            ],
+            "acceptedSoundingSources": [
+              "not_applicable"
+            ],
+            "acceptedTriggerSources": [
+              "not_applicable"
+            ],
+            "backends": [
+              "cpu",
+              "gpu"
+            ],
+            "configValidationContract": "terrain.scheme+dynamics_supports_terrain",
+            "coordinateSystems": [
+              "cartesian"
+            ],
+            "cpuGpuParityCoverage": "not_applicable",
+            "cpuReferenceCoverage": "covered",
+            "declared": true,
+            "gpuImplementationCoverage": "not_applicable",
+            "optionalProducts": [
+              "height",
+              "slope",
+              "jacobian_diagnostics"
+            ],
+            "producedStateFields": [
+              "flat_topography",
+              "identity_metrics"
+            ],
+            "recommendedTriggerSource": "not_applicable",
+            "requiredStateFields": [
+              "grid_geometry"
+            ],
+            "staggerings": [
+              "collocated",
+              "c_grid"
+            ],
+            "storage": {
+              "coverage": "covered",
+              "note": "Topography and metric volumes are explicit caller-owned outputs",
+              "peakScratchFieldsPerIntegratedField": 0,
+              "peakScratchFullVolumeFields": 0,
+              "persistentFieldsPerIntegratedField": 0,
+              "persistentFullVolumeFields": 0
+            }
+          },
+          "caveat": "",
+          "constructible": true,
+          "displayName": "none",
+          "id": "none",
+          "maturity": "qualified",
+          "parameters": [],
+          "readinessState": "ready",
+          "runtimeSelectable": true
+        },
+        {
+          "aliases": [],
+          "capabilities": {
+            "acceptedHodographSources": [
+              "not_applicable"
+            ],
+            "acceptedSoundingSources": [
+              "not_applicable"
+            ],
+            "acceptedTriggerSources": [
+              "not_applicable"
+            ],
+            "backends": [
+              "cpu",
+              "gpu"
+            ],
+            "configValidationContract": "terrain.scheme+dynamics_supports_terrain",
+            "coordinateSystems": [
+              "cartesian"
+            ],
+            "cpuGpuParityCoverage": "covered",
+            "cpuReferenceCoverage": "covered",
+            "declared": true,
+            "gpuImplementationCoverage": "covered",
+            "optionalProducts": [
+              "height",
+              "slope",
+              "jacobian_diagnostics"
+            ],
+            "producedStateFields": [
+              "topography",
+              "terrain_metrics"
+            ],
+            "recommendedTriggerSource": "not_applicable",
+            "requiredStateFields": [
+              "grid_geometry"
+            ],
+            "staggerings": [
+              "collocated",
+              "c_grid"
+            ],
+            "storage": {
+              "coverage": "covered",
+              "note": "Topography and metric volumes are explicit caller-owned outputs",
+              "peakScratchFieldsPerIntegratedField": 0,
+              "peakScratchFullVolumeFields": 0,
+              "persistentFieldsPerIntegratedField": 0,
+              "persistentFullVolumeFields": 0
+            }
+          },
+          "caveat": "Qualified selection includes the structural mapped C-grid CPU all-physics family with simple-grey or 112-point RRTMG shortwave, the stationary/constant-velocity PBL/implicit-scalar family, the dry collocated CPU reference, and exact dry stationary fallback-off Vulkan/Metal mapped cores, plus the maintained Earth-fixed Bell Kessler-or-Lin/slab/simple-grey/full-stochastic motion profile on Vulkan and Metal.",
+          "constructible": true,
+          "displayName": "Bell terrain",
+          "id": "bell",
+          "maturity": "qualified",
+          "parameters": [],
+          "readinessState": "ready",
+          "runtimeSelectable": true
+        },
+        {
+          "aliases": [
+            "schaer"
+          ],
+          "capabilities": {
+            "acceptedHodographSources": [
+              "not_applicable"
+            ],
+            "acceptedSoundingSources": [
+              "not_applicable"
+            ],
+            "acceptedTriggerSources": [
+              "not_applicable"
+            ],
+            "backends": [
+              "cpu",
+              "gpu"
+            ],
+            "configValidationContract": "terrain.scheme+dynamics_supports_terrain",
+            "coordinateSystems": [
+              "cartesian"
+            ],
+            "cpuGpuParityCoverage": "covered",
+            "cpuReferenceCoverage": "covered",
+            "declared": true,
+            "gpuImplementationCoverage": "covered",
+            "optionalProducts": [
+              "height",
+              "slope",
+              "jacobian_diagnostics"
+            ],
+            "producedStateFields": [
+              "topography",
+              "terrain_metrics"
+            ],
+            "recommendedTriggerSource": "not_applicable",
+            "requiredStateFields": [
+              "grid_geometry"
+            ],
+            "staggerings": [
+              "collocated",
+              "c_grid"
+            ],
+            "storage": {
+              "coverage": "covered",
+              "note": "Topography and metric volumes are explicit caller-owned outputs",
+              "peakScratchFieldsPerIntegratedField": 0,
+              "peakScratchFullVolumeFields": 0,
+              "persistentFieldsPerIntegratedField": 0,
+              "persistentFullVolumeFields": 0
+            }
+          },
+          "caveat": "Qualified selection includes the structural mapped C-grid CPU all-physics family with simple-grey or 112-point RRTMG shortwave, the stationary/constant-velocity PBL/implicit-scalar family, the exact maximal active stationary collocated CPU family, and the exact dry stationary fallback-off Vulkan/Metal mapped cores.",
+          "constructible": true,
+          "displayName": "Schar terrain",
+          "id": "schar",
+          "maturity": "qualified",
+          "parameters": [],
+          "readinessState": "ready",
+          "runtimeSelectable": true
+        }
+      ],
+      "selectionPath": "terrain.scheme",
+      "studioSelection": {
+        "fixedSchemeId": "",
+        "mode": "form",
+        "reason": ""
+      }
+    },
+    {
+      "id": "radar",
+      "schemes": [
+        {
+          "aliases": [
+            "dbz",
+            "ref",
+            "z",
+            "reflectivity_dbz"
+          ],
+          "capabilities": {
+            "acceptedHodographSources": [
+              "not_applicable"
+            ],
+            "acceptedSoundingSources": [
+              "not_applicable"
+            ],
+            "acceptedTriggerSources": [
+              "not_applicable"
+            ],
+            "backends": [
+              "cpu"
+            ],
+            "configValidationContract": "radar.products+operator_tier+species_flags",
+            "coordinateSystems": [
+              "cartesian"
+            ],
+            "cpuGpuParityCoverage": "none",
+            "cpuReferenceCoverage": "covered",
+            "declared": true,
+            "gpuImplementationCoverage": "none",
+            "optionalProducts": [
+              "point_sampling",
+              "scatterer_correction"
+            ],
+            "producedStateFields": [
+              "Z_dBZ",
+              "Ze_linear",
+              "species_reflectivity"
+            ],
+            "recommendedTriggerSource": "not_applicable",
+            "requiredStateFields": [
+              "rho",
+              "qr",
+              "qs",
+              "qg",
+              "qh",
+              "qi"
+            ],
+            "staggerings": [
+              "collocated",
+              "c_grid"
+            ],
+            "storage": {
+              "coverage": "covered",
+              "note": "Radar volumes are explicit caller-owned products",
+              "peakScratchFieldsPerIntegratedField": 0,
+              "peakScratchFullVolumeFields": 0,
+              "persistentFieldsPerIntegratedField": 0,
+              "persistentFullVolumeFields": 0
+            }
+          },
+          "caveat": "",
+          "constructible": true,
+          "displayName": "reflectivity",
+          "id": "reflectivity",
+          "maturity": "qualified",
+          "parameters": [],
+          "readinessState": "ready",
+          "runtimeSelectable": true
+        },
+        {
+          "aliases": [
+            "vel",
+            "vr",
+            "radial_velocity"
+          ],
+          "capabilities": {
+            "acceptedHodographSources": [
+              "not_applicable"
+            ],
+            "acceptedSoundingSources": [
+              "not_applicable"
+            ],
+            "acceptedTriggerSources": [
+              "not_applicable"
+            ],
+            "backends": [
+              "cpu"
+            ],
+            "configValidationContract": "radar.products+operator_tier+species_flags",
+            "coordinateSystems": [
+              "cartesian"
+            ],
+            "cpuGpuParityCoverage": "none",
+            "cpuReferenceCoverage": "covered",
+            "declared": true,
+            "gpuImplementationCoverage": "none",
+            "optionalProducts": [
+              "point_sampling",
+              "scatterer_correction"
+            ],
+            "producedStateFields": [
+              "Vr"
+            ],
+            "recommendedTriggerSource": "not_applicable",
+            "requiredStateFields": [
+              "u",
+              "v",
+              "w",
+              "radar_location"
+            ],
+            "staggerings": [
+              "collocated",
+              "c_grid"
+            ],
+            "storage": {
+              "coverage": "covered",
+              "note": "Radar volumes are explicit caller-owned products",
+              "peakScratchFieldsPerIntegratedField": 0,
+              "peakScratchFullVolumeFields": 0,
+              "persistentFieldsPerIntegratedField": 0,
+              "persistentFullVolumeFields": 0
+            }
+          },
+          "caveat": "",
+          "constructible": true,
+          "displayName": "velocity",
+          "id": "velocity",
+          "maturity": "qualified",
+          "parameters": [],
+          "readinessState": "ready",
+          "runtimeSelectable": true
+        },
+        {
+          "aliases": [
+            "kdp",
+            "rhohv"
+          ],
+          "capabilities": {
+            "acceptedHodographSources": [
+              "not_applicable"
+            ],
+            "acceptedSoundingSources": [
+              "not_applicable"
+            ],
+            "acceptedTriggerSources": [
+              "not_applicable"
+            ],
+            "backends": [
+              "cpu"
+            ],
+            "configValidationContract": "radar.products+operator_tier+species_flags",
+            "coordinateSystems": [
+              "cartesian"
+            ],
+            "cpuGpuParityCoverage": "none",
+            "cpuReferenceCoverage": "covered",
+            "declared": true,
+            "gpuImplementationCoverage": "none",
+            "optionalProducts": [
+              "point_sampling",
+              "scatterer_correction"
+            ],
+            "producedStateFields": [
+              "ZDR_dB",
+              "ZH_dBZ",
+              "ZV_dBZ"
+            ],
+            "recommendedTriggerSource": "not_applicable",
+            "requiredStateFields": [
+              "rho",
+              "qr",
+              "qs",
+              "qg",
+              "qh",
+              "qi"
+            ],
+            "staggerings": [
+              "collocated",
+              "c_grid"
+            ],
+            "storage": {
+              "coverage": "covered",
+              "note": "Radar volumes are explicit caller-owned products",
+              "peakScratchFieldsPerIntegratedField": 0,
+              "peakScratchFullVolumeFields": 0,
+              "persistentFieldsPerIntegratedField": 0,
+              "persistentFullVolumeFields": 0
+            }
+          },
+          "caveat": "",
+          "constructible": true,
+          "displayName": "zdr",
+          "id": "zdr",
+          "maturity": "qualified",
+          "parameters": [],
+          "readinessState": "ready",
+          "runtimeSelectable": true
+        }
+      ],
+      "selectionPath": "radar.products",
+      "studioSelection": {
+        "fixedSchemeId": "",
+        "mode": "product_set_v1",
+        "reason": "Strict v1 and Studio expose the descriptor-backed radar products as an ordered product set."
+      }
+    },
+    {
+      "id": "soundings",
+      "schemes": [
+        {
+          "aliases": [
+            "detect"
+          ],
+          "capabilities": {
+            "acceptedHodographSources": [
+              "not_applicable"
+            ],
+            "acceptedSoundingSources": [
+              "not_applicable"
+            ],
+            "acceptedTriggerSources": [
+              "not_applicable"
+            ],
+            "backends": [
+              "cpu"
+            ],
+            "configValidationContract": "init.sounding.file+content_detected_reader",
+            "coordinateSystems": [
+              "any"
+            ],
+            "cpuGpuParityCoverage": "not_applicable",
+            "cpuReferenceCoverage": "covered",
+            "declared": true,
+            "gpuImplementationCoverage": "not_applicable",
+            "optionalProducts": [
+              "quality_flags",
+              "derived_thermodynamics"
+            ],
+            "producedStateFields": [
+              "height",
+              "pressure",
+              "temperature",
+              "moisture",
+              "wind_profile"
+            ],
+            "recommendedTriggerSource": "not_applicable",
+            "requiredStateFields": [
+              "sounding_file"
+            ],
+            "staggerings": [
+              "any"
+            ],
+            "storage": {
+              "coverage": "not_applicable",
+              "note": "Format detection and sounding profiles use host vectors",
+              "peakScratchFieldsPerIntegratedField": 0,
+              "peakScratchFullVolumeFields": 0,
+              "persistentFieldsPerIntegratedField": 0,
+              "persistentFullVolumeFields": 0
+            }
+          },
+          "caveat": "",
+          "constructible": true,
+          "displayName": "auto",
+          "id": "auto",
+          "maturity": "qualified",
+          "parameters": [],
+          "readinessState": "ready",
+          "runtimeSelectable": true
+        },
+        {
+          "aliases": [
+            "cm1_text",
+            "input_sounding"
+          ],
+          "capabilities": {
+            "acceptedHodographSources": [
+              "not_applicable"
+            ],
+            "acceptedSoundingSources": [
+              "not_applicable"
+            ],
+            "acceptedTriggerSources": [
+              "not_applicable"
+            ],
+            "backends": [
+              "cpu"
+            ],
+            "configValidationContract": "cm1.input_sounding.native_text",
+            "coordinateSystems": [
+              "any"
+            ],
+            "cpuGpuParityCoverage": "not_applicable",
+            "cpuReferenceCoverage": "covered",
+            "declared": true,
+            "gpuImplementationCoverage": "not_applicable",
+            "optionalProducts": [
+              "quality_flags",
+              "derived_thermodynamics"
+            ],
+            "producedStateFields": [
+              "height",
+              "pressure",
+              "temperature",
+              "moisture",
+              "wind_profile"
+            ],
+            "recommendedTriggerSource": "not_applicable",
+            "requiredStateFields": [
+              "sounding_file"
+            ],
+            "staggerings": [
+              "any"
+            ],
+            "storage": {
+              "coverage": "not_applicable",
+              "note": "Native CM1 profile uses host vectors, not grid volumes",
+              "peakScratchFieldsPerIntegratedField": 0,
+              "peakScratchFullVolumeFields": 0,
+              "persistentFieldsPerIntegratedField": 0,
+              "persistentFullVolumeFields": 0
+            }
+          },
+          "caveat": "",
+          "constructible": true,
+          "displayName": "cm1",
+          "id": "cm1",
+          "maturity": "qualified",
+          "parameters": [],
+          "readinessState": "ready",
+          "runtimeSelectable": true
+        },
+        {
+          "aliases": [],
+          "capabilities": {
+            "acceptedHodographSources": [
+              "not_applicable"
+            ],
+            "acceptedSoundingSources": [
+              "not_applicable"
+            ],
+            "acceptedTriggerSources": [
+              "not_applicable"
+            ],
+            "backends": [
+              "cpu"
+            ],
+            "configValidationContract": "init.sounding.file+reader_backend",
+            "coordinateSystems": [
+              "any"
+            ],
+            "cpuGpuParityCoverage": "not_applicable",
+            "cpuReferenceCoverage": "covered",
+            "declared": true,
+            "gpuImplementationCoverage": "not_applicable",
+            "optionalProducts": [
+              "quality_flags",
+              "derived_thermodynamics"
+            ],
+            "producedStateFields": [
+              "height",
+              "pressure",
+              "temperature",
+              "moisture",
+              "wind_profile"
+            ],
+            "recommendedTriggerSource": "not_applicable",
+            "requiredStateFields": [
+              "sounding_file"
+            ],
+            "staggerings": [
+              "any"
+            ],
+            "storage": {
+              "coverage": "not_applicable",
+              "note": "Sounding profiles use host vectors, not grid volumes",
+              "peakScratchFieldsPerIntegratedField": 0,
+              "peakScratchFullVolumeFields": 0,
+              "persistentFieldsPerIntegratedField": 0,
+              "persistentFullVolumeFields": 0
+            }
+          },
+          "caveat": "",
+          "constructible": true,
+          "displayName": "sharpy",
+          "id": "sharpy",
+          "maturity": "qualified",
+          "parameters": [],
+          "readinessState": "ready",
+          "runtimeSelectable": true
+        }
+      ],
+      "selectionPath": "initial_conditions.sounding.file.scheme_id",
+      "studioSelection": {
+        "fixedSchemeId": "auto",
+        "mode": "fixed_v1",
+        "reason": "Strict v1 selects file sounding input and content-detects native CM1, TMV SHARPy, HDF5, or netCDF."
+      }
+    }
+  ],
+  "readiness": {
+    "items": [
+      {
+        "area": "terrain",
+        "blocker": "",
+        "boundedEvidence": "tests/fixtures/configs/qualification/earth_fixed_terrain_motion_metal_ready.yaml; tests/fixtures/configs/qualification/earth_fixed_terrain_motion_vulkan_ready.yaml; tests/fixtures/configs/qualification/earth_fixed_terrain_motion_lin_metal_ready.yaml; tests/fixtures/configs/qualification/earth_fixed_terrain_motion_lin_vulkan_ready.yaml; scripts/tests/science/test_native_earth_fixed_ready.py; scripts/tests/science/test_earth_fixed_terrain_motion_ready.py; tests/core/test_native_earth_fixed_step.cpp; tests/dynamics/test_native_cgrid_boundary.cpp; tests/dynamics/test_native_moist_mapped_acoustic.cpp; tests/core/test_environment_column_refresh.cpp; docs/MATHEMATICS.pdf",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "terrain.earth_fixed_native",
+        "scope": "Earth-fixed Bell C-grid conservative motion on Vulkan and Metal with the maintained Kessler or canonical Lin with slab/simple-grey/full-stochastic coupling and constant frame components within +/-180 m/s",
+        "state": "ready"
+      },
+      {
+        "area": "advection",
+        "blocker": "",
+        "boundedEvidence": "tests/fixtures/configs/qualification/cgrid_weno5_rrtmg_metal_ready.yaml; tests/fixtures/configs/qualification/cgrid_weno5_rrtmg_vulkan_ready.yaml; tests/numerics/test_advection_cartesian.cpp; scripts/tests/science/test_native_weno_ready.py; docs/MATHEMATICS.pdf",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "advection.weno5_native_strict",
+        "scope": "Exact flat C-grid WENO5/RRTMG reference with strict native scalar transport on Vulkan and Metal",
+        "state": "ready"
+      },
+      {
+        "area": "compute",
+        "blocker": "Exact native Thompson, Milbrandt, TKE/implicit and stationary periodic RK3/RK4 references are Ready; other retained operators and broader couplings still require native execution, public admission and bounded parity",
+        "boundedEvidence": "",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "physics.native_remaining",
+        "scope": "Broader native Thompson, Milbrandt, RK3/RK4, TKE and implicit-diffusion combinations",
+        "state": "engineering_incomplete"
+      },
+      {
+        "area": "nesting",
+        "blocker": "Flat stationary dry/Kessler/Lin, moving-child Kessler, tracked-window Kessler and stationary mapped Bell/Schar 2:1/3:1 dry/Kessler/Lin reference families are Ready on CPU, Metal and Vulkan with TVD/MC or WENO. Integer moving-child mapped Kessler/Lin Bell/Schar 2:1/3:1 references and the exact seeded stationary Milbrandt and Thompson private-moment references are also Ready. Their maintained integer moving-child families and flat private parent-recycling references are Ready in their declared scopes. The unseeded Thompson Schar 2:1 references are Ready with source-consistent particle feedback. Thompson WENO parent recycling is Ready with precise native transport arithmetic. The maintained unseeded Thompson/Milbrandt stationary families are Ready across the same geometries. Mapped parent recycling, continuously moving parent/child terrain and additional private-state/physics combinations still require engineering, public admission and bounded validation",
+        "boundedEvidence": "",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "nesting.moist_two_way",
+        "scope": "Two-way nested feedback with active moist physics and moving domains",
+        "state": "engineering_incomplete"
+      },
+      {
+        "area": "turbulence",
+        "blocker": "",
+        "boundedEvidence": "tests/physics/test_richardson_smagorinsky.cpp; tests/core/test_simulation_checkpoint.cpp; scripts/tests/science/test_richardson_smagorinsky_ready.py; tests/fixtures/configs/qualification/cgrid_richardson_smagorinsky_ready.yaml",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "turbulence.richardson_public",
+        "scope": "Exact flat periodic C-grid CPU Lilly-equilibrium Smagorinsky/RRTMG profile with versioned Richardson selection",
+        "state": "ready"
+      },
+      {
+        "area": "admission",
+        "blocker": "",
+        "boundedEvidence": "tests/core/test_scheme_catalog.cpp; scripts/tests/science/test_ready_admission_matrix.py; scripts/tests/config/test_public_preset_admission.py; tests/fixtures/configs/qualification; configs",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "acceptance.complete_combination_matrix",
+        "scope": "Generated retained physics/backend/output/initialization, boundary, compute, staggering, qualified-fixture, and public-preset admission matrices",
+        "state": "ready"
+      },
+      {
+        "area": "output",
+        "blocker": "Exact flat-CPU reversible-v4 radar ZFP public/native/Studio bounded gates and the maintained ZFP qualifier passed on the prior exact d1a source/binary. Retained terrain/output combinations and whole-history readiness reconciliation remain open; long campaigns and independent scientific review are separate.",
+        "boundedEvidence": "tests/fixtures/configs/qualification/zfp_core_history.yaml; tests/core/test_zfp_roundtrip.cpp; scripts/qualification/output/qualify_zfp_core_history.py; ui/src-tauri/src/zfp3d.rs; docs/MATHEMATICS.pdf",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "output.zfp_bounded_history",
+        "scope": "All public non-radar presets on flat/Bell/Sch\u00e4r plus exact flat-CPU selected radar product subsets and both named radar presets in qualified ZFP history, with unit-aware field budgets, bounded ownership, immutable terrain geometry, indexed random access, and Studio decode",
+        "state": "engineering_incomplete"
+      },
+      {
+        "area": "output",
+        "blocker": "",
+        "boundedEvidence": "tests/core/test_output_writer.cpp; tests/core/test_simulation_checkpoint.cpp; tests/diagnostics/test_trajectories.cpp; scripts/qualification/output/qualify_live_shm.py; ui/src-tauri/src/commands/outputs.rs; tests/ui/unit/run/test_field_read_cancellation.ts; tests/ui/unit/comparison/test_comparison_series_cache.ts; tests/ui/unit/plot/test_plot_fidelity.ts; docs/MATHEMATICS.pdf",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "output.bounded_io_pipeline",
+        "scope": "Bounded flat/Bell/Sch\u00e4r NPY, every non-radar netCDF preset, non-radar qualified ZFP presets and planar fields, plus checkpoint, trajectory, geometry, SHM, native-window, cache, and incremental-analysis pipeline",
+        "state": "ready"
+      },
+      {
+        "area": "dynamics",
+        "blocker": "",
+        "boundedEvidence": "tests/dynamics/test_cartesian_dynamics.cpp; tests/physics/test_turbulence_sgs.cpp; tests/physics/test_tke_scheme.cpp; tests/physics/test_boundary_layer.cpp; tests/physics/test_radiation.cpp; tests/physics/test_microphysics.cpp; tests/physics/test_chaos_runtime_state.cpp; tests/numerics/test_diffusion.cpp; tests/numerics/test_advection_cartesian.cpp; tests/numerics/test_time_stepping.cpp; scripts/tests/science/test_agrid_core_ready.py; scripts/tests/science/test_agrid_turbulence_family_ready.py; scripts/tests/science/test_agrid_column_family_ready.py; scripts/tests/science/test_agrid_milbrandt_ready.py; scripts/tests/science/test_agrid_lin_ready.py; scripts/tests/science/test_agrid_thompson_ready.py; scripts/tests/science/test_agrid_implicit_ready.py; scripts/tests/science/test_agrid_weno_ready.py; scripts/tests/science/test_agrid_rk_ready.py; scripts/tests/science/test_agrid_chaos_ready.py; scripts/qualification/domain_motion/qualify_constant_velocity_domain.py; tests/science/agrid/boundaries/qualify_agrid_boundary_matrix.py; tests/science/agrid/physics/qualify_agrid_kessler_coupling.py; tests/fixtures/configs/qualification/agrid_flat_cpu_core_ready.yaml; tests/fixtures/configs/qualification/agrid_kessler_radiation_coupled.yaml; tests/fixtures/configs/qualification/agrid_milbrandt_rrtmg_ready.yaml; tests/fixtures/configs/qualification/agrid_lin_rrtmg_ready.yaml; tests/fixtures/configs/qualification/agrid_thompson_rrtmg_ready.yaml; tests/fixtures/configs/qualification/agrid_thompson_rrtmg_implicit_ready.yaml; tests/fixtures/configs/qualification/agrid_thompson_rrtmg_implicit_weno_ready.yaml; tests/fixtures/configs/qualification/agrid_thompson_rrtmg_implicit_weno_ssprk3_ready.yaml; tests/fixtures/configs/qualification/agrid_thompson_rrtmg_implicit_weno_rk4_ready.yaml; tests/fixtures/configs/qualification/agrid_full_stochastic_ready.yaml; tests/fixtures/configs/qualification/constant_velocity_agrid_ready.yaml; docs/MATHEMATICS.pdf",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "agrid.flat_cpu_core",
+        "scope": "Flat Cartesian A-grid CPU family with split-explicit/SSPRK3/RK4 stationary integration plus a supported-boundary constant-velocity CPU family with f-plane/beta-plane Coriolis, every retained microphysics/SGS/PBL/chaos owner, and bounded SSPRK3/RK4 compositions, each with complete commit-level energy ownership",
+        "state": "ready"
+      },
+      {
+        "area": "dynamics",
+        "blocker": "",
+        "boundedEvidence": "tests/vulkan/test_gpu_parity.cpp; scripts/tests/science/test_agrid_native_complete_ready.py; tests/fixtures/configs/qualification/agrid_flat_vulkan_complete_ready.yaml",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "agrid.complete_vulkan",
+        "scope": "Exact flat dry rigid-boundary A-grid timestep on fallback-off Vulkan",
+        "state": "ready"
+      },
+      {
+        "area": "dynamics",
+        "blocker": "",
+        "boundedEvidence": "tests/metal/test_metal_compute_backend.cpp; scripts/tests/science/test_agrid_native_complete_ready.py; tests/fixtures/configs/qualification/agrid_flat_metal_complete_ready.yaml",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "agrid.complete_metal",
+        "scope": "Exact flat dry rigid-boundary A-grid timestep on fallback-off Metal",
+        "state": "ready"
+      },
+      {
+        "area": "terrain",
+        "blocker": "",
+        "boundedEvidence": "tests/physics/test_terrain.cpp; tests/numerics/test_diffusion.cpp; scripts/tests/science/test_mapped_terrain_ready.py; tests/fixtures/configs/qualification/cgrid_stationary_bell_pbl_implicit_ready.yaml",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "terrain.stationary_cgrid_cpu",
+        "scope": "Structural stationary Bell mapped Cartesian C-grid CPU family representative with slab PBL and full implicit scalar/momentum diffusion",
+        "state": "ready"
+      },
+      {
+        "area": "terrain",
+        "blocker": "",
+        "boundedEvidence": "tests/physics/test_terrain.cpp; tests/physics/test_turbulence_sgs.cpp; tests/physics/test_tke_scheme.cpp; tests/physics/test_boundary_layer.cpp; tests/physics/test_boundary_layer_runtime_state.cpp; tests/physics/test_radiation.cpp; tests/physics/test_radiation_runtime_state.cpp; tests/numerics/test_diffusion.cpp; scripts/tests/science/test_mapped_rrtmg_shortwave_ready.py; tests/science/cgrid/terrain/qualify_cgrid_terrain_coupling.py; tests/fixtures/configs/qualification/cgrid_terrain_smagorinsky_coupled.yaml",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "terrain.coupled_cgrid_cpu",
+        "scope": "Structural stationary/constant-velocity Bell/Sch\u00e4r mapped C-grid CPU family with all retained microphysics and chaos schemes, 3-D Smagorinsky/TKE without PBL or slab/YSU/MYNN PBL plus horizontal Smagorinsky/TKE, auto/TVD/WENO transport, clear or water/cloud-absorbing simple-grey longwave/shortwave or 112-point RRTMG longwave/shortwave, and constant explicit or backward-Euler implicit scalar/momentum diffusion",
+        "state": "ready"
+      },
+      {
+        "area": "terrain",
+        "blocker": "",
+        "boundedEvidence": "tests/physics/test_terrain.cpp; tests/numerics/test_diffusion.cpp; scripts/tests/science/test_mapped_terrain_ready.py; tests/fixtures/configs/qualification/cgrid_translating_schar_pbl_implicit_ready.yaml",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "terrain.mapped_pbl_motion",
+        "scope": "Structural constant-velocity Schar mapped Cartesian C-grid CPU family representative with slab PBL and full implicit scalar/momentum diffusion",
+        "state": "ready"
+      },
+      {
+        "area": "terrain",
+        "blocker": "",
+        "boundedEvidence": "tests/vulkan/test_mapped_mass_continuity.cpp; scripts/tests/science/test_native_mapped_terrain_ready.py; tests/fixtures/configs/qualification/cgrid_stationary_bell_vulkan_complete_ready.yaml; tests/fixtures/configs/qualification/cgrid_stationary_schar_vulkan_complete_ready.yaml",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "terrain.complete_vulkan",
+        "scope": "Exact dry stationary Bell and Schar mapped Cartesian C-grid Heun timesteps on fallback-off Vulkan",
+        "state": "ready"
+      },
+      {
+        "area": "terrain",
+        "blocker": "",
+        "boundedEvidence": "tests/metal/test_metal_compute_backend.cpp; scripts/tests/science/test_native_mapped_terrain_ready.py; tests/fixtures/configs/qualification/cgrid_stationary_bell_metal_complete_ready.yaml; tests/fixtures/configs/qualification/cgrid_stationary_schar_metal_complete_ready.yaml",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "terrain.complete_metal",
+        "scope": "Exact dry stationary Bell and Schar mapped Cartesian C-grid Heun timesteps on fallback-off Metal",
+        "state": "ready"
+      },
+      {
+        "area": "terrain",
+        "blocker": "",
+        "boundedEvidence": "tests/fixtures/configs/qualification/agrid_stationary_bell_cpu_ready.yaml; tests/fixtures/configs/qualification/agrid_mapped_full_stochastic_none_ready.yaml; tests/fixtures/configs/qualification/agrid_mapped_full_stochastic_kessler_ready.yaml; tests/fixtures/configs/qualification/agrid_mapped_full_stochastic_lin_ready.yaml; tests/fixtures/configs/qualification/agrid_mapped_full_stochastic_ready.yaml; tests/fixtures/configs/qualification/agrid_mapped_full_stochastic_milbrandt_ready.yaml; tests/fixtures/configs/qualification/agrid_mapped_full_stochastic_schar_none_ready.yaml; tests/fixtures/configs/qualification/agrid_mapped_full_stochastic_schar_kessler_ready.yaml; tests/fixtures/configs/qualification/agrid_mapped_full_stochastic_schar_lin_ready.yaml; tests/fixtures/configs/qualification/agrid_mapped_full_stochastic_schar_thompson_ready.yaml; tests/fixtures/configs/qualification/agrid_mapped_full_stochastic_schar_milbrandt_ready.yaml; scripts/tests/science/test_collocated_mapped_terrain_ready.py; tests/dynamics/test_collocated_mapped_timestep.cpp; tests/physics/test_microphysics.cpp; tests/physics/test_chaos_runtime_state.cpp; tests/physics/test_terrain.cpp; scripts/tests/science/test_thompson_stochastic_ready.py; docs/MATHEMATICS.pdf",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "terrain.collocated",
+        "scope": "Mapped Bell/Sch\u00e4r Cartesian A-grid CPU family with dry Bell motion and stationary all-microphysics/all-chaos active ownership across none/TVD/WENO5 advection",
+        "state": "ready"
+      },
+      {
+        "area": "terrain",
+        "blocker": "",
+        "boundedEvidence": "tests/fixtures/configs/qualification/earth_fixed_terrain_recycling_ready.yaml; scripts/tests/science/test_earth_fixed_terrain_recycling_ready.py; tests/physics/test_terrain.cpp; tests/core/test_simulation_checkpoint.cpp; tests/core/test_domain_recycling.cpp",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "terrain.earth_fixed_remap",
+        "scope": "Exact tracked-window Earth-fixed Bell geometry/remap transaction on CPU",
+        "state": "ready"
+      },
+      {
+        "area": "terrain",
+        "blocker": "",
+        "boundedEvidence": "tests/fixtures/configs/qualification/earth_fixed_terrain_motion_ready.yaml; tests/fixtures/configs/qualification/earth_fixed_terrain_motion_lin_cpu_ready.yaml; tests/fixtures/configs/qualification/earth_fixed_terrain_motion_diagnostics_ready.yaml; scripts/tests/science/test_earth_fixed_terrain_motion_ready.py; tests/core/test_earth_fixed_remap_reference.cpp; tests/core/test_earth_fixed_step_transaction.cpp; tests/core/test_simulation_checkpoint.cpp",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "terrain.earth_fixed_continuous_cpu",
+        "scope": "Earth-fixed Bell C-grid CPU conservative coordinate remapping with the maintained Kessler or canonical Lin with slab/simple-grey/full-stochastic coupling and constant frame components within +/-180 m/s",
+        "state": "ready"
+      },
+      {
+        "area": "domain_motion",
+        "blocker": "",
+        "boundedEvidence": "tests/fixtures/configs/qualification/domain_recycling_kessler_ready.yaml; scripts/qualification/domain_motion/qualify_domain_recycling.py; tests/core/test_domain_recycling.cpp",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "recycling.flat_cpu",
+        "scope": "Flat homogeneous whole-cell D5 recycling on CPU",
+        "state": "ready"
+      },
+      {
+        "area": "domain_motion",
+        "blocker": "",
+        "boundedEvidence": "tests/fixtures/configs/qualification/domain_recycling_kessler_ready.yaml; scripts/qualification/domain_motion/qualify_domain_recycling.py; tests/vulkan/test_gpu_parity.cpp",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "recycling.flat_vulkan",
+        "scope": "Flat homogeneous whole-cell D5 recycling on Vulkan",
+        "state": "ready"
+      },
+      {
+        "area": "domain_motion",
+        "blocker": "",
+        "boundedEvidence": "tests/fixtures/configs/qualification/domain_recycling_kessler_ready.yaml; scripts/qualification/domain_motion/qualify_domain_recycling.py; tests/metal/test_metal_compute_backend.cpp",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "recycling.flat_metal",
+        "scope": "Flat homogeneous whole-cell D5 recycling on Metal",
+        "state": "ready"
+      },
+      {
+        "area": "domain_motion",
+        "blocker": "",
+        "boundedEvidence": "tests/fixtures/configs/qualification/nested_grid_recycling_ready.yaml; tests/fixtures/configs/qualification/nested_grid_recycling_two_way_cpu_ready.yaml; scripts/tests/science/test_nested_grid_recycling_ready.py; tests/core/test_domain_recycling.cpp; tests/core/test_simulation_checkpoint.cpp; docs/MATHEMATICS.pdf",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "recycling.nested_grid",
+        "scope": "Exact flat one-way and moist two-way nested-grid D5 recycling profiles on CPU",
+        "state": "ready"
+      },
+      {
+        "area": "domain_motion",
+        "blocker": "",
+        "boundedEvidence": "tests/fixtures/configs/qualification/earth_fixed_terrain_recycling_ready.yaml; scripts/tests/science/test_earth_fixed_terrain_recycling_ready.py; tests/core/test_domain_recycling.cpp; tests/core/test_simulation_checkpoint.cpp",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "recycling.terrain",
+        "scope": "Exact tracked-window D5 recycling with Earth-fixed Bell terrain on CPU",
+        "state": "ready"
+      },
+      {
+        "area": "domain_motion",
+        "blocker": "",
+        "boundedEvidence": "tests/fixtures/configs/qualification/mapped_nested_recycling_kessler_bell2_tvd_cpu_ready.yaml; tests/fixtures/configs/qualification/mapped_nested_recycling_kessler_bell2_tvd_metal_ready.yaml; tests/fixtures/configs/qualification/mapped_nested_recycling_kessler_bell2_tvd_vulkan_ready.yaml; tests/fixtures/configs/qualification/mapped_nested_recycling_kessler_bell2_tvd_native_slow_metal_ready.yaml; tests/fixtures/configs/qualification/mapped_nested_recycling_kessler_bell2_tvd_native_slow_vulkan_ready.yaml; tests/fixtures/configs/qualification/mapped_nested_recycling_kessler_bell3_tvd_cpu_ready.yaml; tests/fixtures/configs/qualification/mapped_nested_recycling_kessler_schar2_tvd_cpu_ready.yaml; tests/fixtures/configs/qualification/mapped_nested_recycling_kessler_schar3_tvd_cpu_ready.yaml; scripts/tests/science/test_mapped_nested_recycling_ready.py; tests/compute/test_native_domain_recycling.cpp; tests/core/test_nested_terrain_geometry.cpp; tests/core/test_domain_recycling.cpp; docs/MATHEMATICS.pdf",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "recycling.mapped_two_way",
+        "scope": "Exact Earth-fixed Bell/Schar 2:1/3:1 fixed-footprint Kessler/slab/simple-grey/full-stochastic two-way parent recycling on CPU/Metal/Vulkan",
+        "state": "ready"
+      },
+      {
+        "area": "domain_motion",
+        "blocker": "",
+        "boundedEvidence": "tests/fixtures/configs/qualification/tracked_window_kessler_ready.yaml; scripts/tests/science/test_tracked_window_ready.py; scripts/qualification/domain_motion/qualify_domain_recycling.py; tests/core/test_domain_recycling.cpp",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "domain_motion.tracked_window",
+        "scope": "Exact flat CPU tracked-window recycling profile",
+        "state": "ready"
+      },
+      {
+        "area": "nesting",
+        "blocker": "",
+        "boundedEvidence": "tests/core/test_nested_production_step.cpp",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "nesting.stationary_cpu",
+        "scope": "Stationary one-way parent and child execution on CPU",
+        "state": "ready"
+      },
+      {
+        "area": "nesting",
+        "blocker": "",
+        "boundedEvidence": "tests/core/test_nested_production_step.cpp; scripts/tests/gpu/test_stationary_nested_vulkan_admission.py; scripts/qualification/nested_domains/qualify_stationary_nested_vulkan_runtime.py; tests/fixtures/configs/qualification/stationary_nested_vulkan_dry.yaml",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "nesting.stationary_vulkan",
+        "scope": "Stationary one-way parent and child execution on Vulkan",
+        "state": "ready"
+      },
+      {
+        "area": "diagnostics",
+        "blocker": "",
+        "boundedEvidence": "tests/diagnostics/test_pressure_projection.cpp; tests/diagnostics/test_resolved_diagnostics.cpp; scripts/qualification/output/qualify_live_shm.py; tests/fixtures/configs/qualification/agrid_mapped_none_bell_lin_ready.yaml; docs/MATHEMATICS.pdf",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "diagnostics.resolved_cartesian",
+        "scope": "Shared physical-grid pressure potentials, resolved angular momentum and vorticity for maintained CPU A/C-grid and native C-grid output profiles",
+        "state": "ready"
+      },
+      {
+        "area": "nesting",
+        "blocker": "",
+        "boundedEvidence": "tests/core/test_nested_production_step.cpp; tests/core/test_nested_terrain_geometry.cpp; tests/core/test_simulation_checkpoint.cpp; scripts/tests/science/test_native_nested_motion_ready.py; scripts/tests/science/test_nested_terrain_checkpoint_compatibility.py; docs/MATHEMATICS.pdf",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "nesting.two_way_moving_mapped_native",
+        "scope": "Integer moving-child mapped Bell/Schar 2:1/3:1 Kessler/Lin TVD/MC and WENO two-way CPU/Metal/Vulkan reference families",
+        "state": "ready"
+      },
+      {
+        "area": "nesting",
+        "blocker": "",
+        "boundedEvidence": "scripts/tests/science/test_private_nested_motion_matrix.py; tests/core/test_nested_production_step.cpp; docs/MATHEMATICS.pdf",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "nesting.thompson_two_way_moving",
+        "scope": "Cloud-seeded Thompson integer moving-child C-grid references: flat 2:1 and Bell/Schar 2:1/3:1, TVD/MC or WENO, CPU/Metal/Vulkan",
+        "state": "ready"
+      },
+      {
+        "area": "nesting",
+        "blocker": "",
+        "boundedEvidence": "scripts/tests/science/test_private_nested_motion_matrix.py; tests/core/test_nested_production_step.cpp; docs/MATHEMATICS.pdf",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "nesting.milbrandt_two_way_moving",
+        "scope": "Cloud-seeded Milbrandt integer moving-child references with either hail setting: flat 2:1 and Bell/Schar 2:1/3:1, TVD/MC or WENO, CPU/Metal/Vulkan",
+        "state": "ready"
+      },
+      {
+        "area": "nesting",
+        "blocker": "",
+        "boundedEvidence": "scripts/tests/science/test_private_nested_motion_matrix.py; tests/core/test_domain_recycling.cpp; tests/core/test_simulation_checkpoint.cpp; docs/MATHEMATICS.pdf",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "nesting.private_parent_recycling",
+        "scope": "Flat tracked-parent private two-way references: Thompson TVD/WENO and Milbrandt TVD/WENO with either hail setting on CPU/Metal/Vulkan",
+        "state": "ready"
+      },
+      {
+        "area": "nesting",
+        "blocker": "",
+        "boundedEvidence": "scripts/tests/science/test_thompson_two_way_ready.py; tests/core/test_nested_production_step.cpp; tests/core/test_nested_scalar_feedback.cpp; tests/core/test_simulation_checkpoint.cpp; tests/physics/test_microphysics.cpp; scripts/tests/science/test_unseeded_private_two_way_ready.py; docs/MATHEMATICS.pdf",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "nesting.thompson_two_way_stationary",
+        "scope": "Cloud-seeded and unseeded stationary Thompson, flat 2:1 and Bell/Schar 2:1/3:1, TVD/MC or WENO on CPU/Metal/Vulkan",
+        "state": "ready"
+      },
+      {
+        "area": "nesting",
+        "blocker": "",
+        "boundedEvidence": "scripts/tests/science/test_native_two_way_nested_ready.py; tests/core/test_nested_production_step.cpp; tests/core/test_nested_scalar_feedback.cpp; scripts/tests/science/test_unseeded_private_two_way_ready.py; docs/MATHEMATICS.pdf",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "nesting.milbrandt_two_way_stationary",
+        "scope": "Cloud-seeded and unseeded stationary Milbrandt with either hail setting, flat 2:1 and Bell/Schar 2:1/3:1, TVD/MC or WENO on CPU/Metal/Vulkan",
+        "state": "ready"
+      },
+      {
+        "area": "nesting",
+        "blocker": "",
+        "boundedEvidence": "scripts/tests/science/test_native_two_way_nested_ready.py; tests/numerics/test_native_conservative_momentum.cpp; tests/dynamics/test_mapped_reconstruction.cpp; tests/dynamics/test_native_moist_mapped_acoustic.cpp; tests/fixtures/configs/qualification/stationary_mapped_nested_kessler_bell_tvd_metal_ready.yaml; tests/fixtures/configs/qualification/stationary_mapped_nested_lin_schar3_weno_vulkan_ready.yaml; docs/MATHEMATICS.pdf",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "nesting.two_way_mapped_native",
+        "scope": "Stationary mapped Bell/Schar 2:1/3:1 dry/Kessler/Lin TVD/MC and WENO two-way CPU/Metal/Vulkan reference families",
+        "state": "ready"
+      },
+      {
+        "area": "nesting",
+        "blocker": "",
+        "boundedEvidence": "scripts/tests/science/test_native_two_way_nested_ready.py; tests/numerics/test_native_conservative_momentum.cpp; tests/numerics/test_native_phase_feedback.cpp; tests/numerics/test_native_scalar_capture.cpp; tests/core/test_simulation_checkpoint.cpp; docs/MATHEMATICS.pdf",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "nesting.two_way_stationary_native",
+        "scope": "Stationary flat dry/Kessler/Lin TVD/MC and WENO two-way CPU/Metal/Vulkan reference families",
+        "state": "ready"
+      },
+      {
+        "area": "nesting",
+        "blocker": "",
+        "boundedEvidence": "scripts/tests/science/test_native_nested_motion_ready.py; tests/numerics/test_native_conservative_momentum.cpp; tests/numerics/test_native_phase_feedback.cpp; tests/numerics/test_native_scalar_capture.cpp; tests/core/test_simulation_checkpoint.cpp; docs/MATHEMATICS.pdf",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "nesting.two_way_moving_native",
+        "scope": "Flat moving-child Kessler/Smagorinsky/slab/full-stochastic TVD/MC and WENO two-way CPU/Metal/Vulkan references",
+        "state": "ready"
+      },
+      {
+        "area": "nesting",
+        "blocker": "",
+        "boundedEvidence": "scripts/tests/science/test_native_nested_motion_ready.py; tests/numerics/test_native_conservative_momentum.cpp; tests/numerics/test_native_phase_feedback.cpp; tests/numerics/test_native_scalar_capture.cpp; tests/core/test_simulation_checkpoint.cpp; docs/MATHEMATICS.pdf",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "nesting.two_way_recycling_native",
+        "scope": "Flat tracked-window Kessler/Smagorinsky/slab/full-stochastic TVD/MC and WENO two-way CPU/Metal/Vulkan references",
+        "state": "ready"
+      },
+      {
+        "area": "nesting",
+        "blocker": "",
+        "boundedEvidence": "tests/fixtures/configs/qualification/moving_nested_two_way_cpu_ready.yaml; scripts/tests/science/test_moving_two_way_nested_ready.py; tests/core/test_nested_production_step.cpp; tests/diagnostics/test_energy_budget.cpp; docs/MATHEMATICS.pdf",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "nesting.two_way_moving_cpu",
+        "scope": "Exact flat moving-child Kessler/Smagorinsky/slab two-way CPU reference",
+        "state": "ready"
+      },
+      {
+        "area": "nesting",
+        "blocker": "",
+        "boundedEvidence": "scripts/tests/gpu/test_moving_nested_vulkan_admission.py; tests/fixtures/configs/qualification/moving_nested_supercell_cpu_v1.yaml; docs/MATHEMATICS.pdf",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "nesting.moving_cpu_public",
+        "scope": "Ordinary public moving-nest admission on CPU",
+        "state": "ready"
+      },
+      {
+        "area": "nesting",
+        "blocker": "",
+        "boundedEvidence": "tests/core/test_nested_production_step.cpp; scripts/tests/gpu/test_moving_nested_vulkan_admission.py; tests/fixtures/configs/qualification/moving_nested_supercell_vulkan_v1.yaml",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "nesting.moving_vulkan",
+        "scope": "Exact public moving-supercell profile on Vulkan",
+        "state": "ready"
+      },
+      {
+        "area": "nesting",
+        "blocker": "",
+        "boundedEvidence": "tests/fixtures/configs/qualification/moving_nested_supercell_metal_v1.yaml; scripts/tests/gpu/test_moving_nested_vulkan_admission.py; tests/metal/test_metal_runtime.py",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "nesting.moving_metal",
+        "scope": "Exact public moving-supercell profile on Metal",
+        "state": "ready"
+      },
+      {
+        "area": "nesting",
+        "blocker": "",
+        "boundedEvidence": "scripts/tests/science/test_moist_two_way_nested_ready.py; tests/core/test_nested_scalar_feedback.cpp; scripts/tests/science/test_two_way_nested_ready.py; scripts/tests/science/test_active_terrain_nested_ready.py; tests/fixtures/configs/qualification/stationary_nested_cpu_two_way_ready.yaml; tests/fixtures/configs/qualification/stationary_nested_active_terrain_cpu_two_way_ready.yaml; tests/fixtures/configs/qualification/stationary_nested_active_schar_cpu_two_way_ready.yaml; tests/fixtures/configs/qualification/stationary_nested_active_bell_cpu_two_way_3to1_ready.yaml; tests/fixtures/configs/qualification/stationary_nested_active_schar_cpu_two_way_3to1_ready.yaml; tests/core/test_nested_grid.cpp; tests/core/test_nested_boundary_forcing.cpp; tests/core/test_nested_terrain_geometry.cpp; tests/core/test_simulation_checkpoint.cpp; tests/numerics/test_advection_cartesian.cpp; tests/dynamics/test_cartesian_cgrid_slow_tendencies_gpu_parity.cpp; tests/core/test_nested_production_step.cpp; docs/MATHEMATICS.pdf",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "nesting.two_way_feedback",
+        "scope": "Stationary dry/Kessler/Lin Cartesian C-grid two-way feedback on CPU for flat 2:1 and mapped Bell/Sch\u00e4r 2:1/3:1",
+        "state": "ready"
+      },
+      {
+        "area": "nesting",
+        "blocker": "",
+        "boundedEvidence": "tests/fixtures/configs/qualification/stationary_nested_active_bell_cpu_one_way_ready.yaml; tests/fixtures/configs/qualification/stationary_nested_active_terrain_cpu_two_way_ready.yaml; tests/fixtures/configs/qualification/stationary_nested_active_schar_cpu_one_way_ready.yaml; tests/fixtures/configs/qualification/stationary_nested_active_schar_cpu_two_way_ready.yaml; tests/fixtures/configs/qualification/stationary_nested_active_bell_cpu_one_way_3to1_ready.yaml; tests/fixtures/configs/qualification/stationary_nested_active_bell_cpu_two_way_3to1_ready.yaml; tests/fixtures/configs/qualification/stationary_nested_active_schar_cpu_one_way_3to1_ready.yaml; tests/fixtures/configs/qualification/stationary_nested_active_schar_cpu_two_way_3to1_ready.yaml; scripts/tests/science/test_active_terrain_nested_ready.py; tests/core/test_nested_terrain_geometry.cpp; tests/core/test_nested_grid.cpp; tests/core/test_nested_level_runtime.cpp; tests/core/test_simulation_checkpoint.cpp",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "nesting.active_terrain",
+        "scope": "Stationary isotropic 2:1/3:1 Bell/Sch\u00e4r mapped one-/two-way nesting on CPU",
+        "state": "ready"
+      },
+      {
+        "area": "diffusion",
+        "blocker": "",
+        "boundedEvidence": "tests/numerics/test_diffusion.cpp; tests/vulkan/test_gpu_parity.cpp; scripts/tests/science/test_variable_diffusion_ready.py; tests/fixtures/configs/qualification/cgrid_variable_diffusion_vulkan_ready.yaml; vulkan/shaders/compute/diffusion/diffusion.comp",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "diffusion.variable_k_vulkan",
+        "scope": "Exact flat C-grid explicit linear-height vertical diffusion on Vulkan",
+        "state": "ready"
+      },
+      {
+        "area": "diffusion",
+        "blocker": "",
+        "boundedEvidence": "tests/numerics/test_diffusion.cpp; tests/metal/test_metal_compute_backend.cpp; scripts/tests/science/test_variable_diffusion_ready.py; tests/fixtures/configs/qualification/cgrid_variable_diffusion_metal_ready.yaml; metal/include/compute/metal/shaders/diffusion/diffusion_msl.hpp",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "diffusion.variable_k_metal",
+        "scope": "Exact flat C-grid explicit linear-height vertical diffusion on Metal",
+        "state": "ready"
+      },
+      {
+        "area": "time_stepping",
+        "blocker": "",
+        "boundedEvidence": "tests/numerics/test_time_stepping.cpp; tests/numerics/test_native_rk_combination.cpp; tests/numerics/test_native_rk_tendency.cpp; scripts/tests/science/test_coupled_rk_accelerator_ready.py; scripts/tests/science/test_coupled_rk_ready.py; scripts/tests/science/test_agrid_rk_ready.py; tests/fixtures/configs/qualification/cgrid_ssprk3_coupled_ready.yaml; tests/fixtures/configs/qualification/agrid_thompson_rrtmg_implicit_weno_ssprk3_ready.yaml",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "time_stepping.rk3_coupled",
+        "scope": "Flat CPU SSPRK3 families and stationary periodic native C-grid/collocated integration with staged public/private fields, constant explicit/implicit diffusion and admitted physics compositions",
+        "state": "ready"
+      },
+      {
+        "area": "time_stepping",
+        "blocker": "",
+        "boundedEvidence": "tests/numerics/test_time_stepping.cpp; tests/numerics/test_native_rk_combination.cpp; tests/numerics/test_native_rk_tendency.cpp; scripts/tests/science/test_coupled_rk_accelerator_ready.py; scripts/tests/science/test_coupled_rk_ready.py; scripts/tests/science/test_agrid_rk_ready.py; tests/fixtures/configs/qualification/cgrid_rk4_coupled_ready.yaml; tests/fixtures/configs/qualification/agrid_thompson_rrtmg_implicit_weno_rk4_ready.yaml; docs/MATHEMATICS.pdf",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "time_stepping.rk4_coupled",
+        "scope": "Flat CPU RK4 families and stationary periodic native C-grid/collocated integration with staged public/private fields, constant explicit/implicit diffusion and admitted physics compositions",
+        "state": "ready"
+      },
+      {
+        "area": "radiation",
+        "blocker": "",
+        "boundedEvidence": "tests/physics/test_radiation.cpp; tests/physics/test_radiation_runtime_state.cpp; tests/core/test_simulation_checkpoint.cpp",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "radiation.rrtmg",
+        "scope": "RRTMG coupled public profiles",
+        "state": "ready"
+      },
+      {
+        "area": "radiation",
+        "blocker": "",
+        "boundedEvidence": "tests/physics/test_radiation.cpp; tests/physics/test_radiation_runtime_state.cpp; tests/core/test_simulation_checkpoint.cpp; scripts/tests/science/test_simple_grey_absorbing_water_cloud_ready.py; tests/fixtures/configs/qualification/cgrid_simple_grey_absorbing_water_cloud_cpu_ready.yaml; tests/fixtures/configs/qualification/soundings/simple_grey_condensing_profile.txt",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "radiation.simple_grey_general",
+        "scope": "Exact CPU simple-grey pure-absorption water/cloud-path profile",
+        "state": "ready"
+      },
+      {
+        "area": "boundary_layer",
+        "blocker": "",
+        "boundedEvidence": "tests/physics/test_boundary_layer.cpp; tests/physics/test_boundary_layer_runtime_state.cpp; tests/core/test_simulation_checkpoint.cpp",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "boundary_layer.mynn",
+        "scope": "MYNN coupled public profiles",
+        "state": "ready"
+      },
+      {
+        "area": "boundary_layer",
+        "blocker": "",
+        "boundedEvidence": "tests/physics/test_boundary_layer.cpp; tests/physics/test_boundary_layer_runtime_state.cpp; tests/core/test_simulation_checkpoint.cpp",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "boundary_layer.slab",
+        "scope": "Slab PBL public profiles",
+        "state": "ready"
+      },
+      {
+        "area": "boundary_layer",
+        "blocker": "",
+        "boundedEvidence": "tests/physics/test_boundary_layer.cpp; tests/physics/test_boundary_layer_runtime_state.cpp; tests/fixtures/configs/qualification/cgrid_ysu_rrtmg_ready.yaml",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "boundary_layer.ysu",
+        "scope": "YSU public profiles",
+        "state": "ready"
+      },
+      {
+        "area": "boundary_layer",
+        "blocker": "",
+        "boundedEvidence": "include/boundary_layer/base/pbl_height.hpp; tests/physics/test_boundary_layer.cpp; scripts/tests/science/test_pbl_top_ready.py; tests/fixtures/configs/qualification/cgrid_ysu_theta_top_ready.yaml",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "boundary_layer.pbl_top_theta",
+        "scope": "Exact YSU potential-temperature-increase PBL-top diagnosis on CPU",
+        "state": "ready"
+      },
+      {
+        "area": "boundary_layer",
+        "blocker": "",
+        "boundedEvidence": "include/boundary_layer/base/pbl_height.hpp; tests/physics/test_boundary_layer.cpp; scripts/tests/science/test_pbl_top_ready.py; tests/fixtures/configs/qualification/cgrid_mynn_tke_top_ready.yaml",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "boundary_layer.pbl_top_tke",
+        "scope": "Exact MYNN prognostic-TKE PBL-top diagnosis on CPU",
+        "state": "ready"
+      },
+      {
+        "area": "boundary_layer",
+        "blocker": "",
+        "boundedEvidence": "include/boundary_layer/base/cloud_top_radiative_mixing.hpp; tests/physics/test_boundary_layer.cpp; tests/physics/test_boundary_layer_runtime_state.cpp; tests/physics/test_microphysics_runtime_state.cpp; tests/core/test_simulation_checkpoint.cpp; scripts/tests/science/test_cloud_top_radiative_ysu_ready.py; tests/fixtures/configs/qualification/cgrid_lin_rrtmg_cloud_top_ysu_ready.yaml",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "boundary_layer.cloud_top_radiative_ysu",
+        "scope": "Exact CPU surface-coupled Lock-2000 radiative YSU with linearized theta_l and qv/qc/qi transport",
+        "state": "ready"
+      },
+      {
+        "area": "turbulence",
+        "blocker": "",
+        "boundedEvidence": "tests/physics/test_tke_scheme.cpp; scripts/tests/science/test_tke_rrtmg_ready.py; tests/fixtures/configs/qualification/cgrid_tke_rrtmg_ready.yaml",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "turbulence.tke",
+        "scope": "Prognostic 1.5-order TKE closure",
+        "state": "ready"
+      },
+      {
+        "area": "compute",
+        "blocker": "",
+        "boundedEvidence": "tests/fixtures/configs/qualification/cgrid_tke_implicit_rrtmg_cpu_ready.yaml; tests/fixtures/configs/qualification/cgrid_tke_implicit_rrtmg_metal_ready.yaml; tests/fixtures/configs/qualification/cgrid_tke_implicit_rrtmg_vulkan_ready.yaml; tests/numerics/test_diffusion.cpp; scripts/tests/science/test_native_tke_ready.py; docs/MATHEMATICS.pdf",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "physics.tke_implicit_native",
+        "scope": "Exact flat periodic C-grid TKE/implicit scalar-and-momentum diffusion/RRTMG reference on CPU, Vulkan and Metal",
+        "state": "ready"
+      },
+      {
+        "area": "turbulence",
+        "blocker": "",
+        "boundedEvidence": "tests/physics/test_native_tke.cpp; scripts/tests/science/test_native_tke_ready.py; tests/fixtures/configs/qualification/cgrid_tke_rrtmg_metal_ready.yaml; tests/fixtures/configs/qualification/cgrid_tke_rrtmg_vulkan_ready.yaml",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "turbulence.tke_native",
+        "scope": "Exact flat periodic C-grid TKE/RRTMG profile with native closure, energy transport, SGS commit and strict slow commit on Vulkan and Metal",
+        "state": "ready"
+      },
+      {
+        "area": "turbulence",
+        "blocker": "",
+        "boundedEvidence": "tests/physics/test_turbulence_sgs.cpp; tests/physics/test_turbulence_runtime_state.cpp; tests/core/test_simulation_checkpoint.cpp; scripts/tests/science/test_user_filter_width_ready.py; tests/fixtures/configs/qualification/cgrid_user_filter_width_ready.yaml",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "turbulence.user_filter_width",
+        "scope": "Exact 500 m user-prescribed Smagorinsky filter width on CPU",
+        "state": "ready"
+      },
+      {
+        "area": "turbulence",
+        "blocker": "",
+        "boundedEvidence": "src/turbulence/schemes/smagorinsky/dynamic_smagorinsky.cpp; tests/physics/test_turbulence_sgs.cpp; tests/physics/test_turbulence_runtime_state.cpp; tests/core/test_simulation_checkpoint.cpp; scripts/tests/science/test_dynamic_smagorinsky_ready.py; tests/fixtures/configs/qualification/cgrid_dynamic_smagorinsky_ready.yaml",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "turbulence.dynamic_smagorinsky",
+        "scope": "Exact flat periodic CPU Favre Germano-Lilly dynamic Smagorinsky closure",
+        "state": "ready"
+      },
+      {
+        "area": "turbulence",
+        "blocker": "The exact flat-CPU static vertical-only candidate has ordinary qualified admission and a whole-step state/six-ledger transaction; final same-binary public failure, numeric/restart and Studio gates remain under review. Broader terrain/accelerator modes and external scientific review remain open; dynamic Smagorinsky requires 3-D mode.",
+        "boundedEvidence": "tests/physics/test_turbulence_sgs.cpp; tests/physics/test_sgs_apply_runtime_state.cpp; docs/MATHEMATICS.pdf",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "turbulence.vertical_only_sgs",
+        "scope": "Static vertical-only Smagorinsky on the exact flat periodic C-grid CPU reference, with no active PBL overlap",
+        "state": "engineering_incomplete"
+      },
+      {
+        "area": "turbulence",
+        "blocker": "",
+        "boundedEvidence": "tests/physics/test_tke_scheme.cpp; tests/physics/test_turbulence_runtime_state.cpp; tests/core/test_simulation_checkpoint.cpp; scripts/tests/science/test_tke_rrtmg_ready.py; tests/fixtures/configs/qualification/cgrid_tke_rrtmg_ready.yaml",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "turbulence.tke_stability_correction",
+        "scope": "Exact flat periodic CPU Deardorff TKE stability correction",
+        "state": "ready"
+      },
+      {
+        "area": "advection",
+        "blocker": "",
+        "boundedEvidence": "tests/numerics/test_weno5_reconstruction.cpp; tests/numerics/test_advection_cartesian.cpp; scripts/tests/science/test_cgrid_numerics_ready.py; scripts/tests/science/test_agrid_weno_ready.py; scripts/tests/science/test_collocated_mapped_terrain_ready.py; tests/fixtures/configs/qualification/cgrid_weno5_rrtmg_ready.yaml; tests/fixtures/configs/qualification/agrid_thompson_rrtmg_implicit_weno_ready.yaml; tests/fixtures/configs/qualification/agrid_mapped_full_stochastic_schar_milbrandt_ready.yaml",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "advection.weno5",
+        "scope": "WENO5 transported-scalar profiles on flat C-grid, mapped C-grid, flat collocated CPU storage, and mapped Bell/Sch\u00e4r collocated CPU storage",
+        "state": "ready"
+      },
+      {
+        "area": "diffusion",
+        "blocker": "",
+        "boundedEvidence": "tests/numerics/test_diffusion.cpp; scripts/tests/science/test_cgrid_numerics_ready.py; scripts/tests/science/test_agrid_implicit_ready.py; tests/fixtures/configs/qualification/cgrid_implicit_rrtmg_ready.yaml; tests/fixtures/configs/qualification/agrid_thompson_rrtmg_implicit_ready.yaml",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "diffusion.implicit",
+        "scope": "Constant-coefficient CPU backward-Euler scalar/momentum diffusion on flat C-grid, mapped C-grid, and flat collocated storage",
+        "state": "ready"
+      },
+      {
+        "area": "diffusion",
+        "blocker": "",
+        "boundedEvidence": "tests/numerics/test_native_implicit.cpp; scripts/tests/science/test_native_implicit_ready.py; tests/fixtures/configs/qualification/cgrid_implicit_rrtmg_metal_ready.yaml; tests/fixtures/configs/qualification/cgrid_implicit_rrtmg_vulkan_ready.yaml",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "diffusion.implicit_native",
+        "scope": "Exact flat C-grid backward-Euler scalar and momentum diffusion with RRTMG on Vulkan and Metal",
+        "state": "ready"
+      },
+      {
+        "area": "microphysics",
+        "blocker": "",
+        "boundedEvidence": "tests/qualification/test_lin_reference_processes.cpp; tests/physics/test_microphysics.cpp; scripts/tests/science/test_lin_rrtmg_ready.py; tests/fixtures/configs/qualification/cgrid_lin_rrtmg_ready.yaml",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "microphysics.lin",
+        "scope": "Exact fallback-off CPU Lin/YSU/cloudy-RRTMG profile",
+        "state": "ready"
+      },
+      {
+        "area": "microphysics",
+        "blocker": "",
+        "boundedEvidence": "tests/vulkan/test_gpu_parity.cpp; tests/physics/test_microphysics.cpp; scripts/tests/science/test_lin_rrtmg_accelerator_ready.py; tests/fixtures/configs/qualification/cgrid_lin_rrtmg_vulkan_ready.yaml",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "microphysics.lin_vulkan",
+        "scope": "Exact fallback-off Vulkan Lin/YSU/cloudy-RRTMG profile",
+        "state": "ready"
+      },
+      {
+        "area": "microphysics",
+        "blocker": "",
+        "boundedEvidence": "tests/metal/test_metal_compute_backend.cpp; tests/physics/test_microphysics.cpp; scripts/tests/science/test_lin_rrtmg_accelerator_ready.py; tests/fixtures/configs/qualification/cgrid_lin_rrtmg_metal_ready.yaml",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "microphysics.lin_metal",
+        "scope": "Exact fallback-off Metal Lin/YSU/cloudy-RRTMG profile",
+        "state": "ready"
+      },
+      {
+        "area": "physics",
+        "blocker": "",
+        "boundedEvidence": "scripts/qualification/accelerators/qualify_flat_lin_storm.py; tests/init/config/test_v1_loader.cpp; tests/qualification/test_lin_reference_processes.cpp; docs/MATHEMATICS.pdf",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "physics.flat_lin_storm",
+        "scope": "Flat stationary radiative C-grid file-sounding Lin/TVD/Smagorinsky family on CPU, Metal and Vulkan",
+        "state": "ready"
+      },
+      {
+        "area": "compute",
+        "blocker": "",
+        "boundedEvidence": "tests/vulkan/test_acoustic_input_reuse.cpp; tests/dynamics/test_native_acoustic_boundary.cpp; scripts/qualification/accelerators/qualify_flat_lin_storm.py; docs/MATHEMATICS.pdf",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "compute.strict_acoustic_residency",
+        "scope": "Native acoustic-loop retention on FP64-capable Vulkan devices, with exact flux/history publication and complete host report ownership",
+        "state": "ready"
+      },
+      {
+        "area": "compute",
+        "blocker": "",
+        "boundedEvidence": "tests/vulkan/test_acoustic_input_reuse.cpp; tests/init/config/test_configuration_compiler.cpp; scripts/qualification/accelerators/qualify_flat_lin_storm.py; docs/MATHEMATICS.pdf",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "compute.nvidia_cuda_assist",
+        "scope": "Optional retained-flux CUDA execution in Vulkan command buffers on compatible NVIDIA drivers with buffer device addresses",
+        "state": "ready"
+      },
+      {
+        "area": "compute",
+        "blocker": "",
+        "boundedEvidence": "scripts/tests/science/test_thompson_weno_ready.py; scripts/tests/science/test_thompson_accelerator_ready.py; tests/numerics/test_advection_cartesian.cpp; docs/MATHEMATICS.pdf",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "physics.thompson_ysu_weno_native",
+        "scope": "Exact C-grid WENO5/Thompson/YSU/clear-sky-RRTMG references with and without implicit diffusion on CPU, Vulkan and Metal",
+        "state": "ready"
+      },
+      {
+        "area": "compute",
+        "blocker": "",
+        "boundedEvidence": "scripts/tests/science/test_tke_weno_ready.py; scripts/tests/science/test_native_tke_ready.py; tests/numerics/test_advection_cartesian.cpp; tests/physics/test_native_tke.cpp; docs/MATHEMATICS.pdf",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "physics.tke_weno_native",
+        "scope": "Exact seeded C-grid WENO5/TKE/RRTMG references without microphysics, with and without implicit diffusion, on CPU, Vulkan and Metal",
+        "state": "ready"
+      },
+      {
+        "area": "compute",
+        "blocker": "",
+        "boundedEvidence": "scripts/tests/science/test_thompson_tke_weno_ready.py; scripts/tests/science/test_native_tke_ready.py; tests/numerics/test_advection_cartesian.cpp; tests/metal/test_metal_compute_backend.cpp; docs/MATHEMATICS.pdf",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "physics.thompson_tke_weno_native",
+        "scope": "Exact seeded C-grid WENO5/Thompson/TKE/clear-sky-RRTMG references with and without implicit diffusion on CPU, Vulkan and Metal",
+        "state": "ready"
+      },
+      {
+        "area": "compute",
+        "blocker": "",
+        "boundedEvidence": "scripts/tests/science/test_thompson_tke_ready.py; scripts/tests/science/test_native_tke_ready.py; tests/fixtures/configs/qualification/cgrid_thompson_tke_cpu_ready.yaml; tests/fixtures/configs/qualification/cgrid_thompson_tke_metal_ready.yaml; tests/fixtures/configs/qualification/cgrid_thompson_tke_vulkan_ready.yaml; tests/fixtures/configs/qualification/cgrid_thompson_tke_implicit_cpu_ready.yaml; tests/fixtures/configs/qualification/cgrid_thompson_tke_implicit_metal_ready.yaml; tests/fixtures/configs/qualification/cgrid_thompson_tke_implicit_vulkan_ready.yaml; docs/MATHEMATICS.pdf",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "physics.thompson_tke_native",
+        "scope": "Exact seeded C-grid Thompson/TKE/clear-sky-RRTMG references, with and without implicit diffusion, on CPU, Vulkan and Metal",
+        "state": "ready"
+      },
+      {
+        "area": "compute",
+        "blocker": "",
+        "boundedEvidence": "tests/fixtures/configs/qualification/cgrid_thompson_implicit_cpu_ready.yaml; tests/fixtures/configs/qualification/cgrid_thompson_implicit_metal_ready.yaml; tests/fixtures/configs/qualification/cgrid_thompson_implicit_vulkan_ready.yaml; tests/physics/test_native_thompson_implicit.cpp; scripts/tests/science/test_thompson_implicit_ready.py; docs/MATHEMATICS.pdf",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "physics.thompson_implicit_native",
+        "scope": "Exact flat periodic C-grid Thompson/implicit theta-vapor-momentum diffusion/YSU/clear-sky-RRTMG reference on CPU, Vulkan and Metal",
+        "state": "ready"
+      },
+      {
+        "area": "microphysics",
+        "blocker": "",
+        "boundedEvidence": "tests/fixtures/configs/qualification/cgrid_milbrandt_cpu_ready.yaml; tests/fixtures/configs/qualification/cgrid_milbrandt_vulkan_ready.yaml; tests/fixtures/configs/qualification/cgrid_milbrandt_metal_ready.yaml; scripts/tests/science/test_milbrandt_accelerator_ready.py; tests/physics/test_native_milbrandt_scheme.cpp; tests/physics/test_native_milbrandt_cold.cpp; tests/physics/test_native_milbrandt_sedimentation.cpp; tests/physics/test_native_milbrandt_cloud.cpp; tests/physics/test_native_milbrandt_warm.cpp; tests/physics/test_native_milbrandt_melting.cpp; docs/MATHEMATICS.pdf",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "microphysics.milbrandt_native",
+        "scope": "Default Milbrandt-Yau mixed-phase C-grid/YSU/clear-sky-RRTMG reference on CPU, Vulkan and Metal; both hail-production settings",
+        "state": "ready"
+      },
+      {
+        "area": "microphysics",
+        "blocker": "Ordinary strict-v1 selection remains fail-closed. Five reflectivity process and sedimentation tendencies, transport, checkpoint, resource, CPU and native backend integration and bounded scientific gates remain.",
+        "boundedEvidence": "src/microphysics/schemes/milbrandt/milbrandt.cpp; src/microphysics/schemes/milbrandt/native.cpp; include/microphysics/milbrandt_triple_scope.hpp",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "microphysics.milbrandt_triple_moment",
+        "scope": "Retained Milbrandt-Yau triple-moment selection with five independent sedimenting-species reflectivity moments",
+        "state": "engineering_incomplete"
+      },
+      {
+        "area": "microphysics",
+        "blocker": "",
+        "boundedEvidence": "tests/fixtures/configs/qualification/cgrid_thompson_vulkan_ready.yaml; tests/fixtures/configs/qualification/cgrid_thompson_metal_ready.yaml; scripts/tests/science/test_thompson_accelerator_ready.py; tests/physics/test_native_thompson_completion.cpp; tests/physics/test_native_thompson_sedimentation.cpp; docs/MATHEMATICS.pdf",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "microphysics.thompson_native",
+        "scope": "Exact flat periodic C-grid Thompson-Eidhammer/YSU/clear-sky-RRTMG profile on Vulkan and Metal",
+        "state": "ready"
+      },
+      {
+        "area": "microphysics",
+        "blocker": "",
+        "boundedEvidence": "tests/fixtures/configs/qualification/cgrid_thompson_cpu_ready.yaml; scripts/tests/science/test_thompson_cpu_ready.py; tests/physics/test_microphysics.cpp; tests/physics/test_thompson_cold_processes.cpp; tests/physics/test_thompson_required_packaged_data.cpp",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "microphysics.thompson",
+        "scope": "Exact flat periodic CPU Thompson-Eidhammer/YSU/clear-sky-RRTMG profile",
+        "state": "ready"
+      },
+      {
+        "area": "radar",
+        "blocker": "",
+        "boundedEvidence": "tests/physics/test_reflectivity.cpp; tests/physics/test_radar_velocity.cpp; tests/physics/test_radar_runtime_state.cpp; tests/core/test_simulation_checkpoint.cpp; scripts/tests/science/test_radar_ready.py; tests/fixtures/configs/qualification/cgrid_radar_ready.yaml",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "radar.reflectivity_velocity",
+        "scope": "Exact CPU fast-DA reflectivity and point radial-velocity profile",
+        "state": "ready"
+      },
+      {
+        "area": "radar",
+        "blocker": "",
+        "boundedEvidence": "tests/physics/test_radar_zdr.cpp; tests/physics/test_radar_runtime_state.cpp; tests/core/test_simulation_checkpoint.cpp; scripts/tests/science/test_radar_polarimetric_ready.py; tests/fixtures/configs/qualification/cgrid_radar_polarimetric_ready.yaml",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "radar.zdr",
+        "scope": "Exact CPU Zhang-2021 fixed-N0 rain-only profile",
+        "state": "ready"
+      },
+      {
+        "area": "radar",
+        "blocker": "",
+        "boundedEvidence": "tests/physics/test_radar_zdr.cpp; tests/physics/test_radar_runtime_state.cpp; tests/core/test_simulation_checkpoint.cpp; scripts/tests/science/test_radar_polarimetric_ready.py; tests/fixtures/configs/qualification/cgrid_radar_polarimetric_ready.yaml",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "radar.kdp",
+        "scope": "Exact CPU Zhang-2021 fixed-N0 rain-only profile",
+        "state": "ready"
+      },
+      {
+        "area": "radar",
+        "blocker": "",
+        "boundedEvidence": "tests/physics/test_radar_zdr.cpp; tests/physics/test_radar_runtime_state.cpp; tests/core/test_simulation_checkpoint.cpp; scripts/tests/science/test_radar_polarimetric_ready.py; tests/fixtures/configs/qualification/cgrid_radar_polarimetric_ready.yaml",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "radar.rhohv",
+        "scope": "Exact CPU Zhang-2021 fixed-N0 rain-only profile",
+        "state": "ready"
+      },
+      {
+        "area": "radar",
+        "blocker": "",
+        "boundedEvidence": "tests/physics/test_reflectivity.cpp; tests/physics/test_radar_velocity.cpp; tests/physics/test_radar_zdr.cpp; tests/physics/test_radar_runtime_state.cpp; tests/core/test_output_config.cpp; scripts/qualification/output/qualify_radar_product_sets.py",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "radar.product_set_composition",
+        "scope": "Every non-empty reflectivity/velocity/ZDR/KDP/rhoHV product subset on the canonical flat CPU Kessler/RRTMG radar environment, with selection-authored output",
+        "state": "ready"
+      },
+      {
+        "area": "chaos",
+        "blocker": "",
+        "boundedEvidence": "tests/physics/test_chaos_runtime_state.cpp",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "chaos.cpu_profiles",
+        "scope": "Qualified Earth-addressed CPU stochastic profiles",
+        "state": "ready"
+      },
+      {
+        "area": "chaos",
+        "blocker": "",
+        "boundedEvidence": "tests/physics/test_chaos_runtime_state.cpp; tests/vulkan/test_gpu_parity.cpp; scripts/tests/science/test_native_chaos_accelerator_ready.py; tests/fixtures/configs/qualification/domain_recycling_kessler_native_chaos_vulkan_ready.yaml",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "chaos.native_vulkan",
+        "scope": "Exact fallback-off Vulkan Earth-control evolution in host-composed chaos",
+        "state": "ready"
+      },
+      {
+        "area": "chaos",
+        "blocker": "",
+        "boundedEvidence": "tests/physics/test_chaos_runtime_state.cpp; tests/metal/test_metal_compute_backend.cpp; scripts/tests/science/test_native_chaos_accelerator_ready.py; tests/fixtures/configs/qualification/domain_recycling_kessler_native_chaos_metal_ready.yaml",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "chaos.native_metal",
+        "scope": "Exact fallback-off Metal Earth-control evolution in host-composed chaos",
+        "state": "ready"
+      },
+      {
+        "area": "conservation",
+        "blocker": "",
+        "boundedEvidence": "tests/dynamics/test_cartesian_lateral_bc_yaml.cpp; tests/numerics/test_advection_cartesian.cpp; tests/core/test_simulation_checkpoint.cpp; scripts/qualification/checkpointing/qualify_vulkan_restart.py; scripts/tests/science/test_mapped_terrain_ready.py; scripts/tests/science/test_native_chaos_accelerator_ready.py",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "ledgers.nonlinear_boundaries",
+        "scope": "Exact qualified CPU, Vulkan, and Metal radiative-boundary energy ownership",
+        "state": "ready"
+      },
+      {
+        "area": "capability_truth",
+        "blocker": "Browser snapshot and maintained-config Studio/native parity pass, but exact generated Metal scope preflight and installed-package consumer agreement remain unproven",
+        "boundedEvidence": "tests/core/test_scheme_catalog.cpp; tests/ui/unit/config/test_scheme_catalog.ts; ui/src-tauri/src/commands/config_preflight.rs",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "catalog.runtime_cli_studio",
+        "scope": "Exact-binary runtime, CLI, and Studio capability agreement",
+        "state": "engineering_incomplete"
+      },
+      {
+        "area": "release",
+        "blocker": "",
+        "boundedEvidence": "scripts/qualification/provenance/release_manifest.py; tests/qualification/test_release_manifest.py",
+        "campaignEvidence": "",
+        "externalReviewEvidence": "",
+        "id": "release.provenance",
+        "scope": "Exact release artifact, binary, configuration, toolchain, hardware, and evidence binding",
+        "state": "ready"
+      }
+    ],
+    "version": 1
+  },
+  "runtimeCapabilities": {
+    "interactionPolicy": {
+      "activeSurfaceSchemeId": "slab",
+      "bottomBoundaryModes": [
+        "rigid_noslip",
+        "rigid_slip"
+      ],
+      "chaosCanonicalTargets": {
+        "boundary_layer": {
+          "initialConditions": [],
+          "nativeGenerationRequired": false,
+          "tendencies": [
+            "pbl"
+          ]
+        },
+        "full_stochastic": {
+          "initialConditions": [
+            "u",
+            "v",
+            "w",
+            "theta"
+          ],
+          "nativeGenerationRequired": false,
+          "tendencies": [
+            "microphysics",
+            "pbl",
+            "diffusion"
+          ]
+        },
+        "initial_conditions": {
+          "initialConditions": [
+            "u",
+            "v",
+            "w",
+            "theta"
+          ],
+          "nativeGenerationRequired": false,
+          "tendencies": []
+        },
+        "none": {
+          "initialConditions": [],
+          "nativeGenerationRequired": false,
+          "tendencies": []
+        }
+      },
+      "generatedMetalCanonicalScope": {
+        "additionalBoundaryNpyScope": {
+          "familyId": "boundary:2b5bfbe6dfa466c6baf991e3",
+          "manifestSha256": "26712e5d5714b313cc1e17f348d67b9db9eeea60e5b888d56b0b7cf3cc5673a9",
+          "outputFormats": [
+            "npy_3d"
+          ],
+          "profileCount": 1,
+          "strictCanonicalYamlSha256": "a244b58833f7e3cd7060d941e8453d4e5face3dff9e18e87ebf61dd581a24d55",
+          "version": 1,
+          "writeCadenceSeconds": [
+            1
+          ]
+        },
+        "backend": "metal",
+        "baseManifestSha256": "85642f094c418fe95eb4c2fa0ba5a2a947aec95f8f1c43b17abcd924b0f068a0",
+        "distinctConfigCount": 4537,
+        "executionMode": "qualified",
+        "manifestSha256": "062b609452e090b0b6e5ff1f7bb15cab896700f193796ff4d87a600994f28967",
+        "npyNetcdfManifestSha256": "30d5fcc9494016894733ef973909849f8c58fbd04b3e0d6bb2e5e497c0c9ca99",
+        "outputFormats": [
+          "npy_3d",
+          "netcdf",
+          "zfp_high"
+        ],
+        "scalarTransportOwner": "native_conservative_mc",
+        "tupleCount": 6049,
+        "version": 4,
+        "writeCadenceSecondsByFormat": {
+          "netcdf": [
+            1,
+            301
+          ],
+          "npy_3d": [
+            1,
+            301
+          ],
+          "zfp_high": [
+            1
+          ]
+        },
+        "zfpTypedOutputManifestSha256": "89ef136c9637c6e23d17cd996af20631973286447b783f1978d1471d4982c9fc"
+      },
+      "gpuApplyControlsNoOpOnCpu": true,
+      "gpuApplyMicrophysicsDispatchGuardModes": [
+        "off"
+      ],
+      "gpuApplyMicrophysicsHostCommitGuardModes": [
+        "warn",
+        "error"
+      ],
+      "gpuApplyMicrophysicsSchemes": [
+        "kessler",
+        "lin",
+        "thompson",
+        "milbrandt"
+      ],
+      "gpuApplySgsDispatchGuardModes": [
+        "off",
+        "warn",
+        "error"
+      ],
+      "gpuApplySgsSchemes": [
+        "smagorinsky",
+        "tke"
+      ],
+      "gpuApplySlowDispatchGuardModes": [
+        "off"
+      ],
+      "gpuApplySlowDynamicsSchemes": [
+        "klemp_wilhelmson_split_cartesian_agrid",
+        "klemp_wilhelmson_split_cartesian_cgrid"
+      ],
+      "gpuApplySlowHostCommitGuardModes": [
+        "warn",
+        "error"
+      ],
+      "horizontalOnlyTurbulenceModes": [
+        "2d",
+        "horizontal_only"
+      ],
+      "inactiveSchemeId": "none",
+      "knownSurfaceSchemes": [
+        "none",
+        "slab"
+      ],
+      "lateralBoundaryModes": [
+        "periodic",
+        "radiative",
+        "zero_gradient",
+        "open",
+        "rigid",
+        "rigid_slip"
+      ],
+      "legacyOpenCgridResolution": "radiative",
+      "legacyOpenCollocatedResolution": "zero_gradient",
+      "milbrandtTripleMoment": {
+        "additionalMomentOrder": 6,
+        "additionalMomentSpecies": [
+          "rain",
+          "ice",
+          "snow",
+          "graupel",
+          "hail"
+        ],
+        "additionalState": [
+          "Z"
+        ],
+        "admitted": false,
+        "baselineState": [
+          "q",
+          "N"
+        ],
+        "implementationState": "engineering_incomplete",
+        "privateStorageUnits": "m^6/kg_dry",
+        "retained": true,
+        "scheme": "milbrandt",
+        "selector": "microphysics.milbrandt.triple_moment",
+        "strictV1ExplicitKeyAdmitted": false,
+        "version": 1
+      },
+      "periodicLateralPairsRequired": true,
+      "qualifiedExecutionRequiresMaturityAcknowledgment": false,
+      "qualifiedFlatMixedMetalNpyScope": {
+        "acousticSubsteps": 6,
+        "adaptiveDt": false,
+        "allowFallback": false,
+        "asyncIo": false,
+        "backend": "metal",
+        "bottomBoundary": "rigid_noslip",
+        "dtLargeSeconds": 0.1,
+        "effectiveWOnlySponge": false,
+        "executionMode": "qualified",
+        "familyId": "boundary:ed765facac077ef0b331283d",
+        "gridShape": [
+          18,
+          18,
+          18
+        ],
+        "gridSpacingMeters": [
+          500,
+          500,
+          250
+        ],
+        "initialConditionChaosOwner": "host",
+        "lateralBoundaries": [
+          "rigid_slip",
+          "rigid_slip",
+          "rigid_slip",
+          "rigid_slip"
+        ],
+        "lateralDampingOwner": "host",
+        "lateralSpongeAlpha": 0.05,
+        "lateralSpongeEnabled": true,
+        "lateralSpongeWidth": 20,
+        "liveShm": false,
+        "manifestSha256": "ea8921dabe62cceac5f95a023bdb92f3f5063dc9cd7aea6e8368925712014402",
+        "memoryAdmissionPolicies": [
+          "warn",
+          "reject"
+        ],
+        "memoryPolicyCanonicalValue": "warn",
+        "outputFormats": [
+          "npy_3d"
+        ],
+        "preset": "minimal",
+        "profileCount": 1,
+        "scalarTransportOwner": "metal_native_conservative_mc",
+        "schema": "nimbus.qualified-flat-mixed-metal-npy-scope.v1",
+        "sourceProfileOwnerSymbol": "is_public_qualified_flat_mixed_metal_cadence1_profile",
+        "strictCanonicalYamlSha256": "985c698858be9be4be29dc2adf819f31c20788c13a414747c422e21d7ebe51da",
+        "topBoundary": "open",
+        "topHeightMeters": 4500,
+        "trajectories": false,
+        "version": 1,
+        "wOnlyAlpha": 0.2,
+        "wOnlyDepth": 8,
+        "wOnlyTopSponge": true,
+        "writeCadenceSeconds": [
+          1
+        ]
+      },
+      "qualifiedGpuApplySlowDynamicsSchemes": [
+        "klemp_wilhelmson_split_cartesian_agrid",
+        "klemp_wilhelmson_split_cartesian_cgrid"
+      ],
+      "qualifiedVerticalOnlySgs": {
+        "acousticSubsteps": 6,
+        "activeBoundaryLayerAllowed": false,
+        "admitted": true,
+        "backend": "cpu",
+        "coordinateSystem": "cartesian",
+        "domainMotion": "stationary",
+        "dtLargeSeconds": 0.2,
+        "dynamicCoefficient": false,
+        "dynamicNonThreeDAllowed": false,
+        "executionMode": "qualified",
+        "gridShape": [
+          12,
+          12,
+          16
+        ],
+        "gridSpacingMeters": [
+          1000,
+          1000,
+          250
+        ],
+        "lateralBoundaryMode": "periodic",
+        "mode": "vertical_only",
+        "nesting": false,
+        "outputFormat": "npy_3d",
+        "scheme": "smagorinsky",
+        "sourceProfileContract": "nimbus.static-vertical-sgs-cpu.v1",
+        "sourceProfileOwnerSymbol": "is_transactional_static_vertical_only_cpu_candidate",
+        "staggering": "c_grid",
+        "terrain": "none",
+        "version": 1,
+        "wholeStepRollback": "state_and_six_science_ledgers",
+        "writeCadenceSeconds": [
+          1
+        ]
+      },
+      "qualifiedZfpAllowsFloat16Prefilter": false,
+      "qualifiedZfpFieldBudgets": {
+        "accumulated_rainfall": 0.01,
+        "angular_momentum": 0.01,
+        "angular_momentum_tendency": 0.01,
+        "backward_trajectories": 0.01,
+        "baroclinic_term": 1e-07,
+        "buoyancy": 0.01,
+        "buoyancy_pressure": 0.05,
+        "cape": 0.01,
+        "cin": 0.01,
+        "circulation_material_surface": 0.01,
+        "cloud_base_height": 0.01,
+        "cloud_condensate": 1e-08,
+        "cloud_frozen_condensate": 1e-08,
+        "cloud_liquid_condensate": 1e-08,
+        "cloud_top_height": 0.01,
+        "cloud_water_path": 0.01,
+        "cold_pool_boundary": 0.01,
+        "column_max_vorticity": 1e-06,
+        "column_max_w": 0.01,
+        "composite_reflectivity": 0.01,
+        "cross_section": 0.01,
+        "dewpoint": 0.001,
+        "divergence": 1e-06,
+        "dynamic_pressure": 0.05,
+        "ehi": 0.01,
+        "el": 0.01,
+        "forward_trajectories": 0.01,
+        "helicity_density": 0.01,
+        "hodograph_aligned_cross_section": 0.01,
+        "horizontal_vorticity_crosswise": 1e-06,
+        "horizontal_vorticity_streamwise": 1e-06,
+        "k_index": 0.01,
+        "lcl": 0.01,
+        "lfc": 0.01,
+        "lifted_index": 0.01,
+        "liquid_water_path": 0.01,
+        "okubo_weiss": 0.01,
+        "p": 0.05,
+        "p_prime": 0.05,
+        "parcel_buoyancy_trajectory": 0.01,
+        "pbl_height": 0.01,
+        "potential_vorticity": 1e-08,
+        "precip_rate": 0.01,
+        "precipitable_water": 0.01,
+        "pressure_gradient_force_x": 0.01,
+        "pressure_gradient_force_y": 0.01,
+        "pressure_gradient_force_z": 0.01,
+        "q_vectors": 0.01,
+        "qc": 1e-08,
+        "qg": 1e-08,
+        "qh": 1e-08,
+        "qi": 1e-08,
+        "qr": 1e-08,
+        "qs": 1e-08,
+        "qv": 1e-08,
+        "relative_humidity": 0.01,
+        "rho": 1e-06,
+        "saturation_mixing_ratio": 1e-08,
+        "scp": 0.01,
+        "showalter_index": 0.01,
+        "skin_temperature": 0.001,
+        "srh_0_1km": 0.01,
+        "srh_0_3km": 0.01,
+        "storm_relative_winds": 0.01,
+        "stp": 0.01,
+        "streamlines": 0.01,
+        "stretching_term": 1e-07,
+        "surface_friction_velocity": 0.01,
+        "surface_latent_heat_flux": 0.01,
+        "surface_moisture_flux": 0.01,
+        "surface_pressure_perturbation": 0.01,
+        "surface_sensible_heat_flux": 0.01,
+        "surface_stress_u": 0.01,
+        "surface_stress_v": 0.01,
+        "t2": 0.001,
+        "td2": 0.001,
+        "temperature": 0.001,
+        "theta": 0.001,
+        "theta_e": 0.001,
+        "theta_prime": 0.001,
+        "theta_v": 0.001,
+        "theta_w": 0.001,
+        "tilting_term": 1e-07,
+        "tke": 0.01,
+        "total_condensate": 1e-08,
+        "total_totals": 0.01,
+        "tracer": 0.01,
+        "trajectory_paths": 0.01,
+        "turbulent_diffusion_term": 1e-07,
+        "u": 0.0001,
+        "u10": 0.0001,
+        "updraft_helicity": 0.01,
+        "v": 0.0001,
+        "v10": 0.0001,
+        "vil": 0.01,
+        "vorticity_magnitude": 1e-06,
+        "vorticity_r": 1e-06,
+        "vorticity_theta": 1e-06,
+        "vorticity_trajectory": 1e-06,
+        "vorticity_z": 1e-06,
+        "w": 0.0001
+      },
+      "qualifiedZfpFieldExecutionPolicies": [
+        "serial",
+        "field_parallel"
+      ],
+      "qualifiedZfpFieldUnits": {
+        "accumulated_rainfall": "mm",
+        "angular_momentum": "m^2/s",
+        "angular_momentum_tendency": "m^2/s^2",
+        "backward_trajectories": "path",
+        "baroclinic_term": "1/s^2",
+        "buoyancy": "m/s^2",
+        "buoyancy_pressure": "Pa",
+        "cape": "J/kg",
+        "cin": "J/kg",
+        "circulation_material_surface": "m^2/s",
+        "cloud_base_height": "m",
+        "cloud_condensate": "kg/kg",
+        "cloud_frozen_condensate": "kg/kg",
+        "cloud_liquid_condensate": "kg/kg",
+        "cloud_top_height": "m",
+        "cloud_water_path": "kg/m^2",
+        "cold_pool_boundary": "K",
+        "column_max_vorticity": "1/s",
+        "column_max_w": "m/s",
+        "composite_reflectivity": "dBZ",
+        "cross_section": "varies",
+        "dewpoint": "K",
+        "divergence": "1/s",
+        "dynamic_pressure": "Pa",
+        "ehi": "1",
+        "el": "m",
+        "forward_trajectories": "path",
+        "helicity_density": "m/s^2",
+        "hodograph_aligned_cross_section": "varies",
+        "horizontal_vorticity_crosswise": "1/s",
+        "horizontal_vorticity_streamwise": "1/s",
+        "k_index": "K",
+        "lcl": "m",
+        "lfc": "m",
+        "lifted_index": "K",
+        "liquid_water_path": "kg/m^2",
+        "okubo_weiss": "1/s^2",
+        "p": "Pa",
+        "p_prime": "Pa",
+        "parcel_buoyancy_trajectory": "m/s^2",
+        "pbl_height": "m",
+        "potential_vorticity": "K m^2/(kg s)",
+        "precip_rate": "mm/h",
+        "precipitable_water": "mm",
+        "pressure_gradient_force_x": "m/s^2",
+        "pressure_gradient_force_y": "m/s^2",
+        "pressure_gradient_force_z": "m/s^2",
+        "q_vectors": "vector",
+        "qc": "kg/kg",
+        "qg": "kg/kg",
+        "qh": "kg/kg",
+        "qi": "kg/kg",
+        "qr": "kg/kg",
+        "qs": "kg/kg",
+        "qv": "kg/kg",
+        "relative_humidity": "%",
+        "rho": "kg/m^3",
+        "saturation_mixing_ratio": "kg/kg",
+        "scp": "1",
+        "showalter_index": "K",
+        "skin_temperature": "K",
+        "srh_0_1km": "m^2/s^2",
+        "srh_0_3km": "m^2/s^2",
+        "storm_relative_winds": "m/s",
+        "stp": "1",
+        "streamlines": "vector",
+        "stretching_term": "1/s^2",
+        "surface_friction_velocity": "m/s",
+        "surface_latent_heat_flux": "W/m^2",
+        "surface_moisture_flux": "kg/m^2/s",
+        "surface_pressure_perturbation": "Pa",
+        "surface_sensible_heat_flux": "W/m^2",
+        "surface_stress_u": "N/m^2",
+        "surface_stress_v": "N/m^2",
+        "t2": "K",
+        "td2": "K",
+        "temperature": "K",
+        "theta": "K",
+        "theta_e": "K",
+        "theta_prime": "K",
+        "theta_v": "K",
+        "theta_w": "K",
+        "tilting_term": "1/s^2",
+        "tke": "m^2/s^2",
+        "total_condensate": "kg/kg",
+        "total_totals": "K",
+        "tracer": "1",
+        "trajectory_paths": "path",
+        "turbulent_diffusion_term": "varies",
+        "u": "m/s",
+        "u10": "m/s",
+        "updraft_helicity": "m^2/s^2",
+        "v": "m/s",
+        "v10": "m/s",
+        "vil": "kg/m^2",
+        "vorticity_magnitude": "1/s",
+        "vorticity_r": "1/s",
+        "vorticity_theta": "1/s",
+        "vorticity_trajectory": "1/s",
+        "vorticity_z": "1/s",
+        "w": "m/s"
+      },
+      "qualifiedZfpMaxFieldScratchMib": 4096,
+      "qualifiedZfpMaxFieldWorkers": 16,
+      "qualifiedZfpMaxSparseThreshold": 0,
+      "qualifiedZfpMinFieldScratchMib": 1,
+      "qualifiedZfpMinimumFreeSpaceMib": 1,
+      "qualifiedZfpMinimumKeepLastFrames": 1,
+      "qualifiedZfpMode": "accuracy",
+      "qualifiedZfpPresetFields": {
+        "dynamics_full": [
+          "accumulated_rainfall",
+          "angular_momentum",
+          "angular_momentum_tendency",
+          "backward_trajectories",
+          "baroclinic_term",
+          "buoyancy",
+          "buoyancy_pressure",
+          "cape",
+          "cin",
+          "circulation_material_surface",
+          "cloud_base_height",
+          "cloud_condensate",
+          "cloud_frozen_condensate",
+          "cloud_liquid_condensate",
+          "cloud_top_height",
+          "cloud_water_path",
+          "cold_pool_boundary",
+          "column_max_vorticity",
+          "column_max_w",
+          "cross_section",
+          "dewpoint",
+          "divergence",
+          "dynamic_pressure",
+          "ehi",
+          "el",
+          "forward_trajectories",
+          "helicity_density",
+          "hodograph_aligned_cross_section",
+          "horizontal_vorticity_crosswise",
+          "horizontal_vorticity_streamwise",
+          "k_index",
+          "lcl",
+          "lfc",
+          "lifted_index",
+          "liquid_water_path",
+          "okubo_weiss",
+          "p",
+          "p_prime",
+          "parcel_buoyancy_trajectory",
+          "pbl_height",
+          "potential_vorticity",
+          "precip_rate",
+          "precipitable_water",
+          "pressure_gradient_force_x",
+          "pressure_gradient_force_y",
+          "pressure_gradient_force_z",
+          "q_vectors",
+          "qc",
+          "qg",
+          "qh",
+          "qi",
+          "qr",
+          "qs",
+          "qv",
+          "relative_humidity",
+          "rho",
+          "saturation_mixing_ratio",
+          "scp",
+          "showalter_index",
+          "skin_temperature",
+          "srh_0_1km",
+          "srh_0_3km",
+          "storm_relative_winds",
+          "stp",
+          "streamlines",
+          "stretching_term",
+          "surface_friction_velocity",
+          "surface_latent_heat_flux",
+          "surface_moisture_flux",
+          "surface_pressure_perturbation",
+          "surface_sensible_heat_flux",
+          "surface_stress_u",
+          "surface_stress_v",
+          "t2",
+          "td2",
+          "temperature",
+          "theta",
+          "theta_e",
+          "theta_prime",
+          "theta_v",
+          "theta_w",
+          "tilting_term",
+          "tke",
+          "total_condensate",
+          "total_totals",
+          "tracer",
+          "trajectory_paths",
+          "turbulent_diffusion_term",
+          "u",
+          "u10",
+          "updraft_helicity",
+          "v",
+          "v10",
+          "vil",
+          "vorticity_magnitude",
+          "vorticity_r",
+          "vorticity_theta",
+          "vorticity_trajectory",
+          "vorticity_z",
+          "w"
+        ],
+        "minimal": [
+          "p",
+          "qr",
+          "qv",
+          "rho",
+          "theta",
+          "u",
+          "v",
+          "w"
+        ],
+        "presentation": [
+          "buoyancy",
+          "cape",
+          "cin",
+          "cloud_base_height",
+          "cloud_condensate",
+          "cloud_frozen_condensate",
+          "cloud_liquid_condensate",
+          "cloud_top_height",
+          "composite_reflectivity",
+          "el",
+          "lcl",
+          "lfc",
+          "p",
+          "p_prime",
+          "pbl_height",
+          "qr",
+          "qv",
+          "rho",
+          "srh_0_1km",
+          "srh_0_3km",
+          "stp",
+          "surface_latent_heat_flux",
+          "surface_sensible_heat_flux",
+          "temperature",
+          "theta",
+          "theta_prime",
+          "total_condensate",
+          "u",
+          "updraft_helicity",
+          "v",
+          "vil",
+          "vorticity_magnitude",
+          "vorticity_z",
+          "w"
+        ],
+        "science_validation": [
+          "accumulated_rainfall",
+          "cold_pool_boundary",
+          "p",
+          "precip_rate",
+          "qc",
+          "qr",
+          "qv",
+          "rho",
+          "theta",
+          "u",
+          "v",
+          "w"
+        ],
+        "studio_full": [
+          "accumulated_rainfall",
+          "baroclinic_term",
+          "buoyancy",
+          "buoyancy_pressure",
+          "cape",
+          "cin",
+          "cloud_base_height",
+          "cloud_condensate",
+          "cloud_frozen_condensate",
+          "cloud_liquid_condensate",
+          "cloud_top_height",
+          "cloud_water_path",
+          "column_max_vorticity",
+          "column_max_w",
+          "composite_reflectivity",
+          "divergence",
+          "dynamic_pressure",
+          "el",
+          "lcl",
+          "lfc",
+          "liquid_water_path",
+          "p",
+          "p_prime",
+          "pbl_height",
+          "potential_vorticity",
+          "precip_rate",
+          "precipitable_water",
+          "pressure_gradient_force_z",
+          "qc",
+          "qg",
+          "qh",
+          "qi",
+          "qr",
+          "qs",
+          "qv",
+          "rho",
+          "srh_0_1km",
+          "srh_0_3km",
+          "stp",
+          "stretching_term",
+          "surface_latent_heat_flux",
+          "surface_sensible_heat_flux",
+          "temperature",
+          "theta",
+          "theta_prime",
+          "tilting_term",
+          "total_condensate",
+          "u",
+          "updraft_helicity",
+          "v",
+          "vil",
+          "vorticity_magnitude",
+          "vorticity_r",
+          "vorticity_theta",
+          "vorticity_z",
+          "w"
+        ]
+      },
+      "qualifiedZfpPresetIds": [
+        "minimal",
+        "presentation",
+        "studio_full",
+        "dynamics_full",
+        "science_validation"
+      ],
+      "qualifiedZfpRequiresPerFieldTolerances": true,
+      "qualifiedZfpRequiresRetainedFileCeiling": true,
+      "qualifiedZfpReversibleRadarV4": {
+        "acousticSubsteps": 6,
+        "admitted": true,
+        "asyncIoModes": [
+          false,
+          true
+        ],
+        "backend": "cpu",
+        "coordinateSystem": "cartesian",
+        "coreFields": [
+          "u",
+          "v",
+          "w",
+          "theta",
+          "p",
+          "rho",
+          "qv",
+          "qr"
+        ],
+        "domainMotion": "stationary",
+        "dtLargeSeconds": 0.2,
+        "gridShape": [
+          12,
+          12,
+          48
+        ],
+        "gridSpacingMeters": [
+          1000,
+          1000,
+          250
+        ],
+        "manifestContract": "nimbus.zfp.per_field.v2",
+        "namedPresetProductSets": {
+          "radar_polarimetric_ready": [
+            "zdr",
+            "kdp",
+            "rhohv"
+          ],
+          "radar_ready": [
+            "reflectivity_dbz",
+            "radial_velocity"
+          ]
+        },
+        "nesting": false,
+        "nonRadarBudgetOwner": "qualifiedZfpFieldBudgets",
+        "nonRadarContainerVersion": 3,
+        "nonRadarMode": "accuracy",
+        "nonemptyProductSubsets": 31,
+        "outputFormatTiers": [
+          "zfp_low",
+          "zfp_medium",
+          "zfp_high"
+        ],
+        "polarimetricExtraFields": [
+          "qc"
+        ],
+        "presets": [
+          "minimal",
+          "radar_ready",
+          "radar_polarimetric_ready"
+        ],
+        "productIds": [
+          "reflectivity_dbz",
+          "radial_velocity",
+          "zdr",
+          "kdp",
+          "rhohv"
+        ],
+        "radarContainerVersion": 4,
+        "radarKeyframeEveryExport": true,
+        "radarMode": "reversible",
+        "radarTolerancePolicy": "forbidden",
+        "reviewedSourceProfileContract": "nimbus.qualified-radar-source-profile.v2",
+        "reviewedSourceProfileFamilies": [
+          "lin_cloudy_radar_ready_v1",
+          "kessler_warm_cloud_radar_v1"
+        ],
+        "reviewedSourceProfileOwnerSymbol": "is_public_qualified_radar_profile",
+        "sourceFieldBoundsContract": "registered_field_contract_v1",
+        "staggering": "c_grid",
+        "terrain": "none",
+        "version": 1,
+        "writeCadenceSeconds": [
+          1,
+          4
+        ]
+      },
+      "qualifiedZfpTerrainSchemes": [
+        "none",
+        "bell",
+        "schar"
+      ],
+      "radiativeLateralStaggerings": [
+        "c_grid"
+      ],
+      "scientificDiagnosticsMinimumCadence": 0,
+      "scientificDiagnosticsOmittedSentinel": -1,
+      "terrainActiveDiffusionSchemes": [
+        "explicit",
+        "implicit"
+      ],
+      "terrainActiveDiffusionTargets": [
+        "scalars",
+        "momentum",
+        "scalars_and_momentum",
+        "all"
+      ],
+      "terrainBoundaryLayerSchemes": [
+        "none",
+        "slab",
+        "ysu",
+        "mynn"
+      ],
+      "terrainChaosSchemes": [
+        "none",
+        "initial_conditions",
+        "boundary_layer",
+        "full_stochastic"
+      ],
+      "terrainLongwaveRadiationSchemeId": "rrtmg",
+      "terrainRadiationSchemes": [
+        "none",
+        "simple_grey",
+        "rrtmg"
+      ],
+      "terrainShortwaveAllowed": true,
+      "terrainTurbulenceSchemes": [
+        "none",
+        "smagorinsky",
+        "tke"
+      ],
+      "topBoundaryModes": [
+        "rigid",
+        "rigid_with_sponge",
+        "open"
+      ],
+      "turbulenceDynamicCoefficientDefault": false,
+      "version": 14
+    },
+    "outputFormats": [
+      {
+        "available": true,
+        "id": "npy_3d",
+        "implementation": "builtin_npy",
+        "reason": ""
+      },
+      {
+        "available": true,
+        "id": "netcdf",
+        "implementation": "libnetcdf",
+        "reason": ""
+      },
+      {
+        "available": true,
+        "id": "zfp_low",
+        "implementation": "libzfp",
+        "reason": ""
+      },
+      {
+        "available": true,
+        "id": "zfp_medium",
+        "implementation": "libzfp",
+        "reason": ""
+      },
+      {
+        "available": true,
+        "id": "zfp_high",
+        "implementation": "libzfp",
+        "reason": ""
+      }
+    ]
+  },
+  "runtimeStateFields": [
+    "rho",
+    "p",
+    "u",
+    "v",
+    "w",
+    "tracer",
+    "theta",
+    "qv",
+    "qc",
+    "qr",
+    "qi",
+    "qs",
+    "qh",
+    "qg",
+    "tke",
+    "grid_metrics",
+    "grid_geometry",
+    "z_interfaces",
+    "dz",
+    "surface_state",
+    "surface_radiative_state",
+    "solar_geometry",
+    "physics_tendencies",
+    "pbl_height",
+    "q",
+    "temperature",
+    "p_interfaces",
+    "dtheta_dt_rad",
+    "live_rho_when_diffusion_active",
+    "slow_tendency_callbacks",
+    "fast_acoustic_callbacks",
+    "boundary_condition_callback",
+    "time_stepping_state",
+    "rhs_callback",
+    "radar_location",
+    "sounding_file"
+  ],
+  "schema": "nimbus.scheme-catalog.v9"
+}

@@ -1,0 +1,661 @@
+{
+  "schema": "nimbus.step",
+  "manifest_version": 7,
+  "publication_state": "complete",
+  "publication_generation": "manufactured-fixture-reference",
+  "step_index": 0,
+  "simulation_time_s": 0,
+  "step_dir": "step_000000",
+  "data_product": {
+    "kind": "history",
+    "restart_complete": false,
+    "storage_format": "npy_3d"
+  },
+  "grid": {
+    "coordinate_system": "cartesian",
+    "axis_order": [
+      "x",
+      "y",
+      "z"
+    ],
+    "dimensions": {
+      "x": 640,
+      "y": 640,
+      "z": 180
+    },
+    "spacing_m": {
+      "x": 50,
+      "y": 50,
+      "z": 100
+    },
+    "native_model_staggering": "c_grid",
+    "publication_staggering": "cell_centered",
+    "horizontal_frame": {
+      "contract": "constant_translation_earth_wind_grid_transport_v1",
+      "motion_mode": "stationary",
+      "grid_origin_t0_earth_m": [
+        0,
+        0
+      ],
+      "grid_origin_earth_m": [
+        0,
+        0
+      ],
+      "frame_velocity_earth_ms": [
+        0,
+        0
+      ],
+      "published_horizontal_wind": "earth_relative",
+      "horizontal_transport_velocity": "grid_relative"
+    },
+    "scalar_origin_m": [
+      25,
+      25,
+      50
+    ],
+    "grid_scalar_origin_m": [
+      25,
+      25,
+      50
+    ],
+    "physical_bounds_m": {
+      "lower": [
+        50,
+        50,
+        0
+      ],
+      "upper": [
+        31950,
+        31950,
+        18000
+      ]
+    },
+    "valid_index_range": {
+      "lower": [
+        1,
+        1,
+        0
+      ],
+      "upper": [
+        638,
+        638,
+        179
+      ]
+    },
+    "halo_width": {
+      "lower": [
+        1,
+        1,
+        0
+      ],
+      "upper": [
+        1,
+        1,
+        0
+      ]
+    }
+  },
+  "field_identity": {
+    "canonical_schema": "nimbus.fields",
+    "canonical_version": 1,
+    "cm1_alias_schema": "cm1.history",
+    "cm1_alias_version": 1
+  },
+  "published_fields": [
+    "buoyancy",
+    "cape",
+    "cin",
+    "cloud_base_height",
+    "cloud_condensate",
+    "cloud_frozen_condensate",
+    "cloud_liquid_condensate",
+    "cloud_top_height",
+    "el",
+    "lcl",
+    "lfc",
+    "p",
+    "p_prime",
+    "pbl_height",
+    "qr",
+    "qv",
+    "rho",
+    "srh_0_1km",
+    "srh_0_3km",
+    "stp",
+    "surface_latent_heat_flux",
+    "surface_sensible_heat_flux",
+    "temperature",
+    "theta",
+    "theta_prime",
+    "total_condensate",
+    "u",
+    "updraft_helicity",
+    "v",
+    "vil",
+    "vorticity_magnitude",
+    "vorticity_z",
+    "w"
+  ],
+  "fields": [
+    {
+      "field_id": "u",
+      "category": "core",
+      "derived": false,
+      "file_suffix": "u",
+      "file_pattern": "u.npy",
+      "units": "m/s",
+      "description": "Cartesian east-west wind component",
+      "grid_location": "cell_center",
+      "state_semantic": "total_state",
+      "cm1_aliases": [
+        "uinterp"
+      ],
+      "bounds": {
+        "min": -180,
+        "max": 180
+      }
+    },
+    {
+      "field_id": "v",
+      "category": "core",
+      "derived": false,
+      "file_suffix": "v",
+      "file_pattern": "v.npy",
+      "units": "m/s",
+      "description": "Cartesian south-north wind component",
+      "grid_location": "cell_center",
+      "state_semantic": "total_state",
+      "cm1_aliases": [
+        "vinterp"
+      ],
+      "bounds": {
+        "min": -180,
+        "max": 180
+      }
+    },
+    {
+      "field_id": "w",
+      "category": "core",
+      "derived": false,
+      "file_suffix": "w",
+      "file_pattern": "w.npy",
+      "units": "m/s",
+      "description": "Vertical wind component",
+      "grid_location": "cell_center",
+      "state_semantic": "total_state",
+      "cm1_aliases": [
+        "winterp"
+      ],
+      "bounds": {
+        "min": -120,
+        "max": 120
+      }
+    },
+    {
+      "field_id": "rho",
+      "category": "core",
+      "derived": false,
+      "file_suffix": "rho",
+      "file_pattern": "rho.npy",
+      "units": "kg/m^3",
+      "description": "Prognostic dry-air density",
+      "grid_location": "cell_center",
+      "state_semantic": "total_state",
+      "cm1_aliases": [
+        "rho"
+      ],
+      "bounds": {
+        "min": 0.05,
+        "max": 2
+      }
+    },
+    {
+      "field_id": "p",
+      "category": "core",
+      "derived": false,
+      "file_suffix": "p",
+      "file_pattern": "p.npy",
+      "units": "Pa",
+      "description": "Total pressure",
+      "grid_location": "cell_center",
+      "state_semantic": "total_state",
+      "cm1_aliases": [
+        "prs"
+      ],
+      "bounds": {
+        "min": 1000,
+        "max": 200000
+      }
+    },
+    {
+      "field_id": "theta",
+      "category": "core",
+      "derived": false,
+      "file_suffix": "theta",
+      "file_pattern": "theta.npy",
+      "units": "K",
+      "description": "Total potential temperature",
+      "grid_location": "cell_center",
+      "state_semantic": "total_state",
+      "cm1_aliases": [
+        "th"
+      ],
+      "bounds": {
+        "min": 200,
+        "max": 700
+      }
+    },
+    {
+      "field_id": "qv",
+      "category": "core",
+      "derived": false,
+      "file_suffix": "qv",
+      "file_pattern": "qv.npy",
+      "units": "kg/kg",
+      "description": "Water vapor dry-air mixing ratio",
+      "grid_location": "cell_center",
+      "state_semantic": "total_state",
+      "cm1_aliases": [
+        "qv"
+      ],
+      "bounds": {
+        "min": 0,
+        "max": 0.05
+      }
+    },
+    {
+      "field_id": "qr",
+      "category": "core",
+      "derived": false,
+      "file_suffix": "qr",
+      "file_pattern": "qr.npy",
+      "units": "kg/kg",
+      "description": "Rain water dry-air mixing ratio",
+      "grid_location": "cell_center",
+      "state_semantic": "total_state",
+      "cm1_aliases": [],
+      "bounds": {
+        "min": 0,
+        "max": 0.05
+      }
+    },
+    {
+      "field_id": "vorticity_z",
+      "category": "core",
+      "derived": false,
+      "file_suffix": "vorticity_z",
+      "file_pattern": "vorticity_z.npy",
+      "units": "1/s",
+      "description": "Vertical vorticity",
+      "grid_location": "cell_center",
+      "state_semantic": "diagnostic",
+      "cm1_aliases": [
+        "zvort"
+      ],
+      "bounds": {
+        "min": -10,
+        "max": 10
+      }
+    },
+    {
+      "field_id": "p_prime",
+      "category": "core",
+      "derived": false,
+      "file_suffix": "p_prime",
+      "file_pattern": "p_prime.npy",
+      "units": "Pa",
+      "description": "Perturbation pressure",
+      "grid_location": "cell_center",
+      "state_semantic": "perturbation",
+      "cm1_aliases": [
+        "prspert"
+      ],
+      "bounds": {
+        "min": -100000,
+        "max": 100000
+      }
+    },
+    {
+      "field_id": "temperature",
+      "category": "derived",
+      "derived": true,
+      "file_suffix": "temperature",
+      "file_pattern": "temperature.npy",
+      "units": "K",
+      "description": "Temperature",
+      "grid_location": "cell_center",
+      "state_semantic": "diagnostic",
+      "cm1_aliases": [],
+      "bounds": {
+        "min": 180,
+        "max": 360
+      }
+    },
+    {
+      "field_id": "theta_prime",
+      "category": "derived",
+      "derived": true,
+      "file_suffix": "theta_prime",
+      "file_pattern": "theta_prime.npy",
+      "units": "K",
+      "description": "Perturbation potential temperature",
+      "grid_location": "cell_center",
+      "state_semantic": "perturbation",
+      "cm1_aliases": [
+        "thpert"
+      ],
+      "bounds": {
+        "min": -50,
+        "max": 50
+      }
+    },
+    {
+      "field_id": "total_condensate",
+      "category": "derived",
+      "derived": true,
+      "file_suffix": "total_condensate",
+      "file_pattern": "total_condensate.npy",
+      "units": "kg/kg",
+      "description": "Total condensate (qc+qr+qi+qs+qg+qh, suspended and falling)",
+      "grid_location": "cell_center",
+      "state_semantic": "diagnostic",
+      "cm1_aliases": [],
+      "bounds": {
+        "min": 0,
+        "max": 0.1
+      }
+    },
+    {
+      "field_id": "cloud_condensate",
+      "category": "derived",
+      "derived": true,
+      "file_suffix": "cloud_condensate",
+      "file_pattern": "cloud_condensate.npy",
+      "units": "kg/kg",
+      "description": "Cloud condensate (qc+qi+qs, suspended cloud)",
+      "grid_location": "cell_center",
+      "state_semantic": "diagnostic",
+      "cm1_aliases": [],
+      "bounds": {
+        "min": 0,
+        "max": 0.1
+      }
+    },
+    {
+      "field_id": "cloud_liquid_condensate",
+      "category": "derived",
+      "derived": true,
+      "file_suffix": "cloud_liquid_condensate",
+      "file_pattern": "cloud_liquid_condensate.npy",
+      "units": "kg/kg",
+      "description": "Cloud liquid condensate (qc)",
+      "grid_location": "cell_center",
+      "state_semantic": "diagnostic",
+      "cm1_aliases": [],
+      "bounds": {
+        "min": 0,
+        "max": 0.1
+      }
+    },
+    {
+      "field_id": "cloud_frozen_condensate",
+      "category": "derived",
+      "derived": true,
+      "file_suffix": "cloud_frozen_condensate",
+      "file_pattern": "cloud_frozen_condensate.npy",
+      "units": "kg/kg",
+      "description": "Frozen suspended condensate (qi+qs)",
+      "grid_location": "cell_center",
+      "state_semantic": "diagnostic",
+      "cm1_aliases": [],
+      "bounds": {
+        "min": 0,
+        "max": 0.1
+      }
+    },
+    {
+      "field_id": "vorticity_magnitude",
+      "category": "derived",
+      "derived": true,
+      "file_suffix": "vorticity_magnitude",
+      "file_pattern": "vorticity_magnitude.npy",
+      "units": "1/s",
+      "description": "Vorticity magnitude",
+      "grid_location": "cell_center",
+      "state_semantic": "diagnostic",
+      "cm1_aliases": [],
+      "bounds": {
+        "min": 0,
+        "max": 50
+      }
+    },
+    {
+      "field_id": "buoyancy",
+      "category": "derived",
+      "derived": true,
+      "file_suffix": "buoyancy",
+      "file_pattern": "buoyancy.npy",
+      "units": "m/s^2",
+      "description": "Cell-centered density buoyancy with vapor correction and condensate loading",
+      "grid_location": "cell_center",
+      "state_semantic": "diagnostic",
+      "cm1_aliases": [
+        "buoyancy"
+      ],
+      "bounds": {
+        "min": -10,
+        "max": 10
+      }
+    },
+    {
+      "field_id": "surface_sensible_heat_flux",
+      "category": "surface",
+      "derived": true,
+      "file_suffix": "surface_sensible_heat_flux",
+      "file_pattern": "surface_sensible_heat_flux.npy",
+      "units": "W/m^2",
+      "description": "Surface sensible heat flux",
+      "grid_location": "surface_cell_center",
+      "state_semantic": "diagnostic",
+      "cm1_aliases": []
+    },
+    {
+      "field_id": "surface_latent_heat_flux",
+      "category": "surface",
+      "derived": true,
+      "file_suffix": "surface_latent_heat_flux",
+      "file_pattern": "surface_latent_heat_flux.npy",
+      "units": "W/m^2",
+      "description": "Surface latent heat flux",
+      "grid_location": "surface_cell_center",
+      "state_semantic": "diagnostic",
+      "cm1_aliases": []
+    },
+    {
+      "field_id": "pbl_height",
+      "category": "surface",
+      "derived": true,
+      "file_suffix": "pbl_height",
+      "file_pattern": "pbl_height.npy",
+      "units": "m",
+      "description": "Planetary boundary-layer height",
+      "grid_location": "surface_cell_center",
+      "state_semantic": "diagnostic",
+      "cm1_aliases": [],
+      "bounds": {
+        "min": 0,
+        "max": 20000
+      }
+    },
+    {
+      "field_id": "vil",
+      "category": "column",
+      "derived": true,
+      "file_suffix": "vil",
+      "file_pattern": "vil.npy",
+      "units": "kg/m^2",
+      "description": "Vertically integrated liquid",
+      "grid_location": "column_cell_center",
+      "state_semantic": "diagnostic",
+      "cm1_aliases": [],
+      "bounds": {
+        "min": 0,
+        "max": 200
+      }
+    },
+    {
+      "field_id": "cloud_top_height",
+      "category": "column",
+      "derived": true,
+      "file_suffix": "cloud_top_height",
+      "file_pattern": "cloud_top_height.npy",
+      "units": "m",
+      "description": "Cloud top height above local ground",
+      "grid_location": "column_cell_center",
+      "state_semantic": "diagnostic",
+      "cm1_aliases": []
+    },
+    {
+      "field_id": "cloud_base_height",
+      "category": "column",
+      "derived": true,
+      "file_suffix": "cloud_base_height",
+      "file_pattern": "cloud_base_height.npy",
+      "units": "m",
+      "description": "Cloud base height above local ground",
+      "grid_location": "column_cell_center",
+      "state_semantic": "diagnostic",
+      "cm1_aliases": []
+    },
+    {
+      "field_id": "lcl",
+      "category": "column",
+      "derived": true,
+      "file_suffix": "lcl",
+      "file_pattern": "lcl.npy",
+      "units": "m",
+      "description": "Lifted condensation level above local ground",
+      "grid_location": "column_cell_center",
+      "state_semantic": "diagnostic",
+      "cm1_aliases": [
+        "lcl"
+      ]
+    },
+    {
+      "field_id": "lfc",
+      "category": "column",
+      "derived": true,
+      "file_suffix": "lfc",
+      "file_pattern": "lfc.npy",
+      "units": "m",
+      "description": "Level of free convection above local ground",
+      "grid_location": "column_cell_center",
+      "state_semantic": "diagnostic",
+      "cm1_aliases": [
+        "lfc"
+      ]
+    },
+    {
+      "field_id": "el",
+      "category": "column",
+      "derived": true,
+      "file_suffix": "el",
+      "file_pattern": "el.npy",
+      "units": "m",
+      "description": "Equilibrium level above local ground",
+      "grid_location": "column_cell_center",
+      "state_semantic": "diagnostic",
+      "cm1_aliases": []
+    },
+    {
+      "field_id": "cape",
+      "category": "column",
+      "derived": true,
+      "file_suffix": "cape",
+      "file_pattern": "cape.npy",
+      "units": "J/kg",
+      "description": "Convective available potential energy",
+      "grid_location": "column_cell_center",
+      "state_semantic": "diagnostic",
+      "cm1_aliases": [
+        "cape"
+      ]
+    },
+    {
+      "field_id": "cin",
+      "category": "column",
+      "derived": true,
+      "file_suffix": "cin",
+      "file_pattern": "cin.npy",
+      "units": "J/kg",
+      "description": "Convective inhibition",
+      "grid_location": "column_cell_center",
+      "state_semantic": "diagnostic",
+      "cm1_aliases": [
+        "cin"
+      ]
+    },
+    {
+      "field_id": "srh_0_1km",
+      "category": "column",
+      "derived": true,
+      "file_suffix": "srh_0_1km",
+      "file_pattern": "srh_0_1km.npy",
+      "units": "m^2/s^2",
+      "description": "Storm-relative helicity over resolved winds in 0-1 km AGL",
+      "grid_location": "column_cell_center",
+      "state_semantic": "diagnostic",
+      "cm1_aliases": [],
+      "bounds": {
+        "min": -5000,
+        "max": 5000
+      }
+    },
+    {
+      "field_id": "srh_0_3km",
+      "category": "column",
+      "derived": true,
+      "file_suffix": "srh_0_3km",
+      "file_pattern": "srh_0_3km.npy",
+      "units": "m^2/s^2",
+      "description": "Storm-relative helicity over resolved winds in 0-3 km AGL",
+      "grid_location": "column_cell_center",
+      "state_semantic": "diagnostic",
+      "cm1_aliases": [],
+      "bounds": {
+        "min": -5000,
+        "max": 5000
+      }
+    },
+    {
+      "field_id": "stp",
+      "category": "column",
+      "derived": true,
+      "file_suffix": "stp",
+      "file_pattern": "stp.npy",
+      "units": "1",
+      "description": "Significant tornado parameter",
+      "grid_location": "column_cell_center",
+      "state_semantic": "diagnostic",
+      "cm1_aliases": []
+    },
+    {
+      "field_id": "updraft_helicity",
+      "category": "column",
+      "derived": true,
+      "file_suffix": "updraft_helicity",
+      "file_pattern": "updraft_helicity.npy",
+      "units": "m^2/s^2",
+      "description": "Updraft helicity over the model intersection with 2-5 km AGL, cell-midpoint integral of w*vorticity_z",
+      "grid_location": "column_cell_center",
+      "state_semantic": "diagnostic",
+      "cm1_aliases": [
+        "uh"
+      ],
+      "bounds": {
+        "min": -50000,
+        "max": 50000
+      }
+    }
+  ]
+}

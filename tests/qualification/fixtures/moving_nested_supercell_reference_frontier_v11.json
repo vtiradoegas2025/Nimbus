@@ -1,0 +1,54 @@
+{
+  "schema": "nimbus.qualification.moving_nested_reference_frontier.policy",
+  "schema_version": 11,
+  "policy_id": "moving-nested-reference-frontier-v11-ordinary-trusted-improvement-amendment",
+  "policy_status": "ratified",
+  "scope": "same-equation 600 m moving-child versus oversized stationary Nimbus reference with inherited v10 thresholds, geometry, aperture, containment movement, receding and quantized trusted states, and confirmed ordinary trusted-improvement relocation",
+  "prior_policy": {
+    "path": "moving_nested_supercell_reference_frontier_v10.json",
+    "sha256": "2b42d72fe746859715781a0b22a807660e3cf413bd78d911a12d12a2be156ec7",
+    "schema_version": 10,
+    "policy_id": "moving-nested-reference-frontier-v10-quantized-trusted-balance-amendment"
+  },
+  "failure_evidence": {
+    "path": "../../../docs/evidence/moving_nested_reference_frontier_v10_ordinary_trusted_improvement_failure.json",
+    "sha256": "d5421120a8eba5648469f82595d00d0db7585cd437594b44ebcb357cb287cdb8",
+    "schema_version": 1,
+    "reason": "ordinary_trusted_improvement_unrecognized"
+  },
+  "ratification": {
+    "decision": "post_failure_ordinary_trusted_improvement_amendment_of_v10_and_blinded_v2_thresholds",
+    "review_date": "2026-08-14",
+    "reviewer_role": "independent_science_policy_audit",
+    "failed_v10_ordinary_improvement_sequence_observed": true,
+    "candidate_metric_values_inspected": false,
+    "minimum_input_series_schema_version": 2,
+    "ordinary_trusted_improvement_amendment": {
+      "reason": "fail_closed_strictly_improving_trusted_shift_unrecognized",
+      "algorithm": "qualified_envelope_hysteresis_v13",
+      "eligibility": "an ordinary approaching inner-margin breach cannot recover the grid-attainable release margin but a bounded whole-parent-cell translation in the approaching direction strictly improves the axis minimum clearance while every face remains outside relaxation",
+      "disposition": "trusted_interior_containment_with_ordinary_confirmation",
+      "ordinary_confirmation_samples_required": 2,
+      "strict_axis_minimum_improvement_required": true,
+      "all_faces_outside_relaxation_required": true,
+      "bounded_shift_optimizer": "existing_best_trusted_containment_shift",
+      "projected_relaxation_immediacy_changed": false,
+      "quantized_no_improvement_state_changed": false,
+      "receding_trusted_face_state_changed": false,
+      "current_relaxation_entry_recoverable": false,
+      "orthogonal_containment_reserve_changed": false,
+      "maximum_shift_cap_parent_cells": 14,
+      "numerical_thresholds_changed": false,
+      "geometry_or_aperture_changed": false,
+      "measurement_cadence_changed": false,
+      "failed_candidate_disposition": "invalid_not_comparable"
+    }
+  },
+  "limitations": [
+    "All numerical thresholds, geometry, aperture, measurement cadence, movement caps, and v12 quantized trusted-balance rules are inherited from the immutable v10 policy chain.",
+    "No comparison metric from the invalid v10 candidate was inspected or used to alter a threshold.",
+    "Ordinary trusted-improvement relocation retains two-sample confirmation and requires a strict improvement in the weaker axis clearance while every face remains outside relaxation.",
+    "A non-improving shift remains the v12 no-mutation quantized state; any current relaxation-zone entry remains unrecoverable, and ambiguity, topology, parent containment, finite evidence, and shift caps remain fail-closed.",
+    "A pass remains a bounded same-equation fixed-aperture comparison and does not enable public moving_nest selection or broaden supported physics/backend combinations."
+  ]
+}

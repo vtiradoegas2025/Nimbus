@@ -1,0 +1,10 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "bundle": {
+    "resources": {
+      "../../bin/nimbus_sim": "bin/nimbus_sim",
+      "../../configs": "configs",
+      "../../vulkan/shaders": "vulkan/shaders"
+    }
+  }
+}

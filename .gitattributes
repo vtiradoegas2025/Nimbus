@@ -1,0 +1,13 @@
+* text=auto eol=lf
+
+# Reviewed reference payloads and runtime artifacts retain their exact bytes.
+/tests/fixtures/reference/** -text
+*.pdf -text
+*.spv -text
+*.png -text
+*.jpg -text
+*.ico -text
+*.icns -text
+*.npy -text
+*.nc -text
+*.bin -text

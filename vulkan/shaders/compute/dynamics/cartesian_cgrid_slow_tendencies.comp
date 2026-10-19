@@ -1,0 +1,392 @@
+// cartesian_cgrid_slow_tendencies.comp
+//
+// GPU port of CartesianCGrid3DScheme::compute_slow_tendencies
+// (src/dynamics/schemes/klemp_wilhelmson_split/cartesian_cgrid_3d.cpp, 69-243).
+//
+// Slow tendencies for the split-explicit acoustic step on the fully-3D
+// Cartesian C-grid scheme. Mirrors supercell_cgrid_slow_tendencies.comp's
+// SSBO ordering, push-constant layout, and 1D->3D base-state broadcast, but:
+//
+//   1. Cartesian (no 1/r, no centrifugal/curvature, no axis ghost). The push
+//      "dr/dtheta" slots carry dx/dy; "nr/nth" carry NX/NY.
+//   2. MOMENTUM advection is UPWIND-biased (5th-order auto-degrading to 3rd
+//      then 1st within 3/2 cells of a boundary; Wicker-Skamarock 2002), to
+//      match the CPU stability contract enforced by the parity tests. Pressure
+//      advection (dp/dt) stays CENTERED (acoustically inert).
+//   3. dw/dt uses a virtual ground face w[-1]=0: at k=0 the wide upwind
+//      stencil has no cell below, so a 1st-order upwind honouring the ground
+//      BC is used; k>=1 uses the normal upwind_dz.
+//
+// Field placement (Arakawa C-grid): u_x at x-face, u_y at y-face, w at z-face,
+// scalars cell-centred. loading is the host-pre-summed hydrometeor mixing
+// ratio (qc+qr+qi+qs+qg+qh).
+
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+// Input fields ----------------------------------------------------------
+layout(set = 0, binding = 0) readonly buffer UxBuf       { float u[];     };
+layout(set = 0, binding = 1) readonly buffer UyBuf       { float v[];     };
+layout(set = 0, binding = 2) readonly buffer WBuf        { float w[];     };
+layout(set = 0, binding = 3) readonly buffer RhoBuf      { float rho[];   };
+layout(set = 0, binding = 4) readonly buffer PBuf        { float p[];     };
+
+layout(set = 0, binding = 5) readonly buffer Rho0BaseBuf { float rho0_base_b[]; };
+layout(set = 0, binding = 6) readonly buffer Qv0BaseBuf  { float qv0_base_b[];  };
+
+// Environmental wind profiles (compact 1D [nz]) for the perturbation-
+// wind Coriolis terms (SCIENCE.md M1).
+layout(set = 0, binding = 7) readonly buffer U0BaseBuf   { float u0_base_b[]; };
+layout(set = 0, binding = 8) readonly buffer V0BaseBuf   { float v0_base_b[]; };
+
+layout(set = 0, binding = 9)  readonly buffer QvBuf      { float qv[];      };
+layout(set = 0, binding = 10) readonly buffer LoadingBuf { float loading[]; };
+
+// Output tendencies -----------------------------------------------------
+layout(set = 0, binding = 11) buffer DuDtBuf   { float du_dt[];   };
+layout(set = 0, binding = 12) buffer DvDtBuf   { float dv_dt[];   };
+layout(set = 0, binding = 13) buffer DwDtBuf   { float dw_dt[];   };
+layout(set = 0, binding = 14) buffer DrhoDtBuf { float drho_dt[]; };
+layout(set = 0, binding = 15) buffer DpDtBuf   { float dp_dt[];   };
+layout(set = 0, binding = 16) buffer DuAdvDtBuf { float du_adv_dt[]; };
+layout(set = 0, binding = 17) buffer DvAdvDtBuf { float dv_adv_dt[]; };
+layout(set = 0, binding = 18) buffer DwAdvDtBuf { float dw_adv_dt[]; };
+
+// Push constants (56 bytes; the host SupercellCgridSlowTendenciesPushConstants
+// struct. dr=dx, dtheta=dy, nr=NX, nth=NY; the padding0 slot carries
+// coriolis_f here).
+layout(push_constant) uniform PushConstants {
+    int   nr;     // NX
+    int   nth;    // NY
+    int   nz;
+    float dr;     // dx
+    float dtheta; // dy
+    float dz_val;
+    float g;
+    int   has_moisture;
+    int   has_loading;
+    float coriolis_f;  // f-plane parameter (0 when disabled) - M1
+    float emit_advection;
+    float coriolis_beta; // df/dy; coriolis_f is f at grid y=0
+    float frame_velocity_u_ms;
+    float frame_velocity_v_ms;
+};
+
+const float SAFE_RHO_MIN      = 1.0e-6;
+const float SAFE_RHO_FALLBACK = 1.0;
+
+float safe_rho(float rho_val)
+{
+    return (!isnan(rho_val) && !isinf(rho_val) && rho_val > SAFE_RHO_MIN)
+        ? rho_val : SAFE_RHO_FALLBACK;
+}
+
+float sanitize(float t)
+{
+    return (isnan(t) || isinf(t)) ? 0.0 : t;
+}
+
+uint idx(int i, int j, int k)
+{
+    return uint((i * nth + j) * nz + k);
+}
+
+// Upwind-biased first derivative selector. `half` = min(idx, N-1-idx) chooses
+// the available stencil width; `a` (the advecting velocity) selects the bias.
+// Mirrors StaggeredCartesianDerivatives::upwind_fd1/fd3/fd5.
+float upwind_deriv(int hw,
+                   float m3, float m2, float m1, float c,
+                   float p1, float p2, float p3,
+                   float a, float inv_d)
+{
+    if (hw <= 0) return 0.0;
+    if (hw == 1)
+        return (a >= 0.0) ? (c - m1) * inv_d : (p1 - c) * inv_d;
+    if (hw == 2)
+        return (a >= 0.0)
+            ? (2.0 * p1 + 3.0 * c - 6.0 * m1 + m2) * (inv_d / 6.0)
+            : (-p2 + 6.0 * p1 - 3.0 * c - 2.0 * m1) * (inv_d / 6.0);
+    return (a >= 0.0)
+        ? (-2.0 * m3 + 15.0 * m2 - 60.0 * m1 + 20.0 * c + 30.0 * p1 - 3.0 * p2) * (inv_d / 60.0)
+        : ( 2.0 * p3 - 15.0 * p2 + 60.0 * p1 - 20.0 * c - 30.0 * m1 + 3.0 * m2) * (inv_d / 60.0);
+}
+
+void main()
+{
+    uint gid = gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * gl_NumWorkGroups.x * gl_WorkGroupSize.x;
+    uint total = uint(nr) * uint(nth) * uint(nz);
+    if (gid >= total) return;
+
+    int k = int(gid % uint(nz));
+    uint ij = gid / uint(nz);
+    int j = int(ij % uint(nth));
+    int i = int(ij / uint(nth));
+
+    uint c = gid;
+
+    du_dt[c]   = 0.0;
+    dv_dt[c]   = 0.0;
+    dw_dt[c]   = 0.0;
+    drho_dt[c] = 0.0;
+    dp_dt[c]   = 0.0;
+    if (emit_advection != 0.0)
+    {
+        du_adv_dt[c] = 0.0;
+        dv_adv_dt[c] = 0.0;
+        dw_adv_dt[c] = 0.0;
+    }
+
+    const float inv_dx  = 1.0 / dr;
+    const float inv_dy  = 1.0 / dtheta;
+    const float inv_dz  = 1.0 / dz_val;
+    const float inv_2dx = 0.5 / dr;
+    const float inv_2dy = 0.5 / dtheta;
+    const float inv_2dz = 0.5 / dz_val;
+
+    // u/v are prognostic at k = 0 (SCIENCE.md M19; mirrors the CPU:
+    // implicit ground face w[-1] = 0 + free-slip mirror ghost below).
+    // p keeps its own k >= 1 gate: its centered stencil reads k-1.
+    bool u_face_active = (i >= 1) && (i <= nr - 2) && (j >= 1) && (j <= nth - 2) && (k >= 0) && (k <= nz - 2);
+    bool v_face_active = u_face_active;
+    bool w_face_active = (i >= 1) && (i <= nr - 2) && (j >= 1) && (j <= nth - 2) && (k >= 0) && (k <= nz - 2);
+    bool p_cell_active = (i >= 1) && (i <= nr - 2) && (j >= 1) && (j <= nth - 2) && (k >= 1) && (k <= nz - 2);
+
+    // ===== du_x/dt at x-face: upwind advection =====
+    if (u_face_active)
+    {
+        float ux = u[c];
+        float uy_at_xface = 0.25 * (
+              v[idx(i,     j - 1, k)] + v[idx(i,     j, k)]
+            + v[idx(i + 1, j - 1, k)] + v[idx(i + 1, j, k)]);
+        // Ground faces w[-1] are the implicit no-penetration boundary.
+        float w_at_xface = (k == 0)
+            ? 0.25 * (w[idx(i, j, 0)] + w[idx(i + 1, j, 0)])
+            : 0.25 * (
+              w[idx(i,     j, k - 1)] + w[idx(i,     j, k)]
+            + w[idx(i + 1, j, k - 1)] + w[idx(i + 1, j, k)]);
+
+        int hx = min(i, nr - 1 - i);
+        float dux_dx = upwind_deriv(hx,
+            (hx >= 3) ? u[idx(i - 3, j, k)] : 0.0,
+            (hx >= 2) ? u[idx(i - 2, j, k)] : 0.0,
+            u[idx(i - 1, j, k)], ux, u[idx(i + 1, j, k)],
+            (hx >= 2) ? u[idx(i + 2, j, k)] : 0.0,
+            (hx >= 3) ? u[idx(i + 3, j, k)] : 0.0,
+            ux, inv_dx);
+
+        int hy = min(j, nth - 1 - j);
+        float dux_dy = upwind_deriv(hy,
+            (hy >= 3) ? u[idx(i, j - 3, k)] : 0.0,
+            (hy >= 2) ? u[idx(i, j - 2, k)] : 0.0,
+            u[idx(i, j - 1, k)], ux, u[idx(i, j + 1, k)],
+            (hy >= 2) ? u[idx(i, j + 2, k)] : 0.0,
+            (hy >= 3) ? u[idx(i, j + 3, k)] : 0.0,
+            uy_at_xface, inv_dy);
+
+        int hz = min(k, nz - 1 - k);
+        // k=0: free-slip mirror ghost (zero gradient from below; first
+        // order one-sided from above). Mirrors the CPU branch.
+        float dux_dz = (k == 0)
+            ? ((w_at_xface >= 0.0)
+                ? 0.0
+                : (u[idx(i, j, 1)] - ux) * inv_dz)
+            : upwind_deriv(hz,
+                (hz >= 3) ? u[idx(i, j, k - 3)] : 0.0,
+                (hz >= 2) ? u[idx(i, j, k - 2)] : 0.0,
+                u[idx(i, j, k - 1)], ux, u[idx(i, j, k + 1)],
+                (hz >= 2) ? u[idx(i, j, k + 2)] : 0.0,
+                (hz >= 3) ? u[idx(i, j, k + 3)] : 0.0,
+                w_at_xface, inv_dz);
+
+        // f-plane Coriolis on the perturbation wind (SCIENCE.md M1;
+        // mirrors the CPU). coriolis_f is 0 when disabled.
+        float transport_ux = ux - frame_velocity_u_ms;
+        float transport_uy_at_xface = uy_at_xface - frame_velocity_v_ms;
+        float advection =
+            -transport_ux * dux_dx
+            -transport_uy_at_xface * dux_dy
+            -w_at_xface * dux_dz;
+        float coriolis_x = coriolis_f * (uy_at_xface - v0_base_b[k]);
+        if (coriolis_beta != 0.0)
+        {
+            float f_lo = coriolis_f + coriolis_beta * (float(j) + 0.25) * dtheta;
+            float f_hi = coriolis_f + coriolis_beta * (float(j) + 0.75) * dtheta;
+            coriolis_x = 0.25 * (
+                f_lo * (v[idx(i, j - 1, k)] + v[idx(i + 1, j - 1, k)] - 2.0 * v0_base_b[k])
+              + f_hi * (v[idx(i, j, k)] + v[idx(i + 1, j, k)] - 2.0 * v0_base_b[k]));
+        }
+        float du = advection + coriolis_x;
+        du_dt[c] = sanitize(du);
+        if (emit_advection != 0.0)
+            du_adv_dt[c] = sanitize(advection);
+    }
+
+    // ===== du_y/dt at y-face: upwind advection =====
+    if (v_face_active)
+    {
+        float uy = v[c];
+        float ux_at_yface = 0.25 * (
+              u[idx(i - 1, j,     k)] + u[idx(i, j,     k)]
+            + u[idx(i - 1, j + 1, k)] + u[idx(i, j + 1, k)]);
+        float w_at_yface = (k == 0)
+            ? 0.25 * (w[idx(i, j, 0)] + w[idx(i, j + 1, 0)])
+            : 0.25 * (
+              w[idx(i, j,     k - 1)] + w[idx(i, j,     k)]
+            + w[idx(i, j + 1, k - 1)] + w[idx(i, j + 1, k)]);
+
+        int hx = min(i, nr - 1 - i);
+        float duy_dx = upwind_deriv(hx,
+            (hx >= 3) ? v[idx(i - 3, j, k)] : 0.0,
+            (hx >= 2) ? v[idx(i - 2, j, k)] : 0.0,
+            v[idx(i - 1, j, k)], uy, v[idx(i + 1, j, k)],
+            (hx >= 2) ? v[idx(i + 2, j, k)] : 0.0,
+            (hx >= 3) ? v[idx(i + 3, j, k)] : 0.0,
+            ux_at_yface, inv_dx);
+
+        int hy = min(j, nth - 1 - j);
+        float duy_dy = upwind_deriv(hy,
+            (hy >= 3) ? v[idx(i, j - 3, k)] : 0.0,
+            (hy >= 2) ? v[idx(i, j - 2, k)] : 0.0,
+            v[idx(i, j - 1, k)], uy, v[idx(i, j + 1, k)],
+            (hy >= 2) ? v[idx(i, j + 2, k)] : 0.0,
+            (hy >= 3) ? v[idx(i, j + 3, k)] : 0.0,
+            uy, inv_dy);
+
+        int hz = min(k, nz - 1 - k);
+        float duy_dz = (k == 0)
+            ? ((w_at_yface >= 0.0)
+                ? 0.0
+                : (v[idx(i, j, 1)] - uy) * inv_dz)
+            : upwind_deriv(hz,
+                (hz >= 3) ? v[idx(i, j, k - 3)] : 0.0,
+                (hz >= 2) ? v[idx(i, j, k - 2)] : 0.0,
+                v[idx(i, j, k - 1)], uy, v[idx(i, j, k + 1)],
+                (hz >= 2) ? v[idx(i, j, k + 2)] : 0.0,
+                (hz >= 3) ? v[idx(i, j, k + 3)] : 0.0,
+                w_at_yface, inv_dz);
+
+        // f-plane Coriolis on the perturbation wind (M1; see du_x).
+        float transport_ux_at_yface = ux_at_yface - frame_velocity_u_ms;
+        float transport_uy = uy - frame_velocity_v_ms;
+        float advection =
+            -transport_ux_at_yface * duy_dx
+            -transport_uy * duy_dy
+            -w_at_yface * duy_dz;
+        float coriolis_y = coriolis_f * (ux_at_yface - u0_base_b[k]);
+        if (coriolis_beta != 0.0)
+        {
+            float f_lo = coriolis_f + coriolis_beta * (float(j) + 0.75) * dtheta;
+            float f_hi = coriolis_f + coriolis_beta * (float(j) + 1.25) * dtheta;
+            coriolis_y = 0.25 * (
+                f_lo * (u[idx(i - 1, j, k)] + u[idx(i, j, k)] - 2.0 * u0_base_b[k])
+              + f_hi * (u[idx(i - 1, j + 1, k)] + u[idx(i, j + 1, k)] - 2.0 * u0_base_b[k]));
+        }
+        float dv = advection - coriolis_y;
+        dv_dt[c] = sanitize(dv);
+        if (emit_advection != 0.0)
+            dv_adv_dt[c] = sanitize(advection);
+    }
+
+    // ===== dw/dt at z-face: upwind advection + buoyancy (+ moisture, loading) =====
+    if (w_face_active)
+    {
+        float wz = w[c];
+        float ux_at_wface = 0.25 * (
+              u[idx(i - 1, j, k    )] + u[idx(i, j, k    )]
+            + u[idx(i - 1, j, k + 1)] + u[idx(i, j, k + 1)]);
+        float uy_at_wface = 0.25 * (
+              v[idx(i, j - 1, k    )] + v[idx(i, j, k    )]
+            + v[idx(i, j - 1, k + 1)] + v[idx(i, j, k + 1)]);
+
+        int hx = min(i, nr - 1 - i);
+        float dw_dx = upwind_deriv(hx,
+            (hx >= 3) ? w[idx(i - 3, j, k)] : 0.0,
+            (hx >= 2) ? w[idx(i - 2, j, k)] : 0.0,
+            w[idx(i - 1, j, k)], wz, w[idx(i + 1, j, k)],
+            (hx >= 2) ? w[idx(i + 2, j, k)] : 0.0,
+            (hx >= 3) ? w[idx(i + 3, j, k)] : 0.0,
+            ux_at_wface, inv_dx);
+
+        int hy = min(j, nth - 1 - j);
+        float dw_dy = upwind_deriv(hy,
+            (hy >= 3) ? w[idx(i, j - 3, k)] : 0.0,
+            (hy >= 2) ? w[idx(i, j - 2, k)] : 0.0,
+            w[idx(i, j - 1, k)], wz, w[idx(i, j + 1, k)],
+            (hy >= 2) ? w[idx(i, j + 2, k)] : 0.0,
+            (hy >= 3) ? w[idx(i, j + 3, k)] : 0.0,
+            uy_at_wface, inv_dy);
+
+        // Vertical: virtual ground face w[-1]=0. k=0 uses 1st-order upwind
+        // honouring the ground BC; k>=1 uses the normal auto-degrading upwind.
+        float dw_dz;
+        if (k == 0)
+        {
+            dw_dz = (wz >= 0.0)
+                ? (w[idx(i, j, 0)]) * inv_dz
+                : (w[idx(i, j, 1)] - w[idx(i, j, 0)]) * inv_dz;
+        }
+        else
+        {
+            int hz = min(k, nz - 1 - k);
+            dw_dz = upwind_deriv(hz,
+                (hz >= 3) ? w[idx(i, j, k - 3)] : 0.0,
+                (hz >= 2) ? w[idx(i, j, k - 2)] : 0.0,
+                w[idx(i, j, k - 1)], wz, w[idx(i, j, k + 1)],
+                (hz >= 2) ? w[idx(i, j, k + 2)] : 0.0,
+                (hz >= 3) ? w[idx(i, j, k + 3)] : 0.0,
+                wz, inv_dz);
+        }
+
+        float rho_face  = 0.5 * (rho[c] + rho[idx(i, j, k + 1)]);
+        float rho_safe  = safe_rho(rho_face);
+        // Base-state profiles are compact 1D [nz] buffers (GPU audit
+        // Phase 4.3): no per-(i,j) broadcast upload.
+        float rho0_face = 0.5 * (rho0_base_b[k] + rho0_base_b[k + 1]);
+        float buoyancy  = -g * (rho_face - rho0_face) / rho_safe;
+
+        float moisture_buoyancy = 0.0;
+        if (has_moisture == 1)
+        {
+            float qv_face  = 0.5 * (qv[c] + qv[idx(i, j, k + 1)]);
+            float qv0_face = 0.5 * (qv0_base_b[k] + qv0_base_b[k + 1]);
+            moisture_buoyancy = g * 0.608 * (qv_face - qv0_face);
+        }
+
+        float load_term = 0.0;
+        if (has_loading == 1)
+        {
+            float q_below = loading[c];
+            float q_above = loading[idx(i, j, k + 1)];
+            load_term = -g * 0.5 * (q_below + q_above);
+        }
+
+        float advection =
+            -(ux_at_wface - frame_velocity_u_ms) * dw_dx
+            -(uy_at_wface - frame_velocity_v_ms) * dw_dy
+            -wz * dw_dz;
+        float dw = advection + buoyancy + moisture_buoyancy + load_term;
+        dw_dt[c] = sanitize(dw);
+        if (emit_advection != 0.0)
+            dw_adv_dt[c] = sanitize(advection);
+    }
+
+    // ===== dp/dt at cell-center: CENTERED advection only =====
+    if (p_cell_active)
+    {
+        float u_center = 0.5 * (u[c] + u[idx(i - 1, j, k)]);
+        float v_center = 0.5 * (v[c] + v[idx(i, j - 1, k)]);
+        float w_center = 0.5 * (w[c] + w[idx(i, j, k - 1)]);
+
+        float dp_dx = (p[idx(i + 1, j, k)] - p[idx(i - 1, j, k)]) * inv_2dx;
+        float dp_dy = (p[idx(i, j + 1, k)] - p[idx(i, j - 1, k)]) * inv_2dy;
+        float dp_dz = (p[idx(i, j, k + 1)] - p[idx(i, j, k - 1)]) * inv_2dz;
+
+        float dp = -(u_center - frame_velocity_u_ms) * dp_dx
+                 -(v_center - frame_velocity_v_ms) * dp_dy
+                 -w_center * dp_dz;
+        dp_dt[c] = sanitize(dp);
+    }
+
+    // drho_dt stays 0 in the slow path.
+}

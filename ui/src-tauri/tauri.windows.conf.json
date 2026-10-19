@@ -1,0 +1,21 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "bundle": {
+    "targets": ["nsis"],
+    "resources": {
+      "windows-runtime/*": "bin/",
+      "../../configs": "configs",
+      "../../vulkan/shaders": "vulkan/shaders"
+    },
+    "windows": {
+      "digestAlgorithm": "sha256",
+      "certificateThumbprint": null,
+      "timestampUrl": null,
+      "tsp": false,
+      "allowDowngrades": false,
+      "webviewInstallMode": {
+        "type": "embedBootstrapper"
+      }
+    }
+  }
+}

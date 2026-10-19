@@ -1,0 +1,211 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+layout(set = 0, binding = 0) readonly buffer Input
+{
+    float values[];
+};
+layout(set = 0, binding = 1) writeonly buffer Output
+{
+    float result[];
+};
+layout(push_constant) uniform PushConstants
+{
+    int   nx;
+    int   ny;
+    int   nz;
+    int   operation;
+    int   i_begin;
+    int   i_end;
+    int   j_begin;
+    int   j_end;
+    int   k_begin;
+    int   k_end;
+    float dx_high;
+    float dx_low;
+    float dy_high;
+    float dy_low;
+    float dz_high;
+    float dz_low;
+    float gravity_high;
+    float gravity_low;
+    float coriolis_high;
+    float coriolis_low;
+};
+#include "../microphysics/compensated_fma.glsl"
+
+uint at(ivec3 cell)
+{
+    return uint((cell.x * ny + cell.y) * nz + cell.z);
+}
+ivec3 step_axis(int axis)
+{
+    return ivec3(axis == 0 ? 1 : 0, axis == 1 ? 1 : 0, axis == 2 ? 1 : 0);
+}
+vec2 scalar(ivec3 cell, int field)
+{
+    return vec2(values[21u * at(cell) + uint(field)], 0);
+}
+vec2 pair_value(ivec3 cell, int field)
+{
+    uint offset = 21u * at(cell) + uint(field);
+    return vec2(values[offset], values[offset + 1u]);
+}
+vec2 half_sum(vec2 a, vec2 b)
+{
+    return df_mul(df_add(a, b), vec2(.5, 0));
+}
+vec2 dual_density(ivec3 cell, int component)
+{
+    return half_sum(scalar(cell, 3), scalar(cell + step_axis(component), 3));
+}
+vec2 normal_velocity(ivec3 face, int axis)
+{
+    vec2 lower = axis == 2 && face.z == 0 ? vec2(0) : scalar(face - step_axis(axis), axis);
+    return half_sum(lower, scalar(face, axis));
+}
+vec2 mass_flux(ivec3 face, int axis, int component)
+{
+    if (axis == component)
+        return df_mul(scalar(face, 3), normal_velocity(face, axis));
+    ivec3 da = step_axis(axis), dc = step_axis(component);
+    vec2  density = df_mul(
+        df_add(df_add(df_add(scalar(face, 3), scalar(face + da, 3)), scalar(face + dc, 3)), scalar(face + da + dc, 3)),
+        vec2(.25, 0));
+    return df_mul(density, half_sum(scalar(face, axis), scalar(face + dc, axis)));
+}
+vec2 momentum_flux(ivec3 face, int axis, int component)
+{
+    vec2 carried = axis == component ? normal_velocity(face, axis)
+                                     : half_sum(scalar(face, component), scalar(face + step_axis(axis), component));
+    return df_mul(mass_flux(face, axis, component), carried);
+}
+vec2 spacing(int axis)
+{
+    return axis == 0 ? vec2(dx_high, dx_low) : axis == 1 ? vec2(dy_high, dy_low) : vec2(dz_high, dz_low);
+}
+vec2 advection(ivec3 cell, int component)
+{
+    vec2 mass_div = vec2(0), momentum_div = vec2(0);
+    for (int axis = 0; axis < 3; ++axis)
+    {
+        ivec3 plus          = cell + (axis == component ? step_axis(axis) : ivec3(0));
+        ivec3 minus         = cell - (axis == component ? ivec3(0) : step_axis(axis));
+        bool  top_closed    = axis == 2 && component != 2 && cell.z + 1 >= nz - 1;
+        bool  bottom_closed = axis == 2 && component != 2 && cell.z == 0;
+        vec2  m_plus        = top_closed ? vec2(0) : mass_flux(plus, axis, component);
+        vec2  m_minus       = bottom_closed ? vec2(0) : mass_flux(minus, axis, component);
+        vec2  p_plus        = top_closed ? vec2(0) : momentum_flux(plus, axis, component);
+        vec2  p_minus       = bottom_closed ? vec2(0) : momentum_flux(minus, axis, component);
+        mass_div            = df_add(mass_div, df_div(df_sub(m_plus, m_minus), spacing(axis)));
+        momentum_div        = df_add(momentum_div, df_div(df_sub(p_plus, p_minus), spacing(axis)));
+    }
+    return df_div(df_add(-momentum_div, df_mul(scalar(cell, component), mass_div)), dual_density(cell, component));
+}
+vec2 forcing(ivec3 cell, int component)
+{
+    vec2 gravity = vec2(gravity_high, gravity_low);
+    if (component < 2)
+    {
+        int   transverse = 1 - component;
+        ivec3 a = step_axis(component), b = step_axis(transverse);
+        vec2  velocity  = df_mul(df_add(df_add(df_add(scalar(cell - b, transverse), scalar(cell, transverse)),
+                                               scalar(cell + a - b, transverse)),
+                                        scalar(cell + a, transverse)),
+                                 vec2(.25, 0));
+        vec2  departure = df_sub(velocity, pair_value(cell, component == 0 ? 15 : 13));
+        return df_mul(vec2(coriolis_high, coriolis_low), component == 0 ? departure : -departure);
+    }
+    ivec3 above      = cell + ivec3(0, 0, 1);
+    vec2  density    = dual_density(cell, 2);
+    vec2  background = half_sum(pair_value(cell, 5), pair_value(above, 5));
+    vec2  source     = -df_div(df_mul(gravity, df_sub(density, background)), density);
+    vec2  moisture = df_sub(half_sum(scalar(cell, 9), scalar(above, 9)), half_sum(scalar(cell, 10), scalar(above, 10)));
+    source         = df_add(source, df_mul(df_mul(gravity, vec2(0.6079999804496765, 1.955032358669228e-8)), moisture));
+    return df_sub(source, df_mul(gravity, half_sum(pair_value(cell, 11), pair_value(above, 11))));
+}
+void write_strip(int side, int bin, ivec3 face, int axis)
+{
+    int  nk = k_end - k_begin;
+    int  xs = (j_end - j_begin) * nk, ys = (i_end - i_begin) * nk;
+    int  base   = side == 0 ? 0 : side == 1 ? xs : side == 2 ? 2 * xs : 2 * xs + ys;
+    uint offset = uint(nx * ny * nz) * 8u + uint(base + bin) * 6u;
+    for (int component = 0; component < 3; ++component)
+    {
+        ivec3 location = face + (component == axis ? step_axis(axis) : ivec3(0));
+        vec2  flux     = operation % 2 == 0  ? momentum_flux(location, axis, component)
+                         : component == axis ? scalar(location, 4)
+                                             : vec2(0);
+        if (operation >= 2)
+            flux = df_mul(flux, pair_value(face, axis == 0 ? 17 : 19));
+        result[offset + uint(2 * component)]     = flux.x;
+        result[offset + uint(2 * component + 1)] = flux.y;
+    }
+}
+void evaluate(uint gid)
+{
+    uint total = uint(nx) * uint(ny) * uint(nz);
+    if (gid >= total)
+        return;
+    ivec3 cell = ivec3(int(gid / uint(ny * nz)), int(gid / uint(nz)) % ny, int(gid % uint(nz)));
+    for (uint field = 0u; field < 8u; ++field)
+        result[gid * 8u + field] = 0;
+    if (operation < 2 && cell.x >= 1 && cell.x < nx - 1 && cell.y >= 1 && cell.y < ny - 1 && cell.z < nz - 1)
+    {
+        for (int component = 0; component < 3; ++component)
+        {
+            vec2 tendency, adv = vec2(0);
+            if (operation == 0)
+            {
+                adv      = advection(cell, component);
+                tendency = df_add(adv, forcing(cell, component));
+            }
+            else
+            {
+                ivec3 next = cell + step_axis(component);
+                vec2  jump = df_sub(scalar(next, 4), scalar(cell, 4));
+                if (component == 2)
+                    jump = df_sub(jump, df_sub(pair_value(next, 7), pair_value(cell, 7)));
+                tendency = -df_div(jump, df_mul(spacing(component), dual_density(cell, component)));
+            }
+            result[gid * 8u + uint(component)]     = tendency.x + tendency.y;
+            result[gid * 8u + uint(5 + component)] = adv.x + adv.y;
+        }
+        if (operation == 0 && cell.z >= 1)
+        {
+            vec2 pressure_rate = vec2(0);
+            for (int axis = 0; axis < 3; ++axis)
+            {
+                ivec3 delta = step_axis(axis);
+                vec2  gradient =
+                    df_div(df_sub(scalar(cell + delta, 4), scalar(cell - delta, 4)), df_mul(spacing(axis), vec2(2, 0)));
+                pressure_rate = df_sub(pressure_rate, df_mul(normal_velocity(cell, axis), gradient));
+            }
+            result[gid * 8u + 4u] = pressure_rate.x + pressure_rate.y;
+        }
+    }
+    if (cell.z >= k_begin && cell.z < k_end)
+    {
+        int kk = cell.z - k_begin, nk = k_end - k_begin;
+        if (cell.y >= j_begin && cell.y < j_end)
+        {
+            int bin = (cell.y - j_begin) * nk + kk;
+            if (cell.x == i_begin - 1)
+                write_strip(0, bin, cell, 0);
+            if (cell.x == i_end - 1)
+                write_strip(1, bin, cell, 0);
+        }
+        if (cell.x >= i_begin && cell.x < i_end)
+        {
+            int bin = (cell.x - i_begin) * nk + kk;
+            if (cell.y == j_begin - 1)
+                write_strip(2, bin, cell, 1);
+            if (cell.y == j_end - 1)
+                write_strip(3, bin, cell, 1);
+        }
+    }
+}
+void main()
+{
+    evaluate(gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * gl_NumWorkGroups.x * gl_WorkGroupSize.x);
+}

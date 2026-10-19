@@ -1,0 +1,68 @@
+{
+  "schema": "nimbus.evidence.moving_nested_vulkan_lifetime_reference",
+  "schema_version": 1,
+  "status": "diagnostic_pass",
+  "qualification_eligible": false,
+  "scope": "uninterrupted_fresh_start_physical_vulkan_lifetime_against_frozen_cpu_reference",
+  "reports": {
+    "runtime": {
+      "path": "tests/artifacts/moving_nested_vulkan_lifetime_v2_20260819_segment_0000_4500/moving_nested_vulkan_runtime_report.json",
+      "sha256": "c14f4063d1d11ca59272bdea6b26f789b891155a6010f957e6b5be5a936b7d91"
+    },
+    "chain": {
+      "path": "tests/artifacts/moving_nested_vulkan_lifetime_v2_20260819_chain_report.json",
+      "sha256": "5ddaec3a6cf5f17df833516e0ae324368a522dc6fa4caa8cf44df9b1a81e1212"
+    },
+    "reference_diagnostic": {
+      "path": "tests/artifacts/moving_nested_vulkan_lifetime_v2_20260819_reference_diagnostic.json",
+      "sha256": "4db751e10565bc2220e18ddd83b68add0c9955f153d52d993217db38060a01d7"
+    }
+  },
+  "inputs": {
+    "binary_sha256": "7d1abadfbde32d1d5747779356ffe0f68893af64cfd0b99d2843b6eaa3e88457",
+    "config_sha256": "adb44405cc424abdd9db842d03586ed82a328669684dc81f3a18e833a9a2da1a",
+    "oversized_reference_series_sha256": "985d43272a22c5aef6e07a6280f5255c79b5ec87f56c035b842f920a7da0e947",
+    "baseline_qualification_report_sha256": "eb5d05bdf7127505a5eff9abb29a3e67be4d8ac330b84d62da3c1fa2292cb3d1",
+    "v12_policy_sha256": "ba4a8f76f196be809f5b036f77a27ec49880ccaa476bd151119252110890c9cc"
+  },
+  "lifetime": {
+    "single_process": true,
+    "fresh_configured_start": true,
+    "final_time_s": 4500,
+    "tracker_samples": 150,
+    "portable_checkpoints": 10,
+    "relocation_count": 7,
+    "relocation_times_s": [2010, 3180, 3510, 3540, 3840, 4170, 4320],
+    "final_cumulative_shift_cells": {"i": 52, "j": 21},
+    "final_checkpoint_sha256": "b91f5e0d662fac1ed6461dbcf95593bc167e24d846bad85d48ab8c78427e14b2",
+    "simulated_seconds_per_solver_wall_second": 0.452332
+  },
+  "device_counters": {
+    "parent_smagorinsky_dispatches_per_operation": 6000,
+    "child_smagorinsky_dispatches_per_operation": 6000,
+    "parent_kessler_process_dispatches_per_operation": 3000,
+    "child_kessler_process_dispatches_per_operation": 6000,
+    "parent_microphysics_apply_dispatches": 0,
+    "child_microphysics_apply_dispatches": 0
+  },
+  "threshold_result": {
+    "policy": "unchanged ratified v12 formulas and thresholds",
+    "checks": 21,
+    "passed": 21,
+    "failed": 0,
+    "paired_selected_fraction": 0.9932432432432432,
+    "path_rmse_m": 225.72957585300315,
+    "path_maximum_m": 531.9367532517078,
+    "maximum_updraft_normalized_rmse": 0.05810873484067324,
+    "maximum_absolute_uh_normalized_rmse": 0.12625832364254663,
+    "cold_pool_area_normalized_rmse": 0.09767351424948471,
+    "final_accumulated_mass_relative_error": 0.007445021765382946
+  },
+  "claim_limits": {
+    "formal_same_backend_reference_qualification": false,
+    "public_moving_nest_admitted": false,
+    "device_resident_relocation": false,
+    "cross_backend_path_equivalence": false,
+    "throughput_promotion": false
+  }
+}

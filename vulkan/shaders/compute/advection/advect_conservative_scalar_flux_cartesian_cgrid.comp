@@ -1,0 +1,283 @@
+// advect_conservative_scalar_flux_cartesian_cgrid.comp
+//
+// Phase B-1 of the conservative rho-weighted flux-form scalar transport on
+// the Cartesian Arakawa C-grid (GPU.md Phase 3.2): the per-face
+// SCALAR fluxes SF = MF * phi_face, with the upwind face value phi_face
+// reconstructed by WENO5-JS wherever the 5-point stencil fits and by the
+// MC limiter in the two cells nearest each boundary. GPU equivalent of the
+// face-flux loops of
+//   advect_scalar_conservative_3d_cartesian
+// in src/numerics/advection/advection_cartesian.cpp (including its inline
+// weno5_face_value / mc_limited_slope helpers).
+//
+// The mass fluxes MF were computed once by
+// advect_conservative_mass_flux_cartesian_cgrid.comp and are shared by
+// every scalar in the batch.
+//
+// Upwind stencil convention (matching the CPU): for flow c -> d the
+// reconstruction stencil is (a, b, c, d, e) = (c-2, c-1, c, c+1, c+2)
+// along the flow direction; the negative-flux branch reverses it.
+//
+// Data layout: row-major [nx][ny][nz]. Index (i, j, k) = (i*ny + j)*nz + k.
+
+#version 450
+#extension GL_GOOGLE_include_directive : require
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) readonly buffer QBuf   { float q_in[]; };
+layout(set = 0, binding = 1) readonly buffer MfxBuf { float mfx[];  };
+layout(set = 0, binding = 2) readonly buffer MfyBuf { float mfy[];  };
+layout(set = 0, binding = 3) readonly buffer MfzBuf { float mfz[];  };
+
+layout(set = 0, binding = 4) writeonly buffer SfxBuf { float sfx[]; };
+layout(set = 0, binding = 5) writeonly buffer SfyBuf { float sfy[]; };
+layout(set = 0, binding = 6) writeonly buffer SfzBuf { float sfz[]; };
+
+// Push constants (16 bytes; mirrors AdvectScalarFluxCartesianCgridPushConstants).
+layout(push_constant) uniform PushConstants {
+    int nx;
+    int ny;
+    int nz;
+    int pad0; // MC, positive donor support, and protected flat-PD arithmetic bits.
+};
+#include "positive_scalar_budget.glsl"
+
+// Jiang & Shu (1996) WENO5 with ideal weights (1/10, 6/10, 3/10) and the
+// repo's epsilon (numerics_constants::weno_epsilon = 1e-6). Mirrors
+// weno5_face_value in advection_cartesian.cpp; falls back to the upwind
+// value c on degenerate (non-finite) weights.
+float weno_difference(float value, float center, float scale)
+{
+    float delta = value - center;
+    return (!isnan(delta) && !isinf(delta)) ? delta / scale : value / scale - center / scale;
+}
+
+float weno5_face_offset(float a, float b, float c, float d, float e)
+{
+    float magnitude = max(max(max(abs(a), abs(b)), max(abs(c), abs(d))), abs(e));
+    float scale = max(magnitude, 1e-20);
+    if (isnan(scale) || isinf(scale))
+        return 0.0;
+    float ac = weno_difference(a, c, scale), bc = weno_difference(b, c, scale);
+    float dc = weno_difference(d, c, scale), ec = weno_difference(e, c, scale);
+    float p0 = (1.0 / 3.0) * ac - (7.0 / 6.0) * bc;
+    float p1 = -(1.0 / 6.0) * bc + (1.0 / 3.0) * dc;
+    float p2 = (5.0 / 6.0) * dc - (1.0 / 6.0) * ec;
+    float s0a = ac - 2.0 * bc, s0b = ac - 4.0 * bc;
+    float s1a = bc + dc, s1b = bc - dc;
+    float s2a = ec - 2.0 * dc, s2b = ec - 4.0 * dc;
+    float b0 = (13.0 / 12.0) * s0a * s0a + .25 * s0b * s0b;
+    float b1 = (13.0 / 12.0) * s1a * s1a + .25 * s1b * s1b;
+    float b2 = (13.0 / 12.0) * s2a * s2a + .25 * s2b * s2b;
+    float relative = magnitude / scale;
+    float floor_scale = 1e-20 / scale;
+    float eps = 1e-6 * relative * relative + floor_scale * floor_scale;
+    float minimum = min(eps + b0, min(eps + b1, eps + b2));
+    float r0 = minimum / (eps + b0), r1 = minimum / (eps + b1), r2 = minimum / (eps + b2);
+    float a0 = .1 * r0 * r0, a1 = .6 * r1 * r1, a2 = .3 * r2 * r2;
+    float offset = scale * ((a0 * p0 + a1 * p1 + a2 * p2) / (a0 + a1 + a2));
+    return (!isnan(offset) && !isinf(offset)) ? offset : 0.0;
+}
+
+float minmod3(float a, float b, float c)
+{
+    if (a > 0.0 && b > 0.0 && c > 0.0) return min(a, min(b, c));
+    if (a < 0.0 && b < 0.0 && c < 0.0) return max(a, max(b, c));
+    return 0.0;
+}
+
+// Monotonized-central limited slope; mirrors mc_limited_slope in
+// advection_cartesian.cpp (the near-boundary fallback).
+float mc_limited_slope(float qm, float q0, float qp)
+{
+    float right = qp - q0;
+    float left  = q0 - qm;
+    return minmod3(0.5 * (right + left), 2.0 * right, 2.0 * left);
+}
+
+uint at(int i, int j, int k)
+{
+    return uint((i * ny + j) * nz + k);
+}
+
+bool pd_nonzero_underflow_product(float a, float b)
+{
+    return (floatBitsToUint(a) & 0x7fffffffu) != 0u && (floatBitsToUint(b) & 0x7fffffffu) != 0u &&
+           pd_product_protected(a, b);
+}
+float pd_raw_flux(float mass, float base, float offset)
+{
+    if ((pad0 & 4) != 0 && (pd_nonzero_underflow_product(mass, base) || pd_nonzero_underflow_product(mass, offset)))
+        return pd_add(pd_product(mass, base), pd_product(mass, offset));
+    return fma(mass, base, mass * offset);
+}
+void evaluate(uint gid)
+{
+    uint total = uint(nx) * uint(ny) * uint(nz);
+    if (gid >= total)
+    {
+        return;
+    }
+
+    int k = int(gid % uint(nz));
+    uint ij = gid / uint(nz);
+    int j = int(ij % uint(ny));
+    int i = int(ij / uint(ny));
+
+    uint c = gid;
+
+    // ── x-face (i+1/2), valid i in [0, nx-2] ─────────────────────────
+    float sx = 0.0;
+    if (i <= nx - 2)
+    {
+        float mflux = mfx[c];
+        float phi_face;
+        float base = 0.0;
+        if (mflux >= 0.0)
+        {
+            float q0 = q_in[c];
+            base     = q0;
+            if ((pad0 & 1) == 0 && i >= 2 && i + 2 <= nx - 1)
+            {
+                phi_face = weno5_face_offset(
+                    q_in[at(i - 2, j, k)], q_in[at(i - 1, j, k)], q0, q_in[at(i + 1, j, k)], q_in[at(i + 2, j, k)]);
+            }
+            else
+            {
+                float sl = (i >= 1)
+                    ? mc_limited_slope(q_in[at(i - 1, j, k)], q0,
+                                       q_in[at(i + 1, j, k)])
+                    : 0.0;
+                phi_face = 0.5 * sl;
+            }
+        }
+        else
+        {
+            float q0 = q_in[at(i + 1, j, k)];
+            base     = q0;
+            if ((pad0 & 1) == 0 && i - 1 >= 0 && i + 3 <= nx - 1)
+            {
+                phi_face =
+                    weno5_face_offset(q_in[at(i + 3, j, k)], q_in[at(i + 2, j, k)], q0, q_in[c], q_in[at(i - 1, j, k)]);
+            }
+            else
+            {
+                float sl = (i + 1 <= nx - 2)
+                    ? mc_limited_slope(q_in[c], q0, q_in[at(i + 2, j, k)])
+                    : 0.0;
+                phi_face = -0.5 * sl;
+            }
+        }
+        if ((pad0 & 2) != 0 && (base <= 0.0 || base + phi_face <= 0.0))
+            phi_face = 0.0;
+        sx = pd_raw_flux(mflux, base, phi_face);
+    }
+    sfx[c] = sx;
+
+    // ── y-face (j+1/2), valid j in [0, ny-2] ─────────────────────────
+    float sy = 0.0;
+    if (j <= ny - 2)
+    {
+        float mflux = mfy[c];
+        float phi_face;
+        float base = 0.0;
+        if (mflux >= 0.0)
+        {
+            float q0 = q_in[c];
+            base     = q0;
+            if ((pad0 & 1) == 0 && j >= 2 && j + 2 <= ny - 1)
+            {
+                phi_face = weno5_face_offset(
+                    q_in[at(i, j - 2, k)], q_in[at(i, j - 1, k)], q0, q_in[at(i, j + 1, k)], q_in[at(i, j + 2, k)]);
+            }
+            else
+            {
+                float sl = (j >= 1)
+                    ? mc_limited_slope(q_in[at(i, j - 1, k)], q0,
+                                       q_in[at(i, j + 1, k)])
+                    : 0.0;
+                phi_face = 0.5 * sl;
+            }
+        }
+        else
+        {
+            float q0 = q_in[at(i, j + 1, k)];
+            base     = q0;
+            if ((pad0 & 1) == 0 && j - 1 >= 0 && j + 3 <= ny - 1)
+            {
+                phi_face =
+                    weno5_face_offset(q_in[at(i, j + 3, k)], q_in[at(i, j + 2, k)], q0, q_in[c], q_in[at(i, j - 1, k)]);
+            }
+            else
+            {
+                float sl = (j + 1 <= ny - 2)
+                    ? mc_limited_slope(q_in[c], q0, q_in[at(i, j + 2, k)])
+                    : 0.0;
+                phi_face = -0.5 * sl;
+            }
+        }
+        if ((pad0 & 2) != 0 && (base <= 0.0 || base + phi_face <= 0.0))
+            phi_face = 0.0;
+        sy = pd_raw_flux(mflux, base, phi_face);
+    }
+    sfy[c] = sy;
+
+    // ── z-face (k+1/2). k=nz-1 is the explicit C-grid top face; its
+    // exterior scalar closure is zero-gradient. ───────────────────────
+    float sz = 0.0;
+    if (k == nz - 1)
+    {
+        sz = (pad0 & 4) != 0 ? pd_product(mfz[c], q_in[c]) : mfz[c] * q_in[c];
+    }
+    else
+    {
+        float mflux = mfz[c];
+        float phi_face;
+        float base = 0.0;
+        if (mflux >= 0.0)
+        {
+            float q0 = q_in[c];
+            base     = q0;
+            if ((pad0 & 1) == 0 && k >= 2 && k + 2 <= nz - 1)
+            {
+                phi_face = weno5_face_offset(
+                    q_in[at(i, j, k - 2)], q_in[at(i, j, k - 1)], q0, q_in[at(i, j, k + 1)], q_in[at(i, j, k + 2)]);
+            }
+            else
+            {
+                float sl = (k >= 1)
+                    ? mc_limited_slope(q_in[at(i, j, k - 1)], q0,
+                                       q_in[at(i, j, k + 1)])
+                    : 0.0;
+                phi_face = 0.5 * sl;
+            }
+        }
+        else
+        {
+            float q0 = q_in[at(i, j, k + 1)];
+            base     = q0;
+            if ((pad0 & 1) == 0 && k - 1 >= 0 && k + 3 <= nz - 1)
+            {
+                phi_face =
+                    weno5_face_offset(q_in[at(i, j, k + 3)], q_in[at(i, j, k + 2)], q0, q_in[c], q_in[at(i, j, k - 1)]);
+            }
+            else
+            {
+                float sl = (k + 1 <= nz - 2)
+                    ? mc_limited_slope(q_in[c], q0, q_in[at(i, j, k + 2)])
+                    : 0.0;
+                phi_face = -0.5 * sl;
+            }
+        }
+        if ((pad0 & 2) != 0 && (base <= 0.0 || base + phi_face <= 0.0))
+            phi_face = 0.0;
+        sz = pd_raw_flux(mflux, base, phi_face);
+    }
+    sfz[c] = sz;
+}
+
+void main()
+{
+    evaluate(gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * gl_NumWorkGroups.x * gl_WorkGroupSize.x);
+}

@@ -1,0 +1,64 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+layout(set = 0, binding = 0) readonly buffer Input
+{
+    float values[];
+};
+layout(set = 0, binding = 1) writeonly buffer Output
+{
+    float result[];
+};
+layout(push_constant) uniform PushConstants
+{
+    int rows;
+    int terms;
+};
+#include "../microphysics/compensated_fma.glsl"
+#include "../terrain/compensated_storage.glsl"
+vec2 term_sum(int begin, int count, bool scaled)
+{
+    vec2 sum = vec2(0);
+    for (int n = 0; n < count; ++n)
+    {
+        int offset = 4 * rows + 6 * (begin + n);
+        vec2 density = vec2(values[offset], values[offset + 1]);
+        vec2 quantity = scaled ? df_add(vec2(scale_component(values[offset + 2]), 0), vec2(scale_component(values[offset + 3]), 0))
+                              : vec2(values[offset + 2], values[offset + 3]);
+        vec2 measure = vec2(values[offset + 4], values[offset + 5]);
+        sum = df_add(sum, df_mul(df_mul(density, quantity), measure));
+    }
+    return sum;
+}
+void evaluate(uint gid)
+{
+    if (gid >= uint(rows))
+        return;
+    int header = int(gid) * 4;
+    int first = int(values[header]), count = int(values[header + 1]);
+    int denominator_first = int(values[header + 2]), denominator_count = int(values[header + 3]);
+    float maximum = 0;
+    for (int n = 0; n < count; ++n)
+        maximum = max(maximum, abs(values[4 * rows + 6 * (first + n) + 2]));
+    bool scaled = maximum < 1e-24;
+    vec2 numerator = term_sum(first, count, scaled);
+    vec2 physical = unscale(numerator, scaled);
+    float stored = 0;
+    vec2 residual = vec2(0);
+    if (denominator_count != 0)
+    {
+        vec2 denominator = term_sum(denominator_first, denominator_count, false);
+        vec2 value = unscale(df_div(numerator, denominator), scaled);
+        stored = denominator.x > 0 ? value.x + value.y : uintBitsToFloat(0x7fc00000u);
+        residual = df_sub(physical, df_mul(denominator, vec2(stored, 0)));
+    }
+    result[5u * gid] = physical.x;
+    result[5u * gid + 1u] = physical.y;
+    result[5u * gid + 2u] = stored;
+    result[5u * gid + 3u] = residual.x;
+    result[5u * gid + 4u] = residual.y;
+}
+void main()
+{
+    evaluate(gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * gl_NumWorkGroups.x * gl_WorkGroupSize.x);
+}

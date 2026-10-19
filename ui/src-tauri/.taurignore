@@ -1,0 +1,23 @@
+# Tauri 2 dev-watcher ignore file. Pattern syntax = .gitignore.
+#
+# The dev watcher rebuilds the app whenever ANY file under src-tauri/
+# changes. Without this list, runtime data writes (YAML configs the UI
+# round-trips, future cached files, etc.) accidentally land inside
+# src-tauri/ and trigger a restart — which kills any spawned simulator
+# child process. Treat this file as a safety net even after we fix the
+# template-path resolution; data has no business under src-tauri/.
+
+# Build artifacts and generated capabilities.
+target/
+gen/
+
+# YAML configs the UI writes back when serializing the form state.
+# Tauri's working directory during `tauri dev` is src-tauri/, so any
+# relative path from a JS-side write lands here.
+configs/
+*.yaml
+*.yml
+
+# Run output directories that may end up here via the same cwd quirk.
+runs/
+.nimbus/

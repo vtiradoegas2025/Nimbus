@@ -1,0 +1,507 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_spirv_intrinsics : require
+spirv_execution_mode(extensions = ["SPV_KHR_float_controls"], capabilities = [4466], 4461, 32);
+spirv_execution_mode(extensions = ["SPV_KHR_float_controls"], capabilities = [4467], 4462, 32);
+layout(local_size_x = 64) in;
+layout(set = 0, binding = 0) readonly buffer B0
+{
+    float input_values[];
+};
+layout(set = 0, binding = 1) writeonly buffer B1
+{
+    float output_values[];
+};
+layout(push_constant) uniform PushConstants
+{
+    int   nx;
+    int   ny;
+    int   nz;
+    int   component;
+    int   include_boundary;
+    int   operation;
+    float dx_high;
+    float dx_low;
+    float dy_high;
+    float dy_low;
+    float dz_high;
+    float dz_low;
+    float surface_u_high;
+    float surface_u_low;
+    float surface_v_high;
+    float surface_v_low;
+};
+#include "../microphysics/compensated_fma.glsl"
+#include "compensated_storage.glsl"
+bool negative(vec2 a)
+{
+    return a.x < 0 || (a.x == 0 && a.y < 0);
+}
+bool less_pair(vec2 a, vec2 b)
+{
+    return a.x < b.x || (a.x == b.x && a.y < b.y);
+}
+vec2 absolute(vec2 a)
+{
+    return negative(a) ? -a : a;
+}
+bool zero_pair(vec2 a)
+{
+    return a.x == 0 && a.y == 0;
+}
+int index_of(ivec3 cell)
+{
+    return (cell.x * (ny + 1) + cell.y) * (nz + 1) + cell.z;
+}
+float scalar(ivec3 cell, int field)
+{
+    return input_values[19 * index_of(cell) + field];
+}
+vec2 pair_at(ivec3 cell, int field)
+{
+    return vec2(scalar(cell, field), scalar(cell, field + 1));
+}
+void write_pair(int n, int offset, vec2 value)
+{
+    output_values[24 * n + offset]     = value.x;
+    output_values[24 * n + offset + 1] = value.y;
+}
+float scale_velocity(float value, int exponent)
+{
+    if (exponent == 0)
+        return value;
+    uint bits = floatBitsToUint(value), magnitude = bits & 0x7fffffffu;
+    if (magnitude < 0x00800000u)
+    {
+        float scaled = ldexp(float(magnitude), exponent - 149);
+        return (bits & 0x80000000u) != 0u ? -scaled : scaled;
+    }
+    return ldexp(value, exponent);
+}
+float stored_velocity(vec2 value, int exponent)
+{
+    if (any(isnan(value)) || any(isinf(value)))
+        return uintBitsToFloat(0x7fc00000u);
+    if (exponent == 0 || abs(value.x) >= ldexp(1.0, exponent - 125))
+    {
+        float rounded = value.y == 0 ? value.x : fma(1.0, value.x, value.y);
+        return exponent == 0 ? rounded : ldexp(rounded, -exponent);
+    }
+    uint sign  = floatBitsToUint(value.x) & 0x80000000u;
+    vec2 units = df_mul(sign == 0u ? value : -value, vec2(ldexp(1.0, 149 - exponent), 0));
+    return round_storage_units(units, sign);
+}
+vec2 load_velocity(ivec3 cell, int field, int exponent)
+{
+    return vec2(scale_velocity(scalar(cell, field), exponent), 0);
+}
+vec2 velocity(ivec3 cell, int exponent)
+{
+    if (component == 2 && cell.z == -1)
+    {
+        if (cell.x <= 0 || cell.x >= nx || cell.y <= 0 || cell.y >= ny)
+            return vec2(uintBitsToFloat(0x7fc00000u));
+        cell.z      = 0;
+        vec2 result = vec2(0), gx = pair_at(cell, 15), gy = pair_at(cell, 17);
+        if (!zero_pair(gx))
+        {
+            vec2 u =
+                df_mul(vec2(0.5, 0),
+                       df_add(load_velocity(cell - ivec3(1, 0, 0), 6, exponent), load_velocity(cell, 6, exponent)));
+            u      = df_sub(u, vec2(scale_velocity(surface_u_high, exponent), scale_velocity(surface_u_low, exponent)));
+            result = df_sub(result, df_mul(gx, u));
+        }
+        if (!zero_pair(gy))
+        {
+            vec2 v =
+                df_mul(vec2(0.5, 0),
+                       df_add(load_velocity(cell - ivec3(0, 1, 0), 7, exponent), load_velocity(cell, 7, exponent)));
+            v      = df_sub(v, vec2(scale_velocity(surface_v_high, exponent), scale_velocity(surface_v_low, exponent)));
+            result = df_sub(result, df_mul(gy, v));
+        }
+        return result;
+    }
+    cell = clamp(cell, ivec3(0), ivec3(nx - 1, ny - 1, nz - 1));
+    return load_velocity(cell, 6 + component, exponent);
+}
+vec2 dual_mass(ivec3 cell, bool ending, ivec3 lower, ivec3 upper)
+{
+    int  field = ending ? 4 : 2, density = ending ? 1 : 0;
+    vec2 a =
+        cell[component] >= lower[component] ? df_mul(pair_at(cell, field), vec2(scalar(cell, density), 0)) : vec2(0);
+    ++cell[component];
+    vec2 b =
+        cell[component] < upper[component] ? df_mul(pair_at(cell, field), vec2(scalar(cell, density), 0)) : vec2(0);
+    vec2 result = df_mul(vec2(0.5, 0), df_add(a, b));
+    result      = df_mul(result, vec2(dx_high, dx_low));
+    result      = df_mul(result, vec2(dy_high, dy_low));
+    return df_mul(result, vec2(dz_high, dz_low));
+}
+vec2 dual_flux(ivec3 face, int direction, ivec3 lower, ivec3 upper)
+{
+    int field = 9 + 2 * direction;
+    if (direction == component && face[component] < lower[component])
+    {
+        face[component] = lower[component];
+        return pair_at(face, field);
+    }
+    if (direction == component && face[component] >= upper[component])
+        return pair_at(face, field);
+    vec2 a = direction == component || face[component] >= lower[component] ? pair_at(face, field) : vec2(0);
+    ++face[component];
+    vec2 b = direction == component || face[component] < upper[component] ? pair_at(face, field) : vec2(0);
+    return df_mul(vec2(0.5, 0), df_add(a, b));
+}
+vec2 face_velocity(ivec3 donor, ivec3 face, int direction, vec2 transfer, int exponent, ivec3 lower, ivec3 upper)
+{
+    vec2 face_wind = velocity(donor, exponent);
+    if (include_boundary != 0 && direction == component &&
+        (face[direction] == lower[direction] || face[direction] == upper[direction] - 1))
+    {
+        ivec3 previous = donor, next = donor;
+        --previous[direction];
+        ++next[direction];
+        vec2 a = df_sub(face_wind, velocity(previous, exponent)), b = df_sub(velocity(next, exponent), face_wind);
+        if (!zero_pair(a) && !zero_pair(b) && negative(a) == negative(b))
+        {
+            vec2 slope   = df_mul(vec2(0.5, 0), absolute(df_add(a, b)));
+            vec2 twice_a = df_mul(vec2(2, 0), absolute(a)), twice_b = df_mul(vec2(2, 0), absolute(b));
+            if (less_pair(twice_a, slope))
+                slope = twice_a;
+            if (less_pair(twice_b, slope))
+                slope = twice_b;
+            if (negative(a))
+                slope = -slope;
+            face_wind = df_add(face_wind, df_mul(vec2(negative(transfer) ? -0.5 : 0.5, 0), slope));
+        }
+    }
+    return face_wind;
+}
+float scaled_magnitude(vec2 value)
+{
+    if (any(isnan(value)) || any(isinf(value)))
+        return uintBitsToFloat(0x7f800000u);
+    return abs(value.x) + abs(value.y);
+}
+int choose_scale(float bound)
+{
+    if (bound > 0 && bound < 68719476736.0)
+    {
+        int leading = int((floatBitsToUint(bound) >> 23u) & 255u) - 127;
+        return min(149, 96 - leading);
+    }
+    return 0;
+}
+vec2 cell_mass(ivec3 cell, bool ending)
+{
+    vec2 mass = df_mul(pair_at(cell, ending ? 4 : 2), vec2(scalar(cell, ending ? 1 : 0), 0));
+    mass      = df_mul(mass, vec2(dx_high, dx_low));
+    mass      = df_mul(mass, vec2(dy_high, dy_low));
+    return df_mul(mass, vec2(dz_high, dz_low));
+}
+vec2 earth_ground(ivec3 cell, int exponent)
+{
+    cell.z     = 0;
+    ivec3 west = cell, south = cell;
+    west.x  = max(0, cell.x - 1);
+    south.y = max(0, cell.y - 1);
+    vec2 gx = pair_at(cell, 15), gy = pair_at(cell, 17), value = vec2(0);
+    if (!zero_pair(gx))
+        value = df_sub(
+            value,
+            df_mul(gx,
+                   df_mul(vec2(0.5, 0), df_add(load_velocity(west, 6, exponent), load_velocity(cell, 6, exponent)))));
+    if (!zero_pair(gy))
+        value = df_sub(
+            value,
+            df_mul(gy,
+                   df_mul(vec2(0.5, 0), df_add(load_velocity(south, 7, exponent), load_velocity(cell, 7, exponent)))));
+    return value;
+}
+void boundary_ledger(int  n,
+                     int  exponent,
+                     vec2 initial,
+                     vec2 requested,
+                     vec2 final_impulse,
+                     vec2 old_kinetic,
+                     vec2 exact_kinetic,
+                     vec2 stored_kinetic)
+{
+    output_values[24 * n + 23] = float(exponent);
+    write_pair(n, 1, initial);
+    write_pair(n, 3, requested);
+    write_pair(n, 5, final_impulse);
+    write_pair(n, 7, df_sub(final_impulse, requested));
+    write_pair(n, 9, old_kinetic);
+    write_pair(n, 11, exact_kinetic);
+    write_pair(n, 13, stored_kinetic);
+}
+void top_projection(int n, ivec3 cell)
+{
+    output_values[24 * n] = scalar(cell, 6 + component);
+    if (cell.z != nz - 2 || cell.x < (component == 0 ? 0 : 1) || cell.y < (component == 1 ? 0 : 1) ||
+        cell.x >= nx - 1 || cell.y >= ny - 1)
+        return;
+    ivec3 lower = cell, upper = cell;
+    upper.z    = nz - 1;
+    vec2 ml    = dual_mass(lower, true, ivec3(1, 1, 0), ivec3(nx - 1, ny - 1, nz));
+    vec2 mu    = dual_mass(upper, true, ivec3(1, 1, 0), ivec3(nx - 1, ny - 1, nz));
+    vec2 total = df_add(ml, mu);
+    if (!less_pair(vec2(0), ml) || !less_pair(vec2(0), mu))
+    {
+        output_values[24 * n] = uintBitsToFloat(0x7fc00000u);
+        return;
+    }
+    int   exponent = choose_scale(max(scaled_magnitude(velocity(lower, 96)), scaled_magnitude(velocity(upper, 96))));
+    vec2  a = velocity(lower, exponent), b = velocity(upper, exponent);
+    vec2  initial = df_add(df_mul(ml, a), df_mul(mu, b));
+    vec2  exact   = df_div(initial, total);
+    float stored  = stored_velocity(exact, exponent);
+    if (floatBitsToUint(scalar(lower, 6 + component)) == floatBitsToUint(scalar(upper, 6 + component)))
+        stored = scalar(lower, 6 + component);
+    vec2 value            = vec2(scale_velocity(stored, exponent), 0);
+    output_values[24 * n] = stored;
+    boundary_ledger(n,
+                    exponent,
+                    initial,
+                    initial,
+                    df_mul(total, value),
+                    df_mul(vec2(0.5, 0), df_add(df_mul(ml, df_mul(a, a)), df_mul(mu, df_mul(b, b)))),
+                    df_mul(vec2(0.5, 0), df_mul(total, df_mul(exact, exact))),
+                    df_mul(vec2(0.5, 0), df_mul(total, df_mul(value, value))));
+}
+void ground_targets(int n, ivec3 cell)
+{
+    if (cell.z != 0 || cell.x < 1 || cell.y < 1 || cell.x >= nx - 1 || cell.y >= ny - 1)
+        return;
+    float bound = scaled_magnitude(earth_ground(cell, 96));
+    for (int direction = 0; direction < 2; ++direction)
+        for (int side = -1; side <= 1; side += 2)
+        {
+            ivec3 face = cell, donor = cell;
+            if (side > 0)
+                ++face[direction];
+            vec2 transfer = pair_at(face, 9 + 2 * direction);
+            if (negative(side < 0 ? -transfer : transfer))
+                donor[direction] += side;
+            if (!zero_pair(transfer))
+                bound = max(bound, scaled_magnitude(earth_ground(donor, 96)));
+        }
+    int  exponent = choose_scale(bound);
+    vec2 mass     = df_mul(vec2(0.5, 0), cell_mass(cell, false));
+    vec2 initial = df_mul(mass, earth_ground(cell, exponent)), target = initial, outward = vec2(0), outgoing = vec2(0);
+    for (int side = -1; side <= 1; side += 2)
+        for (int direction = 0; direction < 2; ++direction)
+        {
+            ivec3 face = cell, donor = cell;
+            if (side > 0)
+                ++face[direction];
+            vec2 transfer = df_mul(vec2(0.5, 0), pair_at(face, 9 + 2 * direction));
+            vec2 mass_out = side < 0 ? -transfer : transfer;
+            if (zero_pair(mass_out))
+                continue;
+            if (negative(mass_out))
+                donor[direction] += side;
+            vec2 impulse = df_mul(mass_out, earth_ground(donor, exponent));
+            target       = df_sub(target, impulse);
+            if (!negative(mass_out))
+                outgoing = df_add(outgoing, mass_out);
+            if ((side < 0 && cell[direction] == 1) ||
+                (side > 0 && cell[direction] == (direction == 0 ? nx - 2 : ny - 2)))
+                outward = df_add(outward, impulse);
+        }
+    if (!less_pair(vec2(0), mass) || less_pair(df_mul(mass, vec2(1, 1.4210854715202004e-14)), outgoing))
+    {
+        output_values[24 * n] = uintBitsToFloat(0x7fc00000u);
+        return;
+    }
+    write_pair(n, 0, target);
+    write_pair(n, 2, initial);
+    write_pair(n, 4, outward);
+    output_values[24 * n + 23] = float(exponent);
+}
+vec2 ground_target(ivec3 cell, int velocity_exponent)
+{
+    int shift = int(scalar(cell, 11)) + velocity_exponent;
+    return vec2(ldexp(scalar(cell, 9), shift), ldexp(scalar(cell, 10), shift));
+}
+void ground_correction(int n, ivec3 cell)
+{
+    output_values[24 * n] = scalar(cell, 8);
+    if (cell.z != 0 || cell.x < 1 || cell.y < 1 || cell.x >= nx - 1 || cell.y >= ny - 1)
+        return;
+    ivec3 above = cell;
+    above.z     = 1;
+    vec2 lower = cell_mass(cell, true), upper = cell_mass(above, true);
+    vec2 mass = df_mul(vec2(0.5, 0), df_add(lower, upper)), ground_mass = df_mul(vec2(0.5, 0), lower);
+    if (!less_pair(vec2(0), lower) || !less_pair(vec2(0), upper))
+    {
+        output_values[24 * n] = uintBitsToFloat(0x7fc00000u);
+        return;
+    }
+    float bound    = max(scaled_magnitude(load_velocity(cell, 8, 96)), scaled_magnitude(earth_ground(cell, 96)));
+    bound          = max(bound, scaled_magnitude(df_div(ground_target(cell, 96), mass)));
+    int   exponent = choose_scale(bound);
+    vec2  old = load_velocity(cell, 8, exponent), ground = earth_ground(cell, exponent),
+          target           = ground_target(cell, exponent);
+    vec2  implicit_impulse = df_mul(ground_mass, ground), air_impulse = df_mul(mass, old);
+    vec2  exact           = df_add(old, df_div(df_sub(target, implicit_impulse), mass));
+    float stored          = stored_velocity(exact, exponent);
+    vec2  value           = vec2(scale_velocity(stored, exponent), 0);
+    vec2  ground_energy   = df_mul(vec2(0.5, 0), df_mul(ground_mass, df_mul(ground, ground)));
+    output_values[24 * n] = stored;
+    boundary_ledger(n,
+                    exponent,
+                    df_add(air_impulse, implicit_impulse),
+                    df_add(air_impulse, target),
+                    df_add(df_mul(mass, value), implicit_impulse),
+                    df_add(df_mul(vec2(0.5, 0), df_mul(mass, df_mul(old, old))), ground_energy),
+                    df_add(df_mul(vec2(0.5, 0), df_mul(mass, df_mul(exact, exact))), ground_energy),
+                    df_add(df_mul(vec2(0.5, 0), df_mul(mass, df_mul(value, value))), ground_energy));
+}
+void evaluate(uint gid)
+{
+    uint count = uint(nx + 1) * uint(ny + 1) * uint(nz + 1);
+    if (gid >= count)
+        return;
+    int   n    = int(gid);
+    ivec3 cell = ivec3(n / ((ny + 1) * (nz + 1)), (n / (nz + 1)) % (ny + 1), n % (nz + 1));
+    for (int f = 0; f < 24; ++f)
+        output_values[24 * n + f] = 0;
+    if (operation == 2)
+    {
+        top_projection(n, cell);
+        return;
+    }
+    if (operation == 3)
+    {
+        ground_targets(n, cell);
+        return;
+    }
+    if (operation == 4)
+    {
+        ground_correction(n, cell);
+        return;
+    }
+    if (operation == 1)
+    {
+        for (int direction = 0; direction < 2; ++direction)
+        {
+            if (cell.x < 1 || cell.y < 1 || cell.z >= nz || cell.x >= (direction == 0 ? nx : nx - 1) ||
+                cell.y >= (direction == 1 ? ny : ny - 1))
+                continue;
+            vec2  swept = pair_at(cell, 9 + 2 * direction);
+            ivec3 donor = cell;
+            if (negative(swept))
+                --donor[direction];
+            write_pair(n, 2 * direction, -df_mul(swept, vec2(scalar(donor, 0), 0)));
+        }
+        return;
+    }
+    float original        = scalar(cell, 6 + component);
+    output_values[24 * n] = original;
+    ivec3 lower = ivec3(1, 1, 0), upper = ivec3(nx - 1, ny - 1, nz);
+    ivec3 begin = lower, end = upper;
+    if (include_boundary != 0)
+    {
+        if (component < 2)
+            --begin[component];
+    }
+    else
+        --end[component];
+    if (any(lessThan(cell, begin)) || any(greaterThanEqual(cell, end)))
+        return;
+    vec2 old_mass = dual_mass(cell, false, lower, upper), new_mass = dual_mass(cell, true, lower, upper);
+    int  exponent = 0;
+    {
+        float bound = scaled_magnitude(velocity(cell, 96));
+        for (int direction = 0; direction < 3; ++direction)
+            for (int side = -1; side <= 1; side += 2)
+            {
+                ivec3 face = cell;
+                if (side > 0)
+                    ++face[direction];
+                vec2 transfer = dual_flux(face, direction, lower, upper);
+                if (zero_pair(transfer))
+                    continue;
+                ivec3 donor = cell;
+                if (negative(side < 0 ? -transfer : transfer))
+                    donor[direction] += side;
+                bound = max(bound, scaled_magnitude(face_velocity(donor, face, direction, transfer, 96, lower, upper)));
+            }
+        exponent = choose_scale(bound);
+    }
+    vec2 old_wind    = velocity(cell, exponent);
+    vec2 mass_change = vec2(0), impulse_change = vec2(0), linear_work = vec2(0), outgoing = vec2(0);
+    vec2 outward_impulse = vec2(0), outward_kinetic = vec2(0);
+    for (int direction = 0; direction < 3; ++direction)
+        for (int side = -1; side <= 1; side += 2)
+        {
+            ivec3 face = cell;
+            if (side > 0)
+                ++face[direction];
+            vec2 transfer = dual_flux(face, direction, lower, upper);
+            vec2 outward  = side < 0 ? -transfer : transfer;
+            if (zero_pair(outward))
+                continue;
+            ivec3 donor = cell;
+            if (negative(outward))
+                donor[direction] += side;
+            vec2 face_wind = face_velocity(donor, face, direction, transfer, exponent, lower, upper);
+            mass_change    = df_sub(mass_change, outward);
+            impulse_change = df_sub(impulse_change, df_mul(outward, face_wind));
+            vec2 work      = df_sub(df_mul(old_wind, face_wind), df_mul(vec2(0.5, 0), df_mul(old_wind, old_wind)));
+            linear_work    = df_sub(linear_work, df_mul(outward, work));
+            if (!negative(outward))
+                outgoing = df_add(outgoing, outward);
+            if ((side < 0 && cell[direction] == begin[direction]) ||
+                (side > 0 && cell[direction] + 1 == end[direction]))
+            {
+                outward_impulse = df_add(outward_impulse, df_mul(outward, face_wind));
+                outward_kinetic =
+                    df_add(outward_kinetic, df_mul(vec2(0.5, 0), df_mul(outward, df_mul(face_wind, face_wind))));
+            }
+        }
+    vec2 mass_rounding = df_sub(df_sub(new_mass, old_mass), mass_change);
+    vec2 mass_scale    = less_pair(old_mass, new_mass) ? new_mass : old_mass;
+    if (less_pair(mass_scale, absolute(mass_change)))
+        mass_scale = absolute(mass_change);
+    vec2 tolerance =
+        df_add(df_mul(vec2(9.5367431640625e-7, 0), new_mass), df_mul(vec2(1.4210854715202004e-14, 0), mass_scale));
+    if (!less_pair(vec2(0), old_mass) || !less_pair(vec2(0), new_mass) ||
+        less_pair(df_mul(old_mass, vec2(1, 1.4210854715202004e-14)), outgoing) ||
+        less_pair(tolerance, absolute(mass_rounding)))
+    {
+        output_values[24 * n] = uintBitsToFloat(0x7fc00000u);
+        return;
+    }
+    vec2  initial_impulse = df_mul(old_mass, old_wind);
+    vec2  requested       = df_add(initial_impulse, impulse_change);
+    vec2  exact_wind      = df_div(requested, new_mass);
+    float stored          = stored_velocity(exact_wind, exponent);
+    if (old_mass.x == new_mass.x && old_mass.y == new_mass.y && zero_pair(impulse_change))
+        stored = original;
+    vec2 stored_wind           = vec2(scale_velocity(stored, exponent), 0);
+    vec2 old_kinetic           = df_mul(vec2(0.5, 0), df_mul(old_mass, df_mul(old_wind, old_wind)));
+    vec2 exact_kinetic         = df_mul(vec2(0.5, 0), df_mul(new_mass, df_mul(exact_wind, exact_wind)));
+    vec2 stored_kinetic        = df_mul(vec2(0.5, 0), df_mul(new_mass, df_mul(stored_wind, stored_wind)));
+    vec2 final_impulse         = df_mul(new_mass, stored_wind);
+    vec2 increment             = df_sub(exact_wind, old_wind);
+    output_values[24 * n]      = stored;
+    output_values[24 * n + 23] = float(exponent);
+    write_pair(n, 1, initial_impulse);
+    write_pair(n, 3, final_impulse);
+    write_pair(n, 5, outward_impulse);
+    write_pair(n, 7, df_sub(final_impulse, requested));
+    write_pair(n, 9, old_kinetic);
+    write_pair(n, 11, stored_kinetic);
+    write_pair(n, 13, outward_kinetic);
+    write_pair(n, 15, df_add(linear_work, outward_kinetic));
+    write_pair(n, 17, df_mul(vec2(0.5, 0), df_mul(new_mass, df_mul(increment, increment))));
+    write_pair(n, 19, -df_mul(vec2(0.5, 0), df_mul(df_mul(old_wind, old_wind), mass_rounding)));
+    write_pair(n, 21, df_sub(stored_kinetic, exact_kinetic));
+}
+void main()
+{
+    evaluate(gl_GlobalInvocationID.x);
+}

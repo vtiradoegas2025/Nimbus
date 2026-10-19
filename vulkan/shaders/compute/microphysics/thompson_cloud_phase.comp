@@ -1,0 +1,276 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_spirv_intrinsics : require
+spirv_execution_mode(extensions = ["SPV_KHR_float_controls"], capabilities = [4466], 4461, 32);
+spirv_execution_mode(extensions = ["SPV_KHR_float_controls"], capabilities = [4467], 4462, 32);
+layout(local_size_x = 64) in;
+layout(set = 0, binding = 0) readonly buffer Field0
+{
+    float temperature[];
+};
+layout(set = 0, binding = 1) readonly buffer Field1
+{
+    float vapor[];
+};
+layout(set = 0, binding = 2) readonly buffer Field2
+{
+    float density[];
+};
+layout(set = 0, binding = 3) readonly buffer Field3
+{
+    float cloud[];
+};
+layout(set = 0, binding = 4) readonly buffer Field4
+{
+    float ice[];
+};
+layout(set = 0, binding = 5) readonly buffer Field5
+{
+    float cloud_number[];
+};
+layout(set = 0, binding = 6) readonly buffer Field6
+{
+    float ice_number[];
+};
+layout(set = 0, binding = 7) readonly buffer Field7
+{
+    float cloud_tendency[];
+};
+layout(set = 0, binding = 8) readonly buffer Field8
+{
+    float ice_tendency[];
+};
+layout(set = 0, binding = 9) readonly buffer Field9
+{
+    float cloud_number_source[];
+};
+layout(set = 0, binding = 10) readonly buffer Field10
+{
+    float ice_number_source[];
+};
+layout(set = 0, binding = 11) readonly buffer Field11
+{
+    float temperature_tendency[];
+};
+layout(set = 0, binding = 12) writeonly buffer Field12
+{
+    float next_cloud_tendency[];
+};
+layout(set = 0, binding = 13) writeonly buffer Field13
+{
+    float next_ice_tendency[];
+};
+layout(set = 0, binding = 14) writeonly buffer Field14
+{
+    float next_cloud_number_source[];
+};
+layout(set = 0, binding = 15) writeonly buffer Field15
+{
+    float next_ice_number_source[];
+};
+layout(set = 0, binding = 16) writeonly buffer Field16
+{
+    float next_temperature_tendency[];
+};
+layout(set = 0, binding = 17) writeonly buffer Field17
+{
+    float status[];
+};
+layout(push_constant) uniform PushConstants
+{
+    int   nx;
+    int   ny;
+    int   nz;
+    int   i_begin;
+    int   i_end;
+    int   j_begin;
+    int   j_end;
+    int   k_begin;
+    int   k_end;
+    float dt_high;
+    float dt_low;
+};
+#include "thompson_compensated.glsl"
+#include "thompson_number_math.glsl"
+
+float toward_negative(float value)
+{
+    return value == 0.0 ? uintBitsToFloat(0x80000001u)
+                       : uintBitsToFloat(floatBitsToUint(value) + (value < 0.0 ? 1u : 0xffffffffu));
+}
+
+float exhausted_tendency(float initial)
+{
+    float rate     = stored_tendency(initial, vec2(0.0));
+    vec2  residual = df_add(vec2(initial, 0.0), df_mul(vec2(dt_high, dt_low), vec2(rate, 0.0)));
+    if (dt_low != 0.0 && rate < 0.0 && residual.x <= initial * 1e-13)
+    {
+        rate = uintBitsToFloat(floatBitsToUint(rate) - 1u);
+    }
+    return rate;
+}
+
+vec2 bounded_min(vec2 a, vec2 b)
+{
+    return df_sub(a, b).x < 0.0 ? a : b;
+}
+vec2 normalize_phase_ice(vec2 mass, vec2 supplied)
+{
+    vec2 coefficient = df_div(df_mul(vec2(3.1415927410125732, -8.7412573179790343e-08), vec2(890, 0)), vec2(6, 0));
+    vec2 number      = supplied.x < 1e-6 ? vec2(9.9999999747524271e-07, 2.5247572468697606e-15) : supplied;
+    vec2 slope;
+    if (df_sub(number, vec2(9.9999999747524271e-07, 2.5247572468697606e-15)).x <= 0.0)
+    {
+        slope = df_div(vec2(4, 0), vec2(4.9999998736893758e-06, 1.263106237442066e-13));
+        number =
+            bounded_min(vec2(999000, 0),
+                        df_div(df_mul(mass, df_mul(slope, df_mul(slope, slope))), df_mul(vec2(6, 0), coefficient)));
+    }
+    slope         = df_cbrt(df_div(df_mul(df_mul(coefficient, vec2(6, 0)), number), mass));
+    vec2 diameter = df_div(vec2(4, 0), slope);
+    if (df_sub(diameter, vec2(4.9999998736893758e-06, 1.263106237442066e-13)).x < 0.0)
+    {
+        slope = df_div(vec2(4, 0), vec2(4.9999998736893758e-06, 1.263106237442066e-13));
+        number =
+            bounded_min(vec2(999000, 0),
+                        df_div(df_mul(mass, df_mul(slope, df_mul(slope, slope))), df_mul(vec2(6, 0), coefficient)));
+    }
+    else if (df_sub(diameter, vec2(0.00030000001424923539, -1.4249235472107991e-11)).x > 0.0)
+    {
+        slope  = df_div(vec2(4, 0), vec2(0.00030000001424923539, -1.4249235472107991e-11));
+        number = df_div(df_mul(mass, df_mul(slope, df_mul(slope, slope))), df_mul(vec2(6, 0), coefficient));
+    }
+    return bounded_min(vec2(999000, 0), number);
+}
+
+void evaluate(uint gid)
+{
+    if (gid >= uint(nx * ny * nz))
+        return;
+    int n                        = int(gid);
+    next_cloud_tendency[n]       = 0.0;
+    next_ice_tendency[n]         = 0.0;
+    next_cloud_number_source[n]  = 0.0;
+    next_ice_number_source[n]    = 0.0;
+    next_temperature_tendency[n] = 0.0;
+    status[n]                    = 0.0;
+    int k = n % nz, j = (n / nz) % ny, i = n / (ny * nz);
+    if (i < i_begin || i >= i_end || j < j_begin || j >= j_end || k < k_begin || k >= k_end)
+        return;
+    status[n] = -1.0;
+    float initial[4];
+    initial[0] = cloud[n];
+    initial[1] = ice[n];
+    initial[2] = cloud_number[n];
+    initial[3] = ice_number[n];
+    float result[5];
+    result[0]    = cloud_tendency[n];
+    result[1]    = ice_tendency[n];
+    result[2]    = cloud_number_source[n];
+    result[3]    = ice_number_source[n];
+    result[4]    = temperature_tendency[n];
+    vec2 step_dt = vec2(dt_high, dt_low);
+    for (int f = 0; f < 4; ++f)
+    {
+        vec2 candidate = df_add(vec2(initial[f], 0.0), df_mul(step_dt, vec2(result[f], 0.0)));
+        if (candidate.x < 0.0 || (dt_low != 0.0 && result[f] < 0.0 && candidate.x <= initial[f] * 1e-13))
+            result[f] = exhausted_tendency(initial[f]);
+    }
+    bool melt   = df_sub(vec2(temperature[n], 0.0), vec2(273.14999389648438, 6.1035157159494702e-06)).x > 0.0 &&
+                  df_add(vec2(ice[n], 0.0), df_mul(step_dt, vec2(result[1], 0.0))).x > 0.0;
+    bool freeze = df_sub(vec2(temperature[n], 0.0), vec2(235.16000366210938, -3.6621092931454768e-06)).x < 0.0 &&
+                  (df_add(vec2(cloud[n], 0.0), df_mul(step_dt, vec2(result[0], 0.0))).x > 0.0 ||
+                   (df_add(vec2(cloud_number[n], 0), df_mul(step_dt, vec2(result[2], 0))).x > 0.0 &&
+                    df_sub(df_mul(vec2(density[n], 0), df_add(vec2(ice[n], 0), df_mul(step_dt, vec2(result[1], 0)))),
+                        vec2(9.999999960041972e-13, 3.9958025776882371e-21)).x > 0.0));
+    if (melt || freeze)
+    {
+        int   donor = melt ? 1 : 0, receiver = 1 - donor;
+        float donor_rate      = exhausted_tendency(initial[donor]);
+        vec2  mass_rate       = df_sub(vec2(result[donor], 0.0), vec2(donor_rate, 0.0));
+        float number_rate     = exhausted_tendency(initial[donor + 2]);
+        vec2  number_transfer = df_sub(vec2(result[donor + 2], 0.0), vec2(number_rate, 0.0));
+        result[donor]         = donor_rate;
+        result[receiver]      = scalar(df_add(vec2(result[receiver], 0.0), mass_rate));
+        result[donor + 2]     = number_rate;
+        vec2 number           = df_add(vec2(initial[receiver + 2], 0.0),
+                                       df_mul(step_dt, df_add(vec2(result[receiver + 2], 0.0), number_transfer)));
+        vec2 mass             = df_add(vec2(initial[receiver], 0.0), df_mul(step_dt, vec2(result[receiver], 0.0)));
+        vec2 rho              = vec2(density[n], 0.0);
+        if (df_sub(df_mul(rho, mass), vec2(9.999999960041972e-13, 3.9958025776882371e-21)).x > 0.0)
+        {
+            number = df_div(melt ? normalize_cloud(df_mul(rho, mass), df_mul(rho, number))
+                                 : normalize_phase_ice(df_mul(rho, mass), df_mul(rho, number)),
+                            rho);
+        }
+        vec2 maximum_number  = df_div(melt ? vec2(1999000064, -64) : vec2(999000, 0), rho);
+        result[receiver + 2] = stored_tendency(initial[receiver + 2], bounded_min(number, maximum_number));
+        if (df_sub(df_add(vec2(initial[receiver + 2], 0.0), df_mul(step_dt, vec2(result[receiver + 2], 0.0))),
+                   maximum_number)
+                .x > 0.0)
+        {
+            float rate           = result[receiver + 2];
+            result[receiver + 2] = rate == 0.0
+                                       ? uintBitsToFloat(0x80000001u)
+                                       : uintBitsToFloat(floatBitsToUint(rate) + (rate < 0.0 ? 1u : 0xffffffffu));
+        }
+        vec2 latent =
+            melt ? vec2(334000, 0)
+                 : df_add(vec2(334000, 0),
+                          df_mul(vec2(2112, 0),
+                                 df_sub(vec2(temperature[n], 0.0), vec2(273.14999389648438, 6.1035157159494702e-06))));
+        if (latent.x <= 0.0)
+            return;
+        vec2 heat = df_mul(
+            df_div(latent,
+                   df_mul(vec2(1004, 0),
+                          df_add(vec2(1, 0),
+                                 df_mul(vec2(0.88700002431869507, -2.4318694613612024e-08), vec2(vapor[n], 0.0))))),
+            mass_rate);
+        result[4] = scalar(df_add(vec2(result[4], 0.0), melt ? -heat : heat));
+    }
+    vec2 final_mass = df_mul(vec2(density[n], 0.0), df_add(vec2(initial[0], 0.0), df_mul(step_dt, vec2(result[0], 0.0))));
+    vec2 population = df_add(vec2(initial[2], 0.0), df_mul(step_dt, vec2(result[2], 0.0)));
+    if (population.x < 0.0 || (population.x == 0.0 && population.y < 0.0))
+        population = vec2(0.0);
+    vec2 final_number = df_mul(vec2(density[n], 0.0), population);
+    if (df_sub(final_mass, vec2(9.999999960041972e-13, 3.9958025776882371e-21)).x > 0.0)
+    {
+        vec2 target = normalize_cloud(final_mass, final_number);
+        float rounding = 9.5367431640625e-7 * max(1.0, max(scalar(target), scalar(final_number)));
+        if (abs(scalar(df_sub(target, final_number))) > rounding || df_sub(final_number, vec2(1999000064, -64)).x > 0.0)
+            result[2] = stored_tendency(initial[2], df_div(target, vec2(density[n], 0.0)));
+    }
+    vec2 final_ice_mass = df_mul(vec2(density[n], 0.0), df_add(vec2(initial[1], 0.0), df_mul(step_dt, vec2(result[1], 0.0))));
+    vec2 final_ice_number = df_add(vec2(initial[3], 0.0), df_mul(step_dt, vec2(result[3], 0.0)));
+    if (final_ice_number.x < 0.0 || (final_ice_number.x == 0.0 && final_ice_number.y < 0.0))
+        final_ice_number = vec2(0.0);
+    final_ice_number = df_mul(vec2(density[n], 0.0), final_ice_number);
+    if (df_sub(final_ice_mass, vec2(9.999999960041972e-13, 3.9958025776882371e-21)).x > 0.0)
+    {
+        vec2 target = bounded_min(vec2(999000.0, 0.0), normalize_phase_ice(final_ice_mass, final_ice_number));
+        float rounding = 9.5367431640625e-7 * max(1.0, max(scalar(target), scalar(final_ice_number)));
+        if (abs(scalar(df_sub(target, final_ice_number))) > rounding || df_sub(final_ice_number, vec2(999000.0, 0.0)).x > 0.0)
+        {
+            vec2 maximum = df_div(vec2(999000.0, 0.0), vec2(density[n], 0.0));
+            result[3] = stored_tendency(initial[3], df_div(target, vec2(density[n], 0.0)));
+            if (df_sub(df_add(vec2(initial[3], 0.0), df_mul(step_dt, vec2(result[3], 0.0))), maximum).x > 0.0)
+                result[3] = toward_negative(result[3]);
+        }
+    }
+    for (int f = 0; f < 5; ++f)
+    {
+        if (isnan(result[f]) || isinf(result[f]))
+            return;
+    }
+    next_cloud_tendency[n]       = result[0];
+    next_ice_tendency[n]         = result[1];
+    next_cloud_number_source[n]  = result[2];
+    next_ice_number_source[n]    = result[3];
+    next_temperature_tendency[n] = result[4];
+    status[n]                    = 0.0;
+}
+void main()
+{
+    evaluate(gl_GlobalInvocationID.x);
+}

@@ -1,0 +1,1004 @@
+{
+  "schema": "nimbus.generated-metal-unserialized-controls-fixture-index.v1",
+  "fixtureCount": 75,
+  "roles": {
+    "retainedGroupWitness": 35,
+    "admittedSourceControl": 4,
+    "controlMutation": 36
+  },
+  "historicalSourceRoot": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2",
+  "maintainedFixtureRoot": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls",
+  "bytePreservingPromotion": true,
+  "historicalSourceReportsModified": false,
+  "testMigration": {
+    "path": "tests/core/test_generated_metal_unserialized_controls.cpp",
+    "before": {
+      "bytes": 7250,
+      "sha256": "12ae7844bbf93760db59547da2d8d055af3129403b2fc55dc6e9747d0d4859c4"
+    },
+    "after": {
+      "bytes": 7208,
+      "sha256": "883061413d35c689c288150c2bd8fc64e3d2c9434c502c65a945fbe46abfa338"
+    },
+    "changedReportDirectoryLiterals": 2,
+    "testCasesPreserved": 4,
+    "assertionsAndDefaultGuardsChanged": false
+  },
+  "fixtures": [
+    {
+      "role": "retainedGroupWitness",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/group_00.yaml",
+        "bytes": 5978,
+        "sha256": "ab9004fe0643920227b5b250ef7c92e9351bbd32a2fe573801d5e4bf95d174d7"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/group_00.yaml",
+        "bytes": 5978,
+        "sha256": "ab9004fe0643920227b5b250ef7c92e9351bbd32a2fe573801d5e4bf95d174d7"
+      }
+    },
+    {
+      "role": "retainedGroupWitness",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/group_01.yaml",
+        "bytes": 5964,
+        "sha256": "f6a3f9727892d31d89fff8a4319b591896f4a15da0f89613e6f9764fe7280d4f"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/group_01.yaml",
+        "bytes": 5964,
+        "sha256": "f6a3f9727892d31d89fff8a4319b591896f4a15da0f89613e6f9764fe7280d4f"
+      }
+    },
+    {
+      "role": "retainedGroupWitness",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/group_02.yaml",
+        "bytes": 5985,
+        "sha256": "8b5709df11cbc9c09516693c83ef2896181746e265fe30257a9f0db2824bffad"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/group_02.yaml",
+        "bytes": 5985,
+        "sha256": "8b5709df11cbc9c09516693c83ef2896181746e265fe30257a9f0db2824bffad"
+      }
+    },
+    {
+      "role": "retainedGroupWitness",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/group_03.yaml",
+        "bytes": 5971,
+        "sha256": "acb8e94f6cfed2f8ad0809429c65517f0ab53eb12aa850108353f8e24db4062e"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/group_03.yaml",
+        "bytes": 5971,
+        "sha256": "acb8e94f6cfed2f8ad0809429c65517f0ab53eb12aa850108353f8e24db4062e"
+      }
+    },
+    {
+      "role": "retainedGroupWitness",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/group_04.yaml",
+        "bytes": 5978,
+        "sha256": "c5cffdab89620c37ef036d45dacc405f6d0fbf37d45eff8e3320162b3bcf6fe9"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/group_04.yaml",
+        "bytes": 5978,
+        "sha256": "c5cffdab89620c37ef036d45dacc405f6d0fbf37d45eff8e3320162b3bcf6fe9"
+      }
+    },
+    {
+      "role": "retainedGroupWitness",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/group_05.yaml",
+        "bytes": 5964,
+        "sha256": "0a7443aff5581e9bb0c4ab5cbc68ebdfbd08976f456b282239672a857db69b6c"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/group_05.yaml",
+        "bytes": 5964,
+        "sha256": "0a7443aff5581e9bb0c4ab5cbc68ebdfbd08976f456b282239672a857db69b6c"
+      }
+    },
+    {
+      "role": "retainedGroupWitness",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/group_06.yaml",
+        "bytes": 5985,
+        "sha256": "25b1e51ac5b3f9a77b3408c83e792210e6e496a529c1630643992c6c647213b1"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/group_06.yaml",
+        "bytes": 5985,
+        "sha256": "25b1e51ac5b3f9a77b3408c83e792210e6e496a529c1630643992c6c647213b1"
+      }
+    },
+    {
+      "role": "retainedGroupWitness",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/group_07.yaml",
+        "bytes": 5971,
+        "sha256": "ce77cc313cbe0158f1b5f1ee1cc3e6b3b35b1be2d7b7c10667ec5675885fadd2"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/group_07.yaml",
+        "bytes": 5971,
+        "sha256": "ce77cc313cbe0158f1b5f1ee1cc3e6b3b35b1be2d7b7c10667ec5675885fadd2"
+      }
+    },
+    {
+      "role": "retainedGroupWitness",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/group_08.yaml",
+        "bytes": 5977,
+        "sha256": "7ad80abd083605558e46ee3c648cd0e348eff47cf25d14955c54194f3267b3d7"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/group_08.yaml",
+        "bytes": 5977,
+        "sha256": "7ad80abd083605558e46ee3c648cd0e348eff47cf25d14955c54194f3267b3d7"
+      }
+    },
+    {
+      "role": "retainedGroupWitness",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/group_09.yaml",
+        "bytes": 5963,
+        "sha256": "7883f9f2fdbc085769a8deb1d654a1cb6a2e59d3a604195c5f73935fa1404f7f"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/group_09.yaml",
+        "bytes": 5963,
+        "sha256": "7883f9f2fdbc085769a8deb1d654a1cb6a2e59d3a604195c5f73935fa1404f7f"
+      }
+    },
+    {
+      "role": "retainedGroupWitness",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/group_10.yaml",
+        "bytes": 5984,
+        "sha256": "8eeb50bd624bea6ad9ec3fca3db2cafacb06ddd1e0d0b6261c02960ce63379c9"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/group_10.yaml",
+        "bytes": 5984,
+        "sha256": "8eeb50bd624bea6ad9ec3fca3db2cafacb06ddd1e0d0b6261c02960ce63379c9"
+      }
+    },
+    {
+      "role": "retainedGroupWitness",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/group_11.yaml",
+        "bytes": 5970,
+        "sha256": "00dd4f8e99ba98e58e7db64c54b1493ff3c0b77ba0563e74cb00bae9d70da533"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/group_11.yaml",
+        "bytes": 5970,
+        "sha256": "00dd4f8e99ba98e58e7db64c54b1493ff3c0b77ba0563e74cb00bae9d70da533"
+      }
+    },
+    {
+      "role": "retainedGroupWitness",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/group_12.yaml",
+        "bytes": 6304,
+        "sha256": "d29ebabd5f4aa91b533bf973fbe10d7307c1321fa4c090970e656c3b031f2cc9"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/group_12.yaml",
+        "bytes": 6304,
+        "sha256": "d29ebabd5f4aa91b533bf973fbe10d7307c1321fa4c090970e656c3b031f2cc9"
+      }
+    },
+    {
+      "role": "retainedGroupWitness",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/group_13.yaml",
+        "bytes": 6375,
+        "sha256": "4cf864b8e83a41a0627cb35f8065b952035f3a464771fce51a7111332ad6c646"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/group_13.yaml",
+        "bytes": 6375,
+        "sha256": "4cf864b8e83a41a0627cb35f8065b952035f3a464771fce51a7111332ad6c646"
+      }
+    },
+    {
+      "role": "retainedGroupWitness",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/group_14.yaml",
+        "bytes": 6382,
+        "sha256": "65fb3880659d6360c2ac2b9c217295730f27c99d846999ee4f524dea8aeeab28"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/group_14.yaml",
+        "bytes": 6382,
+        "sha256": "65fb3880659d6360c2ac2b9c217295730f27c99d846999ee4f524dea8aeeab28"
+      }
+    },
+    {
+      "role": "retainedGroupWitness",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/group_15.yaml",
+        "bytes": 6368,
+        "sha256": "042d5ac0e494beb371536b960e740169f55534377622c8b666b6afa728387c0b"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/group_15.yaml",
+        "bytes": 6368,
+        "sha256": "042d5ac0e494beb371536b960e740169f55534377622c8b666b6afa728387c0b"
+      }
+    },
+    {
+      "role": "retainedGroupWitness",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/group_16.yaml",
+        "bytes": 6389,
+        "sha256": "2f48271698ddb689bc804512a769162e0064b597efab12ad042ccb848a810545"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/group_16.yaml",
+        "bytes": 6389,
+        "sha256": "2f48271698ddb689bc804512a769162e0064b597efab12ad042ccb848a810545"
+      }
+    },
+    {
+      "role": "retainedGroupWitness",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/group_17.yaml",
+        "bytes": 6375,
+        "sha256": "ed18ab3a840fe6a7b2cc198cdb105fa860a60c9e66a0f74bf9c148a8fec05cfd"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/group_17.yaml",
+        "bytes": 6375,
+        "sha256": "ed18ab3a840fe6a7b2cc198cdb105fa860a60c9e66a0f74bf9c148a8fec05cfd"
+      }
+    },
+    {
+      "role": "retainedGroupWitness",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/group_18.yaml",
+        "bytes": 6382,
+        "sha256": "5a18e12ca42f40c0ae5d0a2dbc37f1cd7e1c35ac1692b265067e9d5f6f8b3abc"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/group_18.yaml",
+        "bytes": 6382,
+        "sha256": "5a18e12ca42f40c0ae5d0a2dbc37f1cd7e1c35ac1692b265067e9d5f6f8b3abc"
+      }
+    },
+    {
+      "role": "retainedGroupWitness",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/group_19.yaml",
+        "bytes": 6368,
+        "sha256": "ed0132cca2fa06aa0932762c99448c85ea0eec4a4432258f758c8d34a77021ac"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/group_19.yaml",
+        "bytes": 6368,
+        "sha256": "ed0132cca2fa06aa0932762c99448c85ea0eec4a4432258f758c8d34a77021ac"
+      }
+    },
+    {
+      "role": "retainedGroupWitness",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/group_20.yaml",
+        "bytes": 6368,
+        "sha256": "39f8fdbd5310530fa949a5be95c5591a69e7602bc7e6ade203a272acd27baf57"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/group_20.yaml",
+        "bytes": 6368,
+        "sha256": "39f8fdbd5310530fa949a5be95c5591a69e7602bc7e6ade203a272acd27baf57"
+      }
+    },
+    {
+      "role": "retainedGroupWitness",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/group_21.yaml",
+        "bytes": 6379,
+        "sha256": "34408a578ef33b6fc73fd24c40229616917f4b3058ca9f770cfa0e399ff48e17"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/group_21.yaml",
+        "bytes": 6379,
+        "sha256": "34408a578ef33b6fc73fd24c40229616917f4b3058ca9f770cfa0e399ff48e17"
+      }
+    },
+    {
+      "role": "retainedGroupWitness",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/group_22.yaml",
+        "bytes": 6385,
+        "sha256": "caf50d34359a51198c36e7381c0190f182b6103a9cf0660194c8ce5a6a02c39e"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/group_22.yaml",
+        "bytes": 6385,
+        "sha256": "caf50d34359a51198c36e7381c0190f182b6103a9cf0660194c8ce5a6a02c39e"
+      }
+    },
+    {
+      "role": "retainedGroupWitness",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/group_23.yaml",
+        "bytes": 6386,
+        "sha256": "bd3d8df309968e4519ce25e5161dd1e5208fa04f1acbbd1b4a597d8ad9a86c0a"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/group_23.yaml",
+        "bytes": 6386,
+        "sha256": "bd3d8df309968e4519ce25e5161dd1e5208fa04f1acbbd1b4a597d8ad9a86c0a"
+      }
+    },
+    {
+      "role": "retainedGroupWitness",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/group_24.yaml",
+        "bytes": 6389,
+        "sha256": "d41f5a4c4aa439604a1cd1706699a51172073354046291ad569434ef5276e517"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/group_24.yaml",
+        "bytes": 6389,
+        "sha256": "d41f5a4c4aa439604a1cd1706699a51172073354046291ad569434ef5276e517"
+      }
+    },
+    {
+      "role": "retainedGroupWitness",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/group_25.yaml",
+        "bytes": 6357,
+        "sha256": "2cd1fbdc8c1106dcbd3c0d96feee4987636d8c0c379e9a8e3280613cdf9b5009"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/group_25.yaml",
+        "bytes": 6357,
+        "sha256": "2cd1fbdc8c1106dcbd3c0d96feee4987636d8c0c379e9a8e3280613cdf9b5009"
+      }
+    },
+    {
+      "role": "retainedGroupWitness",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/group_26.yaml",
+        "bytes": 6358,
+        "sha256": "66f1c0bac26665048ec5e02ebd52224e0c11e2c570894b36d97ef25963933fe0"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/group_26.yaml",
+        "bytes": 6358,
+        "sha256": "66f1c0bac26665048ec5e02ebd52224e0c11e2c570894b36d97ef25963933fe0"
+      }
+    },
+    {
+      "role": "retainedGroupWitness",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/group_27.yaml",
+        "bytes": 6375,
+        "sha256": "d2c3ab728ae04c37346fa23c85b8033a12d581e37aeba2b1e9d52ae60c3b641e"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/group_27.yaml",
+        "bytes": 6375,
+        "sha256": "d2c3ab728ae04c37346fa23c85b8033a12d581e37aeba2b1e9d52ae60c3b641e"
+      }
+    },
+    {
+      "role": "retainedGroupWitness",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/group_28.yaml",
+        "bytes": 6357,
+        "sha256": "2cd1fbdc8c1106dcbd3c0d96feee4987636d8c0c379e9a8e3280613cdf9b5009"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/group_28.yaml",
+        "bytes": 6357,
+        "sha256": "2cd1fbdc8c1106dcbd3c0d96feee4987636d8c0c379e9a8e3280613cdf9b5009"
+      }
+    },
+    {
+      "role": "retainedGroupWitness",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/group_29.yaml",
+        "bytes": 6375,
+        "sha256": "c0863f15a58bb09ef17dcbceb67df24d4dc63452a4efe4900f637f3d83dff8d8"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/group_29.yaml",
+        "bytes": 6375,
+        "sha256": "c0863f15a58bb09ef17dcbceb67df24d4dc63452a4efe4900f637f3d83dff8d8"
+      }
+    },
+    {
+      "role": "retainedGroupWitness",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/group_30.yaml",
+        "bytes": 6374,
+        "sha256": "6988646c0465d9a2d71726a3362cb86fdddd68d79810030f51dab59a7629d21a"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/group_30.yaml",
+        "bytes": 6374,
+        "sha256": "6988646c0465d9a2d71726a3362cb86fdddd68d79810030f51dab59a7629d21a"
+      }
+    },
+    {
+      "role": "retainedGroupWitness",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/group_31.yaml",
+        "bytes": 6381,
+        "sha256": "4391089eab37d0152291b8e0f791d1556a8843569ee13fb0aa05419152e9008d"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/group_31.yaml",
+        "bytes": 6381,
+        "sha256": "4391089eab37d0152291b8e0f791d1556a8843569ee13fb0aa05419152e9008d"
+      }
+    },
+    {
+      "role": "retainedGroupWitness",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/group_32.yaml",
+        "bytes": 6367,
+        "sha256": "cd4af6b1bd0e5d39ac16e103e861141113708b9b6cc1e031d7d92b135fef3f69"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/group_32.yaml",
+        "bytes": 6367,
+        "sha256": "cd4af6b1bd0e5d39ac16e103e861141113708b9b6cc1e031d7d92b135fef3f69"
+      }
+    },
+    {
+      "role": "retainedGroupWitness",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/group_33.yaml",
+        "bytes": 6388,
+        "sha256": "9899c14955e9268355c4a811d9562342b4c808bb0c4fb7d4cf7e4c436b7bee6e"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/group_33.yaml",
+        "bytes": 6388,
+        "sha256": "9899c14955e9268355c4a811d9562342b4c808bb0c4fb7d4cf7e4c436b7bee6e"
+      }
+    },
+    {
+      "role": "retainedGroupWitness",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/group_34.yaml",
+        "bytes": 6374,
+        "sha256": "2400a8ca207fc152367879d18a4028ee3a72caccd80e1d8a679062cd2fbe9b61"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/group_34.yaml",
+        "bytes": 6374,
+        "sha256": "2400a8ca207fc152367879d18a4028ee3a72caccd80e1d8a679062cd2fbe9b61"
+      }
+    },
+    {
+      "role": "admittedSourceControl",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/canonical_npy.yaml",
+        "bytes": 5978,
+        "sha256": "ab9004fe0643920227b5b250ef7c92e9351bbd32a2fe573801d5e4bf95d174d7"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/canonical_npy.yaml",
+        "bytes": 5978,
+        "sha256": "ab9004fe0643920227b5b250ef7c92e9351bbd32a2fe573801d5e4bf95d174d7"
+      }
+    },
+    {
+      "role": "admittedSourceControl",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/canonical_netcdf.yaml",
+        "bytes": 5978,
+        "sha256": "2ec0020c8cb7555c41e7dc1520e4c940ea6ffdc3de7956098786b60d1ab517fc"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/canonical_netcdf.yaml",
+        "bytes": 5978,
+        "sha256": "2ec0020c8cb7555c41e7dc1520e4c940ea6ffdc3de7956098786b60d1ab517fc"
+      }
+    },
+    {
+      "role": "admittedSourceControl",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/canonical_zfp.yaml",
+        "bytes": 6461,
+        "sha256": "446ab3780cfa08cd1142ec5acca20247542a9fd986f8c25c99cee63651ced88c"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/canonical_zfp.yaml",
+        "bytes": 6461,
+        "sha256": "446ab3780cfa08cd1142ec5acca20247542a9fd986f8c25c99cee63651ced88c"
+      }
+    },
+    {
+      "role": "admittedSourceControl",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/east_npy.yaml",
+        "bytes": 6000,
+        "sha256": "a244b58833f7e3cd7060d941e8453d4e5face3dff9e18e87ebf61dd581a24d55"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/east_npy.yaml",
+        "bytes": 6000,
+        "sha256": "a244b58833f7e3cd7060d941e8453d4e5face3dff9e18e87ebf61dd581a24d55"
+      }
+    },
+    {
+      "role": "controlMutation",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/canonical_npy_damping_lateral_sponge_enabled.yaml",
+        "bytes": 6010,
+        "sha256": "4bb0bd79a83dc42d606bc106ae2ce710b4020e9ad3b9e35b23cf13a858622edf"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/canonical_npy_damping_lateral_sponge_enabled.yaml",
+        "bytes": 6010,
+        "sha256": "4bb0bd79a83dc42d606bc106ae2ce710b4020e9ad3b9e35b23cf13a858622edf"
+      }
+    },
+    {
+      "role": "controlMutation",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/canonical_npy_damping_lateral_width.yaml",
+        "bytes": 5998,
+        "sha256": "db85b748e54ced2a0512cd2741ef7f03ab8cc04a7a9971461af8d3682efb61f3"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/canonical_npy_damping_lateral_width.yaml",
+        "bytes": 5998,
+        "sha256": "db85b748e54ced2a0512cd2741ef7f03ab8cc04a7a9971461af8d3682efb61f3"
+      }
+    },
+    {
+      "role": "controlMutation",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/canonical_npy_damping_lateral_alpha.yaml",
+        "bytes": 6001,
+        "sha256": "9ed2f1b20664e4431cce78f6e79eb47331fce17f111ed31bbecd8933fed1ab12"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/canonical_npy_damping_lateral_alpha.yaml",
+        "bytes": 6001,
+        "sha256": "9ed2f1b20664e4431cce78f6e79eb47331fce17f111ed31bbecd8933fed1ab12"
+      }
+    },
+    {
+      "role": "controlMutation",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/canonical_npy_damping_w_only_top_sponge.yaml",
+        "bytes": 6005,
+        "sha256": "6de31f9ca93af8de5ebfb56f719ac90d7fa52dbfa0091c993207421cad896811"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/canonical_npy_damping_w_only_top_sponge.yaml",
+        "bytes": 6005,
+        "sha256": "6de31f9ca93af8de5ebfb56f719ac90d7fa52dbfa0091c993207421cad896811"
+      }
+    },
+    {
+      "role": "controlMutation",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/canonical_npy_damping_w_only_depth_cells.yaml",
+        "bytes": 6002,
+        "sha256": "698f22c405dad3613f6aa2c84a5cb75b985e5525d03cc6b72d22ce5dd1dfc3b8"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/canonical_npy_damping_w_only_depth_cells.yaml",
+        "bytes": 6002,
+        "sha256": "698f22c405dad3613f6aa2c84a5cb75b985e5525d03cc6b72d22ce5dd1dfc3b8"
+      }
+    },
+    {
+      "role": "controlMutation",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/canonical_npy_damping_w_only_alpha_max.yaml",
+        "bytes": 6003,
+        "sha256": "7bc76a3a0c5280c53fa03272ead2ee34681ceda2907cab33cb844b259a54d2ca"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/canonical_npy_damping_w_only_alpha_max.yaml",
+        "bytes": 6003,
+        "sha256": "7bc76a3a0c5280c53fa03272ead2ee34681ceda2907cab33cb844b259a54d2ca"
+      }
+    },
+    {
+      "role": "controlMutation",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/canonical_npy_extensions_solver_slow_rk2.yaml",
+        "bytes": 6008,
+        "sha256": "a7ae59fde07f71d219629817d3af9c1ff26f7af459896d3e6c38a2e48508c6be"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/canonical_npy_extensions_solver_slow_rk2.yaml",
+        "bytes": 6008,
+        "sha256": "a7ae59fde07f71d219629817d3af9c1ff26f7af459896d3e6c38a2e48508c6be"
+      }
+    },
+    {
+      "role": "controlMutation",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/canonical_npy_extensions_solver_lid_bc_gamma.yaml",
+        "bytes": 6010,
+        "sha256": "762c0a6612344b7a144d1661ef729228c0f70d7f3b19ed24d266f591703d4fd2"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/canonical_npy_extensions_solver_lid_bc_gamma.yaml",
+        "bytes": 6010,
+        "sha256": "762c0a6612344b7a144d1661ef729228c0f70d7f3b19ed24d266f591703d4fd2"
+      }
+    },
+    {
+      "role": "controlMutation",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/canonical_npy_extensions_solver_axis_u_m1_filter.yaml",
+        "bytes": 6015,
+        "sha256": "d9d057b3d7ed5f087ca8bcb482d41b2974887b3924acd7f45ef2072547d10ce7"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/canonical_npy_extensions_solver_axis_u_m1_filter.yaml",
+        "bytes": 6015,
+        "sha256": "d9d057b3d7ed5f087ca8bcb482d41b2974887b3924acd7f45ef2072547d10ce7"
+      }
+    },
+    {
+      "role": "controlMutation",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/canonical_netcdf_damping_lateral_sponge_enabled.yaml",
+        "bytes": 6010,
+        "sha256": "ad9d1ea33cd2fb2141ac5b44b2ec6f43816b5c3f9ebd50dad644cef186183f17"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/canonical_netcdf_damping_lateral_sponge_enabled.yaml",
+        "bytes": 6010,
+        "sha256": "ad9d1ea33cd2fb2141ac5b44b2ec6f43816b5c3f9ebd50dad644cef186183f17"
+      }
+    },
+    {
+      "role": "controlMutation",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/canonical_netcdf_damping_lateral_width.yaml",
+        "bytes": 5998,
+        "sha256": "9da1eefb8121307250908edf12a01e1007c649236092a07f5e71d143276c4911"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/canonical_netcdf_damping_lateral_width.yaml",
+        "bytes": 5998,
+        "sha256": "9da1eefb8121307250908edf12a01e1007c649236092a07f5e71d143276c4911"
+      }
+    },
+    {
+      "role": "controlMutation",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/canonical_netcdf_damping_lateral_alpha.yaml",
+        "bytes": 6001,
+        "sha256": "b42be9ade3d9aaea5ce05553644575f74efdc6c17287fdf066f3f6c8d31b50d7"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/canonical_netcdf_damping_lateral_alpha.yaml",
+        "bytes": 6001,
+        "sha256": "b42be9ade3d9aaea5ce05553644575f74efdc6c17287fdf066f3f6c8d31b50d7"
+      }
+    },
+    {
+      "role": "controlMutation",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/canonical_netcdf_damping_w_only_top_sponge.yaml",
+        "bytes": 6005,
+        "sha256": "096aed120e7f832cdd09cb15b0b6dceb70e7c4220219a0fa1c209f9d0544c59b"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/canonical_netcdf_damping_w_only_top_sponge.yaml",
+        "bytes": 6005,
+        "sha256": "096aed120e7f832cdd09cb15b0b6dceb70e7c4220219a0fa1c209f9d0544c59b"
+      }
+    },
+    {
+      "role": "controlMutation",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/canonical_netcdf_damping_w_only_depth_cells.yaml",
+        "bytes": 6002,
+        "sha256": "3347ce1633b248c9ca77c34cdd3b431c35ddb4b62a8755428277b0d189b76311"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/canonical_netcdf_damping_w_only_depth_cells.yaml",
+        "bytes": 6002,
+        "sha256": "3347ce1633b248c9ca77c34cdd3b431c35ddb4b62a8755428277b0d189b76311"
+      }
+    },
+    {
+      "role": "controlMutation",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/canonical_netcdf_damping_w_only_alpha_max.yaml",
+        "bytes": 6003,
+        "sha256": "2aefb7f3ac19568f7680fca4b949924523d99de531defbfcd7484f9f6372294f"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/canonical_netcdf_damping_w_only_alpha_max.yaml",
+        "bytes": 6003,
+        "sha256": "2aefb7f3ac19568f7680fca4b949924523d99de531defbfcd7484f9f6372294f"
+      }
+    },
+    {
+      "role": "controlMutation",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/canonical_netcdf_extensions_solver_slow_rk2.yaml",
+        "bytes": 6008,
+        "sha256": "ebb2cc37f9b5967d34c66f0ac9c86d026fe891d311e76a2a9bc1620f57d8c592"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/canonical_netcdf_extensions_solver_slow_rk2.yaml",
+        "bytes": 6008,
+        "sha256": "ebb2cc37f9b5967d34c66f0ac9c86d026fe891d311e76a2a9bc1620f57d8c592"
+      }
+    },
+    {
+      "role": "controlMutation",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/canonical_netcdf_extensions_solver_lid_bc_gamma.yaml",
+        "bytes": 6010,
+        "sha256": "af0482d6205ecd4ff35f9f0d78bbe28706f997690b26e784370cc1894ef49e39"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/canonical_netcdf_extensions_solver_lid_bc_gamma.yaml",
+        "bytes": 6010,
+        "sha256": "af0482d6205ecd4ff35f9f0d78bbe28706f997690b26e784370cc1894ef49e39"
+      }
+    },
+    {
+      "role": "controlMutation",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/canonical_netcdf_extensions_solver_axis_u_m1_filter.yaml",
+        "bytes": 6015,
+        "sha256": "56412ffd64be6e27f4c518e24b769c696a902bbb9da473a28d0d587da8865cb1"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/canonical_netcdf_extensions_solver_axis_u_m1_filter.yaml",
+        "bytes": 6015,
+        "sha256": "56412ffd64be6e27f4c518e24b769c696a902bbb9da473a28d0d587da8865cb1"
+      }
+    },
+    {
+      "role": "controlMutation",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/canonical_zfp_damping_lateral_sponge_enabled.yaml",
+        "bytes": 6493,
+        "sha256": "cd8bc54c10d4993b0b658b24f2b3a054875c1a97c92b931b80bcaa2261408e57"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/canonical_zfp_damping_lateral_sponge_enabled.yaml",
+        "bytes": 6493,
+        "sha256": "cd8bc54c10d4993b0b658b24f2b3a054875c1a97c92b931b80bcaa2261408e57"
+      }
+    },
+    {
+      "role": "controlMutation",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/canonical_zfp_damping_lateral_width.yaml",
+        "bytes": 6481,
+        "sha256": "73a49900decf3d6a4484d4dc487c7310d2c8b0be0b146a1def86b694a2e8cae7"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/canonical_zfp_damping_lateral_width.yaml",
+        "bytes": 6481,
+        "sha256": "73a49900decf3d6a4484d4dc487c7310d2c8b0be0b146a1def86b694a2e8cae7"
+      }
+    },
+    {
+      "role": "controlMutation",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/canonical_zfp_damping_lateral_alpha.yaml",
+        "bytes": 6484,
+        "sha256": "b4e9f475c3d5b0a087b42c50a0e71fadeda1bb54558cef10018846de540c5a97"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/canonical_zfp_damping_lateral_alpha.yaml",
+        "bytes": 6484,
+        "sha256": "b4e9f475c3d5b0a087b42c50a0e71fadeda1bb54558cef10018846de540c5a97"
+      }
+    },
+    {
+      "role": "controlMutation",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/canonical_zfp_damping_w_only_top_sponge.yaml",
+        "bytes": 6488,
+        "sha256": "85fd8e1362c77cb87243fa3e96e3fc861b53dcdf0a1f40b9d9a74db367d6fcbb"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/canonical_zfp_damping_w_only_top_sponge.yaml",
+        "bytes": 6488,
+        "sha256": "85fd8e1362c77cb87243fa3e96e3fc861b53dcdf0a1f40b9d9a74db367d6fcbb"
+      }
+    },
+    {
+      "role": "controlMutation",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/canonical_zfp_damping_w_only_depth_cells.yaml",
+        "bytes": 6485,
+        "sha256": "205f2bffcfa1a06bf8c559181540f8e5b539f787e7c22fbf7a0fc9bcc3ad4adb"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/canonical_zfp_damping_w_only_depth_cells.yaml",
+        "bytes": 6485,
+        "sha256": "205f2bffcfa1a06bf8c559181540f8e5b539f787e7c22fbf7a0fc9bcc3ad4adb"
+      }
+    },
+    {
+      "role": "controlMutation",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/canonical_zfp_damping_w_only_alpha_max.yaml",
+        "bytes": 6486,
+        "sha256": "f9e46c324539fb3b04f1255bad6ecb7a491c47abfbb611532169d710803bb625"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/canonical_zfp_damping_w_only_alpha_max.yaml",
+        "bytes": 6486,
+        "sha256": "f9e46c324539fb3b04f1255bad6ecb7a491c47abfbb611532169d710803bb625"
+      }
+    },
+    {
+      "role": "controlMutation",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/canonical_zfp_extensions_solver_slow_rk2.yaml",
+        "bytes": 6491,
+        "sha256": "ac6d5785e092a1b817f043564c84905aa294a882ef04a57e548141b7f05043d2"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/canonical_zfp_extensions_solver_slow_rk2.yaml",
+        "bytes": 6491,
+        "sha256": "ac6d5785e092a1b817f043564c84905aa294a882ef04a57e548141b7f05043d2"
+      }
+    },
+    {
+      "role": "controlMutation",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/canonical_zfp_extensions_solver_lid_bc_gamma.yaml",
+        "bytes": 6493,
+        "sha256": "62a8600cf9b53a6a0053d54a3f77d443e1b356623f13bf4a6c33a2032599f6b7"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/canonical_zfp_extensions_solver_lid_bc_gamma.yaml",
+        "bytes": 6493,
+        "sha256": "62a8600cf9b53a6a0053d54a3f77d443e1b356623f13bf4a6c33a2032599f6b7"
+      }
+    },
+    {
+      "role": "controlMutation",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/canonical_zfp_extensions_solver_axis_u_m1_filter.yaml",
+        "bytes": 6498,
+        "sha256": "6914ae55c36e789e949a86c364bdc6639ed6228bb97d17ee33956e96375311d1"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/canonical_zfp_extensions_solver_axis_u_m1_filter.yaml",
+        "bytes": 6498,
+        "sha256": "6914ae55c36e789e949a86c364bdc6639ed6228bb97d17ee33956e96375311d1"
+      }
+    },
+    {
+      "role": "controlMutation",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/east_npy_damping_lateral_sponge_enabled.yaml",
+        "bytes": 6032,
+        "sha256": "eef5db800afcb09d8e6ea6856a6fc91145e22779f733d3c955fa98876f702c03"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/east_npy_damping_lateral_sponge_enabled.yaml",
+        "bytes": 6032,
+        "sha256": "eef5db800afcb09d8e6ea6856a6fc91145e22779f733d3c955fa98876f702c03"
+      }
+    },
+    {
+      "role": "controlMutation",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/east_npy_damping_lateral_width.yaml",
+        "bytes": 6020,
+        "sha256": "2fb20b887d909d1dee07badf8e1e079d4eb4e849557cd335b2b202f18faa27bb"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/east_npy_damping_lateral_width.yaml",
+        "bytes": 6020,
+        "sha256": "2fb20b887d909d1dee07badf8e1e079d4eb4e849557cd335b2b202f18faa27bb"
+      }
+    },
+    {
+      "role": "controlMutation",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/east_npy_damping_lateral_alpha.yaml",
+        "bytes": 6023,
+        "sha256": "a593389d778d1e7534f2e6c1a1c8b0bf27d0feb973d8def339ca73bd163ae614"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/east_npy_damping_lateral_alpha.yaml",
+        "bytes": 6023,
+        "sha256": "a593389d778d1e7534f2e6c1a1c8b0bf27d0feb973d8def339ca73bd163ae614"
+      }
+    },
+    {
+      "role": "controlMutation",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/east_npy_damping_w_only_top_sponge.yaml",
+        "bytes": 6027,
+        "sha256": "349c41048c26ef4739ef450f3cdb2b77d41f16ba3e52229fbc570fdaf55322c6"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/east_npy_damping_w_only_top_sponge.yaml",
+        "bytes": 6027,
+        "sha256": "349c41048c26ef4739ef450f3cdb2b77d41f16ba3e52229fbc570fdaf55322c6"
+      }
+    },
+    {
+      "role": "controlMutation",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/east_npy_damping_w_only_depth_cells.yaml",
+        "bytes": 6024,
+        "sha256": "4bcb2c1ce5a5f4070379dbfc5968225611d568fbcbfc152b84713d112e44b447"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/east_npy_damping_w_only_depth_cells.yaml",
+        "bytes": 6024,
+        "sha256": "4bcb2c1ce5a5f4070379dbfc5968225611d568fbcbfc152b84713d112e44b447"
+      }
+    },
+    {
+      "role": "controlMutation",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/east_npy_damping_w_only_alpha_max.yaml",
+        "bytes": 6025,
+        "sha256": "d20b0c069afece63394ef6d08ba51bfca923940a069bcb69f086cfee139b8fbd"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/east_npy_damping_w_only_alpha_max.yaml",
+        "bytes": 6025,
+        "sha256": "d20b0c069afece63394ef6d08ba51bfca923940a069bcb69f086cfee139b8fbd"
+      }
+    },
+    {
+      "role": "controlMutation",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/east_npy_extensions_solver_slow_rk2.yaml",
+        "bytes": 6030,
+        "sha256": "855948e98f210f6de9de86e8c7c5e77d785805c535956749f213bb1861b65bef"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/east_npy_extensions_solver_slow_rk2.yaml",
+        "bytes": 6030,
+        "sha256": "855948e98f210f6de9de86e8c7c5e77d785805c535956749f213bb1861b65bef"
+      }
+    },
+    {
+      "role": "controlMutation",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/east_npy_extensions_solver_lid_bc_gamma.yaml",
+        "bytes": 6032,
+        "sha256": "fecfe73aacce6ddb9df62458619a1d147a9f916149416b1779250c4ff9123bef"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/east_npy_extensions_solver_lid_bc_gamma.yaml",
+        "bytes": 6032,
+        "sha256": "fecfe73aacce6ddb9df62458619a1d147a9f916149416b1779250c4ff9123bef"
+      }
+    },
+    {
+      "role": "controlMutation",
+      "source": {
+        "path": "reports/backend_repairs/20260929/generated_metal_unserialized_controls_diagnostic_v1/raw_v2/east_npy_extensions_solver_axis_u_m1_filter.yaml",
+        "bytes": 6037,
+        "sha256": "6e769b6ac689f9828f57a06252a18271a6325a91822ad9d02e4566d0e270b8c5"
+      },
+      "fixture": {
+        "path": "tests/fixtures/reference/catalog/generated_metal_unserialized_controls/east_npy_extensions_solver_axis_u_m1_filter.yaml",
+        "bytes": 6037,
+        "sha256": "6e769b6ac689f9828f57a06252a18271a6325a91822ad9d02e4566d0e270b8c5"
+      }
+    }
+  ]
+}

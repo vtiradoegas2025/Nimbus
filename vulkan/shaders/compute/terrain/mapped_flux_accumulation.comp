@@ -1,0 +1,35 @@
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+layout(std430, set = 0, binding = 0) readonly buffer AccumulatedX { float accumulated_x[]; };
+layout(std430, set = 0, binding = 1) readonly buffer AccumulatedY { float accumulated_y[]; };
+layout(std430, set = 0, binding = 2) readonly buffer AccumulatedZeta { float accumulated_zeta[]; };
+layout(std430, set = 0, binding = 3) readonly buffer StepX { float step_x[]; };
+layout(std430, set = 0, binding = 4) readonly buffer StepY { float step_y[]; };
+layout(std430, set = 0, binding = 5) readonly buffer StepZeta { float step_zeta[]; };
+layout(std430, set = 0, binding = 6) writeonly buffer CandidateX { float candidate_x[]; };
+layout(std430, set = 0, binding = 7) writeonly buffer CandidateY { float candidate_y[]; };
+layout(std430, set = 0, binding = 8) writeonly buffer CandidateZeta { float candidate_zeta[]; };
+
+layout(push_constant) uniform Constants {
+    int nx;
+    int ny;
+    int nz;
+    int padding0;
+    float time_weight;
+    float padding1;
+    float padding2;
+    float padding3;
+} pc;
+
+void main() {
+    uint n = gl_GlobalInvocationID.x;
+    uint count = uint(pc.nx) * uint(pc.ny) * uint(pc.nz);
+    if (n >= count) return;
+    precise float dx = step_x[n] * pc.time_weight;
+    precise float dy = step_y[n] * pc.time_weight;
+    precise float dz = step_zeta[n] * pc.time_weight;
+    candidate_x[n] = accumulated_x[n] + dx;
+    candidate_y[n] = accumulated_y[n] + dy;
+    candidate_zeta[n] = accumulated_zeta[n] + dz;
+}

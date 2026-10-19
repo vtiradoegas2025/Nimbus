@@ -1,0 +1,57 @@
+{
+  "schema": "nimbus.qualification.moving_nested_reference_frontier.policy",
+  "schema_version": 10,
+  "policy_id": "moving-nested-reference-frontier-v10-quantized-trusted-balance-amendment",
+  "policy_status": "ratified",
+  "scope": "same-equation 600 m moving-child versus oversized stationary Nimbus reference with inherited v9 thresholds, geometry, aperture, containment movement, orthogonal reserve, receding trusted-face state, and a no-mutation parent-cell quantized trusted-balance state",
+  "prior_policy": {
+    "path": "moving_nested_supercell_reference_frontier_v9.json",
+    "sha256": "aaa4aa0d6e07a81fc180e510d2a6bf6506051f52ecf82a96afb7bfe476edee2f",
+    "schema_version": 9,
+    "policy_id": "moving-nested-reference-frontier-v9-receding-trusted-face-amendment"
+  },
+  "failure_evidence": {
+    "path": "../../../docs/evidence/moving_nested_reference_frontier_v9_quantized_balance_failure.json",
+    "sha256": "32e1540915400bfee3291de6e2a01adb2f587cb64890a130d49bdd3ae0130486",
+    "schema_version": 1,
+    "reason": "quantized_balanced_trusted_face_unrecognized"
+  },
+  "ratification": {
+    "decision": "post_failure_quantized_trusted_balance_amendment_of_v9_and_blinded_v2_thresholds",
+    "review_date": "2026-08-14",
+    "reviewer_role": "independent_science_policy_audit",
+    "failed_v9_quantization_tie_sequence_observed": true,
+    "candidate_metric_values_inspected": false,
+    "minimum_input_series_schema_version": 2,
+    "quantized_trusted_balance_amendment": {
+      "reason": "fail_closed_parent_cell_quantization_tie_unrecognized",
+      "algorithm": "qualified_envelope_hysteresis_v12",
+      "eligibility": "a single approaching inner-margin face and its opposite remain outside the immutable relaxation zone and no bounded whole-parent-cell translation in the approaching direction strictly improves the axis minimum clearance",
+      "disposition": "trusted_interior_contained_without_mutation",
+      "single_breached_face_per_axis_required": true,
+      "both_axis_faces_outside_relaxation_required": true,
+      "approaching_face_required": true,
+      "selected_motion_or_signed_face_motion_may_establish_approach": true,
+      "bounded_shift_search_starts_parent_cells": 1,
+      "bounded_shift_search_ends_parent_cells": 14,
+      "strict_axis_minimum_improvement_available": false,
+      "movement_performed": false,
+      "current_relaxation_entry_recoverable": false,
+      "ordinary_or_projected_movement_changed_when_improvement_exists": false,
+      "receding_trusted_face_state_changed": false,
+      "orthogonal_containment_reserve_changed": false,
+      "maximum_shift_cap_parent_cells": 14,
+      "numerical_thresholds_changed": false,
+      "geometry_or_aperture_changed": false,
+      "measurement_cadence_changed": false,
+      "failed_candidate_disposition": "invalid_not_comparable"
+    }
+  },
+  "limitations": [
+    "All numerical thresholds, geometry, aperture, measurement cadence, movement caps, and v11 receding trusted-face rules are inherited from the immutable v9 policy chain.",
+    "No comparison metric from the invalid v9 candidate was inspected or used to alter a threshold.",
+    "The quantized trusted-balance disposition performs no movement and applies only when a single approaching breached face and its opposite remain outside relaxation and every admitted approaching-direction parent-cell shift fails to strictly improve the weaker axis clearance.",
+    "Any legal shift that strictly improves the weaker clearance retains the existing relocation path; any current relaxation-zone entry remains unrecoverable, and ambiguity, topology, parent containment, and finite-evidence checks remain fail-closed.",
+    "A pass remains a bounded same-equation fixed-aperture comparison and does not enable public moving_nest selection or broaden supported physics/backend combinations."
+  ]
+}

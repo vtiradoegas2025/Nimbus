@@ -1,0 +1,2958 @@
+{
+  "aggregate": {
+    "legacy": {
+      "avg_step_ms": {
+        "max": 10.3725,
+        "median": 10.2561,
+        "min": 10.138
+      },
+      "boundary_layer_s": {
+        "max": 0.00054467,
+        "median": 0.000533458,
+        "min": 0.000526455
+      },
+      "chaos_noise_s": {
+        "max": 1.1418e-05,
+        "median": 7.865e-06,
+        "min": 5.622e-06
+      },
+      "chaos_tendency_s": {
+        "max": 4.373e-06,
+        "median": 3.336e-06,
+        "min": 2.459e-06
+      },
+      "dynamics_named_step_fraction": {
+        "max": 0.9757245378995285,
+        "median": 0.9755146349308459,
+        "min": 0.9753403038074571
+      },
+      "dynamics_s": {
+        "max": 1.22475,
+        "median": 1.21117,
+        "min": 1.19718
+      },
+      "dynamics_stages": {
+        "advection": {
+          "max": 0.17097,
+          "median": 0.169974,
+          "min": 0.168154
+        },
+        "core": {
+          "max": 0.316857,
+          "median": 0.314257,
+          "min": 0.310504
+        },
+        "diffusion": {
+          "max": 6.461e-06,
+          "median": 3.456e-06,
+          "min": 2.916e-06
+        },
+        "eos": {
+          "max": 0.0253743,
+          "median": 0.025113,
+          "min": 0.025038
+        },
+        "final_boundary": {
+          "max": 0.026849,
+          "median": 0.0260655,
+          "min": 0.0252753
+        },
+        "microphysics": {
+          "max": 0.143003,
+          "median": 0.142489,
+          "min": 0.141065
+        },
+        "microphysics_transport": {
+          "max": 1.6841e-05,
+          "median": 7.797e-06,
+          "min": 6.335e-06
+        },
+        "profiled": {
+          "max": 1.21413,
+          "median": 1.20061,
+          "min": 1.18656
+        },
+        "profiled_fraction": {
+          "max": 0.991574,
+          "median": 0.991294,
+          "min": 0.991144
+        },
+        "residual": {
+          "max": 0.0106025,
+          "median": 0.0105488,
+          "min": 0.0102363
+        },
+        "sponge": {
+          "max": 3.3496e-05,
+          "median": 2.325e-05,
+          "min": 2.2496e-05
+        },
+        "step_fraction": {
+          "max": 0.984151,
+          "median": 0.984054,
+          "min": 0.983962
+        },
+        "total": {
+          "max": 1.22474,
+          "median": 1.21116,
+          "min": 1.19717
+        },
+        "turbulence": {
+          "max": 0.53313,
+          "median": 0.522595,
+          "min": 0.511096
+        },
+        "turbulence_apply": {
+          "max": 0.0694811,
+          "median": 0.0686327,
+          "min": 0.0678921
+        },
+        "turbulence_chaos": {
+          "max": 7.418e-06,
+          "median": 4.165e-06,
+          "min": 3.207e-06
+        },
+        "turbulence_commit": {
+          "max": 5.295e-06,
+          "median": 4.334e-06,
+          "min": 3.877e-06
+        },
+        "turbulence_profiled": {
+          "max": 0.533103996,
+          "median": 0.5225745199999999,
+          "min": 0.5110766210000001
+        },
+        "turbulence_profiled_fraction": {
+          "max": 0.9999641804481257,
+          "median": 0.9999620834442063,
+          "min": 0.9999512239041135
+        },
+        "turbulence_refresh": {
+          "max": 0.428346,
+          "median": 0.419525,
+          "min": 0.408401
+        },
+        "turbulence_residual": {
+          "max": 2.6003999999968386e-05,
+          "median": 1.9378999999930535e-05,
+          "min": 1.875900000003483e-05
+        },
+        "turbulence_stability": {
+          "max": 0.0354711,
+          "median": 0.034419,
+          "min": 0.0342492
+        }
+      },
+      "heap_allocations": {
+        "max": 0.0,
+        "median": 0.0,
+        "min": 0.0
+      },
+      "heap_requested_bytes": {
+        "max": 0.0,
+        "median": 0.0,
+        "min": 0.0
+      },
+      "outer_profiled_fraction": {
+        "max": 0.9912054231509576,
+        "median": 0.9910602496079562,
+        "min": 0.9908230299131554
+      },
+      "outer_profiled_s": {
+        "max": 1.233398488,
+        "median": 1.2197275810000001,
+        "min": 1.2058329209999998
+      },
+      "peak_rss_bytes": {
+        "max": 43024384.0,
+        "median": 41484288.0,
+        "min": 41402368.0
+      },
+      "physics_field_allocated_bytes": {
+        "max": 0.0,
+        "median": 0.0,
+        "min": 0.0
+      },
+      "physics_field_allocations": {
+        "max": 0.0,
+        "median": 0.0,
+        "min": 0.0
+      },
+      "radiation_s": {
+        "max": 0.00810062,
+        "median": 0.00809096,
+        "min": 0.00789217
+      },
+      "step_wall_s": {
+        "max": 1.2447,
+        "median": 1.23073,
+        "min": 1.21656
+      },
+      "turbulence_operators": {
+        "coefficients": {
+          "max": 0.18053,
+          "median": 0.175576,
+          "min": 0.169474
+        },
+        "moisture": {
+          "max": 0.0267172,
+          "median": 0.0261067,
+          "min": 0.0254573
+        },
+        "momentum": {
+          "max": 0.183072,
+          "median": 0.180371,
+          "min": 0.176605
+        },
+        "profiled": {
+          "max": 0.416509,
+          "median": 0.40831,
+          "min": 0.397328
+        },
+        "theta": {
+          "max": 0.0266407,
+          "median": 0.026257,
+          "min": 0.0257917
+        }
+      }
+    },
+    "legacy_over_optimized_step_ratio": 1.037300375228829,
+    "median_allocation_delta_legacy_minus_optimized": {
+      "heap_allocations": 0.0,
+      "heap_requested_bytes": 0.0,
+      "peak_rss_bytes": 49152.0,
+      "physics_field_allocated_bytes": 0.0,
+      "physics_field_allocations": 0.0
+    },
+    "optimized": {
+      "avg_step_ms": {
+        "max": 9.93825,
+        "median": 9.8873,
+        "min": 9.7408
+      },
+      "boundary_layer_s": {
+        "max": 0.000554383,
+        "median": 0.000544914,
+        "min": 0.000539962
+      },
+      "chaos_noise_s": {
+        "max": 9.876e-06,
+        "median": 7.925e-06,
+        "min": 5.822e-06
+      },
+      "chaos_tendency_s": {
+        "max": 4.123e-06,
+        "median": 3.037e-06,
+        "min": 2.705e-06
+      },
+      "dynamics_named_step_fraction": {
+        "max": 0.9746476973906009,
+        "median": 0.9745655261022449,
+        "min": 0.9743091795705364
+      },
+      "dynamics_s": {
+        "max": 1.17266,
+        "median": 1.16671,
+        "min": 1.14947
+      },
+      "dynamics_stages": {
+        "advection": {
+          "max": 0.169942,
+          "median": 0.169879,
+          "min": 0.168733
+        },
+        "core": {
+          "max": 0.315826,
+          "median": 0.314063,
+          "min": 0.311505
+        },
+        "diffusion": {
+          "max": 6.169e-06,
+          "median": 3.549e-06,
+          "min": 2.704e-06
+        },
+        "eos": {
+          "max": 0.0253117,
+          "median": 0.0250566,
+          "min": 0.0248655
+        },
+        "final_boundary": {
+          "max": 0.026698,
+          "median": 0.0262526,
+          "min": 0.0253708
+        },
+        "microphysics": {
+          "max": 0.143473,
+          "median": 0.141713,
+          "min": 0.141279
+        },
+        "microphysics_transport": {
+          "max": 8.746e-06,
+          "median": 8.092e-06,
+          "min": 6.671e-06
+        },
+        "profiled": {
+          "max": 1.16234,
+          "median": 1.1564,
+          "min": 1.13887
+        },
+        "profiled_fraction": {
+          "max": 0.99121,
+          "median": 0.991015,
+          "min": 0.990787
+        },
+        "residual": {
+          "max": 0.0105899,
+          "median": 0.0104935,
+          "min": 0.0103053
+        },
+        "sponge": {
+          "max": 2.7207e-05,
+          "median": 2.3999e-05,
+          "min": 2.1252e-05
+        },
+        "step_fraction": {
+          "max": 0.983541,
+          "median": 0.983334,
+          "min": 0.983264
+        },
+        "total": {
+          "max": 1.17264,
+          "median": 1.1667,
+          "min": 1.14946
+        },
+        "turbulence": {
+          "max": 0.483694,
+          "median": 0.479408,
+          "min": 0.462822
+        },
+        "turbulence_apply": {
+          "max": 0.0684953,
+          "median": 0.0682364,
+          "min": 0.0677422
+        },
+        "turbulence_chaos": {
+          "max": 4.463e-06,
+          "median": 2.955e-06,
+          "min": 2.542e-06
+        },
+        "turbulence_commit": {
+          "max": 4.956e-06,
+          "median": 4.126e-06,
+          "min": 3.045e-06
+        },
+        "turbulence_profiled": {
+          "max": 0.48367043,
+          "median": 0.479386676,
+          "min": 0.46280189
+        },
+        "turbulence_profiled_fraction": {
+          "max": 0.9999636766922081,
+          "median": 0.9999555201415079,
+          "min": 0.9999512708447903
+        },
+        "turbulence_refresh": {
+          "max": 0.380784,
+          "median": 0.376639,
+          "min": 0.360387
+        },
+        "turbulence_residual": {
+          "max": 2.357000000002829e-05,
+          "median": 2.132399999998924e-05,
+          "min": 1.7113000000013034e-05
+        },
+        "turbulence_stability": {
+          "max": 0.0351366,
+          "median": 0.0345074,
+          "min": 0.033912
+        }
+      },
+      "heap_allocations": {
+        "max": 0.0,
+        "median": 0.0,
+        "min": 0.0
+      },
+      "heap_requested_bytes": {
+        "max": 0.0,
+        "median": 0.0,
+        "min": 0.0
+      },
+      "outer_profiled_fraction": {
+        "max": 0.9908688115237942,
+        "median": 0.9907461581169978,
+        "min": 0.9904477193041602
+      },
+      "outer_profiled_s": {
+        "max": 1.18124034,
+        "median": 1.17514641,
+        "min": 1.158108838
+      },
+      "peak_rss_bytes": {
+        "max": 43040768.0,
+        "median": 41435136.0,
+        "min": 41385984.0
+      },
+      "physics_field_allocated_bytes": {
+        "max": 0.0,
+        "median": 0.0,
+        "min": 0.0
+      },
+      "physics_field_allocations": {
+        "max": 0.0,
+        "median": 0.0,
+        "min": 0.0
+      },
+      "radiation_s": {
+        "max": 0.00826275,
+        "median": 0.00808376,
+        "min": 0.00788683
+      },
+      "step_wall_s": {
+        "max": 1.19259,
+        "median": 1.18648,
+        "min": 1.1689
+      },
+      "turbulence_operators": {
+        "coefficients": {
+          "max": 0.133703,
+          "median": 0.131655,
+          "min": 0.124724
+        },
+        "moisture": {
+          "max": 0.0265429,
+          "median": 0.0263719,
+          "min": 0.025014
+        },
+        "momentum": {
+          "max": 0.182338,
+          "median": 0.181079,
+          "min": 0.174741
+        },
+        "profiled": {
+          "max": 0.368951,
+          "median": 0.365356,
+          "min": 0.349373
+        },
+        "theta": {
+          "max": 0.026538,
+          "median": 0.0262401,
+          "min": 0.0248935
+        }
+      }
+    },
+    "optimized_step_time_reduction_percent": 3.5959087762404836,
+    "paired_speedup_mad_percent": 0.314749558754865,
+    "paired_speedup_median_percent": 3.726475263457427,
+    "paired_speedups_percent": [
+      3.917932531071215,
+      3.726475263457427,
+      3.5069981403543236,
+      3.411725704702562,
+      4.577102916365387,
+      4.593131531461994,
+      3.4014696448358293
+    ],
+    "paired_three_mad_percent": 0.944248676264595,
+    "speedup_gate_enabled": true,
+    "speedup_gate_passed": true
+  },
+  "endpoint": {
+    "all_trials_bitwise_identical": true,
+    "checkpoint_bytes": 4327195,
+    "checkpoint_sha256": "a3b73a8fd7c447facfd20bdd34280e0cac9da8b970e858f84a0c2c5251ce7181"
+  },
+  "generated_at_utc": "2026-07-26T02:33:38.352012+00:00",
+  "host": {
+    "logical_cpu_count": 16,
+    "machine": "arm64",
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O"
+  },
+  "pairs": [
+    {
+      "legacy": {
+        "allocation_components": {
+          "advection": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "boundary_layer": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "diffusion": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "dynamics": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "dynamics_core": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "eos": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "final_boundary": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "integrity_validation": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_apply": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_preflight": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_tendencies": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_transaction": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_transport": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "radiation": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "runtime_timestep": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "sponge": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "turbulence": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "unattributed": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          }
+        },
+        "avg_step_ms": 10.138,
+        "boundary_layer_s": 0.00054467,
+        "chaos_noise_s": 1.1418e-05,
+        "chaos_tendency_s": 3.253e-06,
+        "checkpoint_bytes": 4327195,
+        "checkpoint_sha256": "a3b73a8fd7c447facfd20bdd34280e0cac9da8b970e858f84a0c2c5251ce7181",
+        "dynamics_named_step_fraction": 0.9753403038074571,
+        "dynamics_s": 1.19718,
+        "dynamics_stages": {
+          "advection": 0.169614,
+          "core": 0.314239,
+          "diffusion": 2.916e-06,
+          "eos": 0.0250447,
+          "final_boundary": 0.0252753,
+          "microphysics": 0.141262,
+          "microphysics_transport": 7.508e-06,
+          "profiled": 1.18656,
+          "profiled_fraction": 0.991144,
+          "residual": 0.0106017,
+          "sponge": 2.2795e-05,
+          "step_fraction": 0.984054,
+          "total": 1.19717,
+          "turbulence": 0.511096,
+          "turbulence_apply": 0.068417,
+          "turbulence_chaos": 5.213e-06,
+          "turbulence_commit": 4.208e-06,
+          "turbulence_profiled": 0.5110766210000001,
+          "turbulence_profiled_fraction": 0.9999620834442063,
+          "turbulence_refresh": 0.408401,
+          "turbulence_residual": 1.9378999999930535e-05,
+          "turbulence_stability": 0.0342492
+        },
+        "heap_allocations": 0,
+        "heap_requested_bytes": 0,
+        "measured_simulated_s": 120.0,
+        "measured_steps": 120,
+        "outer_profiled_fraction": 0.9911824496942195,
+        "outer_profiled_s": 1.2058329209999998,
+        "peak_rss_bytes": 41451520,
+        "physics_field_allocated_bytes": 0,
+        "physics_field_allocations": 0,
+        "radiation_s": 0.00809358,
+        "returncode": 0,
+        "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+        "sim_s_per_wall_s": 98.6384,
+        "step_wall_s": 1.21656,
+        "turbulence_operators": {
+          "coefficients": 0.169474,
+          "moisture": 0.0254573,
+          "momentum": 0.176605,
+          "profiled": 0.397328,
+          "theta": 0.0257917
+        },
+        "variant": "legacy",
+        "warmup_steps": 120
+      },
+      "optimized": {
+        "allocation_components": {
+          "advection": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "boundary_layer": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "diffusion": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "dynamics": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "dynamics_core": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "eos": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "final_boundary": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "integrity_validation": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_apply": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_preflight": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_tendencies": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_transaction": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_transport": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "radiation": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "runtime_timestep": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "sponge": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "turbulence": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "unattributed": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          }
+        },
+        "avg_step_ms": 9.7408,
+        "boundary_layer_s": 0.000542456,
+        "chaos_noise_s": 8.787e-06,
+        "chaos_tendency_s": 3.835e-06,
+        "checkpoint_bytes": 4327195,
+        "checkpoint_sha256": "a3b73a8fd7c447facfd20bdd34280e0cac9da8b970e858f84a0c2c5251ce7181",
+        "dynamics_named_step_fraction": 0.9743091795705364,
+        "dynamics_s": 1.14947,
+        "dynamics_stages": {
+          "advection": 0.169936,
+          "core": 0.314063,
+          "diffusion": 6.169e-06,
+          "eos": 0.0250566,
+          "final_boundary": 0.0253708,
+          "microphysics": 0.141588,
+          "microphysics_transport": 8.168e-06,
+          "profiled": 1.13887,
+          "profiled_fraction": 0.990787,
+          "residual": 0.0105899,
+          "sponge": 2.4088e-05,
+          "step_fraction": 0.983376,
+          "total": 1.14946,
+          "turbulence": 0.462822,
+          "turbulence_apply": 0.0684953,
+          "turbulence_chaos": 3.464e-06,
+          "turbulence_commit": 4.126e-06,
+          "turbulence_profiled": 0.46280189,
+          "turbulence_profiled_fraction": 0.9999565491700912,
+          "turbulence_refresh": 0.360387,
+          "turbulence_residual": 2.0110000000017614e-05,
+          "turbulence_stability": 0.033912
+        },
+        "heap_allocations": 0,
+        "heap_requested_bytes": 0,
+        "measured_simulated_s": 120.0,
+        "measured_steps": 120,
+        "outer_profiled_fraction": 0.9907681050560355,
+        "outer_profiled_s": 1.158108838,
+        "peak_rss_bytes": 41418752,
+        "physics_field_allocated_bytes": 0,
+        "physics_field_allocations": 0,
+        "radiation_s": 0.00808376,
+        "returncode": 0,
+        "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+        "sim_s_per_wall_s": 102.661,
+        "step_wall_s": 1.1689,
+        "turbulence_operators": {
+          "coefficients": 0.124724,
+          "moisture": 0.025014,
+          "momentum": 0.174741,
+          "profiled": 0.349373,
+          "theta": 0.0248935
+        },
+        "variant": "optimized",
+        "warmup_steps": 120
+      },
+      "order": [
+        "optimized",
+        "legacy"
+      ],
+      "pair": 1
+    },
+    {
+      "legacy": {
+        "allocation_components": {
+          "advection": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "boundary_layer": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "diffusion": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "dynamics": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "dynamics_core": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "eos": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "final_boundary": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "integrity_validation": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_apply": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_preflight": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_tendencies": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_transaction": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_transport": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "radiation": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "runtime_timestep": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "sponge": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "turbulence": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "unattributed": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          }
+        },
+        "avg_step_ms": 10.1914,
+        "boundary_layer_s": 0.000537167,
+        "chaos_noise_s": 6.757e-06,
+        "chaos_tendency_s": 2.836e-06,
+        "checkpoint_bytes": 4327195,
+        "checkpoint_sha256": "a3b73a8fd7c447facfd20bdd34280e0cac9da8b970e858f84a0c2c5251ce7181",
+        "dynamics_named_step_fraction": 0.9754531999967293,
+        "dynamics_s": 1.20355,
+        "dynamics_stages": {
+          "advection": 0.169974,
+          "core": 0.314257,
+          "diffusion": 3.332e-06,
+          "eos": 0.0253743,
+          "final_boundary": 0.0258471,
+          "microphysics": 0.141065,
+          "microphysics_transport": 7.418e-06,
+          "profiled": 1.19295,
+          "profiled_fraction": 0.991205,
+          "residual": 0.0105856,
+          "sponge": 2.2496e-05,
+          "step_fraction": 0.984113,
+          "total": 1.20354,
+          "turbulence": 0.516401,
+          "turbulence_apply": 0.068996,
+          "turbulence_chaos": 3.87e-06,
+          "turbulence_commit": 3.919e-06,
+          "turbulence_profiled": 0.516381789,
+          "turbulence_profiled_fraction": 0.9999627982904757,
+          "turbulence_refresh": 0.412959,
+          "turbulence_residual": 1.9211000000018963e-05,
+          "turbulence_stability": 0.034419
+        },
+        "heap_allocations": 0,
+        "heap_requested_bytes": 0,
+        "measured_simulated_s": 120.0,
+        "measured_steps": 120,
+        "outer_profiled_fraction": 0.9911835286229426,
+        "outer_profiled_s": 1.21218772,
+        "peak_rss_bytes": 41402368,
+        "physics_field_allocated_bytes": 0,
+        "physics_field_allocations": 0,
+        "radiation_s": 0.00809096,
+        "returncode": 0,
+        "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+        "sim_s_per_wall_s": 98.122,
+        "step_wall_s": 1.22297,
+        "turbulence_operators": {
+          "coefficients": 0.171402,
+          "moisture": 0.0258735,
+          "momentum": 0.178494,
+          "profiled": 0.401721,
+          "theta": 0.0259515
+        },
+        "variant": "legacy",
+        "warmup_steps": 120
+      },
+      "optimized": {
+        "allocation_components": {
+          "advection": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "boundary_layer": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "diffusion": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "dynamics": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "dynamics_core": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "eos": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "final_boundary": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "integrity_validation": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_apply": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_preflight": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_tendencies": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_transaction": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_transport": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "radiation": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "runtime_timestep": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "sponge": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "turbulence": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "unattributed": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          }
+        },
+        "avg_step_ms": 9.81162,
+        "boundary_layer_s": 0.000544914,
+        "chaos_noise_s": 5.822e-06,
+        "chaos_tendency_s": 2.794e-06,
+        "checkpoint_bytes": 4327195,
+        "checkpoint_sha256": "a3b73a8fd7c447facfd20bdd34280e0cac9da8b970e858f84a0c2c5251ce7181",
+        "dynamics_named_step_fraction": 0.9746218330374813,
+        "dynamics_s": 1.15802,
+        "dynamics_stages": {
+          "advection": 0.169516,
+          "core": 0.314468,
+          "diffusion": 2.704e-06,
+          "eos": 0.0252291,
+          "final_boundary": 0.0256246,
+          "microphysics": 0.141509,
+          "microphysics_transport": 6.671e-06,
+          "profiled": 1.14751,
+          "profiled_fraction": 0.990926,
+          "residual": 0.0105081,
+          "sponge": 2.1252e-05,
+          "step_fraction": 0.983541,
+          "total": 1.15802,
+          "turbulence": 0.47113,
+          "turbulence_apply": 0.0682364,
+          "turbulence_chaos": 2.542e-06,
+          "turbulence_commit": 3.045e-06,
+          "turbulence_profiled": 0.471112887,
+          "turbulence_profiled_fraction": 0.9999636766922081,
+          "turbulence_refresh": 0.368843,
+          "turbulence_residual": 1.7113000000013034e-05,
+          "turbulence_stability": 0.0340279
+        },
+        "heap_allocations": 0,
+        "heap_requested_bytes": 0,
+        "measured_simulated_s": 120.0,
+        "measured_steps": 120,
+        "outer_profiled_fraction": 0.9908688115237942,
+        "outer_profiled_s": 1.16663903,
+        "peak_rss_bytes": 42958848,
+        "physics_field_allocated_bytes": 0,
+        "physics_field_allocations": 0,
+        "radiation_s": 0.0080655,
+        "returncode": 0,
+        "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+        "sim_s_per_wall_s": 101.92,
+        "step_wall_s": 1.17739,
+        "turbulence_operators": {
+          "coefficients": 0.127934,
+          "moisture": 0.0258392,
+          "momentum": 0.178218,
+          "profiled": 0.357693,
+          "theta": 0.0257018
+        },
+        "variant": "optimized",
+        "warmup_steps": 120
+      },
+      "order": [
+        "legacy",
+        "optimized"
+      ],
+      "pair": 2
+    },
+    {
+      "legacy": {
+        "allocation_components": {
+          "advection": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "boundary_layer": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "diffusion": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "dynamics": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "dynamics_core": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "eos": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "final_boundary": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "integrity_validation": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_apply": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_preflight": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_tendencies": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_transaction": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_transport": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "radiation": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "runtime_timestep": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "sponge": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "turbulence": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "unattributed": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          }
+        },
+        "avg_step_ms": 10.217,
+        "boundary_layer_s": 0.000534373,
+        "chaos_noise_s": 5.913e-06,
+        "chaos_tendency_s": 3.961e-06,
+        "checkpoint_bytes": 4327195,
+        "checkpoint_sha256": "a3b73a8fd7c447facfd20bdd34280e0cac9da8b970e858f84a0c2c5251ce7181",
+        "dynamics_named_step_fraction": 0.9755880721673028,
+        "dynamics_s": 1.20662,
+        "dynamics_stages": {
+          "advection": 0.170067,
+          "core": 0.313622,
+          "diffusion": 3.243e-06,
+          "eos": 0.025113,
+          "final_boundary": 0.0257395,
+          "microphysics": 0.141478,
+          "microphysics_transport": 1.0795e-05,
+          "profiled": 1.19611,
+          "profiled_fraction": 0.991294,
+          "residual": 0.0105046,
+          "sponge": 2.325e-05,
+          "step_fraction": 0.984151,
+          "total": 1.20661,
+          "turbulence": 0.520049,
+          "turbulence_apply": 0.0683547,
+          "turbulence_chaos": 3.207e-06,
+          "turbulence_commit": 4.334e-06,
+          "turbulence_profiled": 0.520030241,
+          "turbulence_profiled_fraction": 0.9999639283990547,
+          "turbulence_refresh": 0.417272,
+          "turbulence_residual": 1.875900000003483e-05,
+          "turbulence_stability": 0.034396
+        },
+        "heap_allocations": 0,
+        "heap_requested_bytes": 0,
+        "measured_simulated_s": 120.0,
+        "measured_steps": 120,
+        "outer_profiled_fraction": 0.9912054231509576,
+        "outer_profiled_s": 1.215257497,
+        "peak_rss_bytes": 41484288,
+        "physics_field_allocated_bytes": 0,
+        "physics_field_allocations": 0,
+        "radiation_s": 0.00809325,
+        "returncode": 0,
+        "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+        "sim_s_per_wall_s": 97.8759,
+        "step_wall_s": 1.22604,
+        "turbulence_operators": {
+          "coefficients": 0.173715,
+          "moisture": 0.0260198,
+          "momentum": 0.180179,
+          "profiled": 0.405987,
+          "theta": 0.026073
+        },
+        "variant": "legacy",
+        "warmup_steps": 120
+      },
+      "optimized": {
+        "allocation_components": {
+          "advection": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "boundary_layer": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "diffusion": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "dynamics": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "dynamics_core": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "eos": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "final_boundary": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "integrity_validation": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_apply": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_preflight": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_tendencies": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_transaction": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_transport": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "radiation": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "runtime_timestep": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "sponge": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "turbulence": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "unattributed": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          }
+        },
+        "avg_step_ms": 9.85869,
+        "boundary_layer_s": 0.000543457,
+        "chaos_noise_s": 7.374e-06,
+        "chaos_tendency_s": 3e-06,
+        "checkpoint_bytes": 4327195,
+        "checkpoint_sha256": "a3b73a8fd7c447facfd20bdd34280e0cac9da8b970e858f84a0c2c5251ce7181",
+        "dynamics_named_step_fraction": 0.9745655261022449,
+        "dynamics_s": 1.16352,
+        "dynamics_stages": {
+          "advection": 0.169879,
+          "core": 0.315003,
+          "diffusion": 3.124e-06,
+          "eos": 0.0251167,
+          "final_boundary": 0.0257355,
+          "microphysics": 0.141279,
+          "microphysics_transport": 7.288e-06,
+          "profiled": 1.15295,
+          "profiled_fraction": 0.990926,
+          "residual": 0.010558,
+          "sponge": 2.2163e-05,
+          "step_fraction": 0.983491,
+          "total": 1.16351,
+          "turbulence": 0.475908,
+          "turbulence_apply": 0.068367,
+          "turbulence_chaos": 3.168e-06,
+          "turbulence_commit": 3.914e-06,
+          "turbulence_profiled": 0.475887782,
+          "turbulence_profiled_fraction": 0.9999575169990839,
+          "turbulence_refresh": 0.373316,
+          "turbulence_residual": 2.021800000001628e-05,
+          "turbulence_stability": 0.0341977
+        },
+        "heap_allocations": 0,
+        "heap_requested_bytes": 0,
+        "measured_simulated_s": 120.0,
+        "measured_steps": 120,
+        "outer_profiled_fraction": 0.9908588559981066,
+        "outer_profiled_s": 1.1722256610000001,
+        "peak_rss_bytes": 41385984,
+        "physics_field_allocated_bytes": 0,
+        "physics_field_allocations": 0,
+        "radiation_s": 0.00815183,
+        "returncode": 0,
+        "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+        "sim_s_per_wall_s": 101.433,
+        "step_wall_s": 1.18304,
+        "turbulence_operators": {
+          "coefficients": 0.1297,
+          "moisture": 0.02601,
+          "momentum": 0.180231,
+          "profiled": 0.362102,
+          "theta": 0.0261598
+        },
+        "variant": "optimized",
+        "warmup_steps": 120
+      },
+      "order": [
+        "optimized",
+        "legacy"
+      ],
+      "pair": 3
+    },
+    {
+      "legacy": {
+        "allocation_components": {
+          "advection": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "boundary_layer": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "diffusion": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "dynamics": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "dynamics_core": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "eos": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "final_boundary": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "integrity_validation": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_apply": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_preflight": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_tendencies": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_transaction": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_transport": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "radiation": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "runtime_timestep": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "sponge": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "turbulence": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "unattributed": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          }
+        },
+        "avg_step_ms": 10.2561,
+        "boundary_layer_s": 0.00053226,
+        "chaos_noise_s": 7.865e-06,
+        "chaos_tendency_s": 3.336e-06,
+        "checkpoint_bytes": 4327195,
+        "checkpoint_sha256": "a3b73a8fd7c447facfd20bdd34280e0cac9da8b970e858f84a0c2c5251ce7181",
+        "dynamics_named_step_fraction": 0.9755267199141971,
+        "dynamics_s": 1.21117,
+        "dynamics_stages": {
+          "advection": 0.16984,
+          "core": 0.314539,
+          "diffusion": 3.918e-06,
+          "eos": 0.025038,
+          "final_boundary": 0.0260655,
+          "microphysics": 0.14249,
+          "microphysics_transport": 7.797e-06,
+          "profiled": 1.20061,
+          "profiled_fraction": 0.99129,
+          "residual": 0.0105488,
+          "sponge": 2.7202e-05,
+          "step_fraction": 0.984093,
+          "total": 1.21116,
+          "turbulence": 0.522595,
+          "turbulence_apply": 0.0686327,
+          "turbulence_chaos": 4.165e-06,
+          "turbulence_commit": 4.455e-06,
+          "turbulence_profiled": 0.5225745199999999,
+          "turbulence_profiled_fraction": 0.9999608109530322,
+          "turbulence_refresh": 0.419525,
+          "turbulence_residual": 2.0480000000100418e-05,
+          "turbulence_stability": 0.0344082
+        },
+        "heap_allocations": 0,
+        "heap_requested_bytes": 0,
+        "measured_simulated_s": 120.0,
+        "measured_steps": 120,
+        "outer_profiled_fraction": 0.9910602496079562,
+        "outer_profiled_s": 1.2197275810000001,
+        "peak_rss_bytes": 41484288,
+        "physics_field_allocated_bytes": 0,
+        "physics_field_allocations": 0,
+        "radiation_s": 0.00801412,
+        "returncode": 0,
+        "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+        "sim_s_per_wall_s": 97.5029,
+        "step_wall_s": 1.23073,
+        "turbulence_operators": {
+          "coefficients": 0.175576,
+          "moisture": 0.0261067,
+          "momentum": 0.180371,
+          "profiled": 0.40831,
+          "theta": 0.026257
+        },
+        "variant": "legacy",
+        "warmup_steps": 120
+      },
+      "optimized": {
+        "allocation_components": {
+          "advection": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "boundary_layer": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "diffusion": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "dynamics": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "dynamics_core": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "eos": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "final_boundary": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "integrity_validation": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_apply": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_preflight": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_tendencies": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_transaction": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_transport": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "radiation": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "runtime_timestep": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "sponge": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "turbulence": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "unattributed": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          }
+        },
+        "avg_step_ms": 9.90619,
+        "boundary_layer_s": 0.000545418,
+        "chaos_noise_s": 7.925e-06,
+        "chaos_tendency_s": 3.495e-06,
+        "checkpoint_bytes": 4327195,
+        "checkpoint_sha256": "a3b73a8fd7c447facfd20bdd34280e0cac9da8b970e858f84a0c2c5251ce7181",
+        "dynamics_named_step_fraction": 0.9745360633948552,
+        "dynamics_s": 1.16892,
+        "dynamics_stages": {
+          "advection": 0.169919,
+          "core": 0.315826,
+          "diffusion": 3.549e-06,
+          "eos": 0.0253117,
+          "final_boundary": 0.0262526,
+          "microphysics": 0.141713,
+          "microphysics_transport": 8.092e-06,
+          "profiled": 1.15847,
+          "profiled_fraction": 0.991069,
+          "residual": 0.0104392,
+          "sponge": 2.3999e-05,
+          "step_fraction": 0.983312,
+          "total": 1.16891,
+          "turbulence": 0.479408,
+          "turbulence_apply": 0.0680786,
+          "turbulence_chaos": 2.955e-06,
+          "turbulence_commit": 4.421e-06,
+          "turbulence_profiled": 0.479386676,
+          "turbulence_profiled_fraction": 0.9999555201415079,
+          "turbulence_refresh": 0.376639,
+          "turbulence_residual": 2.132399999998924e-05,
+          "turbulence_stability": 0.0346617
+        },
+        "heap_allocations": 0,
+        "heap_requested_bytes": 0,
+        "measured_simulated_s": 120.0,
+        "measured_steps": 120,
+        "outer_profiled_fraction": 0.9907461581169978,
+        "outer_profiled_s": 1.177739588,
+        "peak_rss_bytes": 41418752,
+        "physics_field_allocated_bytes": 0,
+        "physics_field_allocations": 0,
+        "radiation_s": 0.00826275,
+        "returncode": 0,
+        "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+        "sim_s_per_wall_s": 100.947,
+        "step_wall_s": 1.18874,
+        "turbulence_operators": {
+          "coefficients": 0.131655,
+          "moisture": 0.0263818,
+          "momentum": 0.181079,
+          "profiled": 0.365356,
+          "theta": 0.0262401
+        },
+        "variant": "optimized",
+        "warmup_steps": 120
+      },
+      "order": [
+        "legacy",
+        "optimized"
+      ],
+      "pair": 4
+    },
+    {
+      "legacy": {
+        "allocation_components": {
+          "advection": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "boundary_layer": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "diffusion": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "dynamics": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "dynamics_core": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "eos": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "final_boundary": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "integrity_validation": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_apply": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_preflight": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_tendencies": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_transaction": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_transport": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "radiation": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "runtime_timestep": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "sponge": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "turbulence": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "unattributed": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          }
+        },
+        "avg_step_ms": 10.3725,
+        "boundary_layer_s": 0.000533458,
+        "chaos_noise_s": 1.0037e-05,
+        "chaos_tendency_s": 4.373e-06,
+        "checkpoint_bytes": 4327195,
+        "checkpoint_sha256": "a3b73a8fd7c447facfd20bdd34280e0cac9da8b970e858f84a0c2c5251ce7181",
+        "dynamics_named_step_fraction": 0.9754398650277175,
+        "dynamics_s": 1.22475,
+        "dynamics_stages": {
+          "advection": 0.17097,
+          "core": 0.316857,
+          "diffusion": 6.461e-06,
+          "eos": 0.0252127,
+          "final_boundary": 0.0267037,
+          "microphysics": 0.142489,
+          "microphysics_transport": 1.6841e-05,
+          "profiled": 1.21413,
+          "profiled_fraction": 0.991343,
+          "residual": 0.0106025,
+          "sponge": 3.3496e-05,
+          "step_fraction": 0.983962,
+          "total": 1.22474,
+          "turbulence": 0.531843,
+          "turbulence_apply": 0.0690875,
+          "turbulence_chaos": 7.418e-06,
+          "turbulence_commit": 5.295e-06,
+          "turbulence_profiled": 0.531817513,
+          "turbulence_profiled_fraction": 0.9999520779628576,
+          "turbulence_refresh": 0.427539,
+          "turbulence_residual": 2.54869999999352e-05,
+          "turbulence_stability": 0.0351783
+        },
+        "heap_allocations": 0,
+        "heap_requested_bytes": 0,
+        "measured_simulated_s": 120.0,
+        "measured_steps": 120,
+        "outer_profiled_fraction": 0.9909202924399454,
+        "outer_profiled_s": 1.233398488,
+        "peak_rss_bytes": 43024384,
+        "physics_field_allocated_bytes": 0,
+        "physics_field_allocations": 0,
+        "radiation_s": 0.00810062,
+        "returncode": 0,
+        "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+        "sim_s_per_wall_s": 96.4089,
+        "step_wall_s": 1.2447,
+        "turbulence_operators": {
+          "coefficients": 0.17986,
+          "moisture": 0.02646,
+          "momentum": 0.182945,
+          "profiled": 0.4159,
+          "theta": 0.0266354
+        },
+        "variant": "legacy",
+        "warmup_steps": 120
+      },
+      "optimized": {
+        "allocation_components": {
+          "advection": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "boundary_layer": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "diffusion": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "dynamics": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "dynamics_core": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "eos": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "final_boundary": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "integrity_validation": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_apply": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_preflight": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_tendencies": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_transaction": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_transport": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "radiation": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "runtime_timestep": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "sponge": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "turbulence": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "unattributed": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          }
+        },
+        "avg_step_ms": 9.89774,
+        "boundary_layer_s": 0.000554383,
+        "chaos_noise_s": 9.876e-06,
+        "chaos_tendency_s": 4.123e-06,
+        "checkpoint_bytes": 4327195,
+        "checkpoint_sha256": "a3b73a8fd7c447facfd20bdd34280e0cac9da8b970e858f84a0c2c5251ce7181",
+        "dynamics_named_step_fraction": 0.9744302156213954,
+        "dynamics_s": 1.16786,
+        "dynamics_stages": {
+          "advection": 0.169942,
+          "core": 0.313598,
+          "diffusion": 4.628e-06,
+          "eos": 0.0249801,
+          "final_boundary": 0.0262942,
+          "microphysics": 0.141766,
+          "microphysics_transport": 7.88e-06,
+          "profiled": 1.15736,
+          "profiled_fraction": 0.991015,
+          "residual": 0.0104935,
+          "sponge": 2.6004e-05,
+          "step_fraction": 0.983264,
+          "total": 1.16785,
+          "turbulence": 0.480738,
+          "turbulence_apply": 0.0684026,
+          "turbulence_chaos": 4.463e-06,
+          "turbulence_commit": 4.956e-06,
+          "turbulence_profiled": 0.480716419,
+          "turbulence_profiled_fraction": 0.999955108603855,
+          "turbulence_refresh": 0.377797,
+          "turbulence_residual": 2.1580999999992745e-05,
+          "turbulence_stability": 0.0345074
+        },
+        "heap_allocations": 0,
+        "heap_requested_bytes": 0,
+        "measured_simulated_s": 120.0,
+        "measured_steps": 120,
+        "outer_profiled_fraction": 0.9905640440167378,
+        "outer_profiled_s": 1.176522632,
+        "peak_rss_bytes": 41467904,
+        "physics_field_allocated_bytes": 0,
+        "physics_field_allocations": 0,
+        "radiation_s": 0.00809425,
+        "returncode": 0,
+        "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+        "sim_s_per_wall_s": 101.033,
+        "step_wall_s": 1.18773,
+        "turbulence_operators": {
+          "coefficients": 0.131856,
+          "moisture": 0.0265429,
+          "momentum": 0.181546,
+          "profiled": 0.36634,
+          "theta": 0.0263955
+        },
+        "variant": "optimized",
+        "warmup_steps": 120
+      },
+      "order": [
+        "optimized",
+        "legacy"
+      ],
+      "pair": 5
+    },
+    {
+      "legacy": {
+        "allocation_components": {
+          "advection": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "boundary_layer": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "diffusion": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "dynamics": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "dynamics_core": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "eos": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "final_boundary": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "integrity_validation": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_apply": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_preflight": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_tendencies": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_transaction": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_transport": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "radiation": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "runtime_timestep": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "sponge": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "turbulence": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "unattributed": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          }
+        },
+        "avg_step_ms": 10.3633,
+        "boundary_layer_s": 0.000527258,
+        "chaos_noise_s": 1.0916e-05,
+        "chaos_tendency_s": 4.296e-06,
+        "checkpoint_bytes": 4327195,
+        "checkpoint_sha256": "a3b73a8fd7c447facfd20bdd34280e0cac9da8b970e858f84a0c2c5251ce7181",
+        "dynamics_named_step_fraction": 0.9755146349308459,
+        "dynamics_s": 1.22368,
+        "dynamics_stages": {
+          "advection": 0.17031,
+          "core": 0.315004,
+          "diffusion": 3.882e-06,
+          "eos": 0.0252148,
+          "final_boundary": 0.0267711,
+          "microphysics": 0.14268,
+          "microphysics_transport": 9.585e-06,
+          "profiled": 1.21315,
+          "profiled_fraction": 0.991409,
+          "residual": 0.0105127,
+          "sponge": 2.8627e-05,
+          "step_fraction": 0.983973,
+          "total": 1.22366,
+          "turbulence": 0.53313,
+          "turbulence_apply": 0.0694811,
+          "turbulence_chaos": 6.787e-06,
+          "turbulence_commit": 5.009e-06,
+          "turbulence_profiled": 0.533103996,
+          "turbulence_profiled_fraction": 0.9999512239041135,
+          "turbulence_refresh": 0.42814,
+          "turbulence_residual": 2.6003999999968386e-05,
+          "turbulence_stability": 0.0354711
+        },
+        "heap_allocations": 0,
+        "heap_requested_bytes": 0,
+        "measured_simulated_s": 120.0,
+        "measured_steps": 120,
+        "outer_profiled_fraction": 0.9908230299131554,
+        "outer_profiled_s": 1.23218752,
+        "peak_rss_bytes": 41680896,
+        "physics_field_allocated_bytes": 0,
+        "physics_field_allocations": 0,
+        "radiation_s": 0.00796505,
+        "returncode": 0,
+        "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+        "sim_s_per_wall_s": 96.4944,
+        "step_wall_s": 1.2436,
+        "turbulence_operators": {
+          "coefficients": 0.180159,
+          "moisture": 0.0267172,
+          "momentum": 0.182993,
+          "profiled": 0.416509,
+          "theta": 0.0266407
+        },
+        "variant": "legacy",
+        "warmup_steps": 120
+      },
+      "optimized": {
+        "allocation_components": {
+          "advection": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "boundary_layer": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "diffusion": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "dynamics": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "dynamics_core": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "eos": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "final_boundary": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "integrity_validation": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_apply": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_preflight": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_tendencies": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_transaction": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_transport": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "radiation": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "runtime_timestep": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "sponge": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "turbulence": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "unattributed": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          }
+        },
+        "avg_step_ms": 9.8873,
+        "boundary_layer_s": 0.000539962,
+        "chaos_noise_s": 6.913e-06,
+        "chaos_tendency_s": 2.705e-06,
+        "checkpoint_bytes": 4327195,
+        "checkpoint_sha256": "a3b73a8fd7c447facfd20bdd34280e0cac9da8b970e858f84a0c2c5251ce7181",
+        "dynamics_named_step_fraction": 0.9746476973906009,
+        "dynamics_s": 1.16671,
+        "dynamics_stages": {
+          "advection": 0.168733,
+          "core": 0.311505,
+          "diffusion": 2.954e-06,
+          "eos": 0.0248655,
+          "final_boundary": 0.0265471,
+          "microphysics": 0.142162,
+          "microphysics_transport": 8.424e-06,
+          "profiled": 1.1564,
+          "profiled_fraction": 0.991167,
+          "residual": 0.0103053,
+          "sponge": 2.138e-05,
+          "step_fraction": 0.983334,
+          "total": 1.1667,
+          "turbulence": 0.482552,
+          "turbulence_apply": 0.0677659,
+          "turbulence_chaos": 2.627e-06,
+          "turbulence_commit": 3.42e-06,
+          "turbulence_profiled": 0.48252974699999995,
+          "turbulence_profiled_fraction": 0.9999538847626783,
+          "turbulence_refresh": 0.380196,
+          "turbulence_residual": 2.2253000000027612e-05,
+          "turbulence_stability": 0.0345618
+        },
+        "heap_allocations": 0,
+        "heap_requested_bytes": 0,
+        "measured_simulated_s": 120.0,
+        "measured_steps": 120,
+        "outer_profiled_fraction": 0.9904477193041602,
+        "outer_profiled_s": 1.17514641,
+        "peak_rss_bytes": 43040768,
+        "physics_field_allocated_bytes": 0,
+        "physics_field_allocations": 0,
+        "radiation_s": 0.00788683,
+        "returncode": 0,
+        "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+        "sim_s_per_wall_s": 101.14,
+        "step_wall_s": 1.18648,
+        "turbulence_operators": {
+          "coefficients": 0.133609,
+          "moisture": 0.0264405,
+          "momentum": 0.182008,
+          "profiled": 0.368457,
+          "theta": 0.0263996
+        },
+        "variant": "optimized",
+        "warmup_steps": 120
+      },
+      "order": [
+        "legacy",
+        "optimized"
+      ],
+      "pair": 6
+    },
+    {
+      "legacy": {
+        "allocation_components": {
+          "advection": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "boundary_layer": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "diffusion": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "dynamics": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "dynamics_core": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "eos": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "final_boundary": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "integrity_validation": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_apply": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_preflight": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_tendencies": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_transaction": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_transport": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "radiation": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "runtime_timestep": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "sponge": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "turbulence": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "unattributed": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          }
+        },
+        "avg_step_ms": 10.2882,
+        "boundary_layer_s": 0.000526455,
+        "chaos_noise_s": 5.622e-06,
+        "chaos_tendency_s": 2.459e-06,
+        "checkpoint_bytes": 4327195,
+        "checkpoint_sha256": "a3b73a8fd7c447facfd20bdd34280e0cac9da8b970e858f84a0c2c5251ce7181",
+        "dynamics_named_step_fraction": 0.9757245378995285,
+        "dynamics_s": 1.21486,
+        "dynamics_stages": {
+          "advection": 0.168154,
+          "core": 0.310504,
+          "diffusion": 3.456e-06,
+          "eos": 0.0251043,
+          "final_boundary": 0.026849,
+          "microphysics": 0.143003,
+          "microphysics_transport": 6.335e-06,
+          "profiled": 1.20461,
+          "profiled_fraction": 0.991574,
+          "residual": 0.0102363,
+          "sponge": 2.2791e-05,
+          "step_fraction": 0.984017,
+          "total": 1.21485,
+          "turbulence": 0.530967,
+          "turbulence_apply": 0.0678921,
+          "turbulence_chaos": 3.504e-06,
+          "turbulence_commit": 3.877e-06,
+          "turbulence_profiled": 0.530947981,
+          "turbulence_profiled_fraction": 0.9999641804481257,
+          "turbulence_refresh": 0.428346,
+          "turbulence_residual": 1.9019000000009e-05,
+          "turbulence_stability": 0.0347025
+        },
+        "heap_allocations": 0,
+        "heap_requested_bytes": 0,
+        "measured_simulated_s": 120.0,
+        "measured_steps": 120,
+        "outer_profiled_fraction": 0.9908525215052894,
+        "outer_profiled_s": 1.2232867060000001,
+        "peak_rss_bytes": 41402368,
+        "physics_field_allocated_bytes": 0,
+        "physics_field_allocations": 0,
+        "radiation_s": 0.00789217,
+        "returncode": 0,
+        "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+        "sim_s_per_wall_s": 97.1988,
+        "step_wall_s": 1.23458,
+        "turbulence_operators": {
+          "coefficients": 0.18053,
+          "moisture": 0.0263754,
+          "momentum": 0.183072,
+          "profiled": 0.416402,
+          "theta": 0.0264255
+        },
+        "variant": "legacy",
+        "warmup_steps": 120
+      },
+      "optimized": {
+        "allocation_components": {
+          "advection": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "boundary_layer": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "diffusion": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "dynamics": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "dynamics_core": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "eos": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "final_boundary": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "integrity_validation": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_apply": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_preflight": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_tendencies": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_transaction": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "microphysics_transport": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "radiation": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "runtime_timestep": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "sponge": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "turbulence": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          },
+          "unattributed": {
+            "heap_allocations": 0,
+            "heap_requested_bytes": 0,
+            "physics_field_allocated_bytes": 0,
+            "physics_field_allocations": 0
+          }
+        },
+        "avg_step_ms": 9.93825,
+        "boundary_layer_s": 0.000545667,
+        "chaos_noise_s": 9.006e-06,
+        "chaos_tendency_s": 3.037e-06,
+        "checkpoint_bytes": 4327195,
+        "checkpoint_sha256": "a3b73a8fd7c447facfd20bdd34280e0cac9da8b970e858f84a0c2c5251ce7181",
+        "dynamics_named_step_fraction": 0.9746350380264801,
+        "dynamics_s": 1.17266,
+        "dynamics_stages": {
+          "advection": 0.169391,
+          "core": 0.314008,
+          "diffusion": 4.753e-06,
+          "eos": 0.0250321,
+          "final_boundary": 0.026698,
+          "microphysics": 0.143473,
+          "microphysics_transport": 8.746e-06,
+          "profiled": 1.16234,
+          "profiled_fraction": 0.99121,
+          "residual": 0.0103072,
+          "sponge": 2.7207e-05,
+          "step_fraction": 0.983275,
+          "total": 1.17264,
+          "turbulence": 0.483694,
+          "turbulence_apply": 0.0677422,
+          "turbulence_chaos": 2.921e-06,
+          "turbulence_commit": 4.709e-06,
+          "turbulence_profiled": 0.48367043,
+          "turbulence_profiled_fraction": 0.9999512708447903,
+          "turbulence_refresh": 0.380784,
+          "turbulence_residual": 2.357000000002829e-05,
+          "turbulence_stability": 0.0351366
+        },
+        "heap_allocations": 0,
+        "heap_requested_bytes": 0,
+        "measured_simulated_s": 120.0,
+        "measured_steps": 120,
+        "outer_profiled_fraction": 0.9904831836590948,
+        "outer_profiled_s": 1.18124034,
+        "peak_rss_bytes": 41435136,
+        "physics_field_allocated_bytes": 0,
+        "physics_field_allocations": 0,
+        "radiation_s": 0.00802263,
+        "returncode": 0,
+        "scope": "model_step_including_cfl_and_enabled_consumers_excluding_periodic_file_output_submission",
+        "sim_s_per_wall_s": 100.621,
+        "step_wall_s": 1.19259,
+        "turbulence_operators": {
+          "coefficients": 0.133703,
+          "moisture": 0.0263719,
+          "momentum": 0.182338,
+          "profiled": 0.368951,
+          "theta": 0.026538
+        },
+        "variant": "optimized",
+        "warmup_steps": 120
+      },
+      "order": [
+        "optimized",
+        "legacy"
+      ],
+      "pair": 7
+    }
+  ],
+  "run": {
+    "config": "/Users/victortiradoegas/Desktop/PersonalProjects/Nimbus/configs/benchmark/active_physics_allocations.yaml",
+    "config_sha256": "b6ae6c721658d51410dae1bca9afbd9949bb6162590fa5d7854dec7a8f4fa61a",
+    "duration_s": 240,
+    "legacy_binary": "/Users/victortiradoegas/Desktop/PersonalProjects/Nimbus/bin/nimbus_sim_smagorinsky_filter_legacy",
+    "legacy_binary_sha256": "16c28eb2a6d6fbac5dae88afb2d619961ce1063d5381ef961677566b14063e02",
+    "measurement_contract": "same equations/order/cadence/workers; comparator changes only flat-grid Smagorinsky filter-width evaluation frequency; warmup excluded; final checkpoints exact",
+    "minimum_speedup_percent": 2.0,
+    "optimized_binary": "/Users/victortiradoegas/Desktop/PersonalProjects/Nimbus/bin/nimbus_sim_active_physics_allocations",
+    "optimized_binary_sha256": "35ab5bc7d96f0731607033ac10c43c7aa608bd7d391ed0b8688c91f3b99da3c3",
+    "order": "alternating optimized-first / legacy-first",
+    "threads": 4,
+    "trials": 7
+  },
+  "schema": "nimbus.active-physics-allocation-benchmark.v1"
+}

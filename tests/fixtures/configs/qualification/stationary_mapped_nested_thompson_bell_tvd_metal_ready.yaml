@@ -1,0 +1,169 @@
+schema: nimbus.v1
+
+grid:
+  coordinate_system: cartesian
+  staggering: c_grid
+  nx: 16
+  ny: 16
+  nz: 24
+  dx: 1000
+  dy: 1000
+  dz: 500
+  ztop: 12000
+
+time:
+  run_time: 2
+  dt_large: 0.5
+  acoustic_substeps: 6
+  adaptive_dt: false
+  cfl_safety: 0.7
+  output_interval: 1
+
+domain_motion:
+  mode: stationary
+  frame_velocity:
+    u_ms: 0
+    v_ms: 0
+  lifetime_planning:
+    enabled: false
+  tracking:
+    enabled: false
+    recycle_domain: false
+  nesting:
+    enabled: true
+    parent_ratio_x: 2
+    parent_ratio_y: 2
+    parent_time_step_ratio: 2
+    child_origin_parent_cell_i: 5
+    child_origin_parent_cell_j: 5
+    child_cells_x: 8
+    child_cells_y: 8
+    relaxation_width_child_cells: 1
+    boundary_stencil_parent_cells: 1
+    relaxation_e_folding_time_s: 2
+    feedback: two_way
+
+dynamics:
+  scheme: klemp_wilhelmson_split_cartesian_cgrid
+  axisymmetric: false
+
+boundary_conditions:
+  lateral:
+    west: zero_gradient
+    east: zero_gradient
+    south: zero_gradient
+    north: zero_gradient
+  bottom: rigid_slip
+  top: rigid
+
+damping:
+  enabled: false
+  z_d: 12000
+  alpha: 0
+  mode: explicit
+  lateral_width: 0
+  lateral_alpha: 0
+  lateral_sponge_enabled: false
+  w_only_top_sponge: false
+  w_only_depth_cells: 0
+  w_only_alpha_max: 0
+
+coriolis:
+  enabled: false
+  mode: f_plane
+  latitude_deg: 35
+
+microphysics:
+  scheme: thompson
+  thompson:
+    water_friendly_aerosol_surface_m3: 350000000
+    ice_friendly_aerosol_surface_m3: 2000000
+
+turbulence:
+  scheme: none
+  mode: 3d
+  Cs: 0.18
+  Pr_t: 0.3333333333333333
+  Sc_t: 0.3333333333333333
+
+advection:
+  scheme: tvd
+
+diffusion:
+  scheme: explicit
+  operator_order: 2
+  K_h: 0
+  K_v: 0
+  apply_to: scalars
+
+surface:
+  scheme: none
+  apply_fluxes: false
+
+boundary_layer:
+  scheme: none
+
+radiation:
+  scheme: none
+
+terrain:
+  scheme: bell
+  coordinate: smoothed
+  horizontal_placement: grid_attached
+  compute_derivatives: true
+  compute_metrics: true
+  smoothing_decay: 0.1
+  bell:
+    h0: 20
+    a: 1600
+    axisymmetric: true
+
+initial_conditions:
+  sounding:
+    type: file
+    file_path: tests/fixtures/configs/qualification/soundings/lin_cloudy_profile.txt
+  hodograph:
+    type: wk_param
+    u_sfc_ms: 4
+    v_sfc_ms: 1
+    u_1km_ms: 4
+    v_1km_ms: 1
+    u_6km_ms: 4
+    v_6km_ms: 1
+  trigger:
+    type: bubble
+    bubble:
+      dtheta_k: 2
+      cloud_water_kgkg: 0.001
+      radius_km: 30
+      center_x_m: 8000
+      center_y_m: 8000
+      center_z_m: 6000
+
+output:
+  preset: dynamics_full
+  format: npy_3d
+  async_io: false
+  live_shm: false
+
+extensions:
+  execution:
+    mode: qualified
+  compute:
+    backend: metal
+    allow_fallback: false
+    gpu_apply_microphysics: true
+    gpu_apply_slow: false
+    gpu_apply_sgs: false
+  solver:
+    slow_rk2: true
+    axis_u_m1_filter: false
+  chaos:
+    scheme: none
+  checkpoint:
+    every_s: 1
+  diagnostics:
+    scientific_every_steps: 1
+    deterministic_reductions: true
+  validation:
+    guard_mode: error

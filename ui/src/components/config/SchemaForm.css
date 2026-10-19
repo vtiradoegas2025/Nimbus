@@ -1,0 +1,327 @@
+.schema-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding-top: var(--space-2);
+}
+
+/* Fills the control column. Without this the wrapper shrink-wraps to its
+ * select's widest option, so enum rows stop short of the right edge every
+ * number/text row lands on — and no two enums agree with each other either. */
+.enum-control {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+}
+
+.enum-control__note {
+  font-size: var(--font-size-xs);
+  color: var(--color-warn);
+  font-style: italic;
+  line-height: 1.3;
+}
+
+.enum-control__unavailable {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  line-height: 1.35;
+}
+
+.enum-control__unavailable strong {
+  color: var(--color-warn);
+  font-weight: 600;
+}
+
+.schema-form__row {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.72fr) minmax(220px, 1.28fr);
+  grid-template-rows: auto auto;
+  align-items: center;
+  gap: var(--space-2) var(--space-5);
+  min-height: 52px;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.schema-form__row:last-child {
+  border-bottom: 0;
+}
+
+.schema-form__label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-self: center;
+}
+
+.schema-form__cm1 {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  line-height: 1.35;
+}
+
+.schema-form__cm1 > span:first-child {
+  font-weight: 600;
+  letter-spacing: 0.035em;
+}
+
+.schema-form__cm1 code,
+.schema-form__canonical-id code {
+  font-family: var(--font-mono);
+  font-variant-ligatures: none;
+}
+
+.schema-form__cm1 > span:last-child {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-text-muted);
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.schema-form__cm1 > span:last-child::before {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-text-muted);
+  content: "";
+}
+
+.schema-form__cm1--same_scalar > span:last-child::before {
+  background: var(--color-ok);
+}
+
+.schema-form__cm1--review > span:last-child::before {
+  background: var(--color-warn);
+}
+
+.schema-form__cm1--different > span:last-child::before {
+  background: var(--color-info);
+}
+
+.schema-form__canonical-id {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  line-height: 1.35;
+}
+
+.schema-form__canonical-id code {
+  color: var(--color-text-secondary);
+}
+
+.schema-form__label-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.schema-form__label-line > label {
+  font-size: var(--font-size-md);
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.schema-form__info-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-pill);
+  color: var(--color-text-muted);
+  border: 1px solid transparent;
+  transition:
+    color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+  flex-shrink: 0;
+}
+
+.schema-form__info-btn:hover {
+  color: var(--color-info);
+  background: color-mix(in oklch, var(--color-info) 10%, transparent);
+}
+
+.schema-form__info-btn--active {
+  color: var(--color-info);
+  background: color-mix(in oklch, var(--color-info) 16%, transparent);
+  border-color: color-mix(in oklch, var(--color-info) 40%, transparent);
+}
+
+.schema-form__hint {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}
+
+.schema-form__description {
+  grid-column: 1 / -1;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  line-height: 1.55;
+  margin-top: var(--space-1);
+  white-space: pre-line;
+}
+
+.schema-form__row--disabled .schema-form__label-line > label,
+.schema-form__row--disabled .schema-form__hint {
+  color: var(--color-text-muted);
+  opacity: 0.6;
+}
+
+.schema-form__row--disabled input,
+.schema-form__row--disabled select,
+.schema-form__row--disabled .toggle {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* The reason a row is disabled. Deliberately NOT dimmed by the rule above —
+ * it is the one thing on a grayed-out row that must stay readable, otherwise
+ * the control looks broken rather than governed by another setting. */
+.schema-form__disabled-reason {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+  color: var(--color-warning);
+}
+
+.schema-form__disabled-reason svg {
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.schema-form__control {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.schema-form__control input,
+.schema-form__control select {
+  width: 100%;
+  font-variant-numeric: tabular-nums;
+}
+
+.toggle {
+  position: relative;
+  width: 38px;
+  height: 22px;
+  flex: 0 0 38px;
+  padding: 0;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-3);
+  cursor: pointer;
+  transition:
+    background var(--duration-medium) var(--ease-out),
+    border-color var(--duration-medium) var(--ease-out);
+}
+
+.toggle:hover:not(:disabled) {
+  border-color: var(--color-text-muted);
+}
+
+.toggle:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 3px;
+}
+
+.toggle--on {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+}
+
+.toggle__thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--color-text);
+  box-shadow: 0 1px 2px var(--shadow-color);
+  transition: transform var(--duration-medium) var(--ease-out);
+}
+
+.toggle--on .toggle__thumb {
+  background: var(--color-accent-contrast);
+  transform: translateX(16px);
+}
+
+.schema-form__number {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.schema-form__number-error {
+  flex-basis: 100%;
+  margin-top: var(--space-1);
+  color: var(--color-danger);
+  font-size: var(--font-size-xs);
+}
+
+/* Reserve enough right padding that the unit label clears BOTH the value and
+ * the native spin buttons. The spinner renders at the content-box right edge —
+ * insets [padding-right, padding-right + ~16px] from the border — while
+ * .schema-form__unit sits at insets [12, 12 + label width]. The widest unit in
+ * the schema is "kg/kg" (33px at --font-size-xs in --font-mono), reaching inset
+ * 45, so padding-right has to exceed that. At the previous 36px the label was
+ * painted straight through the spin arrows (8px overlap) and over the last
+ * digits of the value (9px) — measured identically in Chromium and WebKit.
+ * 56px leaves an 11px gap. */
+.schema-form__number input {
+  padding-right: 56px;
+}
+
+.schema-form__unit {
+  position: absolute;
+  right: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
+/* Locked field (solver internal — read-only in the form). The row also
+ * carries --disabled, which dims the control; this just marks the label. */
+.schema-form__lock {
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+@container (max-width: 640px) {
+  .schema-form__row {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+    gap: var(--space-2);
+    padding: var(--space-3) 0;
+  }
+
+  .schema-form__control {
+    width: 100%;
+  }
+
+  .schema-form__description {
+    grid-column: 1;
+  }
+}

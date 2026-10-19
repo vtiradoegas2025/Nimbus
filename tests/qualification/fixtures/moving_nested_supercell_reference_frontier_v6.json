@@ -1,0 +1,53 @@
+{
+  "schema": "nimbus.qualification.moving_nested_reference_frontier.policy",
+  "schema_version": 6,
+  "policy_id": "moving-nested-reference-frontier-v6-trusted-interior-containment-amendment",
+  "policy_status": "ratified",
+  "scope": "same-equation 600 m moving-child versus oversized stationary Nimbus reference with inherited v5 thresholds, geometry, aperture, and trusted-interior containment amendment",
+  "prior_policy": {
+    "path": "moving_nested_supercell_reference_frontier_v5.json",
+    "sha256": "1f12775281252f3e82792ef6400d277bd1bbd182c173c54f2dfe5c2779bc58a1",
+    "schema_version": 5,
+    "policy_id": "moving-nested-reference-frontier-v5-maximum-safe-projected-shift-amendment"
+  },
+  "failure_evidence": {
+    "path": "../../../docs/evidence/moving_nested_reference_frontier_v5_trusted_containment_failure.json",
+    "sha256": "907bc9df5f3707dab0bb445e1867857e577d7f42944160f6db37a6fb819832e6",
+    "schema_version": 1,
+    "reason": "trusted_envelope_rejected_when_release_box_unattainable"
+  },
+  "ratification": {
+    "decision": "post_failure_trusted_interior_containment_amendment_of_v5_and_blinded_v2_thresholds",
+    "review_date": "2026-08-12",
+    "reviewer_role": "independent_science_policy_audit",
+    "failed_v5_trusted_containment_sequence_observed": true,
+    "candidate_metric_values_inspected": false,
+    "minimum_input_series_schema_version": 2,
+    "trusted_interior_containment_amendment": {
+      "reason": "fail_closed_trusted_envelope_rejected_when_release_box_unattainable",
+      "algorithm": "qualified_envelope_hysteresis_v8",
+      "eligibility": "authoritative selected track with finite signed per-face motion, current trusted-interior membership, and projected relaxation risk",
+      "objective": "maximize the minimum current opposing-face clearance on the parent-cell lattice",
+      "current_trusted_interior_required": true,
+      "full_release_box_preferred": true,
+      "full_release_box_required_for_fallback": false,
+      "fallback_shift_must_strictly_improve_minimum_clearance": true,
+      "fallback_shift_must_preserve_all_relaxation_faces": true,
+      "maximum_shift_cap_parent_cells": 14,
+      "parent_containment_required": true,
+      "ambiguity_topology_or_missing_face_motion_bypass_allowed": false,
+      "current_relaxation_entry_recoverable": false,
+      "numerical_thresholds_changed": false,
+      "geometry_or_aperture_changed": false,
+      "measurement_cadence_changed": false,
+      "failed_candidate_disposition": "invalid_not_comparable"
+    }
+  },
+  "limitations": [
+    "All numerical thresholds, geometry, aperture, and measurement cadence are inherited byte-for-byte from the immutable v5 policy chain.",
+    "No metric value from the invalid v5 moving candidate was inspected or used to alter a threshold.",
+    "Trusted-interior containment does not admit a current relaxation-zone entry and does not waive ambiguity, topology, shift-cap, parent-containment, or finite-evidence checks.",
+    "A pass remains a bounded same-equation fixed-aperture comparison, not CM1, observational, ensemble, climatological, retired-swath precipitation, or storm-lifetime validation.",
+    "The policy does not enable public moving_nest selection, live-storm Vulkan, device-resident relocation, terrain, throughput, or broader physics combinations."
+  ]
+}

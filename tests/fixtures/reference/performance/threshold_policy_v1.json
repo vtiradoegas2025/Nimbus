@@ -1,0 +1,308 @@
+{
+  "schema": "nimbus.c6-release-threshold-candidate.v1",
+  "status": "draft_not_activated",
+  "releaseBinary": {
+    "path": "bin/nimbus_sim",
+    "sha256": "5daa5a90cb14e1c7e8931029e1d64e17918f17a4206b3456d5aaf76c443550a7"
+  },
+  "acceptance": {
+    "minimumSteadyStateTrials": 7,
+    "minimumNamedWallFraction": 0.95,
+    "minimumWholeStepGainPercentExclusive": 2.0,
+    "minimumPairedMadMultipleExclusive": 3.0,
+    "memoryAlternative": "at_least_one_live_full_field_or_two_percent_of_admitted_peak",
+    "requireExactCheckpoint": true,
+    "requiredExactFields": [
+      "p",
+      "rho",
+      "theta",
+      "u",
+      "v",
+      "w",
+      "qv",
+      "qr"
+    ],
+    "requiredExactLedgers": [
+      "budget.csv",
+      "energy_budget.csv",
+      "moisture_budget.csv",
+      "momentum_budget.csv",
+      "radiation_budget.csv",
+      "thermodynamic_source_budget.csv"
+    ]
+  },
+  "observations": [
+    {
+      "id": "cpu_milbrandt_production_stage_8cc",
+      "kind": "attribution_only",
+      "path": "tests/fixtures/reference/performance/observations/cpu_milbrandt_production_stage_8cc.json",
+      "sha256": "813849578943040c8fad8f4841caf1158e19e8e477d28062ce9980209f3c5537",
+      "boundBinarySha256": "8cc4a4aafd4a24be3aa78e92286e7b0cb3c2bea1827d0d75b6a5331384e9dcaf",
+      "disposition": "not_a_release_threshold",
+      "limitation": "seven exact checkpoints and >99% named coverage, but no six-ledger or peak-memory receipt; preceding release binary"
+    },
+    {
+      "id": "cpu_milbrandt_process_probe",
+      "kind": "attribution_only",
+      "path": "tests/fixtures/reference/performance/observations/cpu_milbrandt_process_probe.json",
+      "sha256": "fd598a33a672f763fe62184489c7434f9ed2a43b7c3fbd03492edfd3ca40cf2d",
+      "boundBinarySha256": "95ed46c5d5893092181eb585a7d79f6c5d241d33740248a8e474524468a6aeb3",
+      "disposition": "not_a_release_threshold",
+      "limitation": "isolated timing-only CPU executable; no optimization or memory claim"
+    },
+    {
+      "id": "cpu_milbrandt_cold_gamma_ab",
+      "kind": "paired_ab",
+      "path": "tests/fixtures/reference/performance/observations/cpu_milbrandt_cold_gamma_ab.json",
+      "sha256": "d2835d637c3c5d4ef2d877c9f09e2175e1d89306b6fd52b643daa01515c628d9",
+      "baselineBinarySha256": "08b9918b3d2f2e59e77a4befaaa406948028d3ccc1421a65792a18855e23422d",
+      "candidateBinarySha256": "1983524fc9536e68ea044c2c629e7f817bbb09433ace2f5782d9d03c7a138b6b",
+      "disposition": "time_gain_rejected",
+      "limitation": "isolated CPU comparator, not release binary; no peak-memory claim"
+    },
+    {
+      "id": "historical_sci175_active_allocation",
+      "kind": "historical",
+      "path": "tests/fixtures/reference/performance/observations/historical_sci175_active_allocation.json",
+      "sha256": "eb9a496ad683fa1ccd4e4fcae75c90a925249f720ae2cbdc4542a062c383a652",
+      "disposition": "allocation_lifetime_accepted_speed_unpromoted"
+    },
+    {
+      "id": "historical_sci175_milbrandt_allocation",
+      "kind": "historical",
+      "path": "tests/fixtures/reference/performance/observations/historical_sci175_milbrandt_allocation.json",
+      "sha256": "75b2794f925dcd58c4eec5cf3bbadb5781657d9a3c062590b9a7e8cccafdfbe4",
+      "disposition": "allocation_lifetime_accepted_speed_unpromoted"
+    },
+    {
+      "id": "historical_sci177_smagorinsky",
+      "kind": "historical",
+      "path": "tests/fixtures/reference/performance/observations/historical_sci177_smagorinsky.json",
+      "sha256": "c6ed1fd9006ea48a1b119c08df089e8cbaa7b864d43c0a806568dbd5c75108a1",
+      "disposition": "isolated_time_gain_accepted_historical_source"
+    },
+    {
+      "id": "historical_sci180_cpu_student_frontier",
+      "kind": "historical",
+      "path": "tests/fixtures/reference/performance/observations/historical_sci180_cpu_student_frontier.json",
+      "sha256": "3f6df6d6819aad44090f1d835b6c2d7f674e3d4692475aaf8d815a595610fd0f",
+      "disposition": "student_frontier_accepted_historical_source"
+    },
+    {
+      "id": "historical_sci240_report_attribution",
+      "kind": "historical",
+      "path": "tests/fixtures/reference/performance/observations/historical_sci240_report_attribution.json",
+      "sha256": "7a46ec8b42b6a21ad9e2182431b6688880ba4866a97ea59dc122a1c972c1ba2c",
+      "disposition": "time_gain_rejected"
+    },
+    {
+      "id": "historical_sci241_endpoint_moisture",
+      "kind": "historical",
+      "path": "tests/fixtures/reference/performance/observations/historical_sci241_endpoint_moisture.json",
+      "sha256": "a76ea00cd4689f2e24890fb285955c2741cae4fd9cae5d0f37706a477209154f",
+      "disposition": "whole_step_time_gain_rejected"
+    },
+    {
+      "id": "historical_sci242_microphysics_gate",
+      "kind": "historical",
+      "path": "tests/fixtures/reference/performance/observations/historical_sci242_microphysics_gate.json",
+      "sha256": "a0e7284e8cbfe616c7dad6a5ccfed778fc5ad443858625c7aa262c97d305c72c",
+      "disposition": "time_gain_rejected"
+    },
+    {
+      "id": "historical_sci252_codec_workspace",
+      "kind": "historical",
+      "path": "tests/fixtures/reference/performance/observations/historical_sci252_codec_workspace.json",
+      "sha256": "eded726808a99ee174c29ee7e86a02337e376e91b40489767f61f5c15739d51f",
+      "disposition": "lifecycle_accepted_throughput_unpromoted"
+    }
+  ],
+  "workloadClasses": [
+    {
+      "id": "cpu_milbrandt_24x24x20",
+      "backend": "cpu",
+      "grid": [
+        24,
+        24,
+        20
+      ],
+      "config": "tests/fixtures/configs/benchmark/milbrandt_science_ab.yaml",
+      "fullFieldBytes": 46080,
+      "historicalAdmittedPeakBytes": 26730496,
+      "missing": [
+        "current_release_binary_seven_trial_science_and_peak",
+        "memory_liveness",
+        "versioned_limits"
+      ],
+      "receipt": null,
+      "thresholds": null
+    },
+    {
+      "id": "cpu_active_32x32x24",
+      "backend": "cpu",
+      "grid": [
+        32,
+        32,
+        24
+      ],
+      "config": "tests/fixtures/configs/benchmark/active_physics_allocations.yaml",
+      "fullFieldBytes": 98304,
+      "historicalAdmittedPeakBytes": null,
+      "missing": [
+        "current_release_binary_seven_trial_science_and_peak",
+        "versioned_limits"
+      ],
+      "receipt": null,
+      "thresholds": null
+    },
+    {
+      "id": "cpu_student_64x64x48",
+      "backend": "cpu",
+      "grid": [
+        64,
+        64,
+        48
+      ],
+      "config": "tests/fixtures/configs/benchmark/cpu_scaling_student.yaml",
+      "fullFieldBytes": 786432,
+      "historicalAdmittedPeakBytes": null,
+      "missing": [
+        "current_release_binary_thread_frontier",
+        "named_stage_and_science_receipt",
+        "versioned_limits"
+      ],
+      "receipt": null,
+      "thresholds": null
+    },
+    {
+      "id": "cpu_workstation_128x128x64",
+      "backend": "cpu",
+      "grid": [
+        128,
+        128,
+        64
+      ],
+      "config": "tests/fixtures/configs/benchmark/benchmark.yaml",
+      "fullFieldBytes": 4194304,
+      "historicalAdmittedPeakBytes": null,
+      "missing": [
+        "bounded_seven_trial_workstation_frontier",
+        "named_stage_and_science_receipt",
+        "versioned_limits"
+      ],
+      "receipt": null,
+      "thresholds": null
+    },
+    {
+      "id": "metal_npy_18x18x18",
+      "backend": "metal",
+      "grid": [
+        18,
+        18,
+        18
+      ],
+      "config": "tests/fixtures/reference/catalog/generated_metal_canonical_v1.yaml",
+      "fullFieldBytes": 23328,
+      "historicalAdmittedPeakBytes": null,
+      "missing": [
+        "seven_trial_native_dispatch_and_transfer",
+        "peak_device_host_memory",
+        "exact_science_and_versioned_limits"
+      ],
+      "receipt": null,
+      "thresholds": null
+    },
+    {
+      "id": "metal_netcdf_18x18x18",
+      "backend": "metal",
+      "grid": [
+        18,
+        18,
+        18
+      ],
+      "config": "tests/fixtures/reference/catalog/generated_metal_netcdf_v1.yaml",
+      "fullFieldBytes": 23328,
+      "historicalAdmittedPeakBytes": null,
+      "missing": [
+        "seven_trial_native_writer_reader_history",
+        "peak_device_host_storage_memory",
+        "exact_science_and_versioned_limits"
+      ],
+      "receipt": null,
+      "thresholds": null
+    },
+    {
+      "id": "vulkan_direct_12x12x48",
+      "backend": "vulkan_direct",
+      "grid": [
+        12,
+        12,
+        48
+      ],
+      "config": "tests/fixtures/configs/qualification/cgrid_thompson_vulkan_ready.yaml",
+      "fullFieldBytes": 27648,
+      "historicalAdmittedPeakBytes": null,
+      "missing": [
+        "seven_trial_direct_dispatch_transfer_wait",
+        "peak_host_device_memory",
+        "exact_science_and_versioned_limits"
+      ],
+      "receipt": null,
+      "thresholds": null
+    },
+    {
+      "id": "vulkan_staged_12x12x48",
+      "backend": "vulkan_staged",
+      "grid": [
+        12,
+        12,
+        48
+      ],
+      "config": "tests/fixtures/configs/qualification/cgrid_thompson_vulkan_ready.yaml",
+      "fullFieldBytes": 27648,
+      "historicalAdmittedPeakBytes": null,
+      "missing": [
+        "seven_trial_staged_transfer_wait",
+        "peak_host_device_memory",
+        "exact_science_and_versioned_limits"
+      ],
+      "receipt": null,
+      "thresholds": null
+    },
+    {
+      "id": "zfp_history_64x64x48",
+      "backend": "cpu_writer_and_studio_reader",
+      "grid": [
+        64,
+        64,
+        48
+      ],
+      "config": "tests/fixtures/configs/benchmark/zfp_history_working_set.yaml",
+      "fullFieldBytes": 786432,
+      "historicalAdmittedPeakBytes": null,
+      "missing": [
+        "current_release_writer_reader_storage",
+        "codec_error_and_retention",
+        "peak_storage_memory",
+        "versioned_limits"
+      ],
+      "receipt": null,
+      "thresholds": null
+    },
+    {
+      "id": "retained_terrain_postimplementation",
+      "backend": "cpu_metal_vulkan_staged",
+      "grid": null,
+      "config": null,
+      "fullFieldBytes": null,
+      "historicalAdmittedPeakBytes": null,
+      "missing": [
+        "R6_R7_R8_exact_retained_scope",
+        "bounded_current_source_performance",
+        "versioned_limits"
+      ],
+      "receipt": null,
+      "thresholds": null
+    }
+  ]
+}

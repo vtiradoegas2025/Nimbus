@@ -1,0 +1,167 @@
+schema: nimbus.v1
+
+grid:
+  coordinate_system: cartesian
+  staggering: c_grid
+  nx: 12
+  ny: 12
+  nz: 18
+  dx: 500
+  dy: 500
+  dz: 500
+  ztop: 9000
+
+time:
+  integrator: split_explicit
+  run_time: 2
+  dt_large: 0.1
+  acoustic_substeps: 6
+  adaptive_dt: false
+  cfl_safety: 0.7
+  output_interval: 1
+
+domain_motion:
+  mode: stationary
+  frame_velocity:
+    u_ms: 0
+    v_ms: 0
+  lifetime_planning:
+    enabled: false
+  tracking:
+    enabled: false
+    recycle_domain: false
+  nesting:
+    enabled: false
+
+dynamics:
+  scheme: klemp_wilhelmson_split_cartesian_cgrid
+  axisymmetric: false
+
+advection:
+  scheme: weno5
+
+boundary_conditions:
+  lateral:
+    west: periodic
+    east: periodic
+    south: periodic
+    north: periodic
+  bottom: rigid_slip
+  top: rigid
+
+damping:
+  enabled: false
+  z_d: 9000
+  alpha: 0
+  mode: explicit
+  lateral_width: 0
+  lateral_alpha: 0
+  lateral_sponge_enabled: false
+  w_only_top_sponge: false
+  w_only_depth_cells: 0
+  w_only_alpha_max: 0
+
+coriolis:
+  enabled: false
+  mode: f_plane
+  latitude_deg: 35
+
+microphysics:
+  scheme: none
+
+turbulence:
+  scheme: none
+  mode: 3d
+  filter_width: cubic_root
+  stability_correction: none
+  user_filter_width_m: 0
+  dynamic_coefficient: false
+  Cs: 0.18
+  Pr_t: 0.3333333333333333
+  Sc_t: 0.3333333333333333
+
+diffusion:
+  scheme: explicit
+  operator_order: 2
+  coefficient_source: constant
+  K_h: 0
+  K_v: 0
+  apply_to: scalars
+
+surface:
+  scheme: none
+  apply_fluxes: false
+
+boundary_layer:
+  scheme: none
+  pbl_top_method: ri
+
+radiation:
+  scheme: none
+
+terrain:
+  scheme: schar
+  coordinate: smoothed
+  compute_derivatives: true
+  compute_metrics: true
+  smoothing_decay: 0.1
+  schar:
+    H: 220
+    a: 1600
+    ell: 2000
+
+initial_conditions:
+  sounding:
+    type: parametric_cape
+    cape_jkg: 3275.016
+    tropopause_m: 8000
+    surface_theta_k: 300
+    moisture_qv_kgkg: 0
+  hodograph:
+    type: wk_param
+    u_sfc_ms: 2
+    v_sfc_ms: -1
+    u_1km_ms: 2
+    v_1km_ms: -1
+    u_6km_ms: 2
+    v_6km_ms: -1
+  trigger:
+    type: none
+
+radar:
+  enabled: false
+  products: []
+
+output:
+  preset: minimal
+  format: npy_3d
+  async_io: false
+  live_shm: false
+
+extensions:
+  execution:
+    mode: qualified
+  compute:
+    backend: metal
+    allow_fallback: false
+    validate_parity: false
+    gpu_apply_microphysics: false
+    gpu_apply_slow: true
+    gpu_apply_sgs: false
+  solver:
+    slow_rk2: true
+    lid_bc_gamma: -1
+    axis_u_m1_filter: false
+  chaos:
+    scheme: none
+    native_generation_required: false
+  checkpoint:
+    every_s: 1
+    keep_last: 0
+    minimum_free_space_mib: 0
+  diagnostics:
+    scientific_every_steps: 1
+    deterministic_reductions: true
+  validation:
+    guard_mode: error
+

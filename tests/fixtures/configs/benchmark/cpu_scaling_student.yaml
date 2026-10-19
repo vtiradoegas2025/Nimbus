@@ -1,0 +1,118 @@
+# CPU thread-frontier workload for laptop/student-class hardware.
+#
+# This is the same solver-only C-grid/Kessler/3-D-Smagorinsky science selection
+# as benchmark.yaml at a 64x64x48 working set. It is large enough to exercise
+# the production OpenMP thresholds without making the required one-thread,
+# seven-trial reference impractical. Use benchmark.yaml for the sustained
+# workstation-size frontier.
+schema: nimbus.v1
+
+grid:
+  coordinate_system: cartesian
+  staggering: c_grid
+  nx: 64
+  ny: 64
+  nz: 48
+  dx: 500
+  dy: 500
+  dz: 300
+  ztop: 14400
+
+time:
+  run_time: 120
+  dt_large: 1.0
+  acoustic_substeps: 8
+  adaptive_dt: false
+  cfl_safety: 0.7
+  output_interval: 0
+
+dynamics:
+  scheme: klemp_wilhelmson_split_cartesian_cgrid
+  axisymmetric: false
+
+boundary_conditions:
+  lateral:
+    west: radiative
+    east: radiative
+    south: radiative
+    north: radiative
+  bottom: rigid_slip
+  top: rigid
+
+damping:
+  enabled: true
+  z_d: 9600
+  alpha: 0.05
+  mode: explicit
+
+coriolis:
+  enabled: true
+  mode: f_plane
+  latitude_deg: 35
+
+microphysics:
+  scheme: kessler
+
+turbulence:
+  scheme: smagorinsky
+  mode: 3d
+  Cs: 0.18
+
+diffusion:
+  scheme: explicit
+  operator_order: 2
+  K_h: 0
+  K_v: 0
+  apply_to: scalars
+
+surface:
+  scheme: none
+  apply_fluxes: false
+
+boundary_layer:
+  scheme: none
+
+radiation:
+  scheme: none
+
+initial_conditions:
+  sounding:
+    type: parametric_cape
+    cape_jkg: 3000
+    tropopause_m: 11000
+    surface_theta_k: 301
+    moisture_qv_kgkg: 0.012
+  hodograph:
+    type: wk_param
+    u_sfc_ms: 4.0
+    v_sfc_ms: 1.0
+    u_1km_ms: 14.0
+    v_1km_ms: 6.0
+    u_6km_ms: 28.0
+    v_6km_ms: 22.0
+  trigger:
+    type: bubble
+    bubble:
+      dtheta_k: 4
+      radius_km: 4
+      center_x_m: 16000
+      center_y_m: 16000
+      center_z_m: 1500
+
+output:
+  preset: minimal
+  format: npy_3d
+  async_io: false
+  live_shm: false
+
+extensions:
+  compute:
+    backend: cpu
+  diagnostics:
+    scientific_every_steps: 0
+  performance:
+    timing: true
+    report_every_steps: 0
+    warmup_steps: 20
+  validation:
+    guard_mode: off

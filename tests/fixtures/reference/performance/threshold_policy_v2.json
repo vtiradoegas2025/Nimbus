@@ -1,0 +1,244 @@
+{
+  "schema": "nimbus.c6-release-threshold-candidate.v2",
+  "status": "draft_not_activated",
+  "releaseBinary": {
+    "path": "bin/nimbus_sim",
+    "sha256": "c606c708e3af5d59cdc471e04df65701e72e8bf0218a7947a9c4b257099bdac8"
+  },
+  "canonicalSource": {
+    "rootsDeclarationPath": "mk/tests.mk",
+    "rootsDeclarationSha256": null,
+    "rootCount": null,
+    "fileCount": null,
+    "inventorySha256": null
+  },
+  "historicalV1": {
+    "path": "tests/fixtures/reference/performance/threshold_policy_v1.json",
+    "sha256": "ee0670f93f860fd8db72075ba4893eb55899cc6e95e4764fb9527d98494cda95"
+  },
+  "acceptance": {
+    "minimumSteadyStateTrials": 7,
+    "minimumNamedWallFraction": 0.95,
+    "minimumWholeStepGainPercentExclusive": 2.0,
+    "minimumPairedMadMultipleExclusive": 3.0,
+    "memoryAlternative": "at_least_one_live_full_field_or_two_percent_of_admitted_peak",
+    "requiredExactFields": [
+      "p",
+      "rho",
+      "theta",
+      "u",
+      "v",
+      "w",
+      "qv",
+      "qr"
+    ],
+    "requiredExactLedgers": [
+      "budget.csv",
+      "energy_budget.csv",
+      "moisture_budget.csv",
+      "momentum_budget.csv",
+      "radiation_budget.csv",
+      "thermodynamic_source_budget.csv"
+    ]
+  },
+  "workloadClasses": [
+    {
+      "id": "cpu_milbrandt_24x24x20",
+      "requiredModes": [
+        "cpu"
+      ],
+      "grid": [
+        24,
+        24,
+        20
+      ],
+      "config": "tests/fixtures/configs/benchmark/milbrandt_science_ab.yaml",
+      "fullFieldBytes": 46080,
+      "receipt": null,
+      "limits": null,
+      "missing": [
+        "canonical_source_roots_and_inventory",
+        "seven_current_source_trials",
+        "reviewed_size_host_limit"
+      ]
+    },
+    {
+      "id": "cpu_active_32x32x24",
+      "requiredModes": [
+        "cpu"
+      ],
+      "grid": [
+        32,
+        32,
+        24
+      ],
+      "config": "tests/fixtures/configs/benchmark/active_physics_allocations.yaml",
+      "fullFieldBytes": 98304,
+      "receipt": null,
+      "limits": null,
+      "missing": [
+        "seven_current_source_trials",
+        "reviewed_size_host_limit"
+      ]
+    },
+    {
+      "id": "cpu_student_64x64x48",
+      "requiredModes": [
+        "cpu"
+      ],
+      "grid": [
+        64,
+        64,
+        48
+      ],
+      "config": "tests/fixtures/configs/benchmark/cpu_scaling_student.yaml",
+      "fullFieldBytes": 786432,
+      "receipt": null,
+      "limits": null,
+      "missing": [
+        "seven_current_source_trials",
+        "thread_frontier_review",
+        "reviewed_size_host_limit"
+      ]
+    },
+    {
+      "id": "cpu_workstation_128x128x64",
+      "requiredModes": [
+        "cpu"
+      ],
+      "grid": [
+        128,
+        128,
+        64
+      ],
+      "config": "tests/fixtures/configs/benchmark/benchmark.yaml",
+      "fullFieldBytes": 4194304,
+      "receipt": null,
+      "limits": null,
+      "missing": [
+        "bounded_workstation_trials",
+        "thread_frontier_review",
+        "reviewed_size_host_limit"
+      ]
+    },
+    {
+      "id": "metal_npy_18x18x18",
+      "requiredModes": [
+        "metal"
+      ],
+      "grid": [
+        18,
+        18,
+        18
+      ],
+      "config": "tests/fixtures/reference/catalog/generated_metal_canonical_v1.yaml",
+      "fullFieldBytes": 23328,
+      "receipt": null,
+      "limits": null,
+      "missing": [
+        "seven_native_dispatch_trials",
+        "host_device_peak",
+        "reviewed_size_device_limit"
+      ]
+    },
+    {
+      "id": "metal_netcdf_18x18x18",
+      "requiredModes": [
+        "metal"
+      ],
+      "grid": [
+        18,
+        18,
+        18
+      ],
+      "config": "tests/fixtures/reference/catalog/generated_metal_netcdf_v1.yaml",
+      "fullFieldBytes": 23328,
+      "receipt": null,
+      "limits": null,
+      "missing": [
+        "seven_writer_reader_trials",
+        "host_device_storage_peak",
+        "reviewed_size_device_limit"
+      ]
+    },
+    {
+      "id": "vulkan_direct_12x12x48",
+      "requiredModes": [
+        "vulkan_direct"
+      ],
+      "grid": [
+        12,
+        12,
+        48
+      ],
+      "config": "tests/fixtures/configs/qualification/cgrid_thompson_vulkan_ready.yaml",
+      "fullFieldBytes": 27648,
+      "receipt": null,
+      "limits": null,
+      "missing": [
+        "seven_direct_dispatch_trials",
+        "host_device_peak",
+        "reviewed_size_device_limit"
+      ]
+    },
+    {
+      "id": "vulkan_staged_12x12x48",
+      "requiredModes": [
+        "vulkan_staged"
+      ],
+      "grid": [
+        12,
+        12,
+        48
+      ],
+      "config": "tests/fixtures/configs/qualification/cgrid_thompson_vulkan_ready.yaml",
+      "fullFieldBytes": 27648,
+      "receipt": null,
+      "limits": null,
+      "missing": [
+        "seven_staged_transfer_trials",
+        "host_device_peak",
+        "reviewed_size_device_limit"
+      ]
+    },
+    {
+      "id": "zfp_history_64x64x48",
+      "requiredModes": [
+        "cpu_writer_studio_reader"
+      ],
+      "grid": [
+        64,
+        64,
+        48
+      ],
+      "config": "tests/fixtures/configs/benchmark/zfp_history_working_set.yaml",
+      "fullFieldBytes": 786432,
+      "receipt": null,
+      "limits": null,
+      "missing": [
+        "seven_writer_reader_trials",
+        "reader_peak_and_retention",
+        "reviewed_size_host_reader_limit"
+      ]
+    },
+    {
+      "id": "retained_terrain_postimplementation",
+      "requiredModes": [
+        "cpu",
+        "metal",
+        "vulkan_staged"
+      ],
+      "grid": null,
+      "config": null,
+      "fullFieldBytes": null,
+      "receipt": null,
+      "limits": null,
+      "missing": [
+        "retained_terrain_scope_and_config",
+        "seven_trials_each_required_backend",
+        "reviewed_per_backend_limits"
+      ]
+    }
+  ],
+  "activationReview": null
+}

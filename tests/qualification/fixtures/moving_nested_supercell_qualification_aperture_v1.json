@@ -1,0 +1,39 @@
+{
+  "schema": "nimbus.qualification.moving_nested_fixed_aperture",
+  "schema_version": 1,
+  "aperture_id": "moving_nested_fixed_100x96_v1",
+  "owner": "fixed_centered_operational_trusted_interior_v1",
+  "placement": "fixed_source_index_offset_within_operational_interior",
+  "horizontal_grid_spacing_m": {
+    "x": 600.0,
+    "y": 600.0
+  },
+  "grid_phase_origin_m": {
+    "x": 0.0,
+    "y": 0.0
+  },
+  "shape_cells": {
+    "x": 100,
+    "y": 96
+  },
+  "cell_count": 9600,
+  "operational_interior": {
+    "owner": "physical_child_trusted_interior_v1",
+    "relaxation_exclusion_cells": 8,
+    "required_shape_cells": {
+      "x": 140,
+      "y": 150
+    },
+    "aperture_offset_cells": {
+      "x": 20,
+      "y": 27
+    }
+  },
+  "reference_crop": {
+    "rule": "exact_moving_aperture_earth_bounds_v1",
+    "require_identical_spacing": true,
+    "require_identical_grid_phase": true,
+    "require_complete_physical_coverage": true
+  },
+  "claim_boundary": "This fixed diagnostic aperture preserves the ratified 100x96 measurement geometry inside a larger operational child. It does not make the aperture the child relaxation boundary or qualify any metric result."
+}

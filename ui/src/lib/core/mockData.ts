@@ -1,0 +1,92 @@
+import type { HardwareInfo, QueuedRun, SimulatorStatus } from "./types";
+
+// startedAtMs offset gives RunDetail a plausible 312s elapsed in dev mode.
+const MOCK_RUN_001_STARTED_AT_MS = Date.now() - 312 * 1000;
+
+export const mockQueue: QueuedRun[] = [
+  {
+    id: "run-001",
+    caseName: "cart_cgrid_supercell",
+    scheme: "klemp_wilhelmson_split_cartesian_cgrid",
+    status: "running",
+    startedAtMs: MOCK_RUN_001_STARTED_AT_MS,
+    endedAtMs: null,
+    simTimeS: 840,
+    step: 8421,
+    velMax: 39.5,
+    durationS: 1200,
+    outputDir: "/Users/dev/.nimbus/runs/mock-001-cart_cgrid_supercell",
+  },
+  {
+    id: "run-002",
+    caseName: "cartesian_agrid_repair",
+    scheme: "klemp_wilhelmson_split_cartesian_agrid",
+    status: "queued",
+    startedAtMs: null,
+    endedAtMs: null,
+    simTimeS: null,
+    step: null,
+    velMax: null,
+    durationS: 600,
+    outputDir: null,
+    provenance: {
+      health: "verified",
+      issue: null,
+      runtimeHealth: "verified",
+      runtimeIssue: null,
+      runId: "run-002-evidence",
+      createdUnixMs: 1_700_000_000_000,
+      executablePath: "/opt/nimbus/bin/nimbus_sim",
+      executableDigest: "fnv1a64:1111111111111111",
+      configurationDigest: "fnv1a64:2222222222222222",
+      catalogFingerprint: "fnv1a64:3333333333333333",
+      requestedBackend: "vulkan",
+      requestedFallbackAllowed: true,
+      requestedOutputFormat: "netcdf",
+      requestedExecutionMode: "qualified",
+      requestedValidationMode: "error",
+      requestedSchemes: { dynamics: "klemp_wilhelmson_split_cartesian_agrid", microphysics: "kessler" },
+      soundingRequestedPath: "/inputs/wk.sounding",
+      soundingCanonicalPath: "/verified/inputs/wk.sounding",
+      soundingDigest: "fnv1a64:4444444444444444",
+      soundingIssue: null,
+      runtimeActualsAvailable: true,
+      actualBackend: "cpu",
+      fallbackActive: true,
+      actualSchemes: { dynamics: "klemp_wilhelmson_split_cartesian_agrid", microphysics: "kessler" },
+      finalStatus: "completed",
+      exitCode: 0,
+      processStartedUnixMs: 1_700_000_000_010,
+      processEndedUnixMs: 1_700_000_600_000,
+      completeFrameCount: 10,
+      actualOutputFormat: "netCDF",
+      verifiedCheckpointCount: 1,
+      latestCheckpointPath: "/runs/run-002/checkpoints/checkpoint_step_000000010.nimbus",
+    },
+  },
+  {
+    id: "run-003",
+    caseName: "cart_cgrid_bubble",
+    scheme: "klemp_wilhelmson_split_cartesian_cgrid",
+    status: "queued",
+    startedAtMs: null,
+    endedAtMs: null,
+    simTimeS: null,
+    step: null,
+    velMax: null,
+    durationS: 1800,
+    outputDir: null,
+  },
+];
+
+export const mockSimulator: SimulatorStatus = {
+  binaryPath: "bin/nimbus_sim",
+  state: "ready",
+  gpu: "Apple M4 Max (Vulkan)",
+};
+
+export const mockHardware: HardwareInfo = {
+  cpuBrand: "Apple M4 Max",
+  coreCount: 16,
+  ramBytes: 64 * 1024 * 1024 * 1024,
+};

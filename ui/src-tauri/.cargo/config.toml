@@ -1,0 +1,4 @@
+[resolver]
+# Tauri permits broad semver ranges for several transitive dependencies.
+# Keep lockfile refreshes within Nimbus Studio's declared Rust 1.79.0 MSRV.
+incompatible-rust-versions = "fallback"

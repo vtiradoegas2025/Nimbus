@@ -1,0 +1,135 @@
+{
+  "schema": "nimbus.earth_fixed_continuous_cpu.bounded_readiness.v1",
+  "date": "2026-09-09",
+  "status": "Ready",
+  "capability": "terrain.earth_fixed_continuous_cpu",
+  "backend": "cpu",
+  "fallback": false,
+  "method": "eulerian_step_conservative_total_energy_remap_v1",
+  "coordinate_remap_order": 1,
+  "terrain_sampling": "cell_average_bilinear_earth_v1",
+  "configuration": "tests/fixtures/configs/qualification/earth_fixed_terrain_motion_ready.yaml",
+  "configuration_sha256": "2ce904ff64775242335b9f1837cfb41da909cb7ebedf24179ad589e3ba94b9e2",
+  "binary_sha256": "e3bc0f9015a87b9281f71ba94d860b070ed3d96bf42939da75511d17dec41963",
+  "gate": "make test-earth-fixed-terrain-motion-ready",
+  "thread_counts": [
+    1,
+    4
+  ],
+  "duration_s": 65,
+  "restart_checkpoint_time_s": 32,
+  "field_identity": "byte-identical",
+  "ledger_identity": "byte-identical (seven ledgers)",
+  "checkpoint_identity": "byte-identical across threading and restart",
+  "velocity_corner_runs_ms": [
+    [
+      180,
+      180
+    ],
+    [
+      -180,
+      -180
+    ]
+  ],
+  "velocity_corner_duration_s": 2,
+  "negative_admission": [
+    "frame speed 181 m/s",
+    "tracking enabled",
+    "Bell height 301 m",
+    "Vulkan backend"
+  ],
+  "normalized_tolerances": {
+    "mass_water_closure": 1e-12,
+    "mass_water_storage": 5e-07,
+    "momentum_closure": 1e-12,
+    "momentum_storage": 1e-06,
+    "energy_storage": 5e-07,
+    "whole_step_energy": 2e-12
+  },
+  "stationary_reference_mean_absolute_error_limits": {
+    "rho": 0.001,
+    "theta": 0.05,
+    "qv": 1e-05,
+    "u": 0.1,
+    "v": 0.1,
+    "w": 0.05
+  },
+  "measured": {
+    "one": {
+      "dry_mass": 1.327818222120746e-16,
+      "water": 9.144869035968772e-15,
+      "energy_storage": 3.553990600493943e-09,
+      "whole_step_energy": 2.3542026734773904e-16
+    },
+    "four": {
+      "dry_mass": 1.327818222120746e-16,
+      "water": 9.144869035968772e-15,
+      "energy_storage": 3.553990600493943e-09,
+      "whole_step_energy": 2.3542026734773904e-16
+    },
+    "resumed": {
+      "dry_mass": 1.327818222120746e-16,
+      "water": 9.144869035968772e-15,
+      "energy_storage": 3.4652012019812464e-09,
+      "whole_step_energy": 2.2360135089073285e-16
+    },
+    "positive-limit": {
+      "dry_mass": 1.0737764230309264e-16,
+      "water": 5.265649710596107e-15,
+      "energy_storage": 3.1776278935206253e-09,
+      "whole_step_energy": 1.2698349373368634e-16
+    },
+    "negative-limit": {
+      "dry_mass": 9.654583459988955e-17,
+      "water": 5.840039600477394e-15,
+      "energy_storage": 1.839369876744662e-09,
+      "whole_step_energy": 1.4483074760667331e-16
+    },
+    "stationary_reference_mean_absolute_error": {
+      "rho": 0.00034075988151810417,
+      "theta": 0.019125997622150625,
+      "qv": 5.0020868788244265e-06,
+      "u": 0.039643610623257226,
+      "v": 0.01009992502642069,
+      "w": 0.026395346291280503
+    }
+  },
+  "cpp_checks": {
+    "transaction_remap_reference": {
+      "cases": 9,
+      "assertions": 12753
+    },
+    "checkpoint": {
+      "cases": 55,
+      "assertions": 1592
+    },
+    "strict_configuration": {
+      "cases": 87,
+      "assertions": 1523
+    },
+    "cartesian_advection": {
+      "cases": 39,
+      "assertions": 31377
+    },
+    "moving_cgrid_momentum": {
+      "cases": 1,
+      "assertions": 4269
+    },
+    "cgrid_cpu_dynamics": {
+      "cases": 10,
+      "assertions": 38805
+    },
+    "scheme_catalog": "pass"
+  },
+  "regressions": [
+    "public Earth-fixed recycling: pass",
+    "public physical diagnostic outputs: pass",
+    "real runtime-v53 checkpoint resume: pass",
+    "module ownership: pass",
+    "build manifest: pass",
+    "domain-motion inventory: pass"
+  ],
+  "campaign_validation": "pending",
+  "external_scientific_review": "pending",
+  "fully_qualified": false
+}

@@ -1,0 +1,17 @@
+{
+  "source_sha256": "a2ee635fde429d8c2ca557ebc112e7b90435adf2e44e0267ea150e1ec944d3eb",
+  "ptx_sha256": "599470f3826493ef4817fe7b704dcdff704daa0839af12e2d0d9b63c84a24828",
+  "nvrtc_version": [
+    13,
+    0
+  ],
+  "options": [
+    "--gpu-architecture=compute_75",
+    "--std=c++17",
+    "--fmad=false",
+    "--ftz=false",
+    "--prec-div=true",
+    "--prec-sqrt=true"
+  ],
+  "entry_point": "nimbus_retained_flux"
+}

@@ -1,0 +1,481 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_spirv_intrinsics : require
+spirv_execution_mode(extensions = ["SPV_KHR_float_controls"], capabilities = [4466], 4461, 32);
+spirv_execution_mode(extensions = ["SPV_KHR_float_controls"], capabilities = [4467], 4462, 32);
+layout(local_size_x = 64) in;
+layout(set = 0, binding = 0) readonly buffer B0
+{
+    float a0[];
+};
+layout(set = 0, binding = 1) readonly buffer B1
+{
+    float a1[];
+};
+layout(set = 0, binding = 2) readonly buffer B2
+{
+    float a2[];
+};
+layout(set = 0, binding = 3) readonly buffer B3
+{
+    float a3[];
+};
+layout(set = 0, binding = 4) readonly buffer B4
+{
+    float a4[];
+};
+layout(set = 0, binding = 5) readonly buffer B5
+{
+    float a5[];
+};
+layout(set = 0, binding = 6) readonly buffer B6
+{
+    float a6[];
+};
+layout(set = 0, binding = 7) readonly buffer B7
+{
+    float a7[];
+};
+layout(set = 0, binding = 8) readonly buffer B8
+{
+    float a8[];
+};
+layout(set = 0, binding = 9) readonly buffer B9
+{
+    float a9[];
+};
+layout(set = 0, binding = 10) readonly buffer B10
+{
+    float a10[];
+};
+layout(set = 0, binding = 11) readonly buffer B11
+{
+    float a11[];
+};
+layout(set = 0, binding = 12) readonly buffer B12
+{
+    float a12[];
+};
+layout(set = 0, binding = 13) readonly buffer B13
+{
+    float a13[];
+};
+layout(set = 0, binding = 14) readonly buffer B14
+{
+    float a14[];
+};
+layout(set = 0, binding = 15) writeonly buffer B15
+{
+    float o0[];
+};
+layout(set = 0, binding = 16) writeonly buffer B16
+{
+    float o1[];
+};
+layout(set = 0, binding = 17) writeonly buffer B17
+{
+    float o2[];
+};
+layout(set = 0, binding = 18) writeonly buffer B18
+{
+    float o3[];
+};
+layout(set = 0, binding = 19) writeonly buffer B19
+{
+    float o4[];
+};
+layout(set = 0, binding = 20) writeonly buffer B20
+{
+    float o5[];
+};
+layout(set = 0, binding = 21) writeonly buffer B21
+{
+    float o6[];
+};
+layout(set = 0, binding = 22) writeonly buffer B22
+{
+    float o7[];
+};
+layout(push_constant) uniform PushConstants
+{
+    int   nx;
+    int   ny;
+    int   nz;
+    int   phase;
+    int   flags;
+    int   filter_mode;
+    float dx;
+    float dy;
+    float Cs;
+    float Pr;
+    float Sc;
+    float nu_max;
+    float K_max;
+    int   padding0;
+    int   padding1;
+    int   padding2;
+};
+#include "../microphysics/compensated_fma.glsl"
+vec2 val(float x)
+{
+    return vec2(x, 0);
+}
+float stored(vec2 x)
+{
+    return fma(1.0, x.x, x.y);
+}
+vec2 scale(vec2 x, float a)
+{
+    return df_mul(x, val(a));
+}
+vec2 square(vec2 x)
+{
+    return df_mul(x, x);
+}
+vec2 minimum(vec2 a, vec2 b)
+{
+    return a.x < b.x || (a.x == b.x && a.y < b.y) ? a : b;
+}
+int at(int i, int j, int k)
+{
+    return (i * ny + j) * nz + k;
+}
+int prev(int p, int extent, bool periodic)
+{
+    return p > 1 ? p - 1 : (periodic ? extent - 2 : -1);
+}
+int next(int p, int extent, bool periodic)
+{
+    return p < extent - 2 ? p + 1 : (periodic ? 1 : -1);
+}
+float value(int field, int n)
+{
+    if (field == 0)
+        return a0[n];
+    if (field == 1)
+        return a1[n];
+    if (field == 2)
+        return a2[n];
+    if (field == 3)
+        return a3[n];
+    if (field == 4)
+        return a4[n];
+    if (field == 5)
+        return a5[n];
+    if (field == 8)
+        return a8[n];
+    if (field == 9)
+        return a9[n];
+    if (field == 10)
+        return a10[n];
+    return a11[n];
+}
+vec2 center_distance(int i, int j, int k)
+{
+    return scale(df_add(val(a7[at(i, j, k)]), val(a7[at(i, j, k + 1)])), .5);
+}
+vec2 gradient(int field, int i, int j, int k, int axis)
+{
+    int  lo, hi;
+    vec2 distance;
+    if (axis == 0)
+    {
+        lo       = prev(i, nx, (flags & 4) != 0);
+        hi       = next(i, nx, (flags & 4) != 0);
+        distance = val((lo >= 0 && hi >= 0) ? 2.0 * dx : dx);
+        lo       = at(lo >= 0 ? lo : i, j, k);
+        hi       = at(hi >= 0 ? hi : i, j, k);
+    }
+    else if (axis == 1)
+    {
+        lo       = prev(j, ny, (flags & 8) != 0);
+        hi       = next(j, ny, (flags & 8) != 0);
+        distance = val((lo >= 0 && hi >= 0) ? 2.0 * dy : dy);
+        lo       = at(i, lo >= 0 ? lo : j, k);
+        hi       = at(i, hi >= 0 ? hi : j, k);
+    }
+    else
+    {
+        int lower = k == 1 ? k : k - 1, upper = k == nz - 2 ? k : k + 1;
+        distance = lower == k ? center_distance(i, j, k)
+                              : (upper == k ? center_distance(i, j, k - 1)
+                                            : df_add(center_distance(i, j, k - 1), center_distance(i, j, k)));
+        lo       = at(i, j, lower);
+        hi       = at(i, j, upper);
+    }
+    // Field3D subtraction in the CPU flat operator is rounded before FP64 division.
+    return df_div(val(fma(1.0, value(field, hi), -value(field, lo))), distance);
+}
+vec2 strain(int i, int j, int k)
+{
+    vec2 ux = gradient(0, i, j, k, 0), uy = gradient(0, i, j, k, 1), uz = gradient(0, i, j, k, 2);
+    vec2 vx = gradient(1, i, j, k, 0), vy = gradient(1, i, j, k, 1), vz = gradient(1, i, j, k, 2);
+    vec2 wx = gradient(2, i, j, k, 0), wy = gradient(2, i, j, k, 1), wz = gradient(2, i, j, k, 2);
+    vec2 xy = scale(df_add(uy, vx), .5), xz = scale(df_add(uz, wx), .5), yz = scale(df_add(vz, wy), .5);
+    if ((flags & 3) == 1)
+        return df_add(df_add(scale(df_add(square(ux), square(vy)), 2), scale(square(xy), 4)),
+                      df_add(square(wx), square(wy)));
+    if ((flags & 3) == 2)
+        return df_add(df_add(square(uz), square(vz)), scale(square(wz), 2));
+    return df_add(scale(df_add(df_add(square(ux), square(vy)), square(wz)), 2),
+                  scale(df_add(df_add(square(xy), square(xz)), square(yz)), 4));
+}
+struct Stress
+{
+    vec2 x;
+    vec2 y;
+    vec2 z;
+};
+Stress zero_stress()
+{
+    Stress s;
+    s.x = val(0);
+    s.y = val(0);
+    s.z = val(0);
+    return s;
+}
+vec2 face_mu(int coeff, int lo, int hi)
+{
+    return scale(df_add(val(fma(a6[lo], value(coeff, lo), 0.0)), val(fma(a6[hi], value(coeff, hi), 0.0))), .5);
+}
+Stress face_stress(int i, int j, int k, int axis)
+{
+    Stress s = zero_stress();
+    if ((axis < 2 && (flags & 1) == 0) || (axis == 2 && (flags & 2) == 0) || i < 1 || j < 1 || k < 1)
+        return s;
+    int  ii = i, jj = j, kk = k;
+    vec2 distance;
+    if (axis == 0)
+    {
+        ii       = next(i, nx, (flags & 4) != 0);
+        distance = val(dx);
+    }
+    else if (axis == 1)
+    {
+        jj       = next(j, ny, (flags & 8) != 0);
+        distance = val(dy);
+    }
+    else
+    {
+        if (k >= nz - 2)
+            return s;
+        kk       = k + 1;
+        distance = center_distance(i, j, k);
+    }
+    if (ii < 1 || jj < 1)
+        return s;
+    int  lo = at(i, j, k), hi = at(ii, jj, kk);
+    vec2 mu = face_mu(8, lo, hi);
+    vec2 du = df_div(val(fma(1.0, a0[hi], -a0[lo])), distance);
+    vec2 dv = df_div(val(fma(1.0, a1[hi], -a1[lo])), distance);
+    vec2 dw = df_div(val(fma(1.0, a2[hi], -a2[lo])), distance);
+    if (axis == 0)
+    {
+        s.x = scale(df_mul(mu, du), 2);
+        s.y = df_mul(mu, df_add(dv, scale(df_add(gradient(0, i, j, k, 1), gradient(0, ii, jj, kk, 1)), .5)));
+        s.z = df_mul(
+            mu,
+            df_add(dw,
+                   (flags & 2) != 0 ? scale(df_add(gradient(0, i, j, k, 2), gradient(0, ii, jj, kk, 2)), .5) : val(0)));
+    }
+    else if (axis == 1)
+    {
+        s.x = df_mul(mu, df_add(du, scale(df_add(gradient(1, i, j, k, 0), gradient(1, ii, jj, kk, 0)), .5)));
+        s.y = scale(df_mul(mu, dv), 2);
+        s.z = df_mul(
+            mu,
+            df_add(dw,
+                   (flags & 2) != 0 ? scale(df_add(gradient(1, i, j, k, 2), gradient(1, ii, jj, kk, 2)), .5) : val(0)));
+    }
+    else
+    {
+        s.x = df_mul(
+            mu,
+            df_add(du,
+                   (flags & 1) != 0 ? scale(df_add(gradient(2, i, j, k, 0), gradient(2, ii, jj, kk, 0)), .5) : val(0)));
+        s.y = df_mul(
+            mu,
+            df_add(dv,
+                   (flags & 1) != 0 ? scale(df_add(gradient(2, i, j, k, 1), gradient(2, ii, jj, kk, 1)), .5) : val(0)));
+        s.z = scale(df_mul(mu, dw), 2);
+    }
+    return s;
+}
+vec2 stress_work(Stress s, int i, int j, int k, int axis)
+{
+    if (i < 1 || j < 1 || k < 1 || (axis == 2 && k >= nz - 2))
+        return val(0);
+    int ii = i, jj = j, kk = k;
+    if (axis == 0)
+        ii = next(i, nx, (flags & 4) != 0);
+    else if (axis == 1)
+        jj = next(j, ny, (flags & 8) != 0);
+    else
+        kk = k + 1;
+    if (ii < 1 || jj < 1)
+        return val(0);
+    int lo = at(i, j, k), hi = at(ii, jj, kk);
+    return df_add(df_add(df_mul(s.x, val(fma(1.0, a0[hi], -a0[lo]))), df_mul(s.y, val(fma(1.0, a1[hi], -a1[lo])))),
+                  df_mul(s.z, val(fma(1.0, a2[hi], -a2[lo]))));
+}
+vec2 scalar_flux(int field, int coeff, int i, int j, int k, int axis)
+{
+    if (i < 1 || j < 1 || k < 1 || (axis == 2 && k >= nz - 2))
+        return val(0);
+    int  ii = i, jj = j, kk = k;
+    vec2 distance;
+    if (axis == 0)
+    {
+        ii       = next(i, nx, (flags & 4) != 0);
+        distance = val(dx);
+    }
+    else if (axis == 1)
+    {
+        jj       = next(j, ny, (flags & 8) != 0);
+        distance = val(dy);
+    }
+    else
+    {
+        kk       = k + 1;
+        distance = center_distance(i, j, k);
+    }
+    if (ii < 1 || jj < 1)
+        return val(0);
+    int lo = at(i, j, k), hi = at(ii, jj, kk);
+    return df_div(df_mul(face_mu(coeff, lo, hi), val(fma(1.0, value(field, hi), -value(field, lo)))), distance);
+}
+vec2 scalar_tendency(int field, int coeff, int i, int j, int k)
+{
+    vec2 div = val(0);
+    if ((flags & 1) != 0)
+    {
+        div = df_add(div,
+                     df_div(df_sub(scalar_flux(field, coeff, i, j, k, 0),
+                                   scalar_flux(field, coeff, prev(i, nx, (flags & 4) != 0), j, k, 0)),
+                            val(dx)));
+        div = df_add(div,
+                     df_div(df_sub(scalar_flux(field, coeff, i, j, k, 1),
+                                   scalar_flux(field, coeff, i, prev(j, ny, (flags & 8) != 0), k, 1)),
+                            val(dy)));
+    }
+    if ((flags & 2) != 0)
+        div = df_add(div,
+                     df_div(df_sub(scalar_flux(field, coeff, i, j, k, 2), scalar_flux(field, coeff, i, j, k - 1, 2)),
+                            val(a7[at(i, j, k)])));
+    return df_div(div, val(a6[at(i, j, k)]));
+}
+vec2 virtual_theta(int n)
+{
+    return (flags & 64) != 0
+               ? df_mul(val(a3[n]),
+                        df_add(val(1), df_mul(vec2(0.6100000143051147, -1.4305114759416426e-8), val(a4[n]))))
+               : val(a3[n]);
+}
+void evaluate(uint gid)
+{
+    if (gid >= uint(nx) * uint(ny) * uint(nz))
+        return;
+    int n = int(gid);
+    o0[n] = 0;
+    o1[n] = 0;
+    o2[n] = 0;
+    o3[n] = 0;
+    o4[n] = 0;
+    o5[n] = 0;
+    o6[n] = 0;
+    o7[n] = 0;
+    int i = n / (ny * nz), j = (n / nz) % ny, k = n % nz;
+    if (i == 0 || i == nx - 1 || j == 0 || j == ny - 1 || k == 0 || k == nz - 1)
+        return;
+    if (phase == 0)
+    {
+        vec2 area  = df_mul(val(dx), val(dy));
+        vec2 delta = filter_mode == 1 ? df_sqrt(area) : df_exp(df_div(df_log(df_mul(area, val(a7[n]))), val(3)));
+        vec2 viscosity, heat, vapor, energy_diffusivity = val(0), buoyancy = val(0), sink = val(0), prandtl = val(Pr);
+        if ((flags & 16) != 0)
+        {
+            int  lower = k < nz - 2 ? k : k - 1;
+            vec2 n2    = df_mul(df_div(vec2(9.8100004196167, -4.196167e-7), virtual_theta(n)),
+                                df_div(df_sub(virtual_theta(at(i, j, lower + 1)), virtual_theta(at(i, j, lower))),
+                                       center_distance(i, j, lower)));
+            if (isnan(n2.x) || isinf(n2.x) || isnan(n2.y) || isinf(n2.y))
+            {
+                o0[n] = uintBitsToFloat(0x7fc00000u);
+                return;
+            }
+            vec2 energy = val(a5[n]), root = a5[n] > 0 ? df_sqrt(energy) : val(0);
+            vec2 length = delta;
+            if ((flags & 32) != 0 && n2.x > 0)
+                length =
+                    minimum(delta, df_div(df_mul(vec2(.7599999904632568, 9.536743172944284e-9), root), df_sqrt(n2)));
+            viscosity =
+                minimum(val(nu_max), df_mul(df_mul(vec2(.10000000149011612, -1.4901161138336505e-9), length), root));
+            vec2 ratio         = df_div(length, delta);
+            vec2 heat_ratio    = df_add(val(1), df_mul(df_sub(df_div(val(1), val(Pr)), val(1)), ratio));
+            vec2 vapor_ratio   = df_add(val(1), df_mul(df_sub(df_div(val(1), val(Sc)), val(1)), ratio));
+            heat               = minimum(val(K_max), df_mul(viscosity, heat_ratio));
+            vapor              = minimum(val(K_max), df_mul(viscosity, vapor_ratio));
+            energy_diffusivity = minimum(val(K_max), scale(viscosity, 2));
+            prandtl            = df_div(val(1), heat_ratio);
+            if ((flags & 2) != 0)
+                buoyancy = -df_mul(val(stored(heat)), n2);
+            if (a5[n] > 0)
+            {
+                vec2 coefficient = df_add(vec2(.1899999976158142, 2.384185793236071e-9),
+                                          df_mul(vec2(.5099999904632568, 9.536743172944284e-9), ratio));
+                sink             = df_div(df_mul(coefficient, df_mul(energy, root)), length);
+            }
+        }
+        else
+        {
+            vec2 norm      = strain(i, j, k);
+            vec2 magnitude = norm.x == 0 ? val(0) : df_sqrt(norm);
+            viscosity      = minimum(val(nu_max), df_mul(df_mul(square(val(Cs)), square(delta)), magnitude));
+            heat           = minimum(val(K_max), df_div(viscosity, val(Pr)));
+            vapor          = minimum(val(K_max), df_div(viscosity, val(Sc)));
+        }
+        o0[n] = stored(viscosity);
+        o1[n] = stored(heat);
+        o2[n] = stored(vapor);
+        o3[n] = stored(energy_diffusivity);
+        o4[n] = stored(buoyancy);
+        o5[n] = sink.x;
+        o6[n] = stored(prandtl);
+        o7[n] = sink.y;
+        return;
+    }
+    int    im = prev(i, nx, (flags & 4) != 0), jm = prev(j, ny, (flags & 8) != 0);
+    Stress east = face_stress(i, j, k, 0), west = face_stress(im, j, k, 0);
+    Stress north = face_stress(i, j, k, 1), south = face_stress(i, jm, k, 1);
+    Stress top = face_stress(i, j, k, 2), bottom = face_stress(i, j, k - 1, 2);
+    vec2   inverse_rho = df_div(val(1), val(a6[n]));
+    o0[n] =
+        stored(df_mul(inverse_rho,
+                      df_add(df_add(df_div(df_sub(east.x, west.x), val(dx)), df_div(df_sub(north.x, south.x), val(dy))),
+                             df_div(df_sub(top.x, bottom.x), val(a7[n])))));
+    o1[n] =
+        stored(df_mul(inverse_rho,
+                      df_add(df_add(df_div(df_sub(east.y, west.y), val(dx)), df_div(df_sub(north.y, south.y), val(dy))),
+                             df_div(df_sub(top.y, bottom.y), val(a7[n])))));
+    o2[n] =
+        stored(df_mul(inverse_rho,
+                      df_add(df_add(df_div(df_sub(east.z, west.z), val(dx)), df_div(df_sub(north.z, south.z), val(dy))),
+                             df_div(df_sub(top.z, bottom.z), val(a7[n])))));
+    o3[n] = stored(scalar_tendency(3, 9, i, j, k));
+    o4[n] = (flags & 128) != 0 ? stored(scalar_tendency(4, 10, i, j, k)) : 0;
+    if ((flags & 16) != 0)
+    {
+        vec2 work =
+            df_add(df_add(df_div(df_add(stress_work(west, im, j, k, 0), stress_work(east, i, j, k, 0)), val(dx)),
+                          df_div(df_add(stress_work(south, i, jm, k, 1), stress_work(north, i, j, k, 1)), val(dy))),
+                   df_div(df_add(stress_work(bottom, i, j, k - 1, 2), stress_work(top, i, j, k, 2)), val(a7[n])));
+        float shear     = stored(scale(df_mul(inverse_rho, work), .5));
+        float transport = stored(scalar_tendency(5, 11, i, j, k));
+        o5[n]           = stored(df_sub(df_add(df_add(val(transport), val(shear)), val(a12[n])), vec2(a13[n], a14[n])));
+        o6[n]           = shear;
+    }
+}
+void main()
+{
+    evaluate(gl_GlobalInvocationID.x);
+}

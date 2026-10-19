@@ -1,0 +1,65 @@
+#version 450
+
+// Exact homogeneous whole-cell recycling field shift.
+//
+// The canonical planner supplies the retained destination rectangle. Values
+// there come from the signed old-grid source offset. Every other stored cell,
+// including nonphysical closure storage, receives the environmental profile.
+// Layout is row-major [nr][nth][nz].
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) readonly buffer SourceBuffer {
+    float source_values[];
+};
+layout(set = 0, binding = 1) readonly buffer LeadingProfileBuffer {
+    float leading_profile[];
+};
+layout(set = 0, binding = 2) writeonly buffer DestinationBuffer {
+    float destination_values[];
+};
+
+layout(push_constant) uniform PushConstants {
+    int nr;
+    int nth;
+    int nz;
+    int shift_i_cells;
+    int shift_j_cells;
+    int destination_i_begin;
+    int destination_i_end;
+    int destination_j_begin;
+    int destination_j_end;
+    int leading_profile_offset;
+    int leading_is_field;
+};
+
+void main()
+{
+    uint gid = gl_GlobalInvocationID.x
+        + gl_GlobalInvocationID.y * gl_NumWorkGroups.x * gl_WorkGroupSize.x;
+    uint total = uint(nr) * uint(nth) * uint(nz);
+    if (gid >= total)
+    {
+        return;
+    }
+
+    int k = int(gid % uint(nz));
+    uint horizontal = gid / uint(nz);
+    int j = int(horizontal % uint(nth));
+    int i = int(horizontal / uint(nth));
+
+    bool retained = i >= destination_i_begin && i < destination_i_end
+        && j >= destination_j_begin && j < destination_j_end;
+    if (retained)
+    {
+        int source_i = i + shift_i_cells;
+        int source_j = j + shift_j_cells;
+        uint source_index = (uint(source_i) * uint(nth) + uint(source_j)) * uint(nz) + uint(k);
+        destination_values[gid] = source_values[source_index];
+    }
+    else
+    {
+        destination_values[gid] =
+            leading_profile[uint(leading_profile_offset) + (leading_is_field != 0 ? gid : uint(k))];
+    }
+}

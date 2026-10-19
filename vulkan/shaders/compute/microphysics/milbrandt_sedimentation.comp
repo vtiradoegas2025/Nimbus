@@ -1,0 +1,279 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_spirv_intrinsics : require
+spirv_execution_mode(extensions = ["SPV_KHR_float_controls"], capabilities = [4466], 4461, 32);
+spirv_execution_mode(extensions = ["SPV_KHR_float_controls"], capabilities = [4467], 4462, 32);
+layout(local_size_x = 64) in;
+layout(set = 0, binding = 0) readonly buffer B0
+{
+    float mass[];
+};
+layout(set = 0, binding = 1) readonly buffer B1
+{
+    float number[];
+};
+layout(set = 0, binding = 2) readonly buffer B2
+{
+    float density[];
+};
+layout(set = 0, binding = 3) readonly buffer B3
+{
+    float dz_high[];
+};
+layout(set = 0, binding = 4) readonly buffer B4
+{
+    float dz_low[];
+};
+layout(set = 0, binding = 5) readonly buffer B5
+{
+    float mass_rate[];
+};
+layout(set = 0, binding = 6) readonly buffer B6
+{
+    float number_rate[];
+};
+layout(set = 0, binding = 7) buffer B7
+{
+    float scratch[];
+};
+layout(set = 0, binding = 8) readonly buffer B8
+{
+    float table[];
+};
+layout(set = 0, binding = 9) writeonly buffer B9
+{
+    float out_mass[];
+};
+layout(set = 0, binding = 10) writeonly buffer B10
+{
+    float out_number[];
+};
+layout(set = 0, binding = 11) writeonly buffer B11
+{
+    float out_surface[];
+};
+layout(push_constant) uniform PushConstants
+{
+    int   nx;
+    int   ny;
+    int   nz;
+    int   i_begin;
+    int   i_end;
+    int   j_begin;
+    int   j_end;
+    int   k_begin;
+    int   k_end;
+    int   maximum_substeps;
+    float dt_high;
+    float dt_low;
+};
+#include "compensated_fma.glsl"
+#include "milbrandt_thermodynamics.glsl"
+float value(vec2 x)
+{
+    return x.x + x.y;
+}
+vec2 minimum(vec2 a, vec2 b)
+{
+    return ml_greater(a, b) ? b : a;
+}
+vec2 maximum(vec2 a, vec2 b)
+{
+    return ml_greater(a, b) ? a : b;
+}
+vec2 bounded(vec2 a, vec2 lo, vec2 hi)
+{
+    return minimum(maximum(a, lo), hi);
+}
+vec2 power(vec2 a, vec2 b)
+{
+    return df_exp(df_mul(df_log(a), b));
+}
+bool finite_value(vec2 a)
+{
+    return !isnan(a.x) && !isnan(a.y) && !isinf(a.x) && !isinf(a.y);
+}
+vec2 parameter(int f)
+{
+    return vec2(table[2 * f], table[2 * f + 1]);
+}
+vec2 load_work(int slot, int n)
+{
+    int cells = nx * ny * nz;
+    return vec2(scratch[(2 * slot) * cells + n], scratch[(2 * slot + 1) * cells + n]);
+}
+void save_work(int slot, int n, vec2 v)
+{
+    int cells                           = nx * ny * nz;
+    scratch[2 * slot * cells + n]       = v.x;
+    scratch[(2 * slot + 1) * cells + n] = v.y;
+}
+vec2 thickness(int n)
+{
+    return vec2(dz_high[n], dz_low[n]);
+}
+void remap(
+    int base, int source_slot, int speed_slot, int target_slot, vec2 remaining, bool record_surface, inout vec2 surface)
+{
+    for (int k = k_begin; k < k_end; ++k)
+        save_work(target_slot, base + k, vec2(0));
+    for (int k = k_begin; k < k_end; ++k)
+    {
+        int  n  = base + k;
+        vec2 dz = thickness(n), rho = vec2(density[n], 0);
+        vec2 distance  = df_mul(load_work(speed_slot, n), remaining);
+        vec2 fraction  = bounded(df_div(distance, dz), vec2(0), vec2(1, 0));
+        vec2 inventory = df_mul(df_mul(rho, load_work(source_slot, n)), dz);
+        vec2 moving    = df_mul(fraction, inventory);
+        vec2 retained  = df_sub(inventory, moving);
+        save_work(target_slot, n, df_add(load_work(target_slot, n), df_div(retained, df_mul(rho, dz))));
+        if (!ml_greater(moving, vec2(0)))
+            continue;
+        vec2 residual = maximum(vec2(0), df_sub(distance, dz));
+        int  receiver = k - 1;
+        while (receiver >= k_begin)
+        {
+            vec2 receiver_dz = thickness(base + receiver);
+            if (ml_greater(receiver_dz, residual))
+                break;
+            residual = df_sub(residual, receiver_dz);
+            --receiver;
+        }
+        if (receiver >= k_begin)
+        {
+            int  target    = base + receiver;
+            vec2 increment = df_div(moving, df_mul(vec2(density[target], 0), thickness(target)));
+            save_work(target_slot, target, df_add(load_work(target_slot, target), increment));
+        }
+        else if (record_surface)
+            surface =
+                df_add(surface, df_div(moving, df_mul(vec2(density[base + k_begin], 0), thickness(base + k_begin))));
+    }
+}
+void evaluate(uint gid)
+{
+    if (gid >= uint(nx) * uint(ny))
+        return;
+    int i = int(gid) / ny, j = int(gid) % ny, base = int(gid) * nz;
+    for (int k = 0; k < nz; ++k)
+    {
+        out_mass[base + k]    = mass_rate[base + k];
+        out_number[base + k]  = number_rate[base + k];
+        out_surface[base + k] = 0;
+    }
+    if (i < i_begin || i >= i_end || j < j_begin || j >= j_end)
+        return;
+    vec2 step = vec2(dt_high, dt_low);
+    for (int k = k_begin; k < k_end; ++k)
+    {
+        int  n = base + k;
+        vec2 q = maximum(vec2(0), df_add(vec2(mass[n], 0), df_mul(step, vec2(mass_rate[n], 0))));
+        vec2 N = maximum(vec2(0), df_add(vec2(number[n], 0), df_mul(step, vec2(number_rate[n], 0))));
+        if (!ml_greater(q, vec2(9.9999998245167004e-15, 1.7548329954638096e-22)))
+        {
+            q = vec2(0);
+            N = vec2(0);
+        }
+        else if (!ml_greater(N, vec2(0)))
+            N = df_div(q, df_mul(parameter(1), power(parameter(6), parameter(2))));
+        save_work(0, n, q);
+        save_work(1, n, N);
+    }
+    vec2 surface = vec2(0), remaining = step;
+    int  substeps = 0;
+    while (ml_greater(remaining, df_mul(vec2(9.999999960041972e-13, 3.9958027796366288e-21), step)))
+    {
+        vec2 stable  = remaining;
+        bool falling = false;
+        for (int k = k_begin; k < k_end; ++k)
+        {
+            int n = base + k;
+            save_work(4, n, vec2(0));
+            save_work(5, n, vec2(0));
+            vec2 q = load_work(0, n), N = load_work(1, n);
+            if (!ml_greater(q, vec2(0)) || !ml_greater(N, vec2(0)))
+                continue;
+            vec2 rho = vec2(density[n], 0), volume_number = df_mul(rho, N);
+            vec2 inverse_lambda = power(
+                df_div(df_mul(df_mul(rho, q), parameter(7)), df_mul(df_mul(parameter(1), volume_number), parameter(8))),
+                df_div(vec2(1, 0), parameter(2)));
+            vec2 density_factor = df_sqrt(df_div(vec2(1.2250000238418579, -2.3841857821338408e-08), rho));
+            vec2 common_factor  = df_mul(
+                df_mul(parameter(3), density_factor),
+                power(maximum(inverse_lambda, vec2(1.000000013351432e-10, -1.3351431923585892e-18)), parameter(4)));
+            vec2 vm = minimum(parameter(5), df_div(df_mul(common_factor, parameter(9)), parameter(8)));
+            vec2 vn = minimum(parameter(5), df_div(df_mul(common_factor, parameter(10)), parameter(7)));
+            save_work(4, n, vm);
+            save_work(5, n, vn);
+            vec2 fastest = maximum(vm, vn);
+            if (ml_greater(fastest, vec2(0)))
+            {
+                falling = true;
+                stable  = minimum(
+                    stable, df_div(df_mul(vec2(0.80000001192092896, -1.1920928910669204e-08), thickness(n)), fastest));
+            }
+        }
+        if (!falling)
+            break;
+        if (ml_greater(df_div(remaining, vec2(4096, 0)), stable))
+        {
+            remap(base, 0, 4, 2, remaining, true, surface);
+            remap(base, 1, 5, 3, remaining, false, surface);
+            for (int k = k_begin; k < k_end; ++k)
+            {
+                save_work(0, base + k, load_work(2, base + k));
+                save_work(1, base + k, load_work(3, base + k));
+            }
+            remaining = vec2(0);
+            break;
+        }
+        if (!ml_greater(stable, vec2(0)) || !finite_value(stable) || ++substeps > maximum_substeps)
+        {
+            out_surface[base] = uintBitsToFloat(0x7fc00000u);
+            return;
+        }
+        for (int k = k_begin; k < k_end; ++k)
+        {
+            save_work(2, base + k, load_work(0, base + k));
+            save_work(3, base + k, load_work(1, base + k));
+        }
+        for (int k = k_begin; k < k_end; ++k)
+        {
+            int  n = base + k;
+            vec2 q = load_work(0, n), N = load_work(1, n);
+            if (!ml_greater(q, vec2(0)) || !ml_greater(N, vec2(0)))
+                continue;
+            vec2 dz    = thickness(n);
+            vec2 q_out = df_div(df_mul(df_mul(q, load_work(4, n)), stable), dz);
+            vec2 N_out = df_div(df_mul(df_mul(N, load_work(5, n)), stable), dz);
+            save_work(2, n, df_sub(load_work(2, n), q_out));
+            save_work(3, n, df_sub(load_work(3, n), N_out));
+            if (k > k_begin)
+            {
+                vec2 weight =
+                    df_div(df_mul(df_div(vec2(density[n], 0), vec2(density[n - 1], 0)), dz), thickness(n - 1));
+                save_work(2, n - 1, df_add(load_work(2, n - 1), df_mul(weight, q_out)));
+                save_work(3, n - 1, df_add(load_work(3, n - 1), df_mul(weight, N_out)));
+            }
+            else
+                surface = df_add(surface, q_out);
+        }
+        for (int k = k_begin; k < k_end; ++k)
+        {
+            save_work(0, base + k, maximum(vec2(0), load_work(2, base + k)));
+            save_work(1, base + k, maximum(vec2(0), load_work(3, base + k)));
+        }
+        remaining = df_sub(remaining, stable);
+    }
+    for (int k = k_begin; k < k_end; ++k)
+    {
+        int n         = base + k;
+        out_mass[n]   = value(df_div(df_sub(load_work(0, n), vec2(mass[n], 0)), step));
+        out_number[n] = value(df_div(df_sub(load_work(1, n), vec2(number[n], 0)), step));
+    }
+    out_surface[base] = value(df_div(surface, step));
+}
+void main()
+{
+    evaluate(gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * gl_NumWorkGroups.x * gl_WorkGroupSize.x);
+}

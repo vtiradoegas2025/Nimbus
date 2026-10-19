@@ -1,0 +1,178 @@
+schema: nimbus.v1
+
+grid:
+  coordinate_system: cartesian
+  staggering: collocated
+  nx: 18
+  ny: 18
+  nz: 18
+  dx: 500
+  dy: 500
+  dz: 250
+  ztop: 4500
+
+time:
+  integrator: split_explicit
+  run_time: 2
+  dt_large: 0.1
+  acoustic_substeps: 6
+  adaptive_dt: false
+  cfl_safety: 0.7
+  output_interval: 1
+
+domain_motion:
+  mode: stationary
+  lifetime_planning:
+    enabled: false
+  tracking:
+    enabled: false
+    recycle_domain: false
+  nesting:
+    enabled: false
+
+dynamics:
+  scheme: klemp_wilhelmson_split_cartesian_agrid
+  axisymmetric: false
+
+advection:
+  scheme: none
+
+boundary_conditions:
+  lateral:
+    west: rigid
+    east: rigid
+    south: rigid
+    north: rigid
+  bottom: rigid_slip
+  top: rigid
+
+damping:
+  enabled: false
+  z_d: 4500
+  alpha: 0
+  mode: explicit
+  lateral_width: 0
+  lateral_alpha: 0
+  lateral_sponge_enabled: false
+  w_only_top_sponge: false
+  w_only_depth_cells: 0
+  w_only_alpha_max: 0
+
+coriolis:
+  enabled: true
+  mode: beta_plane
+  latitude_deg: 35
+
+microphysics:
+  scheme: lin
+  shared:
+    cloud_water_threshold_kgkg: 0.001
+    autoconversion_rate_s_inv: 0.001
+  lin:
+    accretion_coefficient: 2.2
+    evaporation_rate_s_inv: 0.001
+
+turbulence:
+  scheme: smagorinsky
+  mode: 2d
+  Cs: 0.18
+  Pr_t: 0.3333333333333333
+  Sc_t: 0.3333333333333333
+
+diffusion:
+  scheme: implicit
+  operator_order: 2
+  K_h: 4000
+  K_v: 4000
+  apply_to: scalars_and_momentum
+
+surface:
+  scheme: slab
+  apply_fluxes: true
+  z0m_m: 0.1
+  z0h_m: 0.01
+  albedo: 0.2
+  emissivity: 0.96
+  tsk_k: 305
+
+boundary_layer:
+  scheme: mynn
+  pbl_top_method: tke
+
+radiation:
+  scheme: rrtmg
+  solar_forcing: idealized_diurnal
+  latitude_deg: 35
+  declination_deg: 15
+  local_solar_time_at_start_h: 12
+  do_lw: true
+  do_sw: true
+  cadence_s: 1
+  clear_sky_only: true
+  rrtmg_ozone_vmr: 0.000004
+
+terrain:
+  scheme: bell
+  coordinate: smoothed
+  horizontal_placement: grid_attached
+  compute_derivatives: true
+  compute_metrics: true
+  smoothing_decay: 0.1
+  bell:
+    h0: 220
+    a: 1600
+    axisymmetric: true
+
+initial_conditions:
+  sounding:
+    type: parametric_cape
+    cape_jkg: 0
+    tropopause_m: 8000
+    surface_theta_k: 300
+    moisture_qv_kgkg: 0.004
+  hodograph:
+    type: wk_param
+    u_sfc_ms: 0
+    v_sfc_ms: 0
+    u_1km_ms: 0
+    v_1km_ms: 0
+    u_6km_ms: 0
+    v_6km_ms: 0
+  trigger:
+    type: bubble
+    bubble:
+      dtheta_k: 2
+      radius_km: 1.5
+      center_x_m: 4500
+      center_y_m: 4500
+      center_z_m: 1500
+      cloud_water_kgkg: 0.001
+
+output:
+  preset: dynamics_full
+  format: npy_3d
+  async_io: false
+  live_shm: false
+
+extensions:
+  execution:
+    mode: qualified
+  compute:
+    backend: cpu
+    allow_fallback: false
+    gpu_apply_microphysics: false
+    gpu_apply_slow: false
+    gpu_apply_sgs: false
+  chaos:
+    scheme: initial_conditions
+    seed: 918273
+    member_id: 4
+    native_generation_required: false
+    apply_to_ic: u,v,w,theta
+  checkpoint:
+    every_s: 1
+  diagnostics:
+    scientific_every_steps: 1
+    deterministic_reductions: true
+  validation:
+    guard_mode: error

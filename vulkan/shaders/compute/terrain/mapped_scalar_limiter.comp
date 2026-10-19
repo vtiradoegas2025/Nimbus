@@ -1,0 +1,73 @@
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+layout(std430, set = 0, binding = 0) readonly buffer ScalarBegin { float scalar_begin[]; };
+layout(std430, set = 0, binding = 1) readonly buffer DensityBegin { float density_begin[]; };
+layout(std430, set = 0, binding = 2) readonly buffer ScalarFluxX { float scalar_flux_x[]; };
+layout(std430, set = 0, binding = 3) readonly buffer ScalarFluxY { float scalar_flux_y[]; };
+layout(std430, set = 0, binding = 4) readonly buffer ScalarFluxZeta { float scalar_flux_zeta[]; };
+layout(std430, set = 0, binding = 5) readonly buffer Jacobian { float jacobian[]; };
+layout(std430, set = 0, binding = 6) writeonly buffer LimiterFactors { float limiter_factors[]; };
+
+layout(push_constant) uniform Constants {
+    int nx;
+    int ny;
+    int nz;
+    int padding0;
+    float inv_dx;
+    float inv_dy;
+    float inv_dzeta;
+    float dt;
+    float padding1;
+    float padding2;
+    float padding3;
+    float padding4;
+} pc;
+
+uint index3(int i, int j, int k) {
+    return (uint(i) * uint(pc.ny) + uint(j)) * uint(pc.nz) + uint(k);
+}
+
+float bounded_factor(float value, bool support_limit) {
+    if (value > 0.0 && (value < 1.0 || support_limit)) {
+        float bounded = value * (1.0 - 32.0 * 1.1920928955078125e-7);
+        if (bounded > 0.0) bounded = uintBitsToFloat(floatBitsToUint(bounded) - 1u);
+        return bounded;
+    }
+    return value;
+}
+
+void main() {
+    uint n = gl_GlobalInvocationID.x;
+    uint count = uint(pc.nx) * uint(pc.ny) * uint(pc.nz);
+    if (n >= count) return;
+    int k = int(n % uint(pc.nz));
+    int j = int((n / uint(pc.nz)) % uint(pc.ny));
+    int i = int(n / (uint(pc.ny) * uint(pc.nz)));
+    float inv_j = 1.0 / jacobian[n];
+    float out_rate = 0.0;
+    if (i <= pc.nx - 2 && scalar_flux_x[n] > 0.0)
+        out_rate += scalar_flux_x[n] * pc.inv_dx * inv_j;
+    if (i >= 1) {
+        float flux = scalar_flux_x[index3(i - 1, j, k)];
+        if (flux < 0.0) out_rate -= flux * pc.inv_dx * inv_j;
+    }
+    if (j <= pc.ny - 2 && scalar_flux_y[n] > 0.0)
+        out_rate += scalar_flux_y[n] * pc.inv_dy * inv_j;
+    if (j >= 1) {
+        float flux = scalar_flux_y[index3(i, j - 1, k)];
+        if (flux < 0.0) out_rate -= flux * pc.inv_dy * inv_j;
+    }
+    if (scalar_flux_zeta[n] > 0.0)
+        out_rate += scalar_flux_zeta[n] * pc.inv_dzeta * inv_j;
+    if (k >= 1) {
+        float flux = scalar_flux_zeta[index3(i, j, k - 1)];
+        if (flux < 0.0) out_rate -= flux * pc.inv_dzeta * inv_j;
+    }
+    float factor = 1.0;
+    if (out_rate > 0.0) {
+        float available = density_begin[n] * max(scalar_begin[n], 0.0) / pc.dt;
+        factor = bounded_factor(min(1.0, available / out_rate), pc.padding0 != 0 && available <= out_rate);
+    }
+    limiter_factors[n] = factor;
+}

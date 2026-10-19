@@ -1,0 +1,194 @@
+{
+  "schema": "nimbus.qualification.constant_velocity_vulkan",
+  "schema_version": 1,
+  "status": "pass",
+  "duration_s": 6,
+  "checkpoint_s": 3,
+  "galilean_endpoint": {
+    "p": {
+      "maximum_absolute_error": 0.0625,
+      "root_mean_square_error": 0.01222410914757817,
+      "maximum_error_index": [
+        4,
+        6,
+        5
+      ],
+      "maximum_tolerance": 2.0,
+      "rms_tolerance": 0.25,
+      "passed": true
+    },
+    "qr": {
+      "maximum_absolute_error": 0.0,
+      "root_mean_square_error": 0.0,
+      "maximum_error_index": [
+        0,
+        0,
+        0
+      ],
+      "maximum_tolerance": 2e-07,
+      "rms_tolerance": 2e-08,
+      "passed": true
+    },
+    "qv": {
+      "maximum_absolute_error": 1.1175870895385742e-08,
+      "root_mean_square_error": 1.7553950402514038e-09,
+      "maximum_error_index": [
+        4,
+        10,
+        0
+      ],
+      "maximum_tolerance": 8e-06,
+      "rms_tolerance": 8e-07,
+      "passed": true
+    },
+    "rho": {
+      "maximum_absolute_error": 8.344650268554688e-07,
+      "root_mean_square_error": 1.5490718865221939e-07,
+      "maximum_error_index": [
+        3,
+        8,
+        2
+      ],
+      "maximum_tolerance": 0.0004,
+      "rms_tolerance": 4e-05,
+      "passed": true
+    },
+    "theta": {
+      "maximum_absolute_error": 0.000213623046875,
+      "root_mean_square_error": 3.9663884380295365e-05,
+      "maximum_error_index": [
+        4,
+        3,
+        3
+      ],
+      "maximum_tolerance": 0.12,
+      "rms_tolerance": 0.012,
+      "passed": true
+    },
+    "u": {
+      "maximum_absolute_error": 4.4345855712890625e-05,
+      "root_mean_square_error": 7.434728766477687e-06,
+      "maximum_error_index": [
+        0,
+        9,
+        3
+      ],
+      "maximum_tolerance": 0.012,
+      "rms_tolerance": 0.001,
+      "passed": true
+    },
+    "v": {
+      "maximum_absolute_error": 7.295608520507812e-05,
+      "root_mean_square_error": 8.783398830243598e-06,
+      "maximum_error_index": [
+        7,
+        0,
+        7
+      ],
+      "maximum_tolerance": 0.008,
+      "rms_tolerance": 0.001,
+      "passed": true
+    },
+    "w": {
+      "maximum_absolute_error": 0.00010726443724706769,
+      "root_mean_square_error": 2.1816613629908827e-05,
+      "maximum_error_index": [
+        5,
+        9,
+        4
+      ],
+      "maximum_tolerance": 0.02,
+      "rms_tolerance": 0.002,
+      "passed": true
+    }
+  },
+  "report_identity": {
+    "p": true,
+    "qr": true,
+    "qv": true,
+    "rho": true,
+    "theta": true,
+    "u": true,
+    "v": true,
+    "w": true
+  },
+  "restart_identity": {
+    "p": true,
+    "qr": true,
+    "qv": true,
+    "rho": true,
+    "theta": true,
+    "u": true,
+    "v": true,
+    "w": true
+  },
+  "restart_checkpoint_bytes": true,
+  "owner_identity_checks": 765,
+  "completed_ledgers": {
+    "budget.csv": {
+      "rows": 54,
+      "complete_columns": 0,
+      "maximum_radiation_booking_residual": null
+    },
+    "energy_budget.csv": {
+      "rows": 6,
+      "complete_columns": 0,
+      "maximum_radiation_booking_residual": null
+    },
+    "moisture_budget.csv": {
+      "rows": 6,
+      "complete_columns": 0,
+      "maximum_radiation_booking_residual": null
+    },
+    "momentum_budget.csv": {
+      "rows": 6,
+      "complete_columns": 0,
+      "maximum_radiation_booking_residual": null
+    },
+    "radiation_budget.csv": {
+      "rows": 6,
+      "complete_columns": 0,
+      "maximum_radiation_booking_residual": 0.0
+    },
+    "thermodynamic_source_budget.csv": {
+      "rows": 6,
+      "complete_columns": 8,
+      "maximum_radiation_booking_residual": null
+    }
+  },
+  "fail_closed_preflights": {
+    "vulkan_a_grid": true,
+    "auto_backend": true
+  },
+  "provenance": {
+    "binary": "/Users/victortiradoegas/Desktop/PersonalProjects/Nimbus/bin/nimbus_sim",
+    "binary_sha256": "effe5c74267e3cefd5bd9db468e211136f092dcc89426e8f28f956e38d7ae5e8",
+    "source_config": "/Users/victortiradoegas/Desktop/PersonalProjects/Nimbus/configs/qualification/constant_velocity_cgrid.yaml",
+    "source_config_sha256": "51a183053a81fc98deeb370c7430ee3233d61e9a4441f7d11614e22462779d98",
+    "qualification_script_sha256": "c44ea4ce80531d9576d60a13d4e03c2891d6ebf376a86fc97568a30b024c76f5",
+    "shader_manifest_sha256": "f9272db389a1b5369e2061964d5ba454ffe03a368d67144ae3ffc02a5c256646",
+    "qualified_device_selection": "[COMPUTE][VULKAN] selected device[0] \"Apple M4 Max\"",
+    "branches": {
+      "stationary_report_bearing": {
+        "device_selection": "[COMPUTE][VULKAN] selected device[0] \"Apple M4 Max\"",
+        "device_selection_reemitted": true,
+        "final_gpu_telemetry": "[GPU TELEMETRY] model_steps=6 command_buffers=30 dispatches=36 host_upload_bytes=1496448 host_download_bytes=1492992 device_upload_bytes=0 device_download_bytes=0 resident_hits=24 resident_misses=36 resident_upload_bytes_saved=221184 writeonly_output_upload_bytes_saved=1327104 batched_command_buffers=6 synchronous_waits=30 descriptor_cache_hits=29 descriptor_cache_misses=7 staging_current_bytes=0 staging_high_water_bytes=0 device_current_bytes=166144 device_high_water_bytes=166144 staging_memory_allocations=0 staging_memory_allocations_high_water=0 device_memory_allocations=3 device_memory_allocations_high_water=3 staging_memory_reserved_bytes=0 staging_memory_reserved_high_water_bytes=0 device_memory_reserved_bytes=166912 device_memory_reserved_high_water_bytes=166912"
+      },
+      "moving_report_bearing": {
+        "device_selection": "[COMPUTE][VULKAN] selected device[0] \"Apple M4 Max\"",
+        "device_selection_reemitted": true,
+        "final_gpu_telemetry": "[GPU TELEMETRY] model_steps=6 command_buffers=18 dispatches=24 host_upload_bytes=829824 host_download_bytes=608256 device_upload_bytes=0 device_download_bytes=0 resident_hits=12 resident_misses=24 resident_upload_bytes_saved=110592 writeonly_output_upload_bytes_saved=442368 batched_command_buffers=6 synchronous_waits=18 descriptor_cache_hits=19 descriptor_cache_misses=5 staging_current_bytes=0 staging_high_water_bytes=0 device_current_bytes=138240 device_high_water_bytes=138240 staging_memory_allocations=0 staging_memory_allocations_high_water=0 device_memory_allocations=3 device_memory_allocations_high_water=3 staging_memory_reserved_bytes=0 staging_memory_reserved_high_water_bytes=0 device_memory_reserved_bytes=138240 device_memory_reserved_high_water_bytes=138240"
+      },
+      "moving_report_free": {
+        "device_selection": "[COMPUTE][VULKAN] selected device[0] \"Apple M4 Max\"",
+        "device_selection_reemitted": true,
+        "final_gpu_telemetry": "[GPU TELEMETRY] model_steps=6 command_buffers=18 dispatches=24 host_upload_bytes=829824 host_download_bytes=608256 device_upload_bytes=0 device_download_bytes=0 resident_hits=12 resident_misses=24 resident_upload_bytes_saved=110592 writeonly_output_upload_bytes_saved=442368 batched_command_buffers=6 synchronous_waits=18 descriptor_cache_hits=19 descriptor_cache_misses=5 staging_current_bytes=0 staging_high_water_bytes=0 device_current_bytes=138240 device_high_water_bytes=138240 staging_memory_allocations=0 staging_memory_allocations_high_water=0 device_memory_allocations=3 device_memory_allocations_high_water=3 staging_memory_reserved_bytes=0 staging_memory_reserved_high_water_bytes=0 device_memory_reserved_bytes=138240 device_memory_reserved_high_water_bytes=138240"
+      },
+      "moving_resumed": {
+        "device_selection": "[COMPUTE][VULKAN] selected device[0] \"Apple M4 Max\"",
+        "device_selection_reemitted": true,
+        "final_gpu_telemetry": "[GPU TELEMETRY] model_steps=3 command_buffers=9 dispatches=12 host_upload_bytes=414912 host_download_bytes=304128 device_upload_bytes=0 device_download_bytes=0 resident_hits=6 resident_misses=12 resident_upload_bytes_saved=55296 writeonly_output_upload_bytes_saved=221184 batched_command_buffers=3 synchronous_waits=9 descriptor_cache_hits=7 descriptor_cache_misses=5 staging_current_bytes=0 staging_high_water_bytes=0 device_current_bytes=138240 device_high_water_bytes=138240 staging_memory_allocations=0 staging_memory_allocations_high_water=0 device_memory_allocations=3 device_memory_allocations_high_water=3 staging_memory_reserved_bytes=0 staging_memory_reserved_high_water_bytes=0 device_memory_reserved_bytes=138240 device_memory_reserved_high_water_bytes=138240"
+      }
+    }
+  }
+}

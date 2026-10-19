@@ -1,0 +1,105 @@
+schema: nimbus.v1
+grid:
+  coordinate_system: cartesian
+  staggering: c_grid
+  nx: 64
+  ny: 64
+  nz: 50
+  dx: 600
+  dy: 600
+  dz: 320
+  ztop: 16000
+time:
+  run_time: 1800
+  dt_large: 1.5
+  acoustic_substeps: 8
+  adaptive_dt: false
+  cfl_safety: 0.7
+  output_interval: 120
+dynamics:
+  scheme: klemp_wilhelmson_split_cartesian_cgrid
+  axisymmetric: false
+boundary_conditions:
+  lateral:
+    west: radiative
+    east: radiative
+    south: radiative
+    north: radiative
+  bottom: rigid_slip
+  top: rigid
+damping:
+  enabled: true
+  z_d: 11200
+  alpha: 0.05
+  mode: explicit
+coriolis:
+  enabled: true
+  mode: f_plane
+  latitude_deg: 35
+microphysics:
+  scheme: kessler
+turbulence:
+  scheme: smagorinsky
+  # PBL owns vertical mixing; SGS is horizontal-only to avoid double counting.
+  mode: 2d
+  Cs: 0.18
+  Pr_t: 0.7
+  Sc_t: 0.7
+diffusion:
+  scheme: explicit
+  operator_order: 2
+  K_h: 0
+  K_v: 0
+  apply_to: scalars
+surface:
+  scheme: slab
+  apply_fluxes: true
+boundary_layer:
+  scheme: slab
+radiation:
+  scheme: none
+initial_conditions:
+  sounding:
+    type: parametric_cape
+    cape_jkg: 3000
+    tropopause_m: 12000
+    surface_theta_k: 301
+    moisture_qv_kgkg: 0.012
+  hodograph:
+    type: wk_param
+    u_sfc_ms: 4
+    v_sfc_ms: 1
+    u_1km_ms: 14
+    v_1km_ms: 6
+    u_6km_ms: 28
+    v_6km_ms: 22
+  trigger:
+    type: bubble
+    bubble:
+      dtheta_k: 4
+      radius_km: 4
+      center_x_m: 19200
+      center_y_m: 19200
+      center_z_m: 1500
+    vortex_seed:
+      r_max_m: 6000
+      v_max_ms: 40
+      z_top_m: 6000
+      center_x_m: 0
+      center_y_m: 0
+      center_z_m: 3000
+output:
+  preset: presentation
+  format: npy_3d
+  async_io: true
+  live_shm: false
+extensions:
+  compute:
+    # Active PBL is CPU-only; do not imply an unqualified hybrid backend.
+    backend: cpu
+  chaos:
+    scheme: none
+    seed: 0
+    member_id: 0
+  validation:
+    guard_mode: warn

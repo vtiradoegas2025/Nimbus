@@ -1,0 +1,22 @@
+{
+  "schema": "nimbus.generated-metal-east-npy-scope.v1",
+  "version": 1,
+  "claimBoundary": "One exact qualified dry flat east-radiative C-grid Metal/TVD minimal NPY configuration only; no netCDF/ZFP normalization or other boundary profile.",
+  "profileCount": 1,
+  "familyId": "boundary:2b5bfbe6dfa466c6baf991e3",
+  "fixtureSha256": "a244b58833f7e3cd7060d941e8453d4e5face3dff9e18e87ebf61dd581a24d55",
+  "strictCanonicalYamlSha256": "a244b58833f7e3cd7060d941e8453d4e5face3dff9e18e87ebf61dd581a24d55",
+  "strictCanonicalYamlBytes": 6000,
+  "outputFormats": [
+    "npy_3d"
+  ],
+  "preset": "minimal",
+  "asyncIo": false,
+  "writeCadenceSeconds": [
+    1
+  ],
+  "scalarTransportOwner": "native_conservative_mc",
+  "backend": "metal",
+  "executionMode": "qualified",
+  "normalizedCodecsAdmitted": []
+}

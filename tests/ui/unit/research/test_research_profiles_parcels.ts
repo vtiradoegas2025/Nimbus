@@ -1,0 +1,45 @@
+import {physicalMeasures} from "../../../../ui/src/lib/research/data.ts";
+import assert from "node:assert/strict";
+import { interpolateProfile, profileDifference, layerSummary, windReferenceOffset } from "../../../../ui/src/lib/research/profiles.ts";
+import { analyzeParcels } from "../../../../ui/src/lib/research/parcels.ts";
+import { matchSavedTime, commonPhysicalBox } from "../../../../ui/src/lib/research/resolution.ts";
+import { parseResearchRecipe } from "../../../../ui/src/lib/research/recipe.ts";
+import type { StepInfo } from "../../../../ui/src/lib/run/runOutputs.ts";
+assert.equal(interpolateProfile([0, 100, 300], [0, 1, 3], 200), 2);
+assert.equal(interpolateProfile([0, 100, 300], [0, NaN, 3], 200), null);
+assert.equal(interpolateProfile([0, 100], [1, 2], -1), null);
+assert.deepEqual(profileDifference([0, 50, 100], [2, 3, 4], [0, 100], [1, 3]), [1, 1, 1]);
+assert.deepEqual(layerSummary([0, 100, 300], [0, 1, 3], 0, 300), { mean: 1.5, difference: 3, coverage: 1 });
+assert.equal(layerSummary([0, 100, 300], [0, NaN, 3], 0, 300).coverage, 0);
+const step = { index: 0, simulationTimeS: 0, fields: ["w"], fieldUnits: { w: "m/s" }, publicationState: "complete", publicationGeneration: "g", grid: { nr: 2, nth: 2, nz: 2, drM: 1000, dyM: 1000, dzM: 1000, coordinateSystem: "cartesian", scalarOriginM: [500, 500, 500], physicalBoundsM: { lower: [0, 0, 0], upper: [2000, 2000, 2000] } } } as StepInfo;
+assert.deepEqual(windReferenceOffset(step, [10, -2]), [-10, 2]);
+assert.deepEqual(windReferenceOffset({ ...step, motion: { mode: "constant_velocity", windsEarthRelative: false, frameVelocityMs: [3, 4] } }, [10, -2]), [-7, 6]);
+assert.throws(() => windReferenceOffset({ ...step, motion: { mode: "moving_nest" } }, [0, 0]));
+assert.equal(matchSavedTime([step], .0001, .001), step);
+assert.throws(() => matchSavedTime([step, step], 0, .001), /Multiple/);
+assert.throws(() => matchSavedTime([step], 1, .001), /No saved/);
+assert.deepEqual(commonPhysicalBox([step, { ...step, grid: { ...step.grid, nr: 4, drM: 500, scalarOriginM: [250, 500, 500] } }]), { lower: [0, 0, 0], upper: [2000, 2000, 2000] });
+const values = new Float32Array(2 * 4 * 9);
+for (let p = 0; p < 2; p++)
+    for (let s = 0; s < 4; s++)
+        values.set([s * 10, p * 1000, 0, 1000 + p * 1000 + s * 10, 5, .001 + .006 * s, .0001, .0002, .0003], (p * 4 + s) * 9);
+const filter = { originMin: 0, originMax: 3, endpointMin: 0, endpointMax: 3, timeMin: 0, timeMax: 30, selected: 1 };
+const analysis = analyzeParcels(values, [2, 4, 9], filter);
+assert.equal(analysis.cohort.length, 2);
+assert.equal(analysis.selected, 1);
+assert(Math.abs(analysis.integrated[3]! - .018) < 1e-8);
+assert(Math.abs(analysis.change[3]! - .018) < 1e-8);
+assert.equal(analyzeParcels(values, [2, 4, 9], { ...filter, originMax: 1.5 }).cohort.length, 1);
+values[(1 * 4 + 1) * 9 + 6] = NaN;
+const gaps = analyzeParcels(values, [2, 4, 9], filter);
+assert.equal(gaps.integrated[1], null);
+assert.equal(gaps.integrated[2], 0);
+assert.throws(() => analyzeParcels(values, [2, 4, 8], filter));
+const recipe = { schema: "nimbus.research-workspace", version: 1, datasetIdentity: "a", tab: "sections", stepIndex: 0, settings: { sections: { field: "w", samples: 128 } }, title: "Figure", citation: "", bookmarks: [] };
+assert.equal(parseResearchRecipe(JSON.stringify(recipe), "a").tab, "sections");
+assert.throws(() => parseResearchRecipe(JSON.stringify(recipe), "b"));
+assert.throws(() => parseResearchRecipe(JSON.stringify({ ...recipe, settings: { sections: { samples: [] } } }), "a"));
+console.log("Research profiles, wind frames, parcel integration/gaps, resolution time matching and replay validation passed");
+
+const legacyMeasures=physicalMeasures({coordinateSystem:"cartesian",drM:100,dthetaRad:200,dzM:50},[[50,150],[100],[25,75]]);
+assert.equal(legacyMeasures.area,20000);assert.equal(legacyMeasures.volume,1000000);assert.equal(legacyMeasures.dy,200);

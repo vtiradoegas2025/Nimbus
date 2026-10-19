@@ -1,0 +1,142 @@
+# Short engineering smoke for mapped C-grid PBL traction in a translating,
+# grid-attached terrain frame. The surface wind matches the frame at the first
+# hodograph anchor, exercising the no-spurious-drag contract. This is not a
+# qualification profile; long coupled reference/restart campaigns own promotion.
+schema: nimbus.v1
+
+grid:
+  coordinate_system: cartesian
+  staggering: c_grid
+  nx: 12
+  ny: 12
+  nz: 18
+  dx: 500
+  dy: 500
+  dz: 500
+  ztop: 9000
+
+time:
+  run_time: 2
+  dt_large: 0.2
+  acoustic_substeps: 6
+  adaptive_dt: false
+  cfl_safety: 0.7
+  output_interval: 2
+
+domain_motion:
+  mode: constant_velocity
+  frame_velocity:
+    u_ms: 5
+    v_ms: -2
+
+dynamics:
+  scheme: klemp_wilhelmson_split_cartesian_cgrid
+  axisymmetric: false
+
+boundary_conditions:
+  lateral:
+    west: radiative
+    east: radiative
+    south: radiative
+    north: radiative
+  bottom: rigid_slip
+  top: rigid
+
+damping:
+  enabled: false
+  z_d: 9000
+  alpha: 0
+  mode: implicit
+
+coriolis:
+  enabled: false
+  mode: f_plane
+  latitude_deg: 35
+
+microphysics:
+  scheme: kessler
+
+turbulence:
+  scheme: smagorinsky
+  mode: 2d
+  Cs: 0.18
+  Pr_t: 0.7
+  Sc_t: 0.7
+
+diffusion:
+  scheme: explicit
+  operator_order: 2
+  K_h: 0
+  K_v: 0
+  apply_to: scalars
+
+surface:
+  scheme: slab
+  apply_fluxes: true
+  z0m_m: 0.1
+  z0h_m: 0.01
+  albedo: 0.2
+  emissivity: 0.96
+  tsk_k: 302
+  qsfc_kgkg: 0.014
+
+boundary_layer:
+  scheme: slab
+
+radiation:
+  scheme: none
+
+terrain:
+  scheme: bell
+  coordinate: smoothed
+  compute_derivatives: true
+  compute_metrics: true
+  smoothing_decay: 0.1
+  bell:
+    h0: 300
+    a: 1800
+    axisymmetric: true
+
+initial_conditions:
+  sounding:
+    type: parametric_cape
+    cape_jkg: 600
+    tropopause_m: 8000
+    surface_theta_k: 300
+    moisture_qv_kgkg: 0.012
+  hodograph:
+    type: wk_param
+    u_sfc_ms: 5
+    v_sfc_ms: -2
+    u_1km_ms: 7
+    v_1km_ms: 0
+    u_6km_ms: 12
+    v_6km_ms: 4
+  trigger:
+    type: bubble
+    bubble:
+      dtheta_k: 0.5
+      radius_km: 1
+      center_x_m: 3000
+      center_y_m: 3000
+      center_z_m: 1200
+
+output:
+  preset: minimal
+  format: npy_3d
+  async_io: false
+  live_shm: false
+
+extensions:
+  execution:
+    mode: exploratory
+    acknowledge_maturity_limits: false
+  compute:
+    backend: cpu
+  checkpoint:
+    every_s: 0
+  diagnostics:
+    scientific_every_steps: 1
+    deterministic_reductions: true
+  validation:
+    guard_mode: error

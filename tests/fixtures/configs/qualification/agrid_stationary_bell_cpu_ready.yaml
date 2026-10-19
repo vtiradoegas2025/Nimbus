@@ -1,0 +1,159 @@
+schema: nimbus.v1
+
+grid:
+  coordinate_system: cartesian
+  staggering: collocated
+  nx: 18
+  ny: 18
+  nz: 18
+  dx: 500
+  dy: 500
+  dz: 250
+  ztop: 4500
+
+time:
+  integrator: split_explicit
+  run_time: 2
+  dt_large: 0.1
+  acoustic_substeps: 6
+  adaptive_dt: false
+  cfl_safety: 0.7
+  output_interval: 1
+
+domain_motion:
+  mode: stationary
+  lifetime_planning:
+    enabled: false
+  tracking:
+    enabled: false
+    recycle_domain: false
+  nesting:
+    enabled: false
+
+dynamics:
+  scheme: klemp_wilhelmson_split_cartesian_agrid
+  axisymmetric: false
+
+advection:
+  scheme: tvd
+
+boundary_conditions:
+  lateral:
+    west: periodic
+    east: periodic
+    south: periodic
+    north: periodic
+  bottom: rigid_slip
+  top: rigid
+
+damping:
+  enabled: false
+  z_d: 4500
+  alpha: 0
+  mode: explicit
+  lateral_width: 0
+  lateral_alpha: 0
+  lateral_sponge_enabled: false
+  w_only_top_sponge: false
+  w_only_depth_cells: 0
+  w_only_alpha_max: 0
+
+coriolis:
+  enabled: false
+  mode: f_plane
+  latitude_deg: 35
+
+microphysics:
+  scheme: none
+
+turbulence:
+  scheme: none
+  mode: 3d
+  Cs: 0.18
+  Pr_t: 0.7
+  Sc_t: 0.7
+
+diffusion:
+  scheme: explicit
+  operator_order: 2
+  K_h: 0
+  K_v: 0
+  apply_to: scalars
+
+surface:
+  scheme: none
+  apply_fluxes: false
+
+boundary_layer:
+  scheme: none
+
+radiation:
+  scheme: none
+
+terrain:
+  scheme: bell
+  coordinate: smoothed
+  horizontal_placement: grid_attached
+  compute_derivatives: true
+  compute_metrics: true
+  smoothing_decay: 0.1
+  bell:
+    h0: 220
+    a: 1600
+    axisymmetric: true
+
+initial_conditions:
+  sounding:
+    type: parametric_cape
+    cape_jkg: 1411.79
+    tropopause_m: 8000
+    surface_theta_k: 300
+    moisture_qv_kgkg: 0
+  hodograph:
+    type: wk_param
+    u_sfc_ms: 0
+    v_sfc_ms: 0
+    u_1km_ms: 0
+    v_1km_ms: 0
+    u_6km_ms: 0
+    v_6km_ms: 0
+  trigger:
+    type: bubble
+    bubble:
+      dtheta_k: 2
+      radius_km: 1.5
+      center_x_m: 4500
+      center_y_m: 4500
+      center_z_m: 1500
+
+output:
+  preset: minimal
+  format: npy_3d
+  async_io: false
+  live_shm: false
+
+extensions:
+  execution:
+    mode: qualified
+  compute:
+    backend: cpu
+    allow_fallback: false
+    validate_parity: false
+    gpu_apply_microphysics: false
+    gpu_apply_slow: false
+    gpu_apply_sgs: false
+  solver:
+    slow_rk2: true
+    lid_bc_gamma: -1
+    axis_u_m1_filter: false
+  chaos:
+    scheme: none
+  checkpoint:
+    every_s: 1
+    keep_last: 0
+    minimum_free_space_mib: 0
+  diagnostics:
+    scientific_every_steps: 1
+    deterministic_reductions: true
+  validation:
+    guard_mode: error

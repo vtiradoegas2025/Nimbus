@@ -1,0 +1,118 @@
+schema: nimbus.v1
+
+# Cartesian C-grid dry warm-bubble: a 2 K thermal in a CAPE=3000 sheared
+# environment. Tests active convective dynamics on the staggered Cartesian grid
+# -- the bubble must rise buoyantly, stay bounded, and not develop a checkerboard.
+grid:
+  coordinate_system: cartesian
+  staggering: c_grid
+  nx: 32
+  ny: 32
+  nz: 32
+  dx: 2000
+  dy: 2000
+  dz: 500
+  ztop: 16000
+
+time:
+  run_time: 600
+  dt_large: 2.0
+  acoustic_substeps: 6
+  adaptive_dt: false
+  cfl_safety: 0.7
+  output_interval: 0
+
+dynamics:
+  scheme: klemp_wilhelmson_split_cartesian_cgrid
+  axisymmetric: false
+
+boundary_conditions:
+  lateral:
+    west: radiative
+    east: radiative
+    south: radiative
+    north: radiative
+  bottom: rigid_slip
+  top: rigid
+
+damping:
+  enabled: true
+  # SCIENCE.md C6, closed 2026-06-12: sponge starts ABOVE the
+  # sounding EL (~13 km) so the anvil and overshooting top stay
+  # physical; CM1-standard strength (1/300); rho/p are no longer
+  # relaxed. The old z_d 11200 / alpha 0.05 (15x) was load-bearing
+  # compensation for zero-gradient lateral BC reflection - the KW78
+  # radiative BCs (audit M17) removed the need: beast runs its
+  # full 4500 s bounded (~38-40 m/s mature phase, zero clamps) at
+  # this setting.
+  z_d: 14000
+  alpha: 0.00333
+  mode: explicit
+
+coriolis:
+  enabled: true
+  mode: f_plane
+  latitude_deg: 35
+
+microphysics:
+  scheme: none
+
+turbulence:
+  scheme: none
+  mode: 3d
+  Cs: 0.18
+  Pr_t: 0.7
+  Sc_t: 0.7
+
+diffusion:
+  scheme: explicit
+  operator_order: 2
+  K_h: 0
+  K_v: 0
+  apply_to: scalars
+
+surface:
+  scheme: none
+  apply_fluxes: false
+
+boundary_layer:
+  scheme: none
+
+radiation:
+  scheme: none
+
+initial_conditions:
+  sounding:
+    type: parametric_cape
+    cape_jkg: 3000
+    tropopause_m: 12000
+    surface_theta_k: 301
+    moisture_qv_kgkg: 0.012
+  hodograph:
+    type: wk_param
+    u_sfc_ms: 4.0
+    v_sfc_ms: 1.0
+    u_1km_ms: 14.0
+    v_1km_ms: 6.0
+    u_6km_ms: 28.0
+    v_6km_ms: 22.0
+  trigger:
+    type: bubble
+    bubble:
+      dtheta_k: 2
+      radius_km: 10
+      center_x_m: 32000
+      center_y_m: 32000
+      center_z_m: 1500
+
+output:
+  preset: minimal
+  format: npy_3d
+  async_io: true
+  live_shm: false
+
+extensions:
+  compute:
+    backend: cpu
+  validation:
+    guard_mode: warn

@@ -1,0 +1,466 @@
+// smagorinsky_tendencies.comp
+//
+// Smagorinsky SGS tendencies (GPU.md Phase 3.4; rewritten for
+// SCIENCE.md M15): CONSERVATIVE stress-divergence momentum mixing
+//   du_i/dt = (1/rho_face) d_j (2 rho_edge nu S_ij)
+// and conservative scalar flux divergence
+//   dphi/dt = (1/rho) d_j (rho_face K_face dphi/dx_j)
+// in one pass. GPU equivalent of
+//   eddy_viscosity::compute_momentum_diffusion_tendencies +
+//   compute_scalar_diffusion_tendencies (x theta, qv)
+// reading the nu_t / K_theta / K_q fields the coefficients pass produced
+// and the live dry-density field.
+//
+// CPU conventions mirrored exactly:
+//   - tau components live where the C-grid puts them: diagonals at cell
+//     centers, off-diagonals on cell edges with nu 4-point-averaged;
+//   - live rho weighting at each natural center/face/edge location, matching
+//     the prognostic momentum and scalar-mass currencies;
+//   - ground/lid closures are ZERO-FLUX (tau_13 = tau_23 = 0 and zero
+//     scalar flux at the ground and lid faces - the M19 free-slip
+//     convention), so column integrals are conserved exactly;
+//   - each horizontal direction follows its physical periodic topology:
+//     wrap rows 1..N-2 or retain closed boundary ownership;
+//   - dz_prof[k] is scalar-cell thickness, vertical scalar/shear gradients
+//     use adjacent-center distance, and w divergence uses its dual thickness;
+//   - validated spacings are used without a hidden one-metre resolution floor.
+//
+// Data layout: row-major [nx][ny][nz]. Index (i, j, k) = (i*ny + j)*nz + k.
+
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) readonly buffer UBuf     { float u_in[];     };
+layout(set = 0, binding = 1) readonly buffer VBuf     { float v_in[];     };
+layout(set = 0, binding = 2) readonly buffer WBuf     { float w_in[];     };
+layout(set = 0, binding = 3) readonly buffer ThetaBuf { float theta_in[]; };
+layout(set = 0, binding = 4) readonly buffer QvBuf    { float qv_in[];    };
+layout(set = 0, binding = 5) readonly buffer NuBuf    { float nu_t[];     };
+layout(set = 0, binding = 6) readonly buffer KthBuf   { float K_theta[];  };
+layout(set = 0, binding = 7) readonly buffer KqBuf    { float K_q[];      };
+layout(set = 0, binding = 8) readonly buffer DzBuf    { float dz_prof[];  };
+// Live dry-density field [nx][ny][nz].
+layout(set = 0, binding = 9) readonly buffer RhoBuf  { float rho_in[];   };
+
+layout(set = 0, binding = 10) writeonly buffer DuBuf  { float dudt_sgs[];     };
+layout(set = 0, binding = 11) writeonly buffer DvBuf  { float dvdt_sgs[];     };
+layout(set = 0, binding = 12) writeonly buffer DwBuf  { float dwdt_sgs[];     };
+layout(set = 0, binding = 13) writeonly buffer DthBuf { float dthetadt_sgs[]; };
+layout(set = 0, binding = 14) writeonly buffer DqvBuf { float dqvdt_sgs[];    };
+
+// Push constants (44 bytes; mirrors SmagorinskyTendenciesPushConstants).
+layout(push_constant) uniform PushConstants {
+    int   nx;
+    int   ny;
+    int   nz;
+    int   use_horizontal;  // cfg.mode != "vertical_only"
+    int   use_vertical;    // cfg.mode != "horizontal_only"
+    int   has_qv;
+    int   periodic_x;
+    int   periodic_y;      // j-topology (SCIENCE.md M16)
+    float dx;
+    float dy;
+    int closed_lateral;
+};
+
+uint at(int i, int j, int k)
+{
+    return uint((i * ny + j) * nz + k);
+}
+
+int periodic_prev(int j)
+{
+    return (j <= 1) ? ny - 2 : min(j - 1, ny - 2);
+}
+
+int periodic_next(int j)
+{
+    return (j >= ny - 2) ? 1 : max(j + 1, 1);
+}
+
+int periodic_prev_x(int i)
+{
+    return (i <= 1) ? nx - 2 : min(i - 1, nx - 2);
+}
+
+int periodic_next_x(int i)
+{
+    return (i >= nx - 2) ? 1 : max(i + 1, 1);
+}
+
+bool finite_f(float v) { return !isnan(v) && !isinf(v); }
+float sanitize(float v) { return finite_f(v) ? v : 0.0; }
+
+float cell_dz(int k)
+{
+    return dz_prof[k];
+}
+
+float center_distance(int lower_k)
+{
+    return 0.5 * (cell_dz(lower_k) + cell_dz(lower_k + 1));
+}
+
+float rho_c(int i, int j, int k)
+{
+    return rho_in[at(i, j, k)];
+}
+
+float rho_xface(int i, int j, int k)
+{
+    int i1 = (periodic_x != 0) ? periodic_next_x(i) : min(i + 1, nx - 1);
+    return 0.5 * (rho_c(i, j, k) + rho_c(i1, j, k));
+}
+
+float rho_yface(int i, int j, int k)
+{
+    int j1 = (periodic_y != 0) ? periodic_next(j) : min(j + 1, ny - 1);
+    return 0.5 * (rho_c(i, j, k) + rho_c(i, j1, k));
+}
+
+float nu_c(int i, int j, int k)
+{
+    return max(nu_t[at(i, j, k)], 0.0);
+}
+
+float mu_c(int i, int j, int k)
+{
+    return rho_c(i, j, k) * nu_c(i, j, k);
+}
+
+float mu_xyedge(int i, int j, int k)
+{
+    int i1 = (periodic_x != 0) ? periodic_next_x(i) : min(i + 1, nx - 1);
+    int j1 = (periodic_y != 0) ? periodic_next(j) : min(j + 1, ny - 1);
+    return 0.25 * (mu_c(i, j, k) + mu_c(i1, j, k)
+                 + mu_c(i, j1, k) + mu_c(i1, j1, k));
+}
+
+float mu_xzedge(int i, int j, int k)
+{
+    int i1 = (periodic_x != 0) ? periodic_next_x(i) : min(i + 1, nx - 1);
+    float lower = 0.5 * (mu_c(i, j, k) + mu_c(i1, j, k));
+    float upper = 0.5 * (mu_c(i, j, k + 1) + mu_c(i1, j, k + 1));
+    return (cell_dz(k + 1) * lower + cell_dz(k) * upper) /
+           (cell_dz(k) + cell_dz(k + 1));
+}
+
+float mu_yzedge(int i, int j, int k)
+{
+    int j1 = (periodic_y != 0) ? periodic_next(j) : min(j + 1, ny - 1);
+    float lower = 0.5 * (mu_c(i, j, k) + mu_c(i, j1, k));
+    float upper = 0.5 * (mu_c(i, j, k + 1) + mu_c(i, j1, k + 1));
+    return (cell_dz(k + 1) * lower + cell_dz(k) * upper) /
+           (cell_dz(k) + cell_dz(k + 1));
+}
+
+float wf(int i, int j, int k)  // w with the implicit ground face
+{
+    return (k < 0) ? 0.0 : w_in[at(i, j, k)];
+}
+
+void main()
+{
+    uint gid = gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * gl_NumWorkGroups.x * gl_WorkGroupSize.x;
+    uint total = uint(nx) * uint(ny) * uint(nz);
+    if (gid >= total)
+    {
+        return;
+    }
+
+    int k = int(gid % uint(nz));
+    uint ij = gid / uint(nz);
+    int j = int(ij % uint(ny));
+    int i = int(ij / uint(ny));
+    uint c = gid;
+
+    bool horiz = use_horizontal != 0;
+    bool vert  = use_vertical != 0;
+    bool wrap_x = (periodic_x != 0);
+    bool wrap_y = (periodic_y != 0);
+
+    float dx_s = dx;
+    float dy_s = dy;
+    float dz_k = cell_dz(k);
+
+    int jmm = wrap_y ? periodic_prev(j) : max(j - 1, 0);
+    int jpp = wrap_y ? periodic_next(j) : min(j + 1, ny - 1);
+    int imm = wrap_x ? periodic_prev_x(i) : max(i - 1, 0);
+    int ipp = wrap_x ? periodic_next_x(i) : min(i + 1, nx - 1);
+    bool j_interior = (j >= 1 && j <= ny - 2);
+
+    float du_out = 0.0;
+    float dv_out = 0.0;
+    float dw_out = 0.0;
+    float dth_out = 0.0;
+    float dqv_out = 0.0;
+
+    // ── du/dt at x-face i (between centers i and i+1) ──
+    if (i >= 1 && i <= (wrap_x ? nx - 2 : nx - 3)
+        && j_interior && k <= nz - 2)
+    {
+        float div = 0.0;
+        if (horiz)
+        {
+            float S11_r = (u_in[at(ipp, j, k)] - u_in[c]) / dx_s;
+            float S11_l = (u_in[c] - u_in[at(imm, j, k)]) / dx_s;
+            float T11_r = 2.0 * mu_c(ipp, j, k) * S11_r;
+            float T11_l = 2.0 * mu_c(i, j, k) * S11_l;
+            div += (T11_r - T11_l) / dx_s;
+
+            // T12 at the xy-edges above (j) and below (jmm) the face.
+            float T12[2];
+            int je[2]; je[0] = j; je[1] = jmm;
+            for (int a = 0; a < 2; ++a)
+            {
+                int je1 = wrap_y ? periodic_next(je[a]) : min(je[a] + 1, ny - 1);
+                float S12 = 0.5 * (
+                    (u_in[at(i, je1, k)] - u_in[at(i, je[a], k)]) / dy_s
+                  + (v_in[at(ipp, je[a], k)] - v_in[at(i, je[a], k)]) / dx_s);
+                T12[a] = 2.0 * mu_xyedge(i, je[a], k) * S12;
+            }
+            div += (T12[0] - T12[1]) / dy_s;
+        }
+        if (vert)
+        {
+            // T13 at the xz-edges above (k) and below (k-1); ground and
+            // lid edges carry zero stress.
+            float T13[2];
+            int ke[2]; ke[0] = k; ke[1] = k - 1;
+            for (int a = 0; a < 2; ++a)
+            {
+                if (ke[a] < 0 || ke[a] >= nz - 1)
+                {
+                    T13[a] = 0.0;
+                    continue;
+                }
+                float dudz =
+                    (u_in[at(i, j, ke[a] + 1)] - u_in[at(i, j, ke[a])])
+                    / center_distance(ke[a]);
+                float stress_gradient = dudz;
+                if (horiz)
+                    stress_gradient +=
+                        (wf(ipp, j, ke[a]) - wf(i, j, ke[a])) / dx_s;
+                T13[a] = mu_xzedge(i, j, ke[a]) * stress_gradient;
+            }
+            div += (T13[0] - T13[1]) / dz_k;
+        }
+        du_out = sanitize(div / rho_xface(i, j, k));
+    }
+
+    // ── dv/dt at y-face j (between centers j and j+1) ──
+    bool vface_j_ok = wrap_y
+        ? (j >= 1 && j <= ny - 2)
+        : (j >= 1 && j <= ny - 3);
+    if (i >= 1 && i <= nx - 2 && vface_j_ok && k <= nz - 2)
+    {
+        float div = 0.0;
+        if (horiz)
+        {
+            float S22_n = (v_in[at(i, jpp, k)] - v_in[c]) / dy_s;
+            float S22_s = (v_in[c] - v_in[at(i, jmm, k)]) / dy_s;
+            float T22_n = 2.0 * mu_c(i, jpp, k) * S22_n;
+            float T22_s = 2.0 * mu_c(i, j, k) * S22_s;
+            div += (T22_n - T22_s) / dy_s;
+
+            // T21 (= T12) at the xy-edges right (i) and left (i-1).
+            float T21[2];
+            int ie[2]; ie[0] = i; ie[1] = imm;
+            int j1 = wrap_y ? periodic_next(j) : min(j + 1, ny - 1);
+            for (int a = 0; a < 2; ++a)
+            {
+                int ie1 = wrap_x ? periodic_next_x(ie[a])
+                                 : min(ie[a] + 1, nx - 1);
+                float S12 = 0.5 * (
+                    (u_in[at(ie[a], j1, k)] - u_in[at(ie[a], j, k)]) / dy_s
+                  + (v_in[at(ie1, j, k)] - v_in[at(ie[a], j, k)]) / dx_s);
+                T21[a] = 2.0 * mu_xyedge(ie[a], j, k) * S12;
+            }
+            div += (T21[0] - T21[1]) / dx_s;
+        }
+        if (vert)
+        {
+            float T23[2];
+            int ke[2]; ke[0] = k; ke[1] = k - 1;
+            int j1 = wrap_y ? periodic_next(j) : min(j + 1, ny - 1);
+            for (int a = 0; a < 2; ++a)
+            {
+                if (ke[a] < 0 || ke[a] >= nz - 1)
+                {
+                    T23[a] = 0.0;
+                    continue;
+                }
+                float dvdz =
+                    (v_in[at(i, j, ke[a] + 1)] - v_in[at(i, j, ke[a])])
+                    / center_distance(ke[a]);
+                float stress_gradient = dvdz;
+                if (horiz)
+                    stress_gradient +=
+                        (wf(i, j1, ke[a]) - wf(i, j, ke[a])) / dy_s;
+                T23[a] = mu_yzedge(i, j, ke[a]) * stress_gradient;
+            }
+            div += (T23[0] - T23[1]) / dz_k;
+        }
+        dv_out = sanitize(div / rho_yface(i, j, k));
+    }
+
+    // ── dw/dt at z-face k (between centers k and k+1) ──
+    if (i >= 1 && i <= nx - 2 && j_interior && k <= nz - 2)
+    {
+        float dz_dual = center_distance(k);
+        float mass_per_area = 0.5 * (
+            rho_c(i, j, k) * cell_dz(k) +
+            rho_c(i, j, k + 1) * cell_dz(k + 1));
+        float force_per_area = 0.0;
+        if (vert)
+        {
+            float S33_t = (wf(i, j, k + 1) - wf(i, j, k)) / cell_dz(k + 1);
+            float S33_b = (wf(i, j, k) - wf(i, j, k - 1)) / dz_k;
+            float T33_t = 2.0 * mu_c(i, j, k + 1) * S33_t;
+            float T33_b = 2.0 * mu_c(i, j, k) * S33_b;
+            force_per_area += T33_t - T33_b;
+        }
+        if (horiz)
+        {
+            // T31 (= T13) at the xz-edges right (i) and left (i-1).
+            float T31[2];
+            int ie[2]; ie[0] = i; ie[1] = imm;
+            for (int a = 0; a < 2; ++a)
+            {
+                int ie1 = wrap_x ? periodic_next_x(ie[a])
+                                 : min(ie[a] + 1, nx - 1);
+                float dwdx =
+                    (wf(ie1, j, k) - wf(ie[a], j, k)) / dx_s;
+                float stress_gradient = dwdx;
+                if (vert)
+                    stress_gradient +=
+                        (u_in[at(ie[a], j, k + 1)]
+                       - u_in[at(ie[a], j, k)]) / center_distance(k);
+                T31[a] = mu_xzedge(ie[a], j, k) * stress_gradient;
+            }
+            force_per_area += dz_dual * (T31[0] - T31[1]) / dx_s;
+
+            // T32 (= T23) at the yz-edges north (j) and south (jmm).
+            float T32[2];
+            int je[2]; je[0] = j; je[1] = jmm;
+            for (int a = 0; a < 2; ++a)
+            {
+                int je1 = wrap_y ? periodic_next(je[a]) : min(je[a] + 1, ny - 1);
+                float dwdy =
+                    (wf(i, je1, k) - wf(i, je[a], k)) / dy_s;
+                float stress_gradient = dwdy;
+                if (vert)
+                    stress_gradient +=
+                        (v_in[at(i, je[a], k + 1)]
+                       - v_in[at(i, je[a], k)]) / center_distance(k);
+                T32[a] = mu_yzedge(i, je[a], k) * stress_gradient;
+            }
+            force_per_area += dz_dual * (T32[0] - T32[1]) / dy_s;
+        }
+        dw_out = sanitize(force_per_area / mass_per_area);
+    }
+
+    // ── Scalars at the cell center ──
+    if (i >= 1 && i <= nx - 2 && j_interior)
+    {
+        if (!wrap_x && (closed_lateral & 1) != 0 && i == 1)
+            imm = i;
+        if (!wrap_x && (closed_lateral & 2) != 0 && i == nx - 2)
+            ipp = i;
+        if (!wrap_y && (closed_lateral & 4) != 0 && j == 1)
+            jmm = j;
+        if (!wrap_y && (closed_lateral & 8) != 0 && j == ny - 2)
+            jpp = j;
+        // theta
+        {
+            float div = 0.0;
+            if (horiz)
+            {
+                float Fx_e = 0.5 * (
+                    rho_c(i, j, k) * K_theta[c] +
+                    rho_c(ipp, j, k) * K_theta[at(ipp, j, k)])
+                    * (theta_in[at(ipp, j, k)] - theta_in[c]) / dx_s;
+                float Fx_w = 0.5 * (
+                    rho_c(imm, j, k) * K_theta[at(imm, j, k)] +
+                    rho_c(i, j, k) * K_theta[c])
+                    * (theta_in[c] - theta_in[at(imm, j, k)]) / dx_s;
+                float Fy_n = 0.5 * (
+                    rho_c(i, j, k) * K_theta[c] +
+                    rho_c(i, jpp, k) * K_theta[at(i, jpp, k)])
+                    * (theta_in[at(i, jpp, k)] - theta_in[c]) / dy_s;
+                float Fy_s = 0.5 * (
+                    rho_c(i, jmm, k) * K_theta[at(i, jmm, k)] +
+                    rho_c(i, j, k) * K_theta[c])
+                    * (theta_in[c] - theta_in[at(i, jmm, k)]) / dy_s;
+                div += (Fx_e - Fx_w) / dx_s + (Fy_n - Fy_s) / dy_s;
+            }
+            if (vert)
+            {
+                float Fz_t = (k < nz - 1)
+                    ? 0.5 * (rho_c(i, j, k) * K_theta[c] +
+                             rho_c(i, j, k + 1) * K_theta[at(i, j, k + 1)])
+                      * (theta_in[at(i, j, k + 1)] - theta_in[c])
+                      / center_distance(k)
+                    : 0.0;
+                float Fz_b = (k > 0)
+                    ? 0.5 * (rho_c(i, j, k - 1) * K_theta[at(i, j, k - 1)] +
+                             rho_c(i, j, k) * K_theta[c])
+                      * (theta_in[c] - theta_in[at(i, j, k - 1)])
+                      / center_distance(k - 1)
+                    : 0.0;
+                div += (Fz_t - Fz_b) / dz_k;
+            }
+            dth_out = sanitize(div / rho_c(i, j, k));
+        }
+
+        // qv (only when bound to real moisture data)
+        if (has_qv != 0)
+        {
+            float div = 0.0;
+            if (horiz)
+            {
+                float Fx_e = 0.5 * (
+                    rho_c(i, j, k) * K_q[c] +
+                    rho_c(ipp, j, k) * K_q[at(ipp, j, k)])
+                    * (qv_in[at(ipp, j, k)] - qv_in[c]) / dx_s;
+                float Fx_w = 0.5 * (
+                    rho_c(imm, j, k) * K_q[at(imm, j, k)] +
+                    rho_c(i, j, k) * K_q[c])
+                    * (qv_in[c] - qv_in[at(imm, j, k)]) / dx_s;
+                float Fy_n = 0.5 * (
+                    rho_c(i, j, k) * K_q[c] +
+                    rho_c(i, jpp, k) * K_q[at(i, jpp, k)])
+                    * (qv_in[at(i, jpp, k)] - qv_in[c]) / dy_s;
+                float Fy_s = 0.5 * (
+                    rho_c(i, jmm, k) * K_q[at(i, jmm, k)] +
+                    rho_c(i, j, k) * K_q[c])
+                    * (qv_in[c] - qv_in[at(i, jmm, k)]) / dy_s;
+                div += (Fx_e - Fx_w) / dx_s + (Fy_n - Fy_s) / dy_s;
+            }
+            if (vert)
+            {
+                float Fz_t = (k < nz - 1)
+                    ? 0.5 * (rho_c(i, j, k) * K_q[c] +
+                             rho_c(i, j, k + 1) * K_q[at(i, j, k + 1)])
+                      * (qv_in[at(i, j, k + 1)] - qv_in[c])
+                      / center_distance(k)
+                    : 0.0;
+                float Fz_b = (k > 0)
+                    ? 0.5 * (rho_c(i, j, k - 1) * K_q[at(i, j, k - 1)] +
+                             rho_c(i, j, k) * K_q[c])
+                      * (qv_in[c] - qv_in[at(i, j, k - 1)])
+                      / center_distance(k - 1)
+                    : 0.0;
+                div += (Fz_t - Fz_b) / dz_k;
+            }
+            dqv_out = sanitize(div / rho_c(i, j, k));
+        }
+    }
+
+    dudt_sgs[c]     = du_out;
+    dvdt_sgs[c]     = dv_out;
+    dwdt_sgs[c]     = dw_out;
+    dthetadt_sgs[c] = dth_out;
+    dqvdt_sgs[c]    = dqv_out;
+}

@@ -1,0 +1,3839 @@
+.plot-studio {
+  position: relative;
+  background: var(--color-bg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  container-type: inline-size;
+  container-name: plot-studio;
+}
+
+.plot-studio--projects-page {
+  overflow: hidden;
+  padding: 0;
+}
+
+/* Opened as a panel over a figure, it must not donate the plot's height to itself. The studio column
+   is a fixed height with `overflow: hidden`, so an unbounded in-flow panel pushes the figure and the
+   frame bar out of the box entirely. Every sibling panel bounds itself the same way. */
+.plot-studio .project-navigator {
+  flex: 0 1 auto;
+  max-block-size: min(36rem, 55vh);
+  overflow: auto;
+}
+
+.plot-studio--projects-page .project-navigator {
+  max-block-size: none;
+}
+
+/* The Projects destination is a page-sized ledger, not a card inside a page.
+ * The same component still keeps its bounded panel treatment when opened from
+ * Plot Studio's Tools menu. */
+.plot-studio--projects .project-navigator,
+.plot-studio--projects-page .project-navigator {
+  flex: 1;
+  max-block-size: none;
+  overflow: hidden;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+.plot-studio--empty.plot-studio--projects {
+  align-items: stretch;
+  justify-content: flex-start;
+  overflow: hidden;
+  padding: 0;
+}
+
+.plot-studio--empty {
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  padding: clamp(24px, 6cqi, 72px);
+}
+
+.plot-studio__welcome {
+  width: min(760px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.plot-studio--projects .plot-studio__welcome {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  gap: 0;
+}
+
+.plot-studio .plot-studio__tool-panels-body > .project-navigator {
+  height: min(40rem, 70vh);
+  max-block-size: none;
+  overflow: hidden;
+}
+
+.plot-studio__welcome-header {
+  max-width: 570px;
+}
+
+.plot-studio__eyebrow {
+  display: block;
+  margin-bottom: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+/* Welcome states share the Projects hero size so landing on either
+ * destination reads as the same workspace. */
+.plot-studio__welcome-header h2 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: var(--font-size-2xl);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: var(--line-height-tight);
+}
+
+.plot-studio__welcome-header p {
+  margin: var(--space-3) 0 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-md);
+  line-height: 1.6;
+}
+
+.plot-studio__source-list {
+  border-top: 1px solid var(--color-border-strong);
+}
+
+.plot-studio__source-row {
+  width: 100%;
+  min-height: 76px;
+  display: grid;
+  grid-template-columns: 36px minmax(180px, 1fr) minmax(150px, auto);
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+}
+
+.plot-studio__source-row--available {
+  color: var(--color-text);
+}
+
+.plot-studio__source-row--unavailable {
+  grid-template-columns: 36px minmax(180px, 1fr) minmax(190px, auto);
+  color: var(--color-text-muted);
+}
+
+.plot-studio__source-icon {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+}
+
+.plot-studio__source-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.plot-studio__source-copy strong {
+  color: var(--color-text);
+  font-size: var(--font-size-md);
+  font-weight: 600;
+}
+
+.plot-studio__source-copy > span {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  line-height: 1.45;
+}
+
+.plot-studio__source-copy .plot-studio__source-capability {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+}
+
+.plot-studio__source-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.plot-studio__source-action-button {
+  min-height: 32px;
+  padding: 5px var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  background: var(--color-bg);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  transition:
+    color var(--duration-medium) var(--ease-out),
+    border-color var(--duration-medium) var(--ease-out),
+    background var(--duration-medium) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+.plot-studio__source-action-button--primary {
+  border-color: color-mix(in srgb, var(--color-accent) 45%, var(--color-border));
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.plot-studio__source-action-button:active {
+  transform: scale(0.97);
+}
+
+.plot-studio__source-action-button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .plot-studio__source-action-button:hover {
+    color: var(--color-text);
+    border-color: var(--color-accent);
+    background: var(--color-surface);
+  }
+}
+
+.plot-studio__source-status {
+  color: var(--color-warn);
+  font-size: var(--font-size-xs);
+  line-height: 1.45;
+  text-align: right;
+}
+
+.plot-studio__next-workflow {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.plot-studio__next-workflow > span:first-child {
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+
+.plot-studio__next-workflow > button {
+  flex-shrink: 0;
+  padding: 4px 9px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: inherit;
+  cursor: pointer;
+}
+
+@container (max-width: 620px) {
+  .plot-studio__source-row,
+  .plot-studio__source-row--unavailable {
+    grid-template-columns: 32px minmax(0, 1fr);
+  }
+
+  .plot-studio__source-actions,
+  .plot-studio__source-status {
+    grid-column: 2;
+    justify-content: flex-start;
+    text-align: left;
+  }
+
+  .plot-studio__next-workflow {
+    flex-direction: column;
+    gap: 4px;
+  }
+}
+
+/* ---------- Header ---------- */
+
+.plot-studio__header {
+  padding: 10px var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.plot-studio__title-row {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2) var(--space-5);
+}
+
+.plot-studio__dataset-identity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.plot-studio__header h2 {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  color: var(--color-text);
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plot-studio__header-actions {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.plot-studio__source-badge {
+  flex-shrink: 0;
+  padding: 2px 7px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+.plot-studio__compare-menu {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.plot-studio__compare-menu > summary {
+  list-style: none;
+}
+
+.plot-studio__compare-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.plot-studio__compare-menu-popover {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  right: 0;
+  display: grid;
+  width: 238px;
+  min-width: 0;
+  max-height: calc(100dvh - 160px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding: 6px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-raised);
+}
+
+.plot-studio__compare-menu-popover > span {
+  padding: 6px 8px 7px;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+.plot-studio__tools-popover {
+  width: 300px;
+}
+
+.plot-studio__tools-popover > span:not(:first-child) {
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border);
+}
+
+.plot-studio__tools-popover > button[aria-pressed="true"] {
+  color: var(--color-text);
+  background: var(--color-surface-2);
+}
+
+.plot-studio__compare-menu-popover > button {
+  min-width: 0;
+  min-height: 36px;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: var(--font-size-xs);
+  text-align: left;
+  line-height: 1.4;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.plot-studio__tool-panels {
+  position: absolute;
+  z-index: 20;
+  inset-inline: var(--space-3);
+  top: calc(var(--studio-header-bottom, 100px) + 8px);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: calc(100% - var(--studio-header-bottom, 100px) - 80px);
+  max-height: 40rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-raised);
+  overflow: hidden;
+}
+
+.plot-studio__tool-panels-heading {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--font-size-sm);
+}
+
+.plot-studio__tool-panels-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.plot-studio__compare-menu-popover::-webkit-scrollbar,
+.plot-studio__tool-panels-body::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.plot-studio__compare-menu-popover::-webkit-scrollbar-thumb,
+.plot-studio__tool-panels-body::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  border: 2px solid var(--color-surface);
+}
+
+.plot-studio .plot-studio__tool-panels-body > * {
+  max-block-size: none;
+  overflow: visible;
+  border-radius: 0;
+}
+
+.plot-studio__tool-panels-body :is(input, select, textarea) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.plot-studio__tool-panels-body :is(p, h3, h4, code) {
+  overflow-wrap: anywhere;
+}
+
+.plot-studio__compare-menu-popover > button:focus-visible {
+  outline-offset: -1px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .plot-studio__compare-menu-popover > button:hover {
+    background: var(--color-surface-2);
+    color: var(--color-text);
+  }
+}
+
+.plot-studio__comparison-loading,
+.plot-studio__comparison-error,
+.plot-studio__workspace-message {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 8px var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  flex-shrink: 0;
+}
+
+.plot-studio__comparison-error {
+  color: var(--color-warn);
+}
+
+.plot-studio__workspace-message {
+  color: var(--color-info);
+}
+
+.plot-studio__workspace-message button {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+/* Ensemble alignment keeps its own quiet identity — a faintly sage panel with
+ * a serif masthead and earthy verdict tones. Every value derives from a theme
+ * token, so the character survives but the panel follows dark/light. */
+.ensemble-alignment {
+  --ensemble-wash: color-mix(in oklch, var(--color-ok) 6%, var(--color-surface));
+  --ensemble-line: color-mix(in oklch, var(--color-ok) 16%, var(--color-border));
+  --ensemble-index: color-mix(in oklch, var(--color-warn) 65%, var(--color-text-muted));
+  margin: 0;
+  border-block: 1px solid var(--ensemble-line);
+  background: var(--ensemble-wash);
+}
+
+.ensemble-alignment > header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: start;
+  gap: 18px;
+  padding: 14px 20px 12px;
+  border-bottom: 1px solid var(--ensemble-line);
+}
+
+.ensemble-alignment > header > div { display: grid; gap: 2px; }
+.ensemble-alignment > header > div > span { color: var(--color-text-muted); font-size: var(--font-size-xs); font-weight: 600; letter-spacing: var(--tracking-label); text-transform: uppercase; }
+.ensemble-alignment > header strong { font-family: Georgia, "Times New Roman", serif; font-size: var(--font-size-xl); font-weight: 500; }
+.ensemble-alignment > header p { margin: 0; color: var(--color-text-muted); font-size: var(--font-size-xs); }
+.ensemble-alignment > header > button { border: 0; background: transparent; color: var(--color-text-muted); font-size: var(--font-size-xl); line-height: 1; }
+.ensemble-alignment__verdict { padding: 4px 8px; border: 1px solid var(--ensemble-line); color: var(--color-text-muted); font-size: var(--font-size-xs); font-weight: 600; letter-spacing: var(--tracking-label); text-transform: uppercase; }
+.ensemble-alignment__verdict--exact { color: var(--color-ok); }
+.ensemble-alignment__verdict--partial { color: var(--color-warn); }
+.ensemble-alignment__verdict--blocked { color: var(--color-error); }
+
+.ensemble-alignment__members { display: grid; }
+.ensemble-alignment__members > div { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto auto; align-items: center; gap: 12px; min-height: 44px; padding: 5px 20px; border-bottom: 1px solid color-mix(in oklch, var(--ensemble-line) 65%, transparent); }
+.ensemble-alignment__members > div > span { color: var(--ensemble-index); font-size: var(--font-size-xs); font-variant-numeric: tabular-nums; }
+.ensemble-alignment__members > div > div { display: grid; }
+.ensemble-alignment__members strong { font-size: var(--font-size-xs); font-weight: 600; }
+.ensemble-alignment__members small { overflow: hidden; color: var(--color-text-muted); font-size: var(--font-size-xs); text-overflow: ellipsis; white-space: nowrap; }
+.ensemble-alignment__members em { color: var(--color-text-muted); font-size: var(--font-size-xs); font-style: normal; }
+.ensemble-alignment__members button { border: 0; background: transparent; color: var(--color-text-muted); font-size: var(--font-size-xs); }
+
+.ensemble-alignment__ledger { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-bottom: 1px solid var(--ensemble-line); }
+.ensemble-alignment__ledger > div { padding: 10px 20px; border-right: 1px solid var(--ensemble-line); }
+.ensemble-alignment__ledger > div:last-child { border-right: 0; }
+.ensemble-alignment__ledger span { display: block; color: var(--color-text-muted); font-size: var(--font-size-xs); font-weight: 600; letter-spacing: var(--tracking-label); text-transform: uppercase; }
+.ensemble-alignment__ledger strong { display: block; margin-top: 2px; font-size: var(--font-size-lg); font-variant-numeric: tabular-nums; }
+.ensemble-alignment__ledger p { margin: 1px 0 0; color: var(--color-text-muted); font-size: var(--font-size-xs); }
+.ensemble-alignment details { padding: 8px 20px; border-bottom: 1px solid var(--ensemble-line); font-size: var(--font-size-xs); }
+.ensemble-alignment details p { display: flex; align-items: center; gap: 7px; margin: 6px 0; color: var(--color-text-muted); }
+.ensemble-alignment details .ensemble-alignment__blocked { color: var(--color-error); }
+.ensemble-alignment footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 20px; }
+.ensemble-alignment footer span { color: var(--color-text-muted); font-size: var(--font-size-xs); }
+.ensemble-alignment footer button { min-height: var(--control-height); border: 1px solid color-mix(in oklch, var(--color-warn) 20%, var(--color-border)); border-radius: var(--radius-md); background: var(--color-bg); color: var(--color-text); padding: 0 var(--space-3); font-size: var(--font-size-xs); font-weight: 600; }
+
+@media (max-width: 760px) {
+  .ensemble-alignment > header { grid-template-columns: 1fr auto; }
+  .ensemble-alignment > header > div { grid-column: 1 / -1; }
+  .ensemble-alignment__members > div { grid-template-columns: 26px minmax(0, 1fr) auto; }
+  .ensemble-alignment__members em { display: none; }
+  .ensemble-alignment__ledger { grid-template-columns: 1fr; }
+  .ensemble-alignment__ledger > div { border-right: 0; border-bottom: 1px solid var(--ensemble-line); }
+  .ensemble-alignment footer { align-items: flex-start; flex-direction: column; }
+}
+
+.plot-studio__comparison-error button {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.dataset-alignment {
+  border-bottom: 1px solid var(--color-border-strong);
+  background: color-mix(in srgb, var(--color-surface-2) 30%, var(--color-bg));
+  flex-shrink: 0;
+}
+
+.dataset-alignment__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 42px;
+  padding: 6px var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.dataset-alignment__identity {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  flex: 1;
+}
+
+.dataset-alignment__identity > span:not(.dataset-alignment__arrow) {
+  color: var(--color-accent-hover);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+}
+
+.dataset-alignment__identity strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dataset-alignment__arrow {
+  color: var(--color-text-muted);
+}
+
+.dataset-alignment__verdict {
+  padding: 3px 7px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.dataset-alignment__verdict--exact {
+  border-color: color-mix(in srgb, var(--color-ok) 45%, transparent);
+  color: var(--color-ok);
+}
+
+.dataset-alignment__verdict--partial {
+  border-color: color-mix(in srgb, var(--color-info) 45%, transparent);
+  color: var(--color-info);
+}
+
+.dataset-alignment__verdict--blocked {
+  border-color: color-mix(in srgb, var(--color-warn) 45%, transparent);
+  color: var(--color-warn);
+}
+
+.dataset-alignment__close {
+  width: 24px;
+  height: 24px;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-lg);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.dataset-alignment__ledger {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 0 var(--space-5);
+}
+
+.dataset-alignment__ledger > div {
+  min-width: 0;
+  padding: 11px clamp(12px, 2cqi, 24px) 12px 0;
+  border-right: 1px solid var(--color-border);
+}
+
+.dataset-alignment__ledger > div + div {
+  padding-left: clamp(12px, 2cqi, 24px);
+}
+
+.dataset-alignment__ledger > div:last-child {
+  border-right: 0;
+}
+
+.dataset-alignment__ledger span,
+.dataset-alignment__field-list > span,
+.dataset-alignment__mismatches > span {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
+.dataset-alignment__ledger strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.dataset-alignment__ledger p,
+.dataset-alignment__field-list p {
+  margin: 3px 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+}
+
+.dataset-alignment__details {
+  margin: 0 var(--space-5);
+  border-top: 1px solid var(--color-border);
+}
+
+.dataset-alignment__details > summary {
+  padding: 8px 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+}
+
+.dataset-alignment__details-body {
+  display: grid;
+  gap: 7px;
+  padding: 2px 0 11px;
+}
+
+.dataset-alignment__field-list,
+.dataset-alignment__mismatches {
+  display: grid;
+  gap: 4px;
+}
+
+.dataset-alignment__mismatches > p {
+  display: grid;
+  grid-template-columns: minmax(90px, 0.5fr) minmax(140px, 0.8fr) minmax(240px, 1.7fr);
+  gap: var(--space-3);
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.dataset-alignment__mismatches strong {
+  color: var(--color-text-secondary);
+}
+
+.dataset-alignment__message {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.dataset-alignment__message--blocked {
+  color: var(--color-warn);
+}
+
+.dataset-alignment__footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 8px var(--space-5);
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+}
+
+.dataset-alignment__footer > span {
+  flex: 1;
+}
+
+.dataset-alignment__footer > button {
+  flex-shrink: 0;
+  padding: 5px 9px;
+  border: 1px solid color-mix(in srgb, var(--color-info) 42%, var(--color-border));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-info) 10%, transparent);
+  color: var(--color-info);
+  font: inherit;
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  transition: transform var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out);
+}
+
+.dataset-alignment__footer > button:active {
+  transform: scale(0.98);
+}
+
+.dataset-alignment__footer > button.dataset-alignment__forget {
+  border-color: var(--color-border);
+  background: transparent;
+  color: var(--color-text-muted);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .dataset-alignment__footer > button:hover {
+    background: color-mix(in srgb, var(--color-info) 16%, transparent);
+  }
+}
+
+@container (max-width: 680px) {
+  .dataset-alignment__header {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .dataset-alignment__identity {
+    flex-basis: calc(100% - 36px);
+  }
+
+  .dataset-alignment__ledger {
+    grid-template-columns: 1fr;
+  }
+
+  .dataset-alignment__ledger > div,
+  .dataset-alignment__ledger > div + div {
+    padding: 9px 0;
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .dataset-alignment__mismatches > p {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+
+  .dataset-alignment__footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+.plot-studio--metadata {
+  overflow: hidden;
+}
+
+.plot-studio__metadata-body {
+  overflow: auto;
+  padding: clamp(20px, 4cqi, 48px);
+}
+
+.plot-studio__metadata-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-top: 1px solid var(--color-border-strong);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.plot-studio__metadata-summary > div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--space-4) var(--space-3);
+}
+
+.plot-studio__metadata-summary span,
+.plot-studio__metadata-section h3 {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.plot-studio__metadata-summary strong {
+  color: var(--color-text);
+  font-size: var(--font-size-md);
+  font-weight: 600;
+}
+
+.plot-studio__metadata-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: var(--space-5) 0;
+  padding: var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--color-info) 35%, transparent);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+.plot-studio__metadata-notice > svg {
+  flex-shrink: 0;
+  color: var(--color-info);
+  margin-top: 2px;
+}
+
+.plot-studio__metadata-section {
+  margin-top: var(--space-6);
+}
+
+.plot-studio__metadata-section h3 {
+  margin: 0 0 var(--space-3);
+}
+
+.plot-studio__metadata-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.plot-studio__metadata-chips > span {
+  padding: 5px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+}
+
+.plot-studio__metadata-chips strong {
+  color: var(--color-text-secondary);
+}
+
+.plot-studio__variable-table {
+  border-top: 1px solid var(--color-border-strong);
+}
+
+.plot-studio__variable-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1.1fr) minmax(150px, 1fr) minmax(110px, 0.8fr) minmax(120px, 0.8fr);
+  gap: var(--space-3);
+  padding: 10px var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+}
+
+.plot-studio__variable-row strong {
+  color: var(--color-text);
+  font-weight: 500;
+}
+
+.plot-studio__field-contract {
+  margin-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface-2) 42%, transparent);
+  font-size: var(--font-size-xs);
+}
+
+.plot-studio__field-contract > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 38px;
+  padding: 6px var(--space-2);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.plot-studio__field-contract > summary::-webkit-details-marker {
+  display: none;
+}
+
+.plot-studio__field-contract > summary strong {
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+
+.plot-studio__field-contract-chevron {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xl);
+  line-height: 1;
+}
+
+.plot-studio__field-contract[open] .plot-studio__field-contract-chevron {
+  transform: rotate(90deg);
+}
+
+.plot-studio__field-contract-body {
+  padding: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.plot-studio__field-contract-body > p {
+  margin: 0 0 var(--space-3);
+  color: var(--color-text-muted);
+  line-height: 1.45;
+}
+
+.derived-ledger {
+  --derived-accent: var(--color-ok);
+  background:
+    linear-gradient(90deg, color-mix(in oklch, var(--derived-accent) 9%, transparent), transparent 32%),
+    color-mix(in srgb, var(--color-surface-2) 42%, transparent);
+}
+
+.derived-ledger__body {
+  padding: 0;
+}
+
+.derived-ledger__intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.derived-ledger__intro p,
+.derived-ledger__boundary {
+  margin: 0;
+  color: var(--color-text-muted);
+  line-height: 1.55;
+}
+
+.derived-ledger__intro button {
+  padding: 7px 10px;
+  border: 1px solid color-mix(in oklch, var(--derived-accent) 42%, var(--color-border));
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.derived-ledger__intro button:hover {
+  background: color-mix(in oklch, var(--derived-accent) 10%, transparent);
+  color: var(--color-text);
+}
+
+.derived-ledger__table {
+  display: grid;
+}
+
+.derived-ledger__row {
+  display: grid;
+  grid-template-columns: minmax(145px, 0.8fr) 112px minmax(210px, 1.25fr) minmax(220px, 1.25fr) minmax(180px, 1fr);
+  gap: var(--space-3);
+  align-items: start;
+  padding: 12px var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.derived-ledger__row > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.derived-ledger__row strong {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+}
+
+.derived-ledger__row span {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.derived-ledger__status {
+  width: max-content;
+  padding: 3px 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 2px;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+}
+
+.derived-ledger__status--available {
+  border-color: color-mix(in oklch, var(--derived-accent) 50%, var(--color-border));
+  color: color-mix(in oklch, var(--derived-accent) 76%, var(--color-text)) !important;
+}
+
+.derived-ledger__status--native_precedence {
+  color: var(--color-text-secondary) !important;
+}
+
+.derived-ledger__status--blocked {
+  color: var(--color-warning) !important;
+}
+
+.derived-ledger__boundary {
+  padding: 10px var(--space-3);
+  font-size: var(--font-size-xs);
+}
+
+@container plot-studio (max-width: 900px) {
+  .derived-ledger__row {
+    grid-template-columns: minmax(140px, 0.8fr) 110px minmax(220px, 1.2fr);
+  }
+
+  .derived-ledger__row > :nth-child(4),
+  .derived-ledger__row > :nth-child(5) {
+    grid-column: 3;
+  }
+}
+
+@media (max-width: 720px) {
+  .derived-ledger__intro,
+  .derived-ledger__row {
+    grid-template-columns: 1fr;
+  }
+
+  .derived-ledger__intro button {
+    justify-self: start;
+  }
+
+  .derived-ledger__row > :nth-child(4),
+  .derived-ledger__row > :nth-child(5) {
+    grid-column: 1;
+  }
+}
+
+.plot-studio__variable-row--contract {
+  grid-template-columns: minmax(100px, 0.7fr) minmax(82px, 0.55fr) minmax(120px, 0.8fr) minmax(170px, 1.1fr) minmax(260px, 1.8fr);
+  font-family: var(--font-sans);
+}
+
+.plot-studio__field-status {
+  width: fit-content;
+  padding: 2px 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.plot-studio__field-status--ready {
+  border-color: color-mix(in srgb, var(--color-ok) 45%, transparent);
+  color: var(--color-ok);
+}
+
+.plot-studio__field-status--supporting {
+  border-color: color-mix(in srgb, var(--color-info) 40%, transparent);
+  color: var(--color-info);
+}
+
+.plot-studio__field-status--derived {
+  border-color: color-mix(in srgb, var(--color-accent) 45%, transparent);
+  color: var(--color-accent-hover);
+}
+
+.plot-studio__field-status--inspect_only {
+  border-color: color-mix(in srgb, var(--color-warn) 42%, transparent);
+  color: var(--color-warn);
+}
+
+.plot-studio__familiar {
+  display: grid;
+  grid-template-columns: minmax(170px, 0.38fr) minmax(360px, 1.62fr);
+  gap: 8px clamp(18px, 3cqi, 42px);
+  align-items: center;
+  padding: 13px var(--space-5) 14px;
+  border-bottom: 1px solid var(--color-border-strong);
+  background: color-mix(in srgb, var(--color-surface-2) 32%, var(--color-bg));
+  flex-shrink: 0;
+}
+
+.plot-studio__familiar-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.plot-studio__familiar-intro > span {
+  color: var(--color-text);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
+.plot-studio__familiar-intro > p,
+.plot-studio__familiar-empty {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+}
+
+.plot-studio__familiar-rail {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.plot-studio__familiar-view {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  min-width: max-content;
+  padding: 8px 12px;
+  border: 0;
+  border-left: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
+}
+
+.plot-studio__familiar-view:last-child {
+  border-right: 1px solid var(--color-border);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .plot-studio__familiar-view:hover {
+    color: var(--color-text);
+    background: color-mix(in srgb, var(--color-surface-2) 55%, transparent);
+  }
+}
+
+.plot-studio__familiar-view:active {
+  transform: scale(0.98);
+}
+
+.plot-studio__familiar-view:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+.plot-studio__familiar-view > span {
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.plot-studio__familiar-view > strong {
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+}
+
+.plot-studio__familiar-view--active {
+  background: color-mix(in srgb, var(--color-accent-soft) 65%, transparent);
+  color: var(--color-accent-hover);
+}
+
+.plot-studio__familiar-more {
+  grid-column: 2;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  line-height: 1.3;
+}
+
+@container (max-width: 720px) {
+  .plot-studio__familiar {
+    grid-template-columns: 1fr;
+    gap: var(--space-2);
+    padding-inline: var(--space-3);
+  }
+
+  .plot-studio__familiar-more {
+    grid-column: 1;
+  }
+}
+
+
+@container (max-width: 680px) {
+  .plot-studio__metadata-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .plot-studio__variable-row {
+    grid-template-columns: minmax(110px, 1fr) minmax(120px, 1fr);
+  }
+
+  .plot-studio__variable-row--contract {
+    grid-template-columns: minmax(110px, 1fr) minmax(120px, 1fr);
+  }
+}
+
+.plot-studio__open-btn {
+  min-height: 30px;
+  padding: 4px var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-family: var(--font-sans);
+  flex-shrink: 0;
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+.plot-studio__open-btn:active {
+  transform: scale(0.98);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .plot-studio__open-btn:hover {
+    border-color: var(--color-border-strong);
+    background: var(--color-surface-2);
+    color: var(--color-text);
+  }
+}
+
+.plot-studio__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: 2px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  flex-wrap: wrap;
+}
+
+.plot-studio__case-inventory {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 5px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+}
+
+.plot-studio__source-details {
+  padding: 0 var(--space-5) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg);
+  flex-shrink: 0;
+}
+
+.plot-studio__case-inventory > svg {
+  flex-shrink: 0;
+  color: var(--color-accent);
+}
+
+.plot-studio__namelist {
+  display: grid;
+  gap: 5px;
+  margin-top: 7px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-size: var(--font-size-xs);
+}
+
+.plot-studio__namelist-heading,
+.plot-studio__namelist-controls,
+.plot-studio__namelist-warning,
+.plot-studio__case-disposition {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px 10px;
+}
+
+.plot-studio__namelist-heading strong {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.plot-studio__namelist-heading span {
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+}
+
+.plot-studio__namelist-controls span {
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-2);
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+}
+
+.plot-studio__namelist-warning {
+  color: var(--color-warn);
+  line-height: 1.4;
+}
+
+.plot-studio__case-disposition {
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+
+.plot-studio__case-disposition > svg {
+  flex-shrink: 0;
+  color: var(--color-accent);
+}
+
+.plot-studio__namelist-warning > svg {
+  flex-shrink: 0;
+}
+
+.cm1-compatibility {
+  container-type: inline-size;
+  min-width: 0;
+  margin-top: 8px;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg);
+  font-size: var(--font-size-xs);
+}
+
+.cm1-compatibility__summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 5px 2px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.cm1-compatibility__summary::-webkit-details-marker {
+  display: none;
+}
+
+.cm1-compatibility__summary:active {
+  transform: scale(0.995);
+}
+
+.cm1-compatibility__summary strong {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.cm1-compatibility__chevron {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xl);
+  line-height: 1;
+  transform: rotate(0deg);
+  transform-origin: center;
+}
+
+.cm1-compatibility[open] .cm1-compatibility__chevron {
+  transform: rotate(90deg);
+}
+
+.cm1-compatibility__summary-counts {
+  min-width: 0;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+}
+
+.cm1-compatibility__blocked {
+  margin-left: auto;
+  padding: 2px 6px;
+  border: 1px solid color-mix(in oklch, var(--color-warn) 32%, transparent);
+  border-radius: var(--radius-sm);
+  color: var(--color-warn);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.cm1-compatibility__body {
+  min-width: 0;
+  padding: 8px 0 12px;
+  border-top: 1px solid var(--color-border);
+}
+
+.cm1-compatibility__intro {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(300px, 1.2fr);
+  gap: 16px;
+  padding: 8px 2px 12px;
+}
+
+.cm1-compatibility__intro > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.cm1-compatibility__intro strong {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.cm1-compatibility__intro span {
+  color: var(--color-text-muted);
+  line-height: 1.45;
+}
+
+.cm1-compatibility__blockers {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  color: var(--color-warn);
+}
+
+.cm1-compatibility__blockers > svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.cm1-compatibility__blockers span {
+  color: inherit;
+}
+
+.cm1-workbook {
+  container-type: inline-size;
+  margin-bottom: 12px;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.cm1-workbook__summary {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  list-style: none;
+}
+
+.cm1-workbook__summary::-webkit-details-marker {
+  display: none;
+}
+
+.cm1-workbook__summary strong {
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+
+.cm1-workbook[open] .cm1-workbook__summary .cm1-draft__chevron {
+  transform: rotate(90deg);
+}
+
+.cm1-workbook__scope {
+  margin-left: auto;
+  color: var(--color-warn);
+  font-weight: 600;
+}
+
+.cm1-workbook__body {
+  border-top: 1px solid var(--color-border);
+}
+
+.cm1-workbook__header {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(140px, 0.35fr) auto;
+  gap: 20px;
+  align-items: center;
+  padding: 12px 10px;
+}
+
+.cm1-workbook__header > div:first-child,
+.cm1-workbook__progress {
+  display: grid;
+  gap: 4px;
+}
+
+.cm1-workbook__header strong {
+  color: var(--color-text);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.cm1-workbook__header span {
+  color: var(--color-text-muted);
+  line-height: 1.45;
+}
+
+.cm1-workbook__progress > span {
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.cm1-workbook__progress progress {
+  width: 100%;
+  height: 5px;
+  border: 0;
+  border-radius: 0;
+  background: var(--color-surface-2);
+  accent-color: var(--color-accent);
+}
+
+.cm1-workbook__publication,
+.cm1-workbook__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.cm1-workbook button {
+  min-height: 30px;
+  padding: 4px 9px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  transition: transform var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+}
+
+.cm1-workbook button:active {
+  transform: scale(0.97);
+}
+
+.cm1-workbook button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .cm1-workbook button:not(:disabled):hover {
+    background: var(--color-surface-2);
+    color: var(--color-text);
+  }
+}
+
+.cm1-workbook__message,
+.cm1-workbook__blocked,
+.cm1-workbook__empty {
+  padding: 9px 10px;
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  line-height: 1.45;
+}
+
+.cm1-workbook__message.is-error,
+.cm1-workbook__blocked {
+  color: var(--color-error);
+}
+
+.cm1-workbook__items {
+  border-top: 1px solid var(--color-border);
+}
+
+.cm1-workbook__item {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.5fr) minmax(240px, 1fr) minmax(280px, 1.15fr);
+  gap: 16px;
+  padding: 12px 10px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.cm1-workbook__item.is-complete {
+  background: color-mix(in oklch, var(--color-accent) 4%, transparent);
+}
+
+.cm1-workbook__identity,
+.cm1-workbook__evidence,
+.cm1-workbook__decision,
+.cm1-workbook__decision label {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 4px;
+}
+
+.cm1-workbook__identity strong,
+.cm1-workbook__evidence strong {
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cm1-workbook__identity code,
+.cm1-workbook__evidence span,
+.cm1-workbook__decision label > span {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.cm1-workbook__identity code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cm1-workbook__identity .cm1-compatibility__status {
+  margin-top: 3px;
+  justify-self: start;
+  font-family: inherit;
+}
+
+.cm1-workbook__decision {
+  gap: 8px;
+}
+
+.cm1-workbook__decision select,
+.cm1-workbook__decision input,
+.cm1-workbook__decision textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.cm1-workbook__decision select,
+.cm1-workbook__decision input {
+  min-height: 30px;
+  padding: 4px 7px;
+}
+
+.cm1-workbook__decision textarea {
+  min-height: 52px;
+  padding: 6px 7px;
+  resize: vertical;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.cm1-workbook__decision small {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 400;
+}
+
+.cm1-workbook__default-evidence {
+  display: grid;
+  gap: 3px;
+  padding: 7px 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.cm1-workbook__default-evidence span,
+.cm1-workbook__default-evidence small {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.cm1-workbook__default-evidence code {
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  overflow-wrap: anywhere;
+}
+
+.cm1-workbook__show-more {
+  margin: 10px;
+}
+
+@container (max-width: 760px) {
+  .cm1-workbook__header,
+  .cm1-workbook__item {
+    grid-template-columns: 1fr;
+  }
+
+  .cm1-workbook__publication,
+  .cm1-workbook__actions {
+    justify-content: flex-start;
+  }
+}
+
+@container (max-width: 420px) {
+  .cm1-workbook__summary {
+    flex-wrap: wrap;
+  }
+
+  .cm1-workbook__scope {
+    width: 100%;
+    margin-left: 25px;
+  }
+
+  .cm1-compatibility__row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cm1-compatibility__row > div:nth-child(2),
+  .cm1-compatibility__row > div:nth-child(3) {
+    grid-column: 1;
+    grid-row: auto;
+  }
+}
+
+@media (pointer: coarse), (any-pointer: coarse) {
+  .cm1-workbook button,
+  .cm1-workbook__decision select,
+  .cm1-workbook__decision input,
+  .cm1-workbook__summary {
+    min-height: 44px;
+  }
+
+  /* WebKit's native menu-list can ignore min-height while still reporting a
+   * coarse pointer. An explicit block size preserves the touch target. */
+  .cm1-workbook__decision select {
+    height: 44px;
+  }
+}
+
+.cm1-draft {
+  margin-bottom: 10px;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.cm1-draft__summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 5px 8px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.cm1-draft__summary::-webkit-details-marker {
+  display: none;
+}
+
+.cm1-draft__summary:active {
+  transform: scale(0.995);
+}
+
+.cm1-draft__summary strong {
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+
+.cm1-draft__chevron {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-lg);
+  line-height: 1;
+}
+
+.cm1-draft[open] .cm1-draft__chevron {
+  transform: rotate(90deg);
+}
+
+.cm1-draft__non-runnable {
+  margin-left: auto;
+  color: var(--color-warn);
+  font-weight: 600;
+}
+
+.cm1-draft__body {
+  display: grid;
+  grid-template-columns: minmax(420px, 1.5fr) minmax(230px, 0.7fr);
+  border-top: 1px solid var(--color-border);
+}
+
+.cm1-draft__source {
+  min-width: 0;
+  border-right: 1px solid var(--color-border);
+}
+
+.cm1-draft__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 45px;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.cm1-draft__toolbar > div {
+  display: grid;
+  gap: 2px;
+}
+
+.cm1-draft__toolbar strong {
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+
+.cm1-draft__toolbar span {
+  color: var(--color-text-muted);
+}
+
+.cm1-draft__toolbar button {
+  flex: 0 0 auto;
+  padding: 4px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  transition: transform var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+}
+
+.cm1-draft__toolbar button:active {
+  transform: scale(0.97);
+}
+
+.cm1-draft__toolbar button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+  transform: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .cm1-draft__toolbar button:not(:disabled):hover {
+    background: var(--color-surface-2);
+    color: var(--color-text);
+  }
+}
+
+.cm1-draft__source pre {
+  max-height: 340px;
+  margin: 0;
+  padding: 12px;
+  overflow: auto;
+  background: var(--color-bg);
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  line-height: 1.55;
+  tab-size: 2;
+  white-space: pre;
+}
+
+.cm1-draft__source pre:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+.cm1-draft__accounting {
+  display: grid;
+  align-content: start;
+  gap: 0;
+  padding: 6px 12px 10px;
+}
+
+.cm1-draft__accounting > div {
+  display: grid;
+  grid-template-columns: 30px 1fr;
+  gap: 8px;
+  align-items: baseline;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.cm1-draft__accounting strong {
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  text-align: right;
+}
+
+.cm1-draft__accounting span,
+.cm1-draft__accounting li {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+}
+
+.cm1-draft__accounting ul {
+  display: grid;
+  gap: 5px;
+  margin: 9px 0 0;
+  padding-left: 16px;
+}
+
+.cm1-draft__copy-status:empty {
+  display: none;
+}
+
+.cm1-draft__copy-status {
+  margin-top: 8px;
+  color: var(--color-text-secondary) !important;
+}
+
+.cm1-sounding-projection__method {
+  margin: 9px 0 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  line-height: 1.45;
+}
+
+.cm1-native-sounding__source {
+  display: grid;
+  align-content: start;
+}
+
+.cm1-native-sounding__contract {
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+}
+
+.cm1-native-sounding__contract code {
+  overflow: hidden;
+  color: var(--color-text);
+  font-size: var(--font-size-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cm1-native-sounding__contract p {
+  max-width: 78ch;
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 1.55;
+}
+
+.cm1-draft__toolbar > .cm1-sounding-projection__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.cm1-sounding-projection__review {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 7px;
+  align-items: start;
+  margin-top: 10px;
+  padding: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  cursor: pointer;
+}
+
+.cm1-sounding-projection__review input {
+  margin: 2px 0 0;
+  accent-color: var(--color-accent);
+}
+
+.cm1-sounding-projection__review:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.cm1-sounding-projection__save-status {
+  margin-top: 8px;
+  padding: 8px;
+  border-left: 2px solid var(--color-accent);
+  background: var(--color-accent-soft);
+  color: var(--color-text-secondary) !important;
+  overflow-wrap: anywhere;
+}
+
+.cm1-sounding-projection__save-status.is-blocked,
+.cm1-sounding-projection__save-status.is-failed {
+  border-left-color: var(--color-warn);
+  background: color-mix(in oklch, var(--color-warn) 10%, transparent);
+}
+
+.cm1-compatibility__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.cm1-compatibility__filters button {
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  transition: transform var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+}
+
+.cm1-compatibility__filters button span {
+  margin-left: 3px;
+  font-family: var(--font-mono);
+}
+
+.cm1-compatibility__filters button[aria-pressed="true"] {
+  border-color: var(--color-border);
+  background: var(--color-surface-2);
+  color: var(--color-text);
+}
+
+.cm1-compatibility__filters button:active {
+  transform: scale(0.97);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .cm1-compatibility__filters button:hover {
+    background: var(--color-surface);
+    color: var(--color-text-secondary);
+  }
+}
+
+.cm1-compatibility__table {
+  border-top: 1px solid var(--color-border);
+}
+
+.cm1-compatibility__table-head,
+.cm1-compatibility__row {
+  display: grid;
+  grid-template-columns: minmax(170px, 0.65fr) minmax(130px, 0.45fr) minmax(280px, 1.9fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.cm1-compatibility__table-head {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.cm1-compatibility__row {
+  min-height: 48px;
+  padding: 8px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.cm1-compatibility__row > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.cm1-compatibility__row strong {
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cm1-compatibility__row span,
+.cm1-compatibility__row code {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+}
+
+.cm1-compatibility__row code {
+  overflow: hidden;
+  font-family: var(--font-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cm1-compatibility__status {
+  justify-self: start;
+  padding: 2px 6px;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.cm1-compatibility__status[data-status="ready"] {
+  color: var(--color-ok);
+}
+
+.cm1-compatibility__status[data-status="needs_decision"] {
+  color: var(--color-warn);
+}
+
+.cm1-compatibility__status[data-status="different"] {
+  color: var(--color-text-secondary);
+}
+
+.cm1-compatibility__status[data-status="unsupported"] {
+  color: var(--color-error);
+}
+
+.cm1-compatibility__empty,
+.cm1-compatibility__limit {
+  padding: 12px 8px;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+@media (max-width: 820px) {
+  .cm1-compatibility__summary {
+    flex-wrap: wrap;
+  }
+
+  .cm1-compatibility__summary-counts {
+    order: 3;
+    flex-basis: 100%;
+    padding-left: 26px;
+  }
+
+  .cm1-compatibility__intro {
+    grid-template-columns: 1fr;
+  }
+
+  .cm1-draft__body {
+    grid-template-columns: 1fr;
+  }
+
+  .cm1-draft__source {
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .cm1-compatibility__table-head {
+    display: none;
+  }
+
+  .cm1-compatibility__row {
+    grid-template-columns: minmax(150px, 0.8fr) minmax(220px, 1.4fr);
+  }
+
+  .cm1-compatibility__row > div:nth-child(2) {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .cm1-compatibility__row > div:nth-child(3) {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+}
+
+.plot-studio__sep {
+  color: var(--color-text-muted);
+}
+
+/* ---------- Plot-type bar ---------- */
+
+/* Wraps rather than scrolls, matching the category and preset bars: a renderer
+   parked off the end of a scroller is a renderer the user never finds. */
+.plot-studio__type-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg);
+  flex-shrink: 0;
+}
+
+.plot-type {
+  padding: 4px var(--space-3);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  border: 1px solid transparent;
+  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+  flex: 0 0 auto;
+}
+
+.plot-type:hover {
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+}
+
+.plot-type--active {
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+
+/* ---------- Category bar (top row of the picker) ---------- */
+
+/* Categories are top-level navigation: every one has to be visible without a
+ * gesture, so this wraps to a second line instead of scrolling. */
+.plot-studio__category-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg);
+  flex-shrink: 0;
+}
+
+.plot-category {
+  padding: 4px 10px;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  border: 1px solid transparent;
+  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
+  flex: 0 0 auto;
+}
+
+.plot-category:hover {
+  color: var(--color-text);
+  background: var(--color-surface);
+}
+
+.plot-category--active {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+/* ---------- Picker (renderer buttons + preset pills for the category) ---------- */
+
+.plot-studio__picker {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+/* The type-bar and preset-bar carry their own border when used standalone;
+   inside the picker the picker owns the single bottom border. */
+.plot-studio__picker .plot-studio__type-bar,
+.plot-studio__picker .plot-preset-bar {
+  border-bottom: none;
+}
+
+/* A category with no presets renders no children here; without this the empty
+   box still draws its border as a stray rule above the figure. */
+.plot-studio__picker--presets:empty {
+  display: none;
+}
+
+.plot-studio__view-history {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-5) 0;
+  color: var(--color-text-muted);
+}
+
+.plot-studio__view-history > span {
+  margin-right: auto;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.plot-studio__view-history > button {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  transition:
+    color var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+}
+
+.plot-studio__view-history > button:hover:not(:disabled) {
+  border-color: var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.plot-studio__view-history > button:active:not(:disabled) {
+  background: var(--color-surface-raised);
+}
+
+.plot-studio__view-history > button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.plot-studio__view-history > button:disabled {
+  opacity: 0.38;
+  cursor: default;
+}
+
+.plot-studio__view-history kbd {
+  padding: 1px 4px;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  line-height: 1.3;
+}
+
+.plot-studio__picker-empty {
+  padding: var(--space-2) var(--space-5);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+/* ---------- Frame slider ---------- */
+
+.plot-studio__frame-bar {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: auto auto auto minmax(140px, 3fr) minmax(0, 2fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-5);
+  border-top: 1px solid var(--color-border);
+  background: var(--color-bg);
+  flex-shrink: 0;
+}
+
+.plot-studio__frame-label {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+/*
+ * The scrubber and its readout split the free space in a fixed ratio, and
+ * neither is sized by its own content.
+ *
+ * Explicit `3fr`/`2fr` grid tracks make that true at every width. `min-width:
+ * 0` stops long content from forcing either track wider anyway.
+ *
+ * Previously the range input was the only flexible item in the row and the
+ * readout had a min-width but no maximum, so every character the readout gained
+ * came directly out of the scrubber track — and that text changes on every
+ * frame. The track resized and the thumb jumped continuously through playback.
+ */
+.plot-studio__frame-scrubber {
+  display: flex;
+  min-width: 0;
+}
+
+.plot-studio__frame-scrubber input[type="range"] {
+  width: 100%;
+  min-width: 0;
+}
+
+.plot-studio__frame-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  /* Proportional digits re-measure the string as the numbers change, which
+     reads as a shimmer even inside a box that is no longer moving. */
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: right;
+}
+
+.plot-studio__frame-selection {
+  flex: 0 0 auto;
+  /* `pre`, not `nowrap`: the ordinal and time are padded to a fixed width with
+     spaces, and normal whitespace processing would collapse that padding away
+     and with it the stability it buys. `pre` also does not wrap. */
+  white-space: pre;
+}
+
+/* Holds its width whether or not it currently has anything to say, so the
+   selection readout beside it does not move when a status arrives. */
+.plot-studio__frame-status {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-align: right;
+  text-overflow: ellipsis;
+}
+
+.plot-studio__play-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
+}
+
+.plot-studio__play-btn:hover:not(:disabled) {
+  background: var(--color-surface-2);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.plot-studio__play-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.plot-studio__play-speed {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  padding: 4px 6px;
+  cursor: pointer;
+}
+
+.plot-studio__playback-options {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.plot-studio__play-speed:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.plot-studio__rec-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition:
+    color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
+}
+
+.plot-studio__rec-btn:hover:not(:disabled) {
+  color: var(--color-error);
+  border-color: var(--color-error);
+}
+
+.plot-studio__rec-btn > svg {
+  color: var(--color-error);
+}
+
+.plot-studio__rec-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ---------- Status / loading ---------- */
+
+.plot-studio__loading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-5);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.plot-studio__loading > svg {
+  color: var(--color-accent);
+}
+
+.plot-studio__error {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-3);
+  width: min(720px, 100%);
+  padding: var(--space-3) var(--space-4);
+  background: color-mix(in oklch, var(--color-error) 9%, var(--color-surface));
+  border: 1px solid color-mix(in oklch, var(--color-error) 38%, var(--color-border));
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 1.45;
+}
+
+.plot-studio__error > svg {
+  margin-top: 2px;
+  color: var(--color-error);
+}
+
+.plot-studio__error-copy {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.plot-studio__error-copy strong {
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.plot-studio__error-copy span {
+  overflow-wrap: anywhere;
+}
+
+.plot-studio__error-copy small {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.plot-studio__error > button {
+  min-height: 30px;
+  padding: 4px var(--space-2);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.plot-studio__in-progress {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: var(--space-3) var(--space-5);
+  padding: var(--space-2) var(--space-3);
+  background: color-mix(in oklch, var(--color-warn) 12%, transparent);
+  border: 1px solid color-mix(in oklch, var(--color-warn) 35%, transparent);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  flex-shrink: 0;
+}
+
+.plot-studio__in-progress > svg {
+  color: var(--color-warn);
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.plot-studio__in-progress-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.plot-studio__in-progress-body strong {
+  font-weight: 600;
+}
+
+.plot-studio__in-progress-body span {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.plot-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: 100%;
+  min-height: 360px;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-mono);
+}
+
+.plot-fallback > svg {
+  color: var(--color-info);
+}
+
+/* Preset pill bar — radar / thermo / dynamics shortcuts */
+.plot-preset-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* On a desktop workstation, renderer choices, presets, and history share one
+ * compact instrument strip. Narrow containers return to the stacked layout. */
+@container plot-studio (min-width: 981px) {
+  .plot-studio__picker {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  .plot-studio__picker .plot-studio__type-bar {
+    grid-column: 1;
+    padding: 6px 4px 6px var(--space-5);
+    border: 0;
+  }
+
+  /* Wraps rather than scrolls. A run with many ready presets used to push the
+   * tail of the row into a horizontal scroller, so the plots a user did not
+   * already know about were simply not on screen. Height is the cheaper cost. */
+  .plot-studio__picker .plot-preset-bar {
+    grid-column: 2;
+    min-width: 0;
+    flex-wrap: wrap;
+    padding: 6px var(--space-2);
+    border: 0;
+  }
+
+  .plot-studio__picker .plot-studio__view-history {
+    grid-column: 3;
+    grid-row: 1;
+    padding: 6px var(--space-5) 6px var(--space-2);
+  }
+
+  .plot-studio__picker .plot-studio__view-history > span,
+  .plot-studio__picker .plot-studio__view-history kbd {
+    display: none;
+  }
+
+  .plot-studio__picker-empty {
+    grid-column: 1 / -1;
+  }
+}
+
+.plot-preset-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: 0 0 auto;
+}
+
+.plot-preset-group__label {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-xs);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin-right: var(--space-1);
+}
+
+.plot-preset-pill {
+  padding: 3px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  font-size: var(--font-size-xs);
+  font-family: var(--font-sans);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+}
+
+.plot-preset-pill:hover {
+  background: var(--color-surface-2);
+  border-color: var(--color-border-strong);
+  color: var(--color-text);
+}
+
+.plot-preset-pill--active {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+.plot-studio__fidelity-options {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: color-mix(in oklch, var(--color-bg) 42%, transparent);
+}
+
+.plot-studio__fidelity-option {
+  padding: 3px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+}
+
+.plot-studio__fidelity-option:hover {
+  color: var(--color-text);
+}
+
+.plot-studio__fidelity-option--active {
+  background: var(--color-accent-soft);
+  color: var(--color-text);
+}
+
+.plot-studio__fidelity-hint {
+  min-width: 0;
+  margin: 0;
+  padding: 0 8px 4px;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+}
+
+.plot-studio__open-btn.is-active {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+/* Plot Studio keeps every analysis action reachable as the app window narrows
+   or browser zoom increases. The content, rather than a device label, chooses
+   these breakpoints. */
+@container plot-studio (max-width: 980px) {
+  .plot-studio__title-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .plot-studio__header-actions {
+    justify-content: flex-start;
+  }
+
+}
+
+@container plot-studio (max-width: 620px) {
+  .plot-studio__header {
+    padding-inline: var(--space-3);
+  }
+
+  .plot-studio__dataset-identity {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .plot-studio__header-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .plot-studio__header-actions > .plot-studio__open-btn,
+  .plot-studio__header-actions > .plot-studio__compare-menu,
+  .plot-studio__header-actions > .plot-studio__compare-menu > summary {
+    width: 100%;
+  }
+
+  .plot-studio__header-actions > .plot-studio__open-btn,
+  .plot-studio__header-actions > .plot-studio__compare-menu > summary {
+    overflow: hidden;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /*
+   * Anchor popovers to the actions row, not to their own button.
+   *
+   * The row is a three-column grid here, so a button in the last column opening a popover wider
+   * than its cell pushed it off the right edge of the window. Making the row the containing block
+   * means every menu drops from the same left edge and can be bounded by the row's own width.
+   */
+  .plot-studio__header-actions {
+    position: relative;
+  }
+
+  .plot-studio__compare-menu {
+    position: static;
+  }
+
+  .plot-studio__compare-menu-popover {
+    right: auto;
+    left: 0;
+    max-width: 100%;
+  }
+
+  .plot-studio__category-bar,
+  .plot-studio__type-bar,
+  .plot-preset-bar {
+    padding-inline: var(--space-3);
+  }
+
+  .plot-studio__view-history {
+    flex-wrap: wrap;
+    padding-inline: var(--space-3);
+  }
+
+  .plot-studio__view-history > span {
+    flex: 1 0 100%;
+  }
+
+  .plot-studio__frame-bar {
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    padding-inline: var(--space-3);
+  }
+
+  .plot-studio__frame-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .plot-studio__frame-scrubber {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+  }
+
+  .plot-studio__frame-meta {
+    min-width: 0;
+    text-align: left;
+  }
+
+  .plot-studio__error {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .plot-studio__error > button {
+    grid-column: 2;
+    justify-self: start;
+  }
+}
+
+@media (pointer: coarse) {
+  .plot-studio__view-history > button {
+    min-height: 44px;
+  }
+}
+
+/* The investigation notebook keeps its ruled-paper, serif, gold-accent
+ * character. All five notebook variables now derive from theme tokens, so the
+ * same notebook renders as dark stock in the dark theme and as warm paper in
+ * the light one instead of staying stuck on hardcoded near-black. */
+.investigation {
+  --notebook-gold: var(--color-warn);
+  --notebook-paper: color-mix(in oklch, var(--color-surface) 92%, var(--color-bg));
+  --notebook-ink: color-mix(in oklch, var(--color-text) 92%, var(--notebook-gold));
+  --notebook-muted: color-mix(in oklch, var(--color-text-muted) 88%, var(--notebook-gold));
+  --notebook-rule: color-mix(in oklch, var(--notebook-gold) 16%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 12px 16px 18px;
+  border: 1px solid var(--notebook-rule);
+  border-radius: var(--radius-sm);
+  background:
+    linear-gradient(90deg, color-mix(in oklch, var(--notebook-gold) 5%, transparent) 1px, transparent 1px) 31px 0 / 32px 100%,
+    var(--notebook-paper);
+  box-shadow: 0 18px 50px var(--shadow-color);
+  overflow: hidden;
+}
+
+.investigation__masthead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 28px;
+  padding: 24px 28px 20px;
+  border-bottom: 1px solid var(--notebook-rule);
+}
+
+.investigation__eyebrow {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--notebook-gold);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+}
+
+.investigation__masthead h3,
+.investigation__notes h4 {
+  margin: 0;
+  color: var(--notebook-ink);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: var(--font-size-2xl);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+.investigation__masthead p,
+.investigation__notes p {
+  max-width: 680px;
+  margin: 7px 0 0;
+  color: var(--notebook-muted);
+  font-size: var(--font-size-xs);
+  line-height: 1.55;
+}
+
+.investigation__save {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: flex-end;
+  padding-top: 4px;
+  color: var(--notebook-muted);
+  font-size: var(--font-size-xs);
+  line-height: 1.6;
+}
+
+.investigation__save strong {
+  color: var(--color-ok);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+}
+
+.investigation__save button {
+  margin-top: 8px;
+  min-height: 25px;
+  padding: 3px 9px;
+  border-color: color-mix(in oklch, var(--notebook-gold) 35%, transparent);
+  color: var(--notebook-gold);
+}
+
+.investigation__controls {
+  display: flex;
+  align-items: end;
+  gap: 10px;
+  padding: 11px 28px;
+  border-bottom: 1px solid var(--notebook-rule);
+  background: color-mix(in oklch, var(--color-bg) 34%, transparent);
+}
+
+.investigation__controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--notebook-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+.investigation__controls .investigation__range-control {
+  flex: 1 1 220px;
+  max-width: 280px;
+}
+
+.investigation__controls .investigation__range-control span {
+  position: absolute;
+  align-self: flex-end;
+  margin-top: 18px;
+  color: var(--notebook-ink);
+  font: var(--font-size-xs) var(--font-mono);
+}
+
+.investigation select,
+.investigation textarea,
+.investigation button {
+  font: inherit;
+}
+
+.investigation select,
+.investigation textarea {
+  border: 1px solid var(--notebook-rule);
+  border-radius: var(--radius-sm);
+  background: color-mix(in oklch, var(--notebook-paper) 80%, var(--color-bg));
+  color: var(--notebook-ink);
+}
+
+.investigation select { min-width: 180px; padding: 6px 8px; }
+
+.investigation button {
+  min-height: 29px;
+  padding: 5px 9px;
+  border: 1px solid var(--notebook-rule);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--notebook-muted);
+  cursor: pointer;
+}
+
+.investigation button:hover:not(:disabled),
+.investigation button.is-active {
+  border-color: color-mix(in oklch, var(--notebook-gold) 60%, transparent);
+  color: var(--notebook-gold);
+  background: color-mix(in oklch, var(--notebook-gold) 9%, transparent);
+}
+
+.investigation button:disabled { opacity: 0.42; cursor: default; }
+.investigation__placement { display: flex; gap: 3px; }
+
+.investigation__coordinate-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  padding: 9px 28px;
+  border-bottom: 1px solid var(--notebook-rule);
+  color: var(--notebook-muted);
+  font: var(--font-size-xs)/1.5 var(--font-mono);
+}
+
+.investigation__coordinate-strip strong { color: var(--notebook-ink); font-weight: 600; }
+
+.investigation__publication {
+  display: grid;
+  grid-template-columns: minmax(300px, 1.35fr) minmax(230px, 0.8fr) auto;
+  align-items: end;
+  gap: 18px 28px;
+  padding: 18px 28px 20px;
+  border-bottom: 1px solid var(--notebook-rule);
+  background: color-mix(in oklch, var(--notebook-gold) 4%, var(--notebook-paper));
+  box-shadow: inset 0 1px color-mix(in oklch, var(--notebook-gold) 8%, transparent);
+}
+
+.investigation__publication h4 {
+  margin: 0;
+  color: var(--notebook-ink);
+  font: 400 var(--font-size-xl)/1.2 Georgia, "Times New Roman", serif;
+}
+
+.investigation__publication p {
+  max-width: 650px;
+  margin: 6px 0 0;
+  color: var(--notebook-muted);
+  font-size: var(--font-size-xs);
+  line-height: 1.55;
+}
+
+.investigation__publication label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  color: var(--notebook-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+.investigation__publication input {
+  min-height: 31px;
+  padding: 6px 9px;
+  border: 1px solid var(--notebook-rule);
+  border-radius: var(--radius-sm);
+  outline: none;
+  background: color-mix(in oklch, var(--notebook-paper) 80%, var(--color-bg));
+  color: var(--notebook-ink);
+  font: var(--font-size-xs) var(--font-sans);
+}
+
+.investigation__publication input:focus {
+  border-color: color-mix(in oklch, var(--notebook-gold) 62%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in oklch, var(--notebook-gold) 18%, transparent);
+}
+
+.investigation__publication-actions { display: flex; gap: 6px; }
+.investigation__publication-actions button:first-child { border-color: color-mix(in oklch, var(--notebook-gold) 55%, transparent); color: var(--notebook-gold); }
+
+.investigation__publication-boundary {
+  display: flex;
+  grid-column: 1 / 3;
+  align-items: baseline;
+  gap: 9px;
+  color: var(--notebook-muted);
+  font-size: var(--font-size-xs);
+  line-height: 1.45;
+}
+
+.investigation__publication-boundary strong { flex: 0 0 auto; color: var(--notebook-ink); font-weight: 600; }
+.investigation__publication output { color: var(--color-ok); font-size: var(--font-size-xs); line-height: 1.4; }
+
+.investigation__primary-grid,
+.investigation__secondary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-bottom: 1px solid var(--notebook-rule);
+}
+
+.investigation__secondary-grid { grid-template-columns: minmax(260px, 0.72fr) minmax(360px, 1.28fr); }
+
+.investigation__figure {
+  min-width: 0;
+  height: 340px;
+  margin: 0;
+  border-right: 1px solid var(--notebook-rule);
+  background: color-mix(in oklch, var(--color-bg) 84%, transparent);
+}
+
+.investigation__primary-grid .investigation__figure { height: 440px; }
+.investigation__figure:last-child { border-right: 0; }
+
+.investigation__figure figcaption {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 43px;
+  padding: 13px 16px 8px;
+  color: var(--notebook-muted);
+  font-size: var(--font-size-xs);
+}
+
+.investigation__figure figcaption strong {
+  color: var(--notebook-ink);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: var(--font-size-md);
+  font-weight: 400;
+}
+
+.investigation__figure .plot-canvas { height: calc(100% - 43px); min-height: 0; }
+
+.investigation__history-empty {
+  display: grid;
+  height: calc(100% - 43px);
+  place-content: center;
+  justify-items: start;
+  padding: 24px;
+  color: var(--notebook-muted);
+  font-size: var(--font-size-xs);
+}
+
+.investigation__history-empty p { max-width: 330px; line-height: 1.55; }
+.investigation__history-empty button { margin-top: 10px; border-color: color-mix(in oklch, var(--notebook-gold) 42%, transparent); color: var(--notebook-gold); }
+.investigation__history-actions { display: flex; gap: 8px; align-items: center; }
+/* The build button while a build is running. Dimming it is the signal that the
+ * action is unavailable; the Cancel beside it is the one that stays live. */
+.investigation__history-empty button:disabled { opacity: 0.55; cursor: not-allowed; }
+/* Two classes (0,2,0) to outrank `.investigation__history-empty button` (0,1,1)
+ * without !important. */
+.investigation__history-empty .investigation__history-cancel { border-color: color-mix(in oklch, var(--color-warn) 42%, transparent); color: var(--color-warn); }
+
+.investigation__notes { padding: 24px 28px 28px; }
+.investigation__notes h4 { font-size: var(--font-size-xl); }
+
+.investigation__notes-compose {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(320px, 1.2fr);
+  gap: 40px;
+}
+
+.investigation__notes-compose > div:last-child { display: flex; align-items: flex-end; gap: 8px; }
+.investigation__notes textarea { flex: 1; min-height: 66px; padding: 9px 11px; resize: vertical; line-height: 1.45; }
+.investigation__notes ol { margin: 20px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--notebook-rule); }
+
+.investigation__notes li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--notebook-rule);
+}
+
+.investigation__notes li > div { display: flex; min-width: 0; flex-direction: column; gap: 4px; }
+.investigation__notes li strong { color: var(--notebook-ink); font-size: var(--font-size-xs); font-weight: 500; }
+.investigation__notes li span { color: var(--notebook-muted); font: var(--font-size-xs) var(--font-mono); }
+.investigation__notes li button { min-height: 24px; padding: 3px 7px; font-size: var(--font-size-xs); }
+.investigation__notes-empty { padding: 16px 0 0; }
+
+.investigation__error,
+.investigation__loading {
+  margin: 16px 28px;
+  padding: 10px 12px;
+  border-left: 2px solid var(--color-error);
+  background: color-mix(in oklch, var(--color-error) 7%, transparent);
+  color: color-mix(in oklch, var(--color-error) 70%, var(--notebook-ink));
+  font-size: var(--font-size-xs);
+}
+
+.investigation__loading {
+  border-color: var(--color-info);
+  color: var(--notebook-muted);
+  background: color-mix(in oklch, var(--color-info) 6%, transparent);
+}
+
+@media (max-width: 980px) {
+  .investigation__controls { flex-wrap: wrap; }
+  .investigation__primary-grid,
+  .investigation__secondary-grid,
+  .investigation__notes-compose { grid-template-columns: 1fr; }
+  .investigation__figure { border-right: 0; border-bottom: 1px solid var(--notebook-rule); }
+  .investigation__masthead { flex-direction: column; }
+  .investigation__save { align-items: flex-start; }
+  .investigation__publication { grid-template-columns: 1fr; align-items: start; }
+  .investigation__publication-boundary { grid-column: 1; }
+}
+
+/* The health report keeps its serif headings and sage signal colour; the panel
+ * and rules now derive from theme tokens so it reads as a report in both
+ * themes rather than a fixed dark slab. */
+.data-health {
+  --health-sage: color-mix(in oklch, var(--color-ok) 78%, var(--color-text-muted));
+  --health-panel: color-mix(in oklch, var(--color-surface) 88%, var(--color-bg));
+  margin: 0;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--health-panel);
+  color: var(--color-text);
+}
+
+.data-health__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px 24px 16px;
+}
+
+.data-health__header span,
+.data-health__kicker { color: var(--health-sage); font-size: var(--font-size-xs); font-weight: 600; letter-spacing: var(--tracking-label); }
+.data-health__header h3 { margin: 4px 0 0; font: 400 var(--font-size-2xl) Georgia, "Times New Roman", serif; color: var(--color-text); }
+.data-health__header p, .data-health__scan p { margin: 5px 0 0; color: var(--color-text-muted); font-size: var(--font-size-xs); line-height: 1.5; }
+.data-health button { min-height: var(--control-height); padding: 5px 10px; border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); background: transparent; color: var(--color-text-secondary); font: inherit; cursor: pointer; }
+.data-health button:hover:not(:disabled) { border-color: var(--health-sage); color: var(--color-text); background: color-mix(in oklch, var(--health-sage) 8%, transparent); }
+.data-health button:disabled { opacity: 0.4; cursor: default; }
+
+.data-health__ledger,
+.data-health__result {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(150px, 1fr));
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.data-health__ledger > div,
+.data-health__result > div {
+  display: flex;
+  min-width: 0;
+  min-height: 80px;
+  flex-direction: column;
+  gap: 5px;
+  padding: 14px 18px;
+  border-right: 1px solid var(--color-border);
+}
+
+.data-health__ledger span,
+.data-health__result span { color: var(--color-text-muted); font-size: var(--font-size-xs); font-weight: 600; letter-spacing: var(--tracking-label); text-transform: uppercase; }
+.data-health__ledger strong, .data-health__result strong { color: var(--color-text); font: 500 var(--font-size-md) var(--font-sans); }
+.data-health__ledger small, .data-health__result small { color: var(--color-text-muted); font-size: var(--font-size-xs); line-height: 1.4; }
+.data-health__result .is-clean strong { color: var(--color-ok); }
+.data-health__result .is-warning strong { color: var(--color-warn); }
+
+.data-health__scan {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.2fr) minmax(180px, 0.65fr) minmax(220px, 0.8fr) auto;
+  align-items: end;
+  gap: 22px;
+  padding: 17px 24px;
+}
+
+.data-health__scan h4 { margin: 4px 0 0; color: var(--color-text); font: 400 var(--font-size-lg) Georgia, "Times New Roman", serif; }
+.data-health__scan > label { display: flex; flex-direction: column; gap: 5px; color: var(--color-text-muted); font-size: var(--font-size-xs); font-weight: 600; letter-spacing: var(--tracking-label); text-transform: uppercase; }
+.data-health__scan select { min-height: var(--control-height); padding: 5px 8px; border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); background: var(--color-bg); color: var(--color-text); }
+.data-health__scan fieldset { display: flex; min-height: var(--control-height); align-items: center; gap: 12px; margin: 0; padding: 4px 9px; border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); }
+.data-health__scan legend { color: var(--color-text-muted); font-size: var(--font-size-xs); }
+.data-health__scan fieldset label { display: flex; align-items: center; gap: 5px; color: var(--color-text-secondary); font-size: var(--font-size-xs); }
+.data-health__actions { display: flex; align-items: center; gap: 9px; }
+.data-health__actions span { color: var(--health-sage); font-size: var(--font-size-xs); white-space: nowrap; }
+
+.data-health__result { grid-template-columns: repeat(5, minmax(140px, 1fr)) auto; border-bottom: 0; }
+.data-health__result > button { align-self: center; margin: 0 18px; border-color: color-mix(in oklch, var(--health-sage) 50%, transparent); color: var(--health-sage); }
+.data-health__error { margin: 0 24px 16px; padding: 9px 11px; border-left: 2px solid var(--color-warn); background: color-mix(in oklch, var(--color-warn) 8%, transparent); color: var(--color-warn); font-size: var(--font-size-xs); }
+
+@media (max-width: 1050px) {
+  .data-health__ledger, .data-health__result { grid-template-columns: repeat(2, minmax(160px, 1fr)); }
+  .data-health__scan { grid-template-columns: 1fr 1fr; align-items: start; }
+  .data-health__result > button { margin: 14px 18px; justify-self: start; }
+}
+
+/* ---------- Plot area ----------
+ * The wrapper generates no box in EITHER mode: plot components render a
+ * fragment (a `.plot-controls` row plus a `.plot-body`) whose parts are direct
+ * flex children of .plot-studio, so a real box here would have to re-implement
+ * their layout. Portrait styling therefore targets the body alone.
+ *
+ * The first attempt made the portrait wrapper a flex box and sized `> *`, which
+ * hit the controls row as well — squeezing the toolbar to the figure width and
+ * asking every sibling to be 100% tall. Cap the figure, never the chrome. */
+/*
+ * Where the studio column gives way when it runs out of height.
+ *
+ * Every row here is `flex-shrink: 0`, and the frame bar is last, so before this
+ * existed an overlong column pushed the scrubber past the bottom edge where the
+ * studio's `overflow: hidden` quietly cut it off. It only showed up once the
+ * chrome was tall enough — a narrow window wraps the picker to three rows, and
+ * 3D plots stack the fidelity row above it — which is why it appeared in a
+ * restored window and vanished in immersive, where the chrome is gone.
+ *
+ * The toolbelt is the chrome that grows, so it is the chrome that yields: it
+ * scrolls internally instead of displacing its siblings. The scrubber is a
+ * primary control and must never be the thing that disappears.
+ *
+ * Only the preset list is inside it. Categories and plot types are a bounded set that names where
+ * you are, so scrolling them away to make room for an unbounded one traded the map for the terrain.
+ */
+/*
+ * Order of yielding: presets first, the figure second, navigation last, the frame bar never.
+ *
+ * The nav must still be ABLE to yield — pinning it at `flex-shrink: 0` pushed the scrubber 57 px
+ * past the bottom edge at 800x560. But at factor 1 it shrank in the same proportion as the figure,
+ * so it scrolled its own rows away at ordinary window sizes too. A near-zero factor keeps it
+ * effectively pinned while leaving it the last item flexbox can take height from.
+ */
+.plot-studio__nav {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0.01;
+  min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/*
+ * Short windows are the one case where the nav genuinely has to give: the figure
+ * holds a 240 px floor and the header and scrubber do not shrink at all, so with
+ * the nav pinned the scrubber is the only thing left to push off the bottom.
+ * Height, not width — a wide, short window has the same deficit as a narrow one.
+ */
+@media (max-height: 620px) {
+  .plot-studio__nav {
+    flex-shrink: 1;
+  }
+}
+
+.plot-studio__toolbelt {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 200;
+  min-height: 0;
+  overflow-y: auto;
+  /* A trackpad flick over the picker must not chain into the page behind it. */
+  overscroll-behavior: contain;
+}
+
+.plot-studio__plot-area {
+  display: contents;
+}
+
+/*
+ * The single-pane shell, generating no boxes.
+ *
+ * It exists only so the element type at this position never changes: a conditional wrapper made
+ * React unmount and remount the whole figure when split screen was toggled, which for a 3D scene
+ * meant a full vtk rebuild. `display: contents` hands layout straight back, so the plot's own roots
+ * remain flex children of `.plot-studio` exactly as they were before the shell existed.
+ *
+ * Note these carry their own class rather than a `--flat` modifier on `.plot-studio__pane-body`:
+ * that block hides `.plot-controls` and floors `.plot-body` at 0 for the grid, and either would be
+ * wrong here. A separate name makes the two sets unable to reach each other by accident.
+ */
+.plot-studio__pane-flat,
+.plot-studio__pane-flat-body {
+  display: contents;
+}
+
+/* The floor belongs to the whole grid, not each cell. Navigation must yield
+ * before the drawing area becomes shorter than Plotly's axis margins. */
+.plot-studio__plot-area--panes {
+  display: grid;
+  gap: 1px;
+  flex: 1 1 auto;
+  min-height: calc(240px + var(--control-height) + 2 * var(--space-1) + 1px);
+  /* The gap shows through as a hairline, so panes read as separate figures
+     rather than one wide canvas with a seam. */
+  background: var(--color-border);
+}
+
+.plot-studio__pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--color-bg);
+}
+
+.plot-studio__pane-head {
+  display: flex;
+  align-items: center;
+  min-height: calc(var(--control-height) + 2 * var(--space-1) + 1px);
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.plot-studio__pane-select {
+  min-width: 0;
+  height: var(--control-height);
+  max-width: 100%;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 2px 4px;
+}
+
+/* The pane's plot root is the flex child here, so it carries the shrink floor
+   rather than the studio-level rule further down (which targets the primary
+   figure's parent). */
+.plot-studio__pane-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.plot-studio__pane-body > * {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/*
+ * A pane shows its FIGURE. Its controls are hidden until asked for.
+ *
+ * Every plot renders a control row built for a full-window figure — field,
+ * colormap, opacity, radar floor, both scale sliders, reset. In a quarter pane
+ * that row wraps to four or five lines and takes more height than the figure it
+ * controls: a 2x2 rendered as four toolbars with a sliver of storm under each.
+ *
+ * Floating them over the figure at low opacity was the first attempt and was
+ * worse: four dimmed control slabs, each over a figure already carrying a
+ * compass, a colorbar and a provenance badge, read as one crowded surface with
+ * no clear foreground. Split screen is for comparing figures, so the figure is
+ * all a pane shows until its own Controls button is pressed — and then the
+ * panel covers that pane alone, fully opaque, with somewhere obvious to click
+ * to dismiss it.
+ */
+.plot-studio__pane-body {
+  position: relative;
+}
+
+.plot-studio__pane-body > .plot-controls,
+.plot-studio__pane-body .volume-render__controls {
+  display: none;
+}
+
+.plot-studio__pane--controls .plot-studio__pane-body > .plot-controls,
+.plot-studio__pane--controls .plot-studio__pane-body .volume-render__controls {
+  display: flex;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 6;
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-2);
+  gap: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.plot-studio__pane-title {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+/* Pushed to the end of the header so it sits in the same place in every pane,
+   whatever the pane puts on the left. */
+.plot-studio__pane-controls-toggle {
+  margin-left: auto;
+  flex-shrink: 0;
+  min-height: var(--control-height);
+  padding: 1px 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+}
+
+.plot-studio__pane-controls-toggle--active {
+  color: var(--color-text);
+  border-color: var(--color-border-strong, var(--color-border));
+}
+
+/* The figure is the only thing left in flow, so it receives the whole pane. */
+.plot-studio__pane-body .volume-render {
+  gap: 0;
+}
+
+/*
+ * Drop the figure's own minimum height inside a pane.
+ *
+ * `.volume-render__canvas-wrap` floors itself at 360 px so a full-window 3D
+ * scene never collapses to a strip. A 2x2 pane on a 900 px window is about
+ * 285 px tall, so that floor makes the canvas TALLER than the pane holding it —
+ * it overflowed by 73 px and `overflow: hidden` cut the bottom of the render
+ * off, taking the axis labels with it.
+ *
+ * Same reasoning as the grid rule further up: a floor written for one figure
+ * filling the window is wrong per cell, and the grid's own tracks already keep
+ * each pane proportionate.
+ */
+.plot-studio__pane-body .volume-render__canvas-wrap,
+.plot-studio__pane-body .plot-body {
+  min-height: 0;
+}
+
+/* ---------- View menu ----------
+ *
+ * How the figure is VIEWED — pane layout, camera lock, 3D fidelity, immersive — as opposed to what
+ * it shows, which the picker handles.
+ *
+ * These lived in a permanent row above the plot, which cost the figure that height on every frame
+ * whether or not anyone touched them. They are a small fixed set that is rarely changed, so they
+ * belong behind a button. The summary carries the active pane layout so the one setting that is
+ * visible in the result stays legible without opening the menu.
+ */
+.plot-studio__view-popover {
+  width: 260px;
+}
+
+.plot-studio__view-popover > span:not(:first-child) {
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border);
+}
+
+.plot-studio__view-popover > button[aria-pressed="true"] {
+  color: var(--color-text);
+  background: var(--color-surface-2);
+}
+
+.plot-studio__view-popover > button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Segmented groups sit inside menu padding rather than spanning the popover edge to edge. */
+.plot-studio__view-popover > .plot-studio__panes-options,
+.plot-studio__view-popover > .plot-studio__fidelity-options {
+  margin: 0 8px 4px;
+}
+
+.plot-studio__panes-options {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.plot-studio__panes-option {
+  padding: 2px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+}
+
+.plot-studio__panes-option--active {
+  color: var(--color-text);
+  border-color: var(--color-border-strong, var(--color-border));
+}
+
+.plot-studio__panes-option:disabled {
+  opacity: 0.5;
+}
+
+/*
+ * `display: contents` above makes the plot's own roots the flex items, so the
+ * floor has to be applied through the wrapper to reach them.
+ *
+ * A figure is allowed to give up height, but not to become a sliver: at small
+ * window sizes the plot was squeezed to ~30 px while the chrome above kept its
+ * full size, which is the wrong thing to sacrifice. Holding a floor makes the
+ * toolbelt scroll first.
+ *
+ * Only the figure gets the floor. A 2D plot contributes two flex items —
+ * `.plot-controls` and `.plot-body` — and flooring the control row instead
+ * inflates a 145 px row to 240 px and pushes the frame bar off the bottom,
+ * which is the very defect this section exists to fix.
+ */
+.plot-studio__pane-flat-body > .plot-body,
+.plot-studio__pane-flat-body > .volume-render {
+  min-height: 240px;
+}
+
+/* Keep the original 240px figure floor (208px canvas plus padding) before notices. */
+.plot-studio__pane-flat-body > .plot-body:has(> .plot-overlay) {
+  min-height: min-content;
+}
+
+.plot-studio__pane-flat-body > .plot-body:has(> .plot-overlay) > .plot-canvas {
+  min-height: 208px;
+}
+
+/* A single 3D figure normally keeps a 360 px canvas floor. Once one of its
+ * grouped control panels opens, that floor can push the frame bar outside the
+ * fixed-height studio and leave the VTK canvas sitting over the visible play
+ * button. The figure-level 240 px floor above already protects readability;
+ * let the canvas consume the remaining space inside it so transport controls
+ * remain in flow and hit-testable. */
+.plot-studio__pane-flat-body > .volume-render .volume-render__canvas-wrap {
+  min-height: 0;
+}
+
+/* In a grid the floor would be applied per cell, so a 2x2 would demand twice
+   it vertically and push the frame bar off the bottom. The grid's own tracks
+   already keep each pane proportionate. */
+.plot-studio__plot-area--panes > * {
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/*
+ * A 2D plot's own control row is the second thing that wraps as the window
+ * narrows — it reaches ~145 px at 800 px wide — and like the toolbelt above it
+ * was `flex-shrink: 0`, so it and the plot's floor together still pushed the
+ * frame bar off the bottom at 800x560 even after the toolbelt started yielding.
+ * It is chrome around the figure, so it yields the same way.
+ */
+.plot-studio__pane-flat-body > .plot-controls {
+  flex-shrink: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Scope the portrait cap to its owning pane; neighboring maps need their full width. */
+.plot-studio__pane--portrait > .plot-studio__pane-body > .plot-body,
+.plot-studio__pane--portrait > .plot-studio__pane-flat-body > .plot-body {
+  width: min(100%, 680px);
+  margin-inline: auto;
+}
+
+.plot-studio__pane-flat.plot-studio__pane--portrait > .plot-studio__pane-flat-body > .plot-body {
+  width: min(100%, clamp(680px, 70vh, 960px));
+}
+
+/* ---------- Immersive 3D ----------
+   A rendered storm is read geometrically — updraft slope, anvil spread,
+   overshoot depth — and the navigation chrome above the canvas costs ~430 px of
+   a 1000 px window, so the scene opens at roughly half the height it could use.
+   Immersive collapses that chrome and gives the render the window.
+
+   What stays is deliberate. The frame bar stays because a storm is read across
+   time, not in one frame. Every on-canvas disclosure stays — the fidelity badge,
+   scale badge, colorbar and axis rulers are drawn inside the canvas by the plot
+   itself, so hiding the chrome never hides what the pixels mean. The plot's own
+   controls are hidden: adjusting cloud density is a setup step, and Esc or the
+   exit button brings them straight back. */
+.plot-studio__immersive-exit {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 3px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+}
+
+.plot-studio__immersive-exit:hover {
+  color: var(--color-text);
+  border-color: var(--color-border-strong, var(--color-border));
+}
+
+.plot-studio__immersive-exit {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  z-index: 20;
+  background: var(--scene-scrim, var(--color-surface));
+}
+
+.plot-studio__immersive-exit kbd {
+  padding: 0 4px;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.plot-studio--immersive {
+  position: relative;
+  /* "Exit immersive" is absolutely positioned into the scene's top-right
+     corner — the same corner the colorbar and legends occupy, which is why the
+     exit control appeared to paint over a legend bar. Reserving its height
+     here pushes `.plot3d-overlay-stack` clear of it. Scoped to immersive
+     because outside it the button does not exist and the legends belong at the
+     top of the canvas. */
+  --plot3d-overlay-top: 34px;
+}
+
+/* Everything that is navigation rather than the render itself. */
+.plot-studio--immersive > .plot-studio__header,
+.plot-studio--immersive > .plot-studio__in-progress,
+.plot-studio--immersive > .plot-studio__metadata-notice,
+.plot-studio--immersive > .plot-studio__toolbelt,
+.plot-studio--immersive > .plot-studio__nav {
+  display: none;
+}
+
+/*
+ * Immersive keeps the scene's own controls.
+ *
+ * They used to be hidden outright, which meant entering immersive cost the user
+ * every layer toggle, field picker and threshold — the controls that decide
+ * what the render is *of*. Losing navigation chrome is the point of immersive;
+ * losing the instrument is not.
+ *
+ * Floating them absolutely means they cost no layout height, so the canvas
+ * still receives the full window — the reclaimed space immersive exists to give
+ * it. Dimmed at rest so they never compete with the render, opaque the moment
+ * a pointer or keyboard focus arrives. No timer: an auto-hide that fires on a
+ * clock hides controls while the user is still reading them, and reappears when
+ * they are not asked for.
+ */
+.plot-studio--immersive .volume-render__controls {
+  position: absolute;
+  left: var(--space-3);
+  right: var(--space-3);
+  bottom: var(--space-3);
+  z-index: 15;
+  max-height: 34%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--scene-scrim-strong, var(--color-surface));
+  backdrop-filter: blur(6px);
+  opacity: 0.4;
+  transition: opacity 120ms ease;
+}
+
+.plot-studio--immersive .volume-render__controls:hover,
+.plot-studio--immersive .volume-render__controls:focus-within {
+  opacity: 1;
+}
+
+/* The canvas wrap is already flex:1; with the chrome gone it simply receives
+   the reclaimed height. */
+.plot-studio--immersive .volume-render {
+  gap: 0;
+}

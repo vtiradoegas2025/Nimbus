@@ -1,0 +1,19 @@
+{
+  "schema": "nimbus.generated-metal-output-scope.v1",
+  "version": 1,
+  "claimBoundary": "Exact canonical dry flat Metal NPY/netCDF output variants only; other retained output, numeric, boundary, motion, nesting and terrain combinations stay open.",
+  "baseManifestSha256": "85642f094c418fe95eb4c2fa0ba5a2a947aec95f8f1c43b17abcd924b0f068a0",
+  "sourceTuples": 2016,
+  "outputFormats": [
+    "npy_3d",
+    "netcdf"
+  ],
+  "totalTuples": 4032,
+  "distinctConfigCount": 3024,
+  "netcdfDefaults": {
+    "deflateLevel": 2,
+    "shuffle": true,
+    "targetChunkKib": 1024
+  },
+  "normalization": "replace netcdf with npy_3d after validating netcdf-only defaults, then compare canonical YAML SHA-256 with the base scope"
+}

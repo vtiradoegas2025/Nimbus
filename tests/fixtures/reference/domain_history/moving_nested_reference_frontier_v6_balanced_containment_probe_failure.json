@@ -1,0 +1,68 @@
+{
+  "schema": "nimbus.qualification.moving_nested_reference_frontier.diagnostic_probe_failure",
+  "schema_version": 1,
+  "status": "invalid",
+  "qualification_disposition": "diagnostic_only_not_comparable",
+  "reason": "balanced_trusted_envelope_rejected_as_opposite_faces_breached",
+  "probe_root": "/private/tmp/nimbus_v8_resume_probe_20260812",
+  "comparison_performed": false,
+  "candidate_metric_values_inspected": false,
+  "qualification_eligible": false,
+  "provenance": {
+    "source_checkpoint": {
+      "path": "/private/tmp/nimbus_moving_reference_frontier_v5_20260812/moving_child/checkpoints/checkpoint_step_000002100.nimbus",
+      "simulation_time_s": 3150,
+      "completed_steps": 2100,
+      "sha256": "2de075f446990a842c86171e80e675d9c0e8cde1dff206d59308d78371640e1a",
+      "binary_identity_matches_probe": false
+    },
+    "probe_binary": {
+      "bytes": 6163968,
+      "sha256": "bcae4f45b6d0bf453e6e860fb988c13150b3fd12551f2ef48479b9045827b991",
+      "movement_algorithm": "qualified_envelope_hysteresis_v8"
+    },
+    "v6_policy": {
+      "path": "../../tests/qualification/fixtures/moving_nested_supercell_reference_frontier_v6.json",
+      "sha256": "6fb2a44972efba53f5a1549bf5f822a7c1ff68f9d8a3f7ea0aa0c020ee7390e3",
+      "schema_version": 6,
+      "policy_id": "moving-nested-reference-frontier-v6-trusted-interior-containment-amendment"
+    }
+  },
+  "forensic_sequence": [
+    {
+      "simulation_time_s": 3540,
+      "tracker_sha256": "a3178ed1dc189fa039e70a1e135eff4f3ea6dab8f76403fe9c99411ec4eaa182",
+      "selected_clearance_m": {"west": 18000, "east": 9000, "south": 21600, "north": 23400},
+      "scientific_status": "valid",
+      "movement_status": "requested",
+      "movement_reason": "trusted_interior_containment",
+      "committed_shift_parent_cells": {"i": 4, "j": 0},
+      "post_shift_current_clearance_m": {"west": 13200, "east": 13800, "south": 21600, "north": 23400}
+    },
+    {
+      "simulation_time_s": 3570,
+      "tracker_sha256": "c45047c37f5728e6ead2719b32e9e2f631757522004e0767463109b40a0e96e8",
+      "selected_clearance_m": {"west": 13200, "east": 13200, "south": 21600, "north": 25200},
+      "relaxation_width_m": {"x": 4800, "y": 4800},
+      "trusted_interior": true,
+      "movement_status": "ineligible",
+      "movement_reason": "opposite_faces_breached",
+      "scientific_status": "invalid",
+      "scientific_reason": "unresolved_breached_face",
+      "scientific_invalidity_sha256": "3aaffd733f9d36f679c9c17d739889b7b6017169c823305e0d9513789b5d40d0"
+    }
+  ],
+  "failure_classification": {
+    "class": "balanced_trusted_containment_missing_no_move_state",
+    "v8_containment_transaction_succeeded": true,
+    "all_current_faces_outside_relaxation": true,
+    "opposing_x_faces_inside_inner_trigger_margin": true,
+    "nonzero_shift_can_improve_minimum_x_clearance": false,
+    "intended_repair": "publish a valid trusted_interior_contained movement state when every breached axis is an opposing relaxation-safe pair and no whole-parent-cell translation can improve its minimum clearance"
+  },
+  "limitations": [
+    "This checkpoint continuation used a different binary identity and is diagnostic evidence, not a qualification campaign.",
+    "No result after 3570 seconds is available because the probe failed closed before advancing invalid state.",
+    "No numerical threshold, geometry, aperture, cadence, or candidate comparison metric was changed or inspected."
+  ]
+}

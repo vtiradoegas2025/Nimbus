@@ -1,0 +1,85 @@
+{
+  "artifacts": {
+    "accumulated_rainfall": {
+      "bytes": 223292,
+      "path": "/private/tmp/nimbus_reference_v5_smoke_verified_20260811/qualification_diagnostics/step_000000/accumulated_rainfall.npy",
+      "sha256": "ae50bcdb8980b74263d7fd8082794c4cc459f06389530146a467d19a72b8fa37"
+    },
+    "binary": {
+      "bytes": 6143056,
+      "path": "/private/tmp/nimbus_reference_smoke_verified_20260811",
+      "sha256": "98073653547ec4c94b198a5d155e3db82c77e1ef8ac45e2de7dd744e3efba7ab"
+    },
+    "cold_pool_boundary": {
+      "bytes": 223292,
+      "path": "/private/tmp/nimbus_reference_v5_smoke_verified_20260811/qualification_diagnostics/step_000000/cold_pool_boundary.npy",
+      "sha256": "11c52eae64f67dd537e5ff47d42b0c8f675b4ab10a814314cd4c66eb2a5fc601"
+    },
+    "config": {
+      "bytes": 3706,
+      "path": "/private/tmp/nimbus_reference_v5_smoke_verified_20260811/qualification_input.yaml",
+      "sha256": "d313a16f5b8a46250beafa34d5c896129741b0bbb33fd18497d23d49d60bd9b2"
+    },
+    "policy": {
+      "bytes": 365,
+      "path": "/private/tmp/nimbus_reference_v5_smoke_verified_20260811/smoke_policy.json",
+      "sha256": "a0343e562635240f479543afb97748e8af5c0cba8fff743d66844eb6e060bc3c"
+    },
+    "qualification_manifest": {
+      "bytes": 44736,
+      "path": "/private/tmp/nimbus_reference_v5_smoke_verified_20260811/qualification_diagnostics/step_000000/manifest.json",
+      "sha256": "d4677b27b61c600a6a9ede5b26e25c728de0952f910538461aaf9bd5118b06bd"
+    },
+    "region_series": {
+      "bytes": 926,
+      "path": "/private/tmp/nimbus_reference_v5_smoke_verified_20260811/moving_region_30s.json",
+      "sha256": "f0e4affe4e692572a363ff70ff8484030950b71ca5fa78428e72ba20c6f2405b"
+    },
+    "run_manifest": {
+      "bytes": 260,
+      "path": "/private/tmp/nimbus_reference_v5_smoke_verified_20260811/nimbus_output.json",
+      "sha256": "eb6006a4c8162d7fe23248fec463a22df50086ae1d3a7364b848215787a8b53e"
+    },
+    "series": {
+      "bytes": 2960,
+      "path": "/private/tmp/nimbus_reference_v5_smoke_verified_20260811/reference_series_30s.json",
+      "sha256": "c98d73914826ef141dc9a4e5094502a0ccd6ee242c578728864ca3dc21d1b9ea"
+    },
+    "source_manifest": {
+      "bytes": 6919,
+      "path": "/private/tmp/nimbus_reference_v5_smoke_verified_20260811/reference_source_manifest_30s.json",
+      "sha256": "b0f0d5fa3b786ffa101ec5323edbebe233914b3fcaa989336e62dd2ddf8c2548"
+    },
+    "tracker": {
+      "bytes": 6361,
+      "path": "/private/tmp/nimbus_reference_v5_smoke_verified_20260811/storm_track/track_step_000000040.json",
+      "sha256": "5e3aba73e46c5f7d104725bbd5924e35b6735f0b33afe31dce907af59ecb6130"
+    }
+  },
+  "claim": "structural_sparse_reference_publication_only",
+  "duration_s": 30,
+  "limitations": [
+    "No moving/reference scientific comparison was performed.",
+    "The moving trusted-region request is configuration-derived structural geometry.",
+    "The 4500 second production horizon was not run."
+  ],
+  "ordinary_history_times_s": [
+    0
+  ],
+  "policy_status": "measurement_only",
+  "qualification_owner": "root",
+  "qualification_payload_inventory": [
+    "accumulated_rainfall.npy",
+    "cold_pool_boundary.npy"
+  ],
+  "qualification_times_s": [
+    30
+  ],
+  "schema": "nimbus.qualification.moving_nested_reference_smoke",
+  "schema_version": 1,
+  "status": "pass",
+  "threads": 4,
+  "tracker_times_s": [
+    30
+  ]
+}

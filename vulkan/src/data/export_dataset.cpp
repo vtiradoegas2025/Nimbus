@@ -1,0 +1,974 @@
+/**
+ * @file export_dataset.cpp
+ * @brief Disk scanning and frame loading for exported tornado scalar fields.
+ *
+ * Validates per-step slice completeness, enforces shape consistency across time,
+ * and converts raw float fields into robustly normalized volume payloads. Includes
+ * defensive parsing to avoid crashes on malformed filenames and NPY metadata.
+ */
+
+#include "data/export_dataset.hpp"
+
+#include "core/output/shm_transport.hpp"
+#include "data/grid_geometry.hpp"
+#include "core/io/npy_reader.hpp"
+
+#include <algorithm>
+#include <cerrno>
+#include <cmath>
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <limits>
+#include <regex>
+#include <sstream>
+#include <unordered_map>
+
+namespace oglcpp
+{
+namespace
+{
+
+/** @brief Escape regex metacharacters in a literal token. */
+std::string regex_escape(const std::string& input) 
+{
+    std::string out;
+    out.reserve(input.size() * 2);
+    const std::string meta = R"(\.^$|()[]*+?{})";
+
+    for (char c : input) 
+    {
+        if (meta.find(c) != std::string::npos) 
+        {
+            out.push_back('\\');
+        }
+        out.push_back(c);
+    }
+    return out;
+}
+
+/** @brief Return `true` for finite floating-point values. */
+bool is_finite(float x) 
+{
+    return std::isfinite(static_cast<double>(x));
+}
+
+/** @brief Parse a non-negative decimal integer with range validation. */
+bool parse_nonnegative_int(const std::string& text, int& out, std::string& error)
+{
+    errno = 0;
+    char* end = nullptr;
+    const unsigned long parsed = std::strtoul(text.c_str(), &end, 10);
+    if (end == text.c_str() || *end != '\0' || errno == ERANGE ||
+        parsed > static_cast<unsigned long>(std::numeric_limits<int>::max()))
+    {
+        error = "invalid non-negative integer: '" + text + "'";
+        return false;
+    }
+
+    out = static_cast<int>(parsed);
+    return true;
+}
+
+/** @brief Compute `nx*ny*nz` with overflow checks. */
+bool checked_volume_size(int nx, int ny, int nz, std::size_t& out, std::string& error)
+{
+    if (nx <= 0 || ny <= 0 || nz <= 0)
+    {
+        error = "non-positive dataset dimensions";
+        return false;
+    }
+
+    const std::size_t sx = static_cast<std::size_t>(nx);
+    const std::size_t sy = static_cast<std::size_t>(ny);
+    const std::size_t sz = static_cast<std::size_t>(nz);
+
+    if (sx > std::numeric_limits<std::size_t>::max() / sy)
+    {
+        error = "dataset dimensions overflow size_t (nx*ny)";
+        return false;
+    }
+    const std::size_t xy = sx * sy;
+    if (xy > std::numeric_limits<std::size_t>::max() / sz)
+    {
+        error = "dataset dimensions overflow size_t (nx*ny*nz)";
+        return false;
+    }
+
+    out = xy * sz;
+    return true;
+}
+
+struct StepShape
+{
+    int nx = 0;
+    int ny = 0;
+    int nz = 0;
+    bool is_3d_volume = false; ///< True if the step uses 3D volume files
+};
+
+/** @brief Validate theta slices and extract 3D dimensions for one step directory. */
+bool inspect_step_shape(const std::filesystem::path& step_dir,
+                        const std::string& field_name,
+                        StepShape& out,
+                        std::string& error)
+{
+    // Check for 3D volume file first: <field_name>.npy with 3D shape
+    const auto volume_path = step_dir / (field_name + ".npy");
+    if (std::filesystem::exists(volume_path))
+    {
+        NpyArray3D vol;
+        std::string load_error;
+        if (load_npy_float32_3d(volume_path, vol, load_error))
+        {
+            // 3D volume: shape is (NR, NTH, NZ) in row-major Field3D layout
+            out.nx = vol.dim0;  // NR (radial)
+            out.ny = vol.dim1;  // NTH (azimuthal)
+            out.nz = vol.dim2;  // NZ (vertical)
+            out.is_3d_volume = true;
+            if (out.nx <= 0 || out.ny <= 0 || out.nz <= 0)
+            {
+                error = "non-positive shape in 3D volume " + volume_path.string();
+                return false;
+            }
+            return true;
+        }
+        // If 3D load failed, fall through to 2D slice detection
+    }
+
+    // Fall back to per-theta 2D slice detection
+    std::regex slice_re("^th([0-9]+)_" + regex_escape(field_name) + "\\.npy$");
+    std::unordered_map<int, std::filesystem::path> slices_by_theta;
+    int max_theta = -1;
+
+    std::error_code iter_error;
+    std::filesystem::directory_iterator it(
+        step_dir,
+        std::filesystem::directory_options::skip_permission_denied,
+        iter_error);
+    if (iter_error)
+    {
+        error = "failed to iterate '" + step_dir.string() + "': " + iter_error.message();
+        return false;
+    }
+
+    const std::filesystem::directory_iterator end;
+    for (; it != end; it.increment(iter_error))
+    {
+        if (iter_error)
+        {
+            error = "failed while iterating '" + step_dir.string() + "': " + iter_error.message();
+            return false;
+        }
+
+        const std::filesystem::directory_entry& entry = *it;
+        std::error_code type_error;
+        if (!entry.is_regular_file(type_error))
+        {
+            continue;
+        }
+
+        const std::string name = entry.path().filename().string();
+        std::smatch match;
+        if (!std::regex_match(name, match, slice_re) || match.size() < 2)
+        {
+            continue;
+        }
+
+        int theta_idx = -1;
+        std::string parse_error;
+        if (!parse_nonnegative_int(match[1].str(), theta_idx, parse_error))
+        {
+            error = "invalid theta slice index in '" + name + "': " + parse_error;
+            return false;
+        }
+        slices_by_theta[theta_idx] = entry.path();
+        max_theta = std::max(max_theta, theta_idx);
+    }
+
+    if (max_theta < 0)
+    {
+        error = "no theta slices found for field '" + field_name + "'";
+        return false;
+    }
+
+    out.ny = max_theta + 1;
+    for (int th = 0; th < out.ny; ++th)
+    {
+        if (slices_by_theta.find(th) == slices_by_theta.end())
+        {
+            std::ostringstream oss;
+            oss << "missing theta slice th" << th << "_" << field_name << ".npy";
+            error = oss.str();
+            return false;
+        }
+    }
+
+    NpyArray2DShape first_shape;
+    std::string load_error;
+    if (!load_npy_float32_2d_shape(slices_by_theta[0], first_shape, load_error))
+    {
+        error = "failed to read th0 shape: " + load_error;
+        return false;
+    }
+
+    out.nz = first_shape.rows;
+    out.nx = first_shape.cols;
+    if (out.nx <= 0 || out.ny <= 0 || out.nz <= 0)
+    {
+        error = "non-positive shape detected";
+        return false;
+    }
+
+    for (int th = 1; th < out.ny; ++th)
+    {
+        NpyArray2DShape shape;
+        if (!load_npy_float32_2d_shape(slices_by_theta[th], shape, load_error))
+        {
+            std::ostringstream oss;
+            oss << "failed to read th" << th << " shape: " << load_error;
+            error = oss.str();
+            return false;
+        }
+
+        if (shape.rows != out.nz || shape.cols != out.nx)
+        {
+            std::ostringstream oss;
+            oss << "slice shape mismatch at th" << th
+                << ": expected (" << out.nz << ", " << out.nx
+                << "), got (" << shape.rows << ", " << shape.cols << ")";
+            error = oss.str();
+            return false;
+        }
+    }
+
+    return true;
+}
+
+} // namespace
+
+/** @brief Store dataset root and field token for later scanning/loading. */
+ExportDataset::ExportDataset(std::filesystem::path root_dir, std::string field_name)
+    : root_dir_(std::move(root_dir)), field_name_(std::move(field_name)) {}
+
+/** @brief Clamp scalar values into the unit interval. */
+float ExportDataset::clamp01(float v) 
+{
+    if (v < 0.0f) {return 0.0f;}
+
+    if (v > 1.0f) {return 1.0f;}
+    return v;
+}
+
+/** @brief Normalize source data with percentile clipping and non-finite sanitization. */
+void ExportDataset::normalize_volume(const std::vector<float>& src,
+                                     std::vector<float>& dst,
+                                     float& raw_min,
+                                     float& raw_max,
+                                     float& norm_low,
+                                     float& norm_high,
+                                     std::size_t& nan_count,
+                                     std::size_t& inf_count,
+                                     std::size_t& sanitized_nonfinite_count,
+                                     float global_magnitude,
+                                     bool name_bipolar)
+{
+    raw_min = std::numeric_limits<float>::infinity();
+    raw_max = -std::numeric_limits<float>::infinity();
+    nan_count = 0;
+    inf_count = 0;
+    sanitized_nonfinite_count = 0;
+    std::size_t finite_count = 0;
+
+    for (float v : src) 
+    {
+        if (!is_finite(v)) 
+        {
+            if (std::isnan(static_cast<double>(v))){++nan_count;} else {++inf_count;}
+            continue;
+        }
+        raw_min = std::min(raw_min, v);
+        raw_max = std::max(raw_max, v);
+        ++finite_count;
+    }
+
+    // Bipolar fields encode sign about a 0.5 midpoint (see the diverging
+    // colormap in volume.frag); their neutral/empty value is 0.5, not 0.0, so
+    // an all-zero w frame stays transparent instead of saturating one pole.
+    // assign(), not resize(): callers reuse VolumeFrame storage across frames,
+    // and resize() leaves same-sized elements unchanged. A signed constant or
+    // all-zero frame must reset every voxel to the 0.5 neutral midpoint.
+    dst.assign(src.size(), name_bipolar ? 0.5f : 0.0f);
+
+    if (finite_count == 0 || !(raw_max > raw_min))
+    {
+        if (!std::isfinite(raw_min))
+        {
+            raw_min = 0.0f;
+            raw_max = 0.0f;
+        }
+        norm_low = raw_min;
+        norm_high = raw_max;
+        sanitized_nonfinite_count = nan_count + inf_count;
+        return;
+    }
+
+    // Detect bipolar fields: both positive and negative values with
+    // significant range on both sides. Atmospheric fields like w, vorticity,
+    // and buoyancy are bipolar — strong updrafts AND downdrafts matter, but
+    // zero should be invisible. Unipolar fields like qr (always >= 0) use
+    // standard min-max normalization.
+    const bool is_bipolar = name_bipolar ||
+                            ((raw_min < 0.0f && raw_max > 0.0f) &&
+                             (std::abs(raw_min) > 0.05f * raw_max ||
+                              raw_max > 0.05f * std::abs(raw_min)));
+
+    constexpr int bins = 2048;
+    const float span = raw_max - raw_min;
+
+    if (is_bipolar)
+    {
+        // Bipolar normalization: map |value| / max_magnitude → [0, 1].
+        // Both -50 m/s and +50 m/s map near 1.0.  Zero maps to 0.0.
+        // This ensures the ray-march threshold correctly filters the
+        // weak background (near-zero subsidence, ambient buoyancy) while
+        // showing both updrafts and downdrafts as intense features.
+
+        float safe_mag;
+        if (global_magnitude > 0.0f)
+        {
+            // Cross-frame normalization: use the pre-computed global
+            // magnitude so that weak early frames don't self-normalize
+            // to fill the volume. A 0.06 buoyancy at t=10s correctly
+            // appears dim when the storm peak reaches 5.0 at t=300s.
+            safe_mag = global_magnitude;
+        }
+        else
+        {
+            // Per-frame fallback: use percentile clipping on this frame.
+            std::vector<std::size_t> hist(bins, 0);
+            float abs_max = std::max(std::abs(raw_min), std::abs(raw_max));
+            for (float v : src)
+            {
+                if (!is_finite(v)) continue;
+                float t = std::abs(v) / abs_max;
+                int idx = static_cast<int>(t * static_cast<float>(bins - 1));
+                idx = std::max(0, std::min(bins - 1, idx));
+                ++hist[static_cast<std::size_t>(idx)];
+            }
+
+            const std::size_t high_target = static_cast<std::size_t>(0.98 * static_cast<double>(finite_count));
+            std::size_t cumulative = 0;
+            int high_bin = bins - 1;
+            for (int i = 0; i < bins; ++i)
+            {
+                cumulative += hist[static_cast<std::size_t>(i)];
+                if (cumulative >= high_target)
+                {
+                    high_bin = i;
+                    break;
+                }
+            }
+            safe_mag = std::max(abs_max * (static_cast<float>(high_bin) / static_cast<float>(bins - 1)), 1e-12f);
+        }
+
+        norm_low = -safe_mag;
+        norm_high = safe_mag;
+
+        for (std::size_t i = 0; i < src.size(); ++i)
+        {
+            const float v = src[i];
+            if (!is_finite(v))
+            {
+                dst[i] = 0.5f;  // neutral (zero) under the signed-centered encoding
+                ++sanitized_nonfinite_count;
+                continue;
+            }
+            // Signed-centered: 0.5 = zero, <0.5 = negative pole, >0.5 = positive.
+            // The shader recovers t = 2*sample - 1 and drives a diverging colormap
+            // (|t| -> opacity, sign -> negative/positive pole color).
+            dst[i] = clamp01(0.5f + 0.5f * (v / safe_mag));
+        }
+    }
+    else
+    {
+        // Unipolar normalization: standard percentile-clipped min-max mapping.
+        std::vector<std::size_t> hist(bins, 0);
+
+        for (float v : src)
+        {
+            if (!is_finite(v)) continue;
+            const float t = (v - raw_min) / span;
+            int idx = static_cast<int>(t * static_cast<float>(bins - 1));
+            idx = std::max(0, std::min(bins - 1, idx));
+            ++hist[static_cast<std::size_t>(idx)];
+        }
+
+        const std::size_t low_target = static_cast<std::size_t>(0.02 * static_cast<double>(finite_count));
+        const std::size_t high_target = static_cast<std::size_t>(0.98 * static_cast<double>(finite_count));
+
+        std::size_t cumulative = 0;
+        int low_bin = 0;
+        int high_bin = bins - 1;
+
+        for (int i = 0; i < bins; ++i)
+        {
+            cumulative += hist[static_cast<std::size_t>(i)];
+            if (cumulative >= low_target)
+            {
+                low_bin = i;
+                break;
+            }
+        }
+
+        cumulative = 0;
+        for (int i = 0; i < bins; ++i)
+        {
+            cumulative += hist[static_cast<std::size_t>(i)];
+            if (cumulative >= high_target)
+            {
+                high_bin = i;
+                break;
+            }
+        }
+
+        norm_low = raw_min + (static_cast<float>(low_bin) / static_cast<float>(bins - 1)) * span;
+        norm_high = raw_min + (static_cast<float>(high_bin) / static_cast<float>(bins - 1)) * span;
+
+        if (!(norm_high > norm_low))
+        {
+            norm_low = raw_min;
+            norm_high = raw_max;
+        }
+
+        const float norm_span = std::max(norm_high - norm_low, 1e-12f);
+        for (std::size_t i = 0; i < src.size(); ++i)
+        {
+            const float v = src[i];
+            if (!is_finite(v))
+            {
+                dst[i] = 0.0f;
+                ++sanitized_nonfinite_count;
+                continue;
+            }
+            dst[i] = clamp01((v - norm_low) / norm_span);
+        }
+    }
+}
+
+/** @brief Discover step directories and validate shape consistency across frames. */
+bool ExportDataset::scan(std::string& error) 
+{
+    step_dirs_.clear();
+    nx_ = ny_ = nz_ = 0;
+    source_nx_ = source_ny_ = source_nz_ = 0;
+    is_3d_volume_ = false;
+    grid_spacing_ = {};
+    valid_range_ = {};
+
+    std::error_code fs_error;
+    const bool exists = std::filesystem::exists(root_dir_, fs_error);
+    if (fs_error)
+    {
+        error = "Failed to access input path '" + root_dir_.string() + "': " + fs_error.message();
+        return false;
+    }
+
+    if (!exists) 
+    {
+        error = "Input directory does not exist: " + root_dir_.string();
+        return false;
+    }
+    fs_error.clear();
+    const bool is_dir = std::filesystem::is_directory(root_dir_, fs_error);
+    if (fs_error)
+    {
+        error = "Failed to inspect input path '" + root_dir_.string() + "': " + fs_error.message();
+        return false;
+    }
+    if (!is_dir)
+    {
+        error = "Input path is not a directory: " + root_dir_.string();
+        return false;
+    }
+
+    std::vector<std::pair<int, std::filesystem::path>> indexed_steps;
+    std::regex step_re("^step_([0-9]+)$");
+
+    std::error_code iter_error;
+    std::filesystem::directory_iterator it(
+        root_dir_,
+        std::filesystem::directory_options::skip_permission_denied,
+        iter_error);
+    if (iter_error)
+    {
+        error = "Failed to iterate input directory '" + root_dir_.string() + "': " + iter_error.message();
+        return false;
+    }
+
+    const std::filesystem::directory_iterator end;
+    for (; it != end; it.increment(iter_error)) 
+    {
+        if (iter_error)
+        {
+            error = "Directory iteration failed in '" + root_dir_.string() + "': " + iter_error.message();
+            return false;
+        }
+
+        const std::filesystem::directory_entry& entry = *it;
+        std::error_code type_error;
+        if (!entry.is_directory(type_error)) 
+        {
+            continue;
+        }
+
+        const std::string name = entry.path().filename().string();
+        std::smatch match;
+        if (!std::regex_match(name, match, step_re) || match.size() < 2) 
+        {
+            continue;
+        }
+
+        int step_idx = -1;
+        std::string parse_error;
+        if (!parse_nonnegative_int(match[1].str(), step_idx, parse_error))
+        {
+            std::cerr << "[vulkan][dataset] Skipping " << entry.path().string()
+                      << " (invalid step index: " << parse_error << ")\n";
+            continue;
+        }
+
+        indexed_steps.emplace_back(step_idx, entry.path());
+    }
+
+    if (indexed_steps.empty()) 
+    {
+        error = "No step_XXXXXX directories found in " + root_dir_.string();
+        return false;
+    }
+
+    std::sort(indexed_steps.begin(), indexed_steps.end(), [](const auto& a, const auto& b) 
+    {
+        return a.first < b.first;
+    });
+
+    bool have_reference_shape = false;
+    StepShape reference_shape{};
+
+    for (const auto& step : indexed_steps)
+    {
+        StepShape shape{};
+        std::string shape_error;
+        if (!inspect_step_shape(step.second, field_name_, shape, shape_error))
+        {
+            std::cerr << "[vulkan][dataset] Skipping " << step.second.string()
+                      << " (" << shape_error << ")\n";
+            continue;
+        }
+
+        if (!have_reference_shape)
+        {
+            reference_shape = shape;
+            have_reference_shape = true;
+            step_dirs_.push_back(step.second);
+            continue;
+        }
+
+        if (shape.nx != reference_shape.nx ||
+            shape.ny != reference_shape.ny ||
+            shape.nz != reference_shape.nz)
+        {
+            std::cerr << "[vulkan][dataset] Skipping " << step.second.string()
+                      << " (shape mismatch: expected "
+                      << reference_shape.nx << "x" << reference_shape.ny << "x" << reference_shape.nz
+                      << ", got "
+                      << shape.nx << "x" << shape.ny << "x" << shape.nz << ")\n";
+            continue;
+        }
+
+        step_dirs_.push_back(step.second);
+    }
+
+    if (step_dirs_.empty())
+    {
+        error = "No valid step directories with consistent shape found in " + root_dir_.string();
+        return false;
+    }
+
+    source_nx_ = reference_shape.nx;
+    source_ny_ = reference_shape.ny;
+    source_nz_ = reference_shape.nz;
+    nx_ = source_nx_;
+    ny_ = source_ny_;
+    nz_ = source_nz_;
+    valid_range_ = {{0, 0, 0},
+                    {source_nx_ - 1, source_ny_ - 1, source_nz_ - 1}};
+    is_3d_volume_ = reference_shape.is_3d_volume;
+
+    bool metadata_complete = true;
+    bool have_spacing = false;
+    PhysicalGridSpacing reference_spacing{};
+    PhysicalIndexRange reference_range{{0, 0, 0},
+                                       {source_nx_ - 1, source_ny_ - 1, source_nz_ - 1}};
+    bool have_range = false;
+    std::string unavailable_detail;
+    for (const std::filesystem::path& step_dir : step_dirs_)
+    {
+        const std::filesystem::path manifest_path = step_dir / "manifest.json";
+        std::error_code manifest_fs_error;
+        const bool manifest_exists = std::filesystem::exists(manifest_path, manifest_fs_error);
+        if (manifest_fs_error)
+        {
+            error = "Failed to inspect manifest '" + manifest_path.string() + "': " +
+                    manifest_fs_error.message();
+            return false;
+        }
+        if (!manifest_exists)
+        {
+            metadata_complete = false;
+            if (unavailable_detail.empty()) { unavailable_detail = "step manifest is missing"; }
+            continue;
+        }
+
+        std::ifstream manifest_stream(manifest_path, std::ios::binary);
+        if (!manifest_stream)
+        {
+            error = "Failed to open manifest '" + manifest_path.string() + "'";
+            return false;
+        }
+        std::ostringstream manifest_text;
+        manifest_text << manifest_stream.rdbuf();
+        if (!manifest_stream.good() && !manifest_stream.eof())
+        {
+            error = "Failed to read manifest '" + manifest_path.string() + "'";
+            return false;
+        }
+
+        PhysicalGridSpacing spacing{};
+        PhysicalIndexRange valid_range{};
+        std::string detail;
+        const GridManifestStatus status = parse_grid_manifest(
+            manifest_text.str(), source_nx_, source_ny_, source_nz_, spacing, detail,
+            &valid_range);
+        if (status == GridManifestStatus::invalid)
+        {
+            error = "Invalid grid metadata in '" + manifest_path.string() + "': " + detail;
+            return false;
+        }
+        if (status == GridManifestStatus::unavailable)
+        {
+            metadata_complete = false;
+            if (unavailable_detail.empty()) { unavailable_detail = detail; }
+            continue;
+        }
+
+        if (!have_spacing)
+        {
+            reference_spacing = spacing;
+            reference_range = valid_range;
+            have_spacing = true;
+            have_range = true;
+        }
+        else if (!physical_grid_spacing_equal(reference_spacing, spacing))
+        {
+            error = "Physical grid spacing changes between frames in '" + root_dir_.string() + "'";
+            return false;
+        }
+        else if (!physical_index_range_equal(reference_range, valid_range))
+        {
+            error = "Physical cell ownership changes between frames in '" + root_dir_.string() + "'";
+            return false;
+        }
+    }
+
+    if (metadata_complete && have_spacing && have_range)
+    {
+        grid_spacing_ = reference_spacing;
+        valid_range_ = reference_range;
+        nx_ = valid_range_.nx();
+        ny_ = valid_range_.ny();
+        nz_ = valid_range_.nz();
+    }
+    else if (!unavailable_detail.empty())
+    {
+        std::cerr << "[vulkan][dataset] Physical grid metadata unavailable for '"
+                  << field_name_ << "': " << unavailable_detail << "\n";
+    }
+    return true;
+}
+
+/** @brief Load, validate, and normalize one time-step volume frame. */
+bool ExportDataset::load_frame(std::size_t frame_idx, VolumeFrame& out, std::string& error) const 
+{
+    if (frame_idx >= step_dirs_.size()) 
+    {
+        std::ostringstream oss;
+        oss << "Frame index " << frame_idx << " out of range [0, " << (step_dirs_.empty() ? 0 : step_dirs_.size() - 1)
+            << "]";
+        error = oss.str();
+        return false;
+    }
+
+    if (nx_ <= 0 || ny_ <= 0 || nz_ <= 0 ||
+        source_nx_ <= 0 || source_ny_ <= 0 || source_nz_ <= 0)
+    {
+        error = "Dataset must be scanned before load_frame()";
+        return false;
+    }
+
+    std::size_t raw_size = 0;
+    if (!checked_volume_size(source_nx_, source_ny_, source_nz_, raw_size, error))
+    {
+        return false;
+    }
+    std::vector<float> raw(raw_size, 0.0f);
+
+    std::size_t expected_slice_size = 0;
+    if (!checked_volume_size(source_nx_, 1, source_nz_, expected_slice_size, error))
+    {
+        return false;
+    }
+
+    const auto& step_dir = step_dirs_[frame_idx];
+
+    if (is_3d_volume_)
+    {
+        // --- 3D volume path: load single file and transpose ---
+        const auto volume_path = step_dir / (field_name_ + ".npy");
+        NpyArray3D vol;
+        std::string load_error;
+        if (!load_npy_float32_3d(volume_path, vol, load_error))
+        {
+            error = "Failed loading 3D volume " + volume_path.string() + ": " + load_error;
+            return false;
+        }
+        if (vol.dim0 != source_nx_ || vol.dim1 != source_ny_ || vol.dim2 != source_nz_)
+        {
+            std::ostringstream oss;
+            oss << "3D volume shape mismatch in " << volume_path.string()
+                << ": expected (" << source_nx_ << ", " << source_ny_ << ", " << source_nz_
+                << "), got (" << vol.dim0 << ", " << vol.dim1 << ", " << vol.dim2 << ")";
+            error = oss.str();
+            return false;
+        }
+
+        // Transpose from Field3D layout [NR][NTH][NZ] = [i*NTH*NZ + j*NZ + k]
+        // to viewer layout [Z][TH][X] = [z*NY*NX + th*NX + x]
+        for (int z = 0; z < source_nz_; ++z)
+        {
+            for (int th = 0; th < source_ny_; ++th)
+            {
+                for (int x = 0; x < source_nx_; ++x)
+                {
+                    const std::size_t src_idx =
+                        static_cast<std::size_t>(x) * static_cast<std::size_t>(source_ny_) *
+                            static_cast<std::size_t>(source_nz_) +
+                        static_cast<std::size_t>(th) * static_cast<std::size_t>(source_nz_) +
+                        static_cast<std::size_t>(z);
+                    const std::size_t dst_idx =
+                        (static_cast<std::size_t>(z) * static_cast<std::size_t>(source_ny_) +
+                         static_cast<std::size_t>(th)) *
+                            static_cast<std::size_t>(source_nx_) +
+                        static_cast<std::size_t>(x);
+                    raw[dst_idx] = vol.data[src_idx];
+                }
+            }
+        }
+    }
+    else
+    {
+        // --- 2D slice path: load per-theta slices and assemble ---
+        for (int th = 0; th < source_ny_; ++th)
+        {
+            const std::filesystem::path path = step_dir / ("th" + std::to_string(th) + "_" + field_name_ + ".npy");
+
+            NpyArray2D slice;
+            std::string load_error;
+
+            if (!load_npy_float32_2d(path, slice, load_error))
+            {
+                error = "Failed loading " + path.string() + ": " + load_error;
+                return false;
+            }
+
+            if (slice.rows != source_nz_ || slice.cols != source_nx_)
+            {
+                std::ostringstream oss;
+                oss << "Slice shape mismatch in " << path.string() << ": expected (" << source_nz_ << ", " << source_nx_
+                    << "), got (" << slice.rows << ", " << slice.cols << ")";
+                error = oss.str();
+                return false;
+            }
+            if (slice.data.size() != expected_slice_size)
+            {
+                std::ostringstream oss;
+                oss << "Slice payload mismatch in " << path.string() << ": expected "
+                    << expected_slice_size << " float samples, got " << slice.data.size();
+                error = oss.str();
+                return false;
+            }
+
+            for (int z = 0; z < source_nz_; ++z)
+            {
+                const std::size_t row_base = static_cast<std::size_t>(z) * static_cast<std::size_t>(source_nx_);
+
+                for (int x = 0; x < source_nx_; ++x)
+                {
+                    const float value = slice.data[row_base + static_cast<std::size_t>(x)];
+                    const std::size_t idx = ((static_cast<std::size_t>(z) * static_cast<std::size_t>(source_ny_)) +
+                                             static_cast<std::size_t>(th)) *
+                                                static_cast<std::size_t>(source_nx_) +
+                                            static_cast<std::size_t>(x);
+                    if (idx >= raw.size())
+                    {
+                        error = "internal index overflow while packing volume frame";
+                        return false;
+                    }
+                    raw[idx] = value;
+                }
+            }
+        }
+    }
+
+    std::vector<float> physical;
+    std::size_t physical_size = 0;
+    if (!checked_volume_size(nx_, ny_, nz_, physical_size, error))
+        return false;
+    physical.resize(physical_size);
+    for (int z = 0; z < nz_; ++z)
+    {
+        const int source_z = valid_range_.lower[2] + z;
+        for (int y = 0; y < ny_; ++y)
+        {
+            const int source_y = valid_range_.lower[1] + y;
+            for (int x = 0; x < nx_; ++x)
+            {
+                const int source_x = valid_range_.lower[0] + x;
+                const std::size_t source_index =
+                    (static_cast<std::size_t>(source_z) * static_cast<std::size_t>(source_ny_) +
+                     static_cast<std::size_t>(source_y)) * static_cast<std::size_t>(source_nx_) +
+                    static_cast<std::size_t>(source_x);
+                const std::size_t physical_index =
+                    (static_cast<std::size_t>(z) * static_cast<std::size_t>(ny_) +
+                     static_cast<std::size_t>(y)) * static_cast<std::size_t>(nx_) +
+                    static_cast<std::size_t>(x);
+                physical[physical_index] = raw[source_index];
+            }
+        }
+    }
+
+    out.nx = nx_;
+    out.ny = ny_;
+    out.nz = nz_;
+    normalize_volume(physical,
+                     out.normalized,
+                     out.raw_min,
+                     out.raw_max,
+                     out.norm_low,
+                     out.norm_high,
+                     out.nan_count,
+                     out.inf_count,
+                     out.sanitized_nonfinite_count,
+                     global_magnitude_,
+                     tmv_shm::field_name_is_bipolar(field_name_));
+    return true;
+}
+
+bool ExportDataset::is_bipolar() const
+{
+    return tmv_shm::field_name_is_bipolar(field_name_);
+}
+
+float ExportDataset::compute_global_magnitude() const
+{
+    // Lightweight scan: load only the first and last few frames to
+    // estimate the global magnitude without reading the entire dataset.
+    // The first frame has the weakest signal, the last frames have the
+    // strongest. Sampling ~10 frames is sufficient to find the true
+    // maximum since atmospheric fields grow monotonically during spinup.
+    float global_abs_max = 0.0f;
+    bool has_negative = false;
+    bool has_positive = false;
+
+    const std::size_t n_frames = step_dirs_.size();
+    if (n_frames == 0) return 0.0f;
+
+    // Sample frames: first, last, and a few in between.
+    std::vector<std::size_t> sample_indices;
+    sample_indices.push_back(0);
+    if (n_frames > 1) sample_indices.push_back(n_frames - 1);
+    if (n_frames > 4) sample_indices.push_back(n_frames / 4);
+    if (n_frames > 2) sample_indices.push_back(n_frames / 2);
+    if (n_frames > 4) sample_indices.push_back(3 * n_frames / 4);
+    // Also sample near the end where extremes typically occur.
+    if (n_frames > 10) sample_indices.push_back(n_frames - 2);
+    if (n_frames > 10) sample_indices.push_back(n_frames - 3);
+
+    for (std::size_t fi : sample_indices)
+    {
+        const auto npy_path = step_dirs_[fi] / (field_name_ + ".npy");
+
+        if (is_3d_volume_)
+        {
+            NpyArray3D vol;
+            std::string load_error;
+            if (!load_npy_float32_3d(npy_path, vol, load_error)) continue;
+
+            if (vol.dim0 != source_nx_ || vol.dim1 != source_ny_ || vol.dim2 != source_nz_)
+                continue;
+            for (int x = valid_range_.lower[0]; x <= valid_range_.upper[0]; ++x)
+            {
+                for (int y = valid_range_.lower[1]; y <= valid_range_.upper[1]; ++y)
+                {
+                    for (int z = valid_range_.lower[2]; z <= valid_range_.upper[2]; ++z)
+                    {
+                        const std::size_t index =
+                            (static_cast<std::size_t>(x) * static_cast<std::size_t>(source_ny_) +
+                             static_cast<std::size_t>(y)) * static_cast<std::size_t>(source_nz_) +
+                            static_cast<std::size_t>(z);
+                        const float v = vol.data[index];
+                        if (!std::isfinite(v)) continue;
+                        if (v < 0.0f) has_negative = true;
+                        if (v > 0.0f) has_positive = true;
+                        const float a = std::abs(v);
+                        if (a > global_abs_max) global_abs_max = a;
+                    }
+                }
+            }
+        }
+        else
+        {
+            for (int y = valid_range_.lower[1]; y <= valid_range_.upper[1]; ++y)
+            {
+                const auto slice_path = step_dirs_[fi] /
+                    ("th" + std::to_string(y) + "_" + field_name_ + ".npy");
+                NpyArray2D slice;
+                std::string load_error;
+                if (!load_npy_float32_2d(slice_path, slice, load_error) ||
+                    slice.rows != source_nz_ || slice.cols != source_nx_)
+                    continue;
+                for (int z = valid_range_.lower[2]; z <= valid_range_.upper[2]; ++z)
+                {
+                    for (int x = valid_range_.lower[0]; x <= valid_range_.upper[0]; ++x)
+                    {
+                        const float v = slice.data[
+                            static_cast<std::size_t>(z) * static_cast<std::size_t>(source_nx_) +
+                            static_cast<std::size_t>(x)];
+                        if (!std::isfinite(v)) continue;
+                        if (v < 0.0f) has_negative = true;
+                        if (v > 0.0f) has_positive = true;
+                        const float a = std::abs(v);
+                        if (a > global_abs_max) global_abs_max = a;
+                    }
+                }
+            }
+        }
+    }
+
+    if (has_negative && has_positive)
+        return global_abs_max;
+    return 0.0f;
+}
+
+} // namespace oglcpp

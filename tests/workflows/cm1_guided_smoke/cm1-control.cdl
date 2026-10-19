@@ -1,0 +1,59 @@
+netcdf cm1_guided_smoke_control {
+dimensions:
+  time = UNLIMITED ;
+  ni = 2 ;
+  nj = 2 ;
+  nk = 2 ;
+variables:
+  double time(time) ;
+    time:units = "seconds since 2026-07-20 00:00:00" ;
+  float xh(ni) ;
+    xh:units = "km" ;
+  float yh(nj) ;
+    yh:units = "km" ;
+  float zh(nk) ;
+    zh:units = "km" ;
+  float winterp(time, nk, nj, ni) ;
+    winterp:units = "m/s" ;
+    winterp:long_name = "vertical velocity at scalar points" ;
+  float uinterp(time, nk, nj, ni) ;
+    uinterp:units = "m/s" ;
+    uinterp:long_name = "x wind at scalar points" ;
+  float vinterp(time, nk, nj, ni) ;
+    vinterp:units = "m/s" ;
+    vinterp:long_name = "y wind at scalar points" ;
+  float th(time, nk, nj, ni) ;
+    th:units = "K" ;
+    th:long_name = "potential temperature" ;
+  float prs(time, nk, nj, ni) ;
+    prs:units = "Pa" ;
+    prs:long_name = "pressure" ;
+  float qv(time, nk, nj, ni) ;
+    qv:units = "kg/kg" ;
+    qv:long_name = "water vapor mixing ratio" ;
+  float zvort(time, nk, nj, ni) ;
+    zvort:units = "1/s" ;
+    zvort:long_name = "vertical vorticity" ;
+  float cref(time, nj, ni) ;
+    cref:units = "dBZ" ;
+    cref:long_name = "composite reflectivity" ;
+
+// global attributes:
+  :title = "Nimbus Studio maintained CM1-like workflow control" ;
+  :source = "Analytic synthetic fixture; not CM1 solver output" ;
+  :Conventions = "CF-1.10" ;
+  :license = "CC0-1.0" ;
+data:
+  time = 0 ;
+  xh = 0.5, 1.5 ;
+  yh = 0.5, 1.5 ;
+  zh = 0.5, 1.5 ;
+  winterp = -1, 2, 4, 1, 2, 7, 3, 1 ;
+  uinterp = 12, 12, 12, 12, 16, 16, 16, 16 ;
+  vinterp = 6, 6, 6, 6, 8, 8, 8, 8 ;
+  th = 300, 301, 302, 303, 306, 307, 308, 309 ;
+  prs = 95000, 95000, 95000, 95000, 85000, 85000, 85000, 85000 ;
+  qv = 0.010, 0.010, 0.009, 0.009, 0.006, 0.006, 0.005, 0.005 ;
+  zvort = 0.001, 0.002, 0.003, 0.004, 0.004, 0.006, 0.008, 0.005 ;
+  cref = 5, 20, 35, 55 ;
+}

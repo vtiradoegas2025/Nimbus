@@ -1,0 +1,61 @@
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) readonly buffer Rho { float rho[]; };
+layout(set = 0, binding = 1) readonly buffer Pressure { float pressure[]; };
+layout(set = 0, binding = 2) readonly buffer P0 { float p0[]; };
+layout(set = 0, binding = 3) readonly buffer UIn { float u_in[]; };
+layout(set = 0, binding = 4) readonly buffer VIn { float v_in[]; };
+layout(set = 0, binding = 5) readonly buffer WIn { float w_in[]; };
+layout(set = 0, binding = 6) writeonly buffer UOut { float u_out[]; };
+layout(set = 0, binding = 7) writeonly buffer VOut { float v_out[]; };
+layout(set = 0, binding = 8) writeonly buffer WOut { float w_out[]; };
+
+layout(push_constant) uniform PushConstants {
+    int nx;
+    int ny;
+    int nz;
+    float dx;
+    float dy;
+    float dz;
+    float dt_small;
+    float wind_clamp_h;
+    float wind_clamp_v;
+    float padding;
+} pc;
+
+uint at(int i, int j, int k) {
+    return uint((i * pc.ny + j) * pc.nz + k);
+}
+
+void main() {
+    uint gid = gl_GlobalInvocationID.x;
+    uint count = uint(pc.nx) * uint(pc.ny) * uint(pc.nz);
+    if (gid >= count) return;
+    int k = int(gid % uint(pc.nz));
+    uint ij = gid / uint(pc.nz);
+    int j = int(ij % uint(pc.ny));
+    int i = int(ij / uint(pc.ny));
+    if (i == 0 || i == pc.nx - 1 || j == 0 || j == pc.ny - 1 ||
+        k == 0 || k == pc.nz - 1) {
+        u_out[gid] = u_in[gid];
+        v_out[gid] = v_in[gid];
+        w_out[gid] = w_in[gid];
+        return;
+    }
+    float rho_safe = rho[gid];
+    float px = (pressure[at(i + 1, j, k)] - pressure[at(i - 1, j, k)]) /
+               (2.0 * pc.dx);
+    float py = (pressure[at(i, j + 1, k)] - pressure[at(i, j - 1, k)]) /
+               (2.0 * pc.dy);
+    float pz = (pressure[at(i, j, k + 1)] - pressure[at(i, j, k - 1)]) /
+               (2.0 * pc.dz);
+    float p0z = (p0[k + 1] - p0[k - 1]) / (2.0 * pc.dz);
+    u_out[gid] = clamp(u_in[gid] - pc.dt_small * px / rho_safe,
+                       -pc.wind_clamp_h, pc.wind_clamp_h);
+    v_out[gid] = clamp(v_in[gid] - pc.dt_small * py / rho_safe,
+                       -pc.wind_clamp_h, pc.wind_clamp_h);
+    w_out[gid] = clamp(w_in[gid] - pc.dt_small * (pz - p0z) / rho_safe,
+                       -pc.wind_clamp_v, pc.wind_clamp_v);
+}

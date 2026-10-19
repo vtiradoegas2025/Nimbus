@@ -1,0 +1,170 @@
+{
+  "schema": "nimbus.qualification.moving_nested_reference_frontier.movement_failure",
+  "schema_version": 1,
+  "status": "invalid",
+  "qualification_disposition": "incomplete",
+  "qualification_eligible": false,
+  "reason": "parent_stencil_shift_bound_unrepresented",
+  "scope": "ratified-v11 fixed-aperture same-equation frontier",
+  "campaign_root": "tests/artifacts/moving_nested_reference_frontier_v11_resume_20260818",
+  "comparison_performed": false,
+  "candidate_metric_values_inspected": false,
+  "frozen_inputs": {
+    "campaign_payload_sha256": "96fd624ea13e9b60f5a00d6411b439719a21011f843590bc91269dcc018a1fcf",
+    "binary": {
+      "bytes": 6163968,
+      "sha256": "a77369aa8544eee9be9d0295057db6248f145ece81e9dd42201c8cbcfd9487c4",
+      "movement_algorithm": "qualified_envelope_hysteresis_v13"
+    },
+    "moving_config_sha256": "c86663caaee2c1217d300809713fd5e3856ae141561aae256437267c8f2287f0",
+    "reference_config_sha256": "df57ab348dcb742177a9e3ae4740ebeed6ee18540cb26e296db8604c3b1f8925",
+    "policy": {
+      "path": "../../tests/qualification/fixtures/moving_nested_supercell_reference_frontier_v11.json",
+      "sha256": "9fbd879e6f3ccfd3b4968df102c5c9a6a3e2a0a26a83abc35f08d2886564e66a",
+      "schema_version": 11,
+      "policy_id": "moving-nested-reference-frontier-v11-ordinary-trusted-improvement-amendment"
+    },
+    "extractor_sha256": "4262d93f01549c34d4c0035d38c268d367c149c9827fe391a42f7e5febd2173f",
+    "comparator_sha256": "0c24981a5a9015beb117aaa9b35c4ffeac496805e08fd58f122bc33b2c6083aa",
+    "runner_sha256": "a3d25147fd4fd88c962214a25ee9a136c6688bbdcbcdc12b2769f4f2d6929265"
+  },
+  "completed_reference": {
+    "source_run": "tests/artifacts/moving_nested_reference_frontier_v11_20260814/oversized_reference",
+    "execution_mode": "existing_complete_run_with_binary_and_config_identity_validated",
+    "duration_s": 4500,
+    "tracker_samples": 150,
+    "diagnostic_samples": 150,
+    "runtime_log_sha256": "c49b7090aafedc34e55eaa61959aa28585ee2ccaf9e53e9f7150c403c9905b0c",
+    "run_manifest_sha256": "e1ef5e9771ea6c6ede099e285df3bb63b7b6a30fadb54b2d4a197e2578b4be2c",
+    "final_checkpoint": {
+      "simulation_time_s": 4500,
+      "completed_steps": 6000,
+      "bytes": 431767130,
+      "sha256": "d8e3458110f5604165d1197c30b30c115fdcdc2a7fe15d6261feda682b9c1f86",
+      "fnv1a64": "74be80108745c32a",
+      "sidecar_sha256": "5d18238bfcd4d0858c46b7788f39a7690d1e1e5ca4a0fab2caa7218237a709af"
+    }
+  },
+  "moving_failure": {
+    "runtime_log": {
+      "bytes": 17551866,
+      "sha256": "6c8265b3f0a39842f931e5d1b81204c7da4eadbbfed8c56ad1bd44cea957cca7"
+    },
+    "process_exit_code": 2,
+    "simulation_time_s": 4380,
+    "completed_step": 2920,
+    "error": "invalid one-way nest relationship: child placement does not retain the required parent stencil margin",
+    "scientific_invalidity_artifact_published": false,
+    "campaign_report": {
+      "sha256": "accb8f5251f96717454aa70de736765e32a1bbe97e963962388ab7634e869f52",
+      "status": "running",
+      "qualification_eligible": false,
+      "completed_branches": ["oversized_reference"]
+    },
+    "incomplete_output_manifest": {
+      "bytes": 297,
+      "sha256": "6a72fcca518c3a08de0a2ad30078a3bd32b3c01cef9c9334476ff2f48915063f",
+      "publication_state": "ready",
+      "final_validation_summary_published": false
+    },
+    "published_coverage": {
+      "tracker_samples": 145,
+      "tracker_last_time_s": 4350,
+      "diagnostic_samples": 145,
+      "diagnostic_last_time_s": 4350,
+      "invalid_step_history_or_checkpoint_published": false
+    },
+    "latest_restart_safe_checkpoint": {
+      "simulation_time_s": 4050,
+      "completed_steps": 2700,
+      "bytes": 253294210,
+      "sha256": "7f72b1a3c1d3543020b8aa20167e63c45928d550bcabe51869be0086dea5e69a",
+      "fnv1a64": "4aada058964b51a9",
+      "sidecar_sha256": "34ffd6408d351b05533ac6b92d2ff8b22b7d20f100becb9a234a10e3b1a3dc08"
+    }
+  },
+  "forensic_sequence": [
+    {
+      "simulation_time_s": 4140,
+      "completed_step": 2760,
+      "movement_status": "pending_confirmation",
+      "movement_reason": "confirmation_pending",
+      "requested_shift_cells": {"i": 1, "j": 0},
+      "confirmation_count": 1,
+      "scientific_status": "valid_pending_relocation"
+    },
+    {
+      "simulation_time_s": 4170,
+      "completed_step": 2780,
+      "movement_status": "requested",
+      "movement_reason": "trusted_interior_containment",
+      "committed_shift_cells": {"i": 1, "j": 0},
+      "cumulative_shift_cells": {"i": 49, "j": 19},
+      "movement_sequence": 6,
+      "scientific_status": "valid"
+    },
+    {
+      "simulation_time_s": 4290,
+      "completed_step": 2860,
+      "tracker_sha256": "7a571904dfb1a233e08f5f1c477a96e257a16a2896250101715eb5192a4cc5c2",
+      "selected_clearance_m": {"west": 15600, "east": 13200, "south": 20400, "north": 16200},
+      "movement_status": "pending_confirmation",
+      "requested_shift_cells": {"i": 1, "j": 2},
+      "confirmation_count": 1,
+      "scientific_status": "valid_pending_relocation"
+    },
+    {
+      "simulation_time_s": 4320,
+      "completed_step": 2880,
+      "tracker_sha256": "ce8a4a0c54fba901affa4ff130a12e82d20b537f481a5e2053db93cff353a123",
+      "selected_clearance_m": {"west": 16200, "east": 12600, "south": 20400, "north": 15600},
+      "movement_status": "requested",
+      "movement_reason": "trusted_interior_containment",
+      "committed_shift_cells": {"i": 1, "j": 2},
+      "cumulative_shift_cells": {"i": 52, "j": 21},
+      "movement_sequence": 8,
+      "child_origin_parent_cells": {"i": 54, "j": 22},
+      "scientific_status": "valid"
+    },
+    {
+      "simulation_time_s": 4350,
+      "completed_step": 2900,
+      "tracker_sha256": "41b71726e0a1f0c9c444f0c12d668af72ba7b4999d10a7bc311f1e987bc7b140",
+      "selected_clearance_m": {"west": 15600, "east": 12600, "south": 18600, "north": 17400},
+      "signed_face_velocity_ms": {"west": 20, "east": 40, "south": 20, "north": 20},
+      "movement_status": "pending_confirmation",
+      "requested_shift_cells": {"i": 1, "j": 0},
+      "confirmation_count": 1,
+      "scientific_status": "valid_pending_relocation"
+    },
+    {
+      "simulation_time_s": 4380,
+      "completed_step": 2920,
+      "tracker_published": false,
+      "movement_transaction_committed": false,
+      "runtime_disposition": "fail_closed_before_child_placement_mutation",
+      "error": "child placement does not retain the required parent stencil margin"
+    }
+  ],
+  "failure_classification": {
+    "class": "movement_authority_requested_a_directionally_improving_shift_after_the_child_reached_its_exact_parent_stencil_limit",
+    "v13_ordinary_trusted_improvement_state_succeeded": true,
+    "v12_quantized_balance_state_succeeded": true,
+    "current_relaxation_zone_entry": false,
+    "initial_child_origin_parent_cells": {"i": 2, "j": 1},
+    "terminal_child_origin_parent_cells": {"i": 54, "j": 22},
+    "maximum_legal_child_origin_parent_cells": {"i": 54, "j": 22},
+    "legal_positive_shift_cells_at_4350": {"i": 0, "j": 0},
+    "4350_minimum_selected_clearance_m": 12600,
+    "relaxation_margin_m": 4800,
+    "remaining_duration_s": 150,
+    "intended_repair": "derive exact signed per-axis parent-cell shift bounds from the live one-way relationship; include those bounds in nested movement evidence; intersect every ordinary, projected-risk, reserve, and trusted-containment candidate with both the policy cap and the legal placement interval; when an approaching breached face has no legal improving shift solely because the child is at a parent-stencil limit, admit only a named no-mutation trusted state while every selected face remains outside relaxation; preserve immediate invalidation for relaxation entry, malformed bounds, ambiguity, topology change, nonfinite evidence, or any attempted out-of-bounds transaction; publish the legal bounds in movement evidence"
+  },
+  "limitations": [
+    "The moving branch is incomplete and cannot be compared with the completed reference.",
+    "No candidate comparison metric value was inspected.",
+    "The absence of a scientific-invalidity artifact is itself part of this failure: the placement exception terminated the branch before the normal invalidity publisher ran.",
+    "A parent-stencil-limited no-mutation state is scientific only while the complete selected envelope remains outside the immutable relaxation margin; it cannot authorize relaxation-zone sampling.",
+    "This evidence does not alter numerical thresholds, root or child geometry, fixed aperture, cadence, movement cap, or public moving_nest status."
+  ]
+}

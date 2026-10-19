@@ -1,0 +1,11 @@
+#version 450
+#extension GL_EXT_spirv_intrinsics : require
+spirv_execution_mode(extensions = ["SPV_KHR_float_controls"], capabilities = [4466], 4461, 32);
+spirv_execution_mode(extensions = ["SPV_KHR_float_controls"], capabilities = [4467], 4462, 32);
+layout(local_size_x=64) in;
+layout(set=0,binding=0) readonly buffer Input { uint source[]; };
+layout(set=0,binding=1) writeonly buffer Output { uint result[]; };
+void main() {
+    uint n=gl_GlobalInvocationID.x;
+    result[n]=floatBitsToUint(uintBitsToFloat(source[2*n])/uintBitsToFloat(source[2*n+1]));
+}

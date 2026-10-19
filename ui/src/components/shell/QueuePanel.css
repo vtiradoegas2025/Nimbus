@@ -1,0 +1,544 @@
+.queue-panel {
+  background: var(--color-bg);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.queue-panel__header {
+  height: var(--header-height);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.queue-panel__header h2 {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.queue-panel__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-3) 0;
+}
+
+.queue-panel__search {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--space-1) var(--space-2);
+  padding: 0 var(--space-4) var(--space-4);
+}
+
+.queue-panel__search label {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.queue-panel__search-count {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.queue-panel__search-control {
+  grid-column: 1 / -1;
+  position: relative;
+}
+
+.queue-panel__search-control input {
+  width: 100%;
+  min-height: 36px;
+  padding: var(--space-2) 32px var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.queue-panel__search-control input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.queue-panel__search-control input:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.queue-panel__search-control button {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+}
+
+.queue-panel__library-error {
+  display: flex;
+  gap: var(--space-2);
+  margin: 0 var(--space-4) var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid color-mix(in oklch, var(--color-warn) 38%, var(--color-border));
+  border-radius: var(--radius-md);
+  color: var(--color-warn);
+  background: color-mix(in oklch, var(--color-warn) 9%, var(--color-bg));
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-body);
+}
+
+.queue-panel__error-title {
+  font-weight: 600;
+}
+
+/* The underlying failure message. Kept on its own line and in the muted ink so
+ * a long backend string cannot crowd out the remedy above it, and monospaced
+ * because these are usually paths. */
+.queue-panel__error-detail {
+  display: block;
+  margin-top: var(--space-1);
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+}
+
+.queue-panel__library-limit {
+  margin: 0 var(--space-4) var(--space-3);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-body);
+}
+
+.queue-panel__section {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Expander for the truncated archive list. Sits inside the section so it reads
+ * as belonging to the list above it rather than to the next section. */
+.queue-panel__more {
+  align-self: flex-start;
+  margin: var(--space-2) var(--space-4) 0;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--color-accent);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+}
+
+.queue-panel__more:hover {
+  text-decoration: underline;
+}
+
+.queue-panel__section-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.queue-panel__empty {
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.queue-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.run-item {
+  position: relative;
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  /* Long scheme names must ellipsis inside the rail rather than widening the
+   * flex track and pushing the row past the panel's right border. */
+  min-width: 0;
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+}
+
+.run-item:hover {
+  background: var(--color-surface);
+}
+
+.run-item__open {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+.run-item__open:disabled {
+  cursor: default;
+}
+
+.run-item__open:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: -2px;
+}
+
+.run-item--running {
+  border-left-color: var(--color-accent);
+  background: var(--color-surface);
+}
+
+.run-item--selected {
+  background: var(--color-surface-2);
+  border-left-color: var(--color-accent);
+}
+
+.run-item--selected .run-item__name {
+  color: var(--color-text);
+}
+
+.run-item__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.run-item__row > svg {
+  flex: 0 0 auto;
+}
+
+.run-item--running .run-item__row > svg {
+  color: var(--color-ok);
+}
+
+.run-item__row--meta {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  padding-left: 18px;
+  justify-content: space-between;
+  /* A running row carries scheme + health + plots + clock. Wrapping to a
+   * second line beats crushing the scheme chip down to one character. */
+  flex-wrap: wrap;
+  row-gap: var(--space-1);
+}
+
+/* Only the scheme name may shrink. Health, the plots chip, and the elapsed
+ * clock keep their intrinsic width so the line never wraps in the rail. */
+.run-item__row--meta > * {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.run-item__row--meta > .run-item__scheme {
+  flex: 0 1 auto;
+  min-width: 9ch;
+}
+
+.run-item__name {
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--font-size-md);
+  color: var(--color-text);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.run-item__scheme {
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-2);
+  color: var(--color-text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.run-item__plots-chip {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  padding: 2px 5px;
+  border-radius: var(--radius-sm);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  margin-left: var(--space-1);
+}
+
+.run-item__time {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.run-item__health {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+.run-item__health--ready { color: var(--color-ok); }
+.run-item__health--partial { color: var(--color-warn); }
+.run-item__health--invalid { color: var(--color-error); }
+
+@media (pointer: coarse) {
+  .run-item { min-height: 52px; }
+  .queue-panel__search-control input { min-height: 44px; }
+  .queue-panel__search-control button { width: 44px; }
+}
+
+.run-item__progress {
+  margin-top: var(--space-2);
+  height: 2px;
+  background: var(--color-surface-2);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+
+.run-item__progress-fill {
+  width: 100%;
+  height: 100%;
+  background: var(--color-accent);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 300ms var(--ease-out);
+}
+
+/* X button on each completed-run item. Hidden until hover (or focused)
+ * to keep the card visually clean. Lives at the right edge of the
+ * name row, balanced against the status icon on the left. */
+.run-item__delete {
+  position: relative;
+  z-index: 1;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  opacity: 0;
+  transition:
+    opacity var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.run-item:hover .run-item__delete,
+.run-item__delete:focus-visible {
+  opacity: 1;
+}
+
+.run-item__delete:hover {
+  background: color-mix(in oklch, var(--color-error) 12%, transparent);
+  color: var(--color-error);
+}
+
+.run-item__confirm {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-left: 18px; /* align with .run-item__row--meta */
+  font-size: var(--font-size-xs);
+}
+
+.run-item__confirm-text {
+  color: var(--color-text-secondary);
+}
+
+.run-item__confirm-yes,
+.run-item__confirm-no {
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.run-item__confirm-yes {
+  background: color-mix(in oklch, var(--color-error) 18%, transparent);
+  color: var(--color-error);
+}
+
+.run-item__confirm-yes:hover:not(:disabled) {
+  background: color-mix(in oklch, var(--color-error) 30%, transparent);
+}
+
+.run-item__confirm-no {
+  background: var(--color-surface-3);
+  color: var(--color-text-secondary);
+}
+
+.run-item__confirm-no:hover:not(:disabled) {
+  background: var(--color-border-strong);
+  color: var(--color-text);
+}
+
+.run-item__confirm-yes:disabled,
+.run-item__confirm-no:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+@media (pointer: coarse) {
+  /* Destructive actions cannot depend on hover on touch hardware. */
+  .run-item__delete {
+    width: 44px;
+    height: 44px;
+    opacity: 1;
+  }
+
+  .run-item__confirm-yes,
+  .run-item__confirm-no {
+    min-height: 44px;
+    padding-inline: var(--space-3);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .run-item__progress-fill { transition: none; }
+}
+
+.queue-panel__footer {
+  border-top: 1px solid var(--color-border);
+  padding: var(--space-3) var(--space-4);
+}
+
+.sim-status {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.sim-status__row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.sim-status__dot {
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-top: 4px;
+  flex-shrink: 0;
+}
+
+.sim-status__dot--ok {
+  background: var(--color-ok);
+  box-shadow: 0 0 6px var(--color-ok);
+}
+
+.sim-status__dot--warn {
+  background: var(--color-warn);
+}
+
+.sim-status__dot--muted {
+  background: var(--color-text-muted);
+}
+
+.sim-status__dot--info {
+  background: var(--color-info);
+}
+
+.sim-status__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.sim-status__label {
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  font-weight: 500;
+}
+
+.sim-status__sub {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  margin-top: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hardware-row {
+  margin-top: var(--space-3);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border);
+}
+
+.hardware-row__title {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-2);
+}
+
+.hardware-row__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-1) var(--space-3);
+}
+
+.hardware-row__cell {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.hardware-row__cell--wide {
+  grid-column: 1 / -1;
+}
+
+.hardware-row__cell-label {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  color: var(--color-text-muted);
+}
+
+.hardware-row__cell-value {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

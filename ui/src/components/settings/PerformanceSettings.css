@@ -1,0 +1,14 @@
+.settings-performance__status, .settings-performance__measure p { font-size: var(--font-size-sm); line-height: 1.6; color: var(--color-text-muted); }
+.settings-performance__check { display: flex; align-items: center; gap: var(--space-2); font-size: var(--font-size-sm); }
+.settings-performance__check input { width: 16px; height: 16px; }
+.settings-performance__actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-block: var(--space-3); }
+.settings-performance details { margin-block-start: var(--space-4); }
+.settings-performance summary { cursor: pointer; font-size: var(--font-size-sm); }
+.settings-performance table { width: 100%; border-collapse: collapse; margin-block: var(--space-3); font-variant-numeric: tabular-nums; font-size: var(--font-size-sm); }
+.settings-performance th, .settings-performance td { padding: var(--space-2); border-bottom: 1px solid var(--color-border); text-align: right; }
+.settings-performance th:first-child, .settings-performance td:first-child { text-align: left; }
+.worker-measurement { position: fixed; z-index: 1000; inset-inline-end: var(--space-5); inset-block-end: var(--space-5); display: flex; align-items: start; gap: var(--space-4); max-width: min(430px, calc(100vw - 40px)); padding: var(--space-4); border: 1px solid var(--color-border-strong); border-radius: var(--radius-sm); background: var(--color-surface); color: var(--color-text); box-shadow: 0 4px 20px #0002; }
+.worker-measurement strong { font-size: var(--font-size-sm); }
+.worker-measurement p { margin: var(--space-2) 0 0; font-size: var(--font-size-xs); line-height: 1.5; color: var(--color-text-muted); }
+.worker-measurement button { min-height: 32px; padding: var(--space-2) var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-sm); }
+.worker-measurement button:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }

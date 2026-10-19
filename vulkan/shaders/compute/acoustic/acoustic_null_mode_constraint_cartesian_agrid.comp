@@ -1,0 +1,86 @@
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) readonly buffer Rho { float rho[]; };
+layout(set = 0, binding = 1) readonly buffer Qv { float qv[]; };
+layout(set = 0, binding = 2) readonly buffer Qc { float qc[]; };
+layout(set = 0, binding = 3) readonly buffer Qr { float qr[]; };
+layout(set = 0, binding = 4) readonly buffer Qi { float qi[]; };
+layout(set = 0, binding = 5) readonly buffer Qs { float qs[]; };
+layout(set = 0, binding = 6) readonly buffer Qg { float qg[]; };
+layout(set = 0, binding = 7) readonly buffer Qh { float qh[]; };
+layout(set = 0, binding = 8) buffer UOut { float u_out[]; };
+layout(set = 0, binding = 9) buffer VOut { float v_out[]; };
+layout(set = 0, binding = 10) buffer WOut { float w_out[]; };
+
+layout(push_constant) uniform PushConstants { int nx; int ny; int nz; int pass; } pc;
+
+uint at(int i, int j, int k) { return uint((i * pc.ny + j) * pc.nz + k); }
+bool finite_value(float value) { return !isnan(value) && !isinf(value); }
+float mass_at(int i, int j, int k) {
+    uint n = at(i, j, k);
+    return rho[n] * (1.0 + qv[n] + qc[n] + qr[n] + qi[n] + qs[n] + qg[n] + qh[n]);
+}
+
+void project_line(int fixed_a, int fixed_b, int count) {
+    float midpoint = 0.5 * float(count - 1);
+    float s0 = 0.0, s1 = 0.0, s2 = 0.0, t0 = 0.0, t1 = 0.0;
+    for (int n = 0; n < count; ++n) {
+        int i = pc.pass == 0 ? n + 1 : fixed_a;
+        int j = pc.pass == 1 ? n + 1 : (pc.pass == 0 ? fixed_a : fixed_b);
+        int k = pc.pass == 2 ? n + 1 : fixed_b;
+        float mass = mass_at(i, j, k);
+        float x = float(n) - midpoint;
+        float parity = (n & 1) == 0 ? 1.0 : -1.0;
+        s0 += mass; s1 += mass * x; s2 += mass * x * x;
+        t0 += mass * parity; t1 += mass * x * parity;
+    }
+    float determinant = s0 * s2 - s1 * s1;
+    if (!(determinant > 0.0) || !finite_value(determinant)) return;
+    float intercept = (t0 * s2 - t1 * s1) / determinant;
+    float slope = (t1 * s0 - t0 * s1) / determinant;
+    float numerator = 0.0, denominator = 0.0;
+    for (int n = 0; n < count; ++n) {
+        int i = pc.pass == 0 ? n + 1 : fixed_a;
+        int j = pc.pass == 1 ? n + 1 : (pc.pass == 0 ? fixed_a : fixed_b);
+        int k = pc.pass == 2 ? n + 1 : fixed_b;
+        uint index = at(i, j, k);
+        float mass = mass_at(i, j, k);
+        float x = float(n) - midpoint;
+        float residual = ((n & 1) == 0 ? 1.0 : -1.0) - intercept - slope * x;
+        float velocity = pc.pass == 0 ? u_out[index] : (pc.pass == 1 ? v_out[index] : w_out[index]);
+        numerator += mass * residual * velocity;
+        denominator += mass * residual * residual;
+    }
+    if (!(denominator > 0.0) || !finite_value(denominator) || !finite_value(numerator)) return;
+    float amplitude = numerator / denominator;
+    for (int n = 0; n < count; ++n) {
+        int i = pc.pass == 0 ? n + 1 : fixed_a;
+        int j = pc.pass == 1 ? n + 1 : (pc.pass == 0 ? fixed_a : fixed_b);
+        int k = pc.pass == 2 ? n + 1 : fixed_b;
+        uint index = at(i, j, k);
+        float x = float(n) - midpoint;
+        float residual = ((n & 1) == 0 ? 1.0 : -1.0) - intercept - slope * x;
+        if (pc.pass == 0) u_out[index] -= amplitude * residual;
+        else if (pc.pass == 1) v_out[index] -= amplitude * residual;
+        else w_out[index] -= amplitude * residual;
+    }
+}
+
+void main() {
+    uint gid = gl_GlobalInvocationID.x;
+    if (pc.pass == 0) {
+        uint count = uint(pc.ny - 2) * uint(pc.nz - 2); if (gid >= count) return;
+        int k = int(gid % uint(pc.nz - 2)) + 1; int j = int(gid / uint(pc.nz - 2)) + 1;
+        project_line(j, k, pc.nx - 2);
+    } else if (pc.pass == 1) {
+        uint count = uint(pc.nx - 2) * uint(pc.nz - 2); if (gid >= count) return;
+        int k = int(gid % uint(pc.nz - 2)) + 1; int i = int(gid / uint(pc.nz - 2)) + 1;
+        project_line(i, k, pc.ny - 2);
+    } else {
+        uint count = uint(pc.nx - 2) * uint(pc.ny - 2); if (gid >= count) return;
+        int j = int(gid % uint(pc.ny - 2)) + 1; int i = int(gid / uint(pc.ny - 2)) + 1;
+        project_line(i, j, pc.nz - 2);
+    }
+}

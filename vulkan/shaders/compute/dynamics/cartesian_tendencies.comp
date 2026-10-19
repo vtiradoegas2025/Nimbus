@@ -1,0 +1,281 @@
+// cartesian_tendencies.comp
+//
+// GLSL compute shader implementing Cartesian momentum tendencies.
+//
+// GPU equivalent of CartesianScheme::compute_momentum_tendencies
+// in src/dynamics/schemes/cartesian/cartesian.cpp.
+//
+// Each invocation processes one interior grid point (i,j,k).
+// No periodic boundary conditions — all six faces are physical boundaries.
+// Boundary points in x (i=0, i=NR-1), y (j=0, j=NTH-1), and
+// z (k=0, k=NZ-1) are skipped.
+//
+// Data layout is row-major [nr][nth][nz].
+//
+// Computes 5 output tendency fields from the collocated state, reference
+// profiles, moisture/loading, and boundary policy. Momentum and pressure use
+// centered derivatives; continuity uses the same adjacent-cell face mass
+// flux as the CPU reference.
+//
+// The vertical momentum equation uses reference-state subtraction
+// (the standard cloud-model formulation from CM1/WRF) to eliminate
+// the O(dz^2) discrete hydrostatic imbalance that occurs on collocated
+// grids. See the Cartesian parity tests and the CPU implementation
+// in src/dynamics/schemes/cartesian/cartesian.cpp for the derivation.
+//
+// NOTE: This shader assumes uniform grid spacing (no terrain metrics).
+
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+// Input fields (6 SSBOs, readonly, 3D: nr*nth*nz)
+layout(set = 0, binding = 0) readonly buffer UxBuf      { float u_x[];     };
+layout(set = 0, binding = 1) readonly buffer UyBuf      { float u_y[];     };
+layout(set = 0, binding = 2) readonly buffer WBuf       { float w_field[]; };
+layout(set = 0, binding = 3) readonly buffer RhoBuf     { float rho[];     };
+layout(set = 0, binding = 4) readonly buffer PressureBuf{ float pressure[];};
+layout(set = 0, binding = 5) readonly buffer ThetaBuf   { float theta[];   };
+
+// Reference-state profiles (2 SSBOs, readonly, 1D: nz elements)
+layout(set = 0, binding = 6) readonly buffer P0BaseBuf  { float p0_base[];   };
+layout(set = 0, binding = 7) readonly buffer Rho0BaseBuf{ float rho0_base[]; };
+
+// Output tendency fields (5 SSBOs, 3D: nr*nth*nz)
+layout(set = 0, binding = 8)  buffer DuxDtBuf  { float du_x_dt[]; };
+layout(set = 0, binding = 9)  buffer DuyDtBuf  { float du_y_dt[]; };
+layout(set = 0, binding = 10) buffer DwDtBuf   { float dw_dt[];   };
+layout(set = 0, binding = 11) buffer DrhoDtBuf { float drho_dt[]; };
+layout(set = 0, binding = 12) buffer DpDtBuf   { float dp_dt[];   };
+
+// Precipitation loading (total hydrometeor mixing ratio, precomputed on CPU)
+layout(set = 0, binding = 13) readonly buffer LoadingBuf { float loading[]; };
+
+// Base-state wind profiles for perturbation Coriolis (1D: nz elements)
+layout(set = 0, binding = 14) readonly buffer U0BaseBuf { float u0_base[]; };
+layout(set = 0, binding = 15) readonly buffer V0BaseBuf { float v0_base[]; };
+layout(set = 0, binding = 16) readonly buffer QvBuf     { float qv[];      };
+layout(set = 0, binding = 17) readonly buffer Qv0BaseBuf{ float qv0_base[];};
+
+// Push constants (64 bytes). LateralBC numeric values are stable:
+// periodic=0, rigid=2, rigid-slip=3. TopBC open=2.
+layout(push_constant) uniform PushConstants {
+    int   nr;
+    int   nth;
+    int   nz;
+    float dx;
+    float dy;
+    float dz_val;
+    float g;
+    float gamma_val;
+    float coriolis_f;   // Coriolis parameter f = 2*Omega*sin(lat)
+    float coriolis_beta; // df/dy; coriolis_f is f at grid y=0
+    int lateral_bc_west;
+    int lateral_bc_east;
+    int lateral_bc_south;
+    int lateral_bc_north;
+    int top_bc;
+    int has_moisture;
+};
+
+// Minimum density for safe division
+const float RHO_MIN = 1.0e-6;
+
+float sanitize(float val) {
+    return (isnan(val) || isinf(val)) ? 0.0 : val;
+}
+
+uint cell_index(int i, int j, int k) {
+    return uint((i * nth + j) * nz + k);
+}
+
+bool closed_lateral(int bc) {
+    return bc == 2 || bc == 3;
+}
+
+float average_product(float rho_lo, float rho_hi,
+                      float velocity_lo, float velocity_hi) {
+    return 0.25 * (rho_lo + rho_hi) * (velocity_lo + velocity_hi);
+}
+
+float x_mass_face(int face_i, int j, int k) {
+    if (face_i == 0) {
+        if (closed_lateral(lateral_bc_west)) return 0.0;
+        if (lateral_bc_west == 0) {
+            return average_product(
+                rho[cell_index(nr - 2, j, k)], rho[cell_index(1, j, k)],
+                u_x[cell_index(nr - 2, j, k)], u_x[cell_index(1, j, k)]);
+        }
+        return rho[cell_index(0, j, k)] * u_x[cell_index(0, j, k)];
+    }
+    if (face_i == nr - 2) {
+        if (closed_lateral(lateral_bc_east)) return 0.0;
+        if (lateral_bc_east == 0) {
+            return average_product(
+                rho[cell_index(nr - 2, j, k)], rho[cell_index(1, j, k)],
+                u_x[cell_index(nr - 2, j, k)], u_x[cell_index(1, j, k)]);
+        }
+        return rho[cell_index(nr - 1, j, k)] *
+               u_x[cell_index(nr - 1, j, k)];
+    }
+    return average_product(
+        rho[cell_index(face_i, j, k)], rho[cell_index(face_i + 1, j, k)],
+        u_x[cell_index(face_i, j, k)], u_x[cell_index(face_i + 1, j, k)]);
+}
+
+float y_mass_face(int i, int face_j, int k) {
+    if (face_j == 0) {
+        if (closed_lateral(lateral_bc_south)) return 0.0;
+        if (lateral_bc_south == 0) {
+            return average_product(
+                rho[cell_index(i, nth - 2, k)], rho[cell_index(i, 1, k)],
+                u_y[cell_index(i, nth - 2, k)], u_y[cell_index(i, 1, k)]);
+        }
+        return rho[cell_index(i, 0, k)] * u_y[cell_index(i, 0, k)];
+    }
+    if (face_j == nth - 2) {
+        if (closed_lateral(lateral_bc_north)) return 0.0;
+        if (lateral_bc_north == 0) {
+            return average_product(
+                rho[cell_index(i, nth - 2, k)], rho[cell_index(i, 1, k)],
+                u_y[cell_index(i, nth - 2, k)], u_y[cell_index(i, 1, k)]);
+        }
+        return rho[cell_index(i, nth - 1, k)] *
+               u_y[cell_index(i, nth - 1, k)];
+    }
+    return average_product(
+        rho[cell_index(i, face_j, k)], rho[cell_index(i, face_j + 1, k)],
+        u_y[cell_index(i, face_j, k)], u_y[cell_index(i, face_j + 1, k)]);
+}
+
+float z_mass_face(int i, int j, int face_k) {
+    if (face_k == 0) return 0.0;
+    if (face_k == nz - 2) {
+        if (top_bc != 2) return 0.0;
+        return rho[cell_index(i, j, nz - 1)] *
+               w_field[cell_index(i, j, nz - 1)];
+    }
+    return average_product(
+        rho[cell_index(i, j, face_k)], rho[cell_index(i, j, face_k + 1)],
+        w_field[cell_index(i, j, face_k)],
+        w_field[cell_index(i, j, face_k + 1)]);
+}
+
+void main() {
+    uint gid = gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * gl_NumWorkGroups.x * gl_WorkGroupSize.x;
+
+    uint total = uint(nr) * uint(nth) * uint(nz);
+    if (gid >= total) {
+        return;
+    }
+
+    int k = int(gid % uint(nz));
+    uint ij = gid / uint(nz);
+    int j = int(ij % uint(nth));
+    int i = int(ij / uint(nth));
+
+    // Flat index helpers — row-major [nr][nth][nz]
+    uint c = cell_index(i, j, k);
+    if (i == 0 || i == nr - 1 ||
+        j == 0 || j == nth - 1 ||
+        k == 0 || k == nz - 1) {
+        du_x_dt[c] = 0.0;
+        du_y_dt[c] = 0.0;
+        dw_dt[c] = 0.0;
+        drho_dt[c] = 0.0;
+        dp_dt[c] = 0.0;
+        return;
+    }
+
+    uint ip = cell_index(i + 1, j, k);
+    uint im = cell_index(i - 1, j, k);
+    uint jp = cell_index(i, j + 1, k);
+    uint jm = cell_index(i, j - 1, k);
+    uint kp = cell_index(i, j, k + 1);
+    uint km = cell_index(i, j, k - 1);
+
+    // Read center-point values
+    float ux  = u_x[c];
+    float uy  = u_y[c];
+    float wz  = w_field[c];
+    float rho_val = rho[c];
+    float p_val   = pressure[c];
+
+    float rho_safe = (rho_val > RHO_MIN && !isinf(rho_val)) ? rho_val : 1.0;
+
+    // Inverse spacings for centered differences
+    float inv_2dx = 1.0 / (2.0 * dx);
+    float inv_2dy = 1.0 / (2.0 * dy);
+    float inv_2dz = 1.0 / (2.0 * dz_val);
+
+    // --- 12 centered finite differences ---
+
+    // u_x derivatives
+    float dux_dx = (u_x[ip] - u_x[im]) * inv_2dx;
+    float dux_dy = (u_x[jp] - u_x[jm]) * inv_2dy;
+    float dux_dz = (u_x[kp] - u_x[km]) * inv_2dz;
+
+    // u_y derivatives
+    float duy_dx = (u_y[ip] - u_y[im]) * inv_2dx;
+    float duy_dy = (u_y[jp] - u_y[jm]) * inv_2dy;
+    float duy_dz = (u_y[kp] - u_y[km]) * inv_2dz;
+
+    // w derivatives
+    float dw_dx  = (w_field[ip] - w_field[im]) * inv_2dx;
+    float dw_dy  = (w_field[jp] - w_field[jm]) * inv_2dy;
+    float dw_dz  = (w_field[kp] - w_field[km]) * inv_2dz;
+
+    // pressure derivatives
+    float dp_dx_val = (pressure[ip] - pressure[im]) * inv_2dx;
+    float dp_dy_val = (pressure[jp] - pressure[jm]) * inv_2dy;
+    float dp_dz_val = (pressure[kp] - pressure[km]) * inv_2dz;
+
+    // --- du_x/dt: advection + pressure gradient + Coriolis ---
+    // Perturbation Coriolis (Rotunno & Klemp 1982): f*(v - v0)
+    float advective_x = -ux * dux_dx - uy * dux_dy - wz * dux_dz;
+    float pgf_x = -dp_dx_val / rho_safe;
+    float local_f = coriolis_beta == 0.0
+        ? coriolis_f
+        : coriolis_f + coriolis_beta * (float(j) + 0.5) * dy;
+    float cor_x = local_f * (uy - v0_base[k]);
+    bool split_slow_only = (has_moisture & 2) != 0;
+    du_x_dt[c] = sanitize(advective_x + cor_x +
+                          (split_slow_only ? 0.0 : pgf_x));
+
+    // --- du_y/dt: advection + pressure gradient + Coriolis ---
+    // Perturbation Coriolis: -f*(u - u0)
+    float advective_y = -ux * duy_dx - uy * duy_dy - wz * duy_dz;
+    float pgf_y = -dp_dy_val / rho_safe;
+    float cor_y = -local_f * (ux - u0_base[k]);
+    du_y_dt[c] = sanitize(advective_y + cor_y +
+                          (split_slow_only ? 0.0 : pgf_y));
+
+    // --- dw/dt: reference-state subtracted vertical momentum ---
+    //   dw/dt = advection - (1/rho)(dp/dz - dp0/dz) - g*(rho - rho0)/rho
+    // At initialization p==p0 and rho==rho0, so both perturbation terms
+    // are exactly zero — no discrete hydrostatic residual.
+    float advective_z = -ux * dw_dx - uy * dw_dy - wz * dw_dz;
+    float dp0_dz = (p0_base[k + 1] - p0_base[k - 1]) * inv_2dz;
+    float dp_prime_dz = dp_dz_val - dp0_dz;
+    float rho0_k = rho0_base[k];
+    float buoyancy = -g * (rho_val - rho0_k) / rho_safe;
+    float precip_loading = -g * loading[c];
+    float moisture_buoyancy = (has_moisture & 1) != 0
+        ? g * 0.608 * (qv[c] - qv0_base[k]) : 0.0;
+    float vertical_pressure = split_slow_only ? 0.0 : -dp_prime_dz / rho_safe;
+    dw_dt[c] = sanitize(advective_z + vertical_pressure + buoyancy +
+                        moisture_buoyancy + precip_loading);
+
+    // --- drho/dt: exact CPU adjacent-cell face-mass divergence ---
+    float divergence = dux_dx + duy_dy + dw_dz;
+    float mass_divergence =
+          (x_mass_face(i, j, k) - x_mass_face(i - 1, j, k)) / dx
+        + (y_mass_face(i, j, k) - y_mass_face(i, j - 1, k)) / dy
+        + (z_mass_face(i, j, k) - z_mass_face(i, j, k - 1)) / dz_val;
+    drho_dt[c] = split_slow_only ? 0.0 : sanitize(-mass_divergence);
+
+    // --- dp/dt: pressure tendency ---
+    float gamma_term = gamma_val * p_val * divergence;
+    float advection_p = -ux * dp_dx_val - uy * dp_dy_val - wz * dp_dz_val;
+    dp_dt[c] = sanitize((split_slow_only ? 0.0 : -gamma_term) + advection_p);
+}

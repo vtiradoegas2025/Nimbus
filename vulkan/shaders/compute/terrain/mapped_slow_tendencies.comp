@@ -1,0 +1,364 @@
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+layout(std430, set = 0, binding = 0) readonly buffer U
+{
+    float u[];
+};
+layout(std430, set = 0, binding = 1) readonly buffer V
+{
+    float v[];
+};
+layout(std430, set = 0, binding = 2) readonly buffer W
+{
+    float w[];
+};
+layout(std430, set = 0, binding = 3) readonly buffer Rho
+{
+    float rho[];
+};
+layout(std430, set = 0, binding = 4) readonly buffer Pressure
+{
+    float pressure[];
+};
+layout(std430, set = 0, binding = 5) readonly buffer Height
+{
+    float height[];
+};
+layout(std430, set = 0, binding = 6) readonly buffer Jx
+{
+    float jacobian_x[];
+};
+layout(std430, set = 0, binding = 7) readonly buffer Jy
+{
+    float jacobian_y[];
+};
+layout(std430, set = 0, binding = 8) readonly buffer Gx
+{
+    float metric_x[];
+};
+layout(std430, set = 0, binding = 9) readonly buffer Gy
+{
+    float metric_y[];
+};
+layout(std430, set = 0, binding = 10) readonly buffer GroundW
+{
+    float ground_w[];
+};
+layout(std430, set = 0, binding = 11) readonly buffer P0
+{
+    float reference_pressure[];
+};
+layout(std430, set = 0, binding = 12) readonly buffer Theta0
+{
+    float reference_theta[];
+};
+layout(std430, set = 0, binding = 13) readonly buffer Qv
+{
+    float qv[];
+};
+layout(std430, set = 0, binding = 14) readonly buffer Qv0
+{
+    float reference_qv[];
+};
+layout(std430, set = 0, binding = 15) readonly buffer Loading
+{
+    float loading[];
+};
+layout(std430, set = 0, binding = 16) writeonly buffer Du
+{
+    float du_dt[];
+};
+layout(std430, set = 0, binding = 17) writeonly buffer Dv
+{
+    float dv_dt[];
+};
+layout(std430, set = 0, binding = 18) writeonly buffer Dw
+{
+    float dw_dt[];
+};
+layout(std430, set = 0, binding = 19) writeonly buffer Drho
+{
+    float drho_dt[];
+};
+layout(std430, set = 0, binding = 20) writeonly buffer Dp
+{
+    float dp_dt[];
+};
+layout(std430, set = 0, binding = 21) writeonly buffer AdvU
+{
+    float du_advection_dt[];
+};
+layout(std430, set = 0, binding = 22) writeonly buffer AdvV
+{
+    float dv_advection_dt[];
+};
+layout(std430, set = 0, binding = 23) writeonly buffer AdvW
+{
+    float dw_advection_dt[];
+};
+
+layout(push_constant) uniform Constants
+{
+    int   nx;
+    int   ny;
+    int   nz;
+    int   has_moisture;
+    int   has_loading;
+    int   sampled_reference;
+    int   padding_i1;
+    int   padding_i2;
+    float dx;
+    float dy;
+    float dzeta;
+    float nominal_dz;
+    float gravity;
+    float padding_f0;
+    float padding_f1;
+    float padding_f2;
+}
+pc;
+
+uint index3(int i, int j, int k)
+{
+    return (uint(i) * uint(pc.ny) + uint(j)) * uint(pc.nz) + uint(k);
+}
+
+float field_value(int field, int i, int j, int k)
+{
+    uint n = index3(i, j, k);
+    return field == 0 ? u[n] : (field == 1 ? v[n] : w[n]);
+}
+
+float upwind_fd1(float m1, float c, float p1, float a, float inv_d)
+{
+    return a >= 0.0 ? (c - m1) * inv_d : (p1 - c) * inv_d;
+}
+
+float upwind_fd3(float m2, float m1, float c, float p1, float p2, float a, float inv_d)
+{
+    return a >= 0.0 ? (2.0 * p1 + 3.0 * c - 6.0 * m1 + m2) * (inv_d / 6.0)
+                    : (-p2 + 6.0 * p1 - 3.0 * c - 2.0 * m1) * (inv_d / 6.0);
+}
+
+float upwind_fd5(float m3, float m2, float m1, float c, float p1, float p2, float p3, float a, float inv_d)
+{
+    return a >= 0.0 ? (-2.0 * m3 + 15.0 * m2 - 60.0 * m1 + 20.0 * c + 30.0 * p1 - 3.0 * p2) * (inv_d / 60.0)
+                    : (2.0 * p3 - 15.0 * p2 + 60.0 * p1 - 20.0 * c - 30.0 * m1 + 3.0 * m2) * (inv_d / 60.0);
+}
+
+float upwind_x(int field, float a, int i, int j, int k)
+{
+    int   half_width = min(i, pc.nx - 1 - i);
+    float c          = field_value(field, i, j, k);
+    if (half_width <= 0)
+        return 0.0;
+    float m1 = field_value(field, i - 1, j, k);
+    float p1 = field_value(field, i + 1, j, k);
+    if (half_width == 1)
+        return upwind_fd1(m1, c, p1, a, 1.0 / pc.dx);
+    float m2 = field_value(field, i - 2, j, k);
+    float p2 = field_value(field, i + 2, j, k);
+    if (half_width == 2)
+        return upwind_fd3(m2, m1, c, p1, p2, a, 1.0 / pc.dx);
+    return upwind_fd5(
+        field_value(field, i - 3, j, k), m2, m1, c, p1, p2, field_value(field, i + 3, j, k), a, 1.0 / pc.dx);
+}
+
+float upwind_y(int field, float a, int i, int j, int k)
+{
+    int   half_width = min(j, pc.ny - 1 - j);
+    float c          = field_value(field, i, j, k);
+    if (half_width <= 0)
+        return 0.0;
+    float m1 = field_value(field, i, j - 1, k);
+    float p1 = field_value(field, i, j + 1, k);
+    if (half_width == 1)
+        return upwind_fd1(m1, c, p1, a, 1.0 / pc.dy);
+    float m2 = field_value(field, i, j - 2, k);
+    float p2 = field_value(field, i, j + 2, k);
+    if (half_width == 2)
+        return upwind_fd3(m2, m1, c, p1, p2, a, 1.0 / pc.dy);
+    return upwind_fd5(
+        field_value(field, i, j - 3, k), m2, m1, c, p1, p2, field_value(field, i, j + 3, k), a, 1.0 / pc.dy);
+}
+
+float upwind_z(int field, float a, int i, int j, int k)
+{
+    int   half_width = min(k, pc.nz - 1 - k);
+    float c          = field_value(field, i, j, k);
+    if (half_width <= 0)
+        return 0.0;
+    float m1 = field_value(field, i, j, k - 1);
+    float p1 = field_value(field, i, j, k + 1);
+    if (half_width == 1)
+        return upwind_fd1(m1, c, p1, a, 1.0 / pc.nominal_dz);
+    float m2 = field_value(field, i, j, k - 2);
+    float p2 = field_value(field, i, j, k + 2);
+    if (half_width == 2)
+        return upwind_fd3(m2, m1, c, p1, p2, a, 1.0 / pc.nominal_dz);
+    return upwind_fd5(
+        field_value(field, i, j, k - 3), m2, m1, c, p1, p2, field_value(field, i, j, k + 3), a, 1.0 / pc.nominal_dz);
+}
+
+float profile_at(int profile, float z)
+{
+    float fractional = z / pc.nominal_dz - 0.5;
+    int   lower      = clamp(int(floor(fractional)), 0, pc.nz - 2);
+    float weight     = fractional - float(lower);
+    float lower_value =
+        profile == 0 ? reference_pressure[lower] : (profile == 1 ? reference_theta[lower] : reference_qv[lower]);
+    float upper_value = profile == 0 ? reference_pressure[lower + 1]
+                                     : (profile == 1 ? reference_theta[lower + 1] : reference_qv[lower + 1]);
+    return lower_value + weight * (upper_value - lower_value);
+}
+
+float reference_density(uint n)
+{
+    if (pc.sampled_reference != 0)
+        return reference_pressure[uint(pc.nz) + 3u * n + 1u];
+    float z           = height[n];
+    float p0          = profile_at(0, z);
+    float theta0      = profile_at(1, z);
+    float temperature = theta0 * pow(p0 / 100000.0, 287.0 / 1004.0);
+    return p0 / (287.0 * temperature);
+}
+
+float reference_vapor(uint n)
+{
+    return pc.sampled_reference != 0 ? reference_pressure[uint(pc.nz) + 3u * n + 2u] : profile_at(2, height[n]);
+}
+
+float pressure_prime(int i, int j, int k)
+{
+    uint          n = index3(i, j, k);
+    precise float perturbation =
+        pressure[n] - (pc.sampled_reference != 0 ? reference_pressure[uint(pc.nz) + 3u * n] : profile_at(0, height[n]));
+    return perturbation;
+}
+
+float column_gradient_prime(int i, int j, int k)
+{
+    int lower = k == 0 ? 0 : k - 1;
+    int upper = k + 1 < pc.nz ? k + 1 : pc.nz - 1;
+    return (pressure_prime(i, j, upper) - pressure_prime(i, j, lower)) /
+           (height[index3(i, j, upper)] - height[index3(i, j, lower)]);
+}
+
+float gradient_prime_x(int i, int j, int k)
+{
+    float computational = (pressure_prime(i + 1, j, k) - pressure_prime(i, j, k)) / pc.dx;
+    float slope         = (height[index3(i + 1, j, k)] - height[index3(i, j, k)]) / pc.dx;
+    return computational - slope * 0.5 * (column_gradient_prime(i, j, k) + column_gradient_prime(i + 1, j, k));
+}
+
+float gradient_prime_y(int i, int j, int k)
+{
+    float computational = (pressure_prime(i, j + 1, k) - pressure_prime(i, j, k)) / pc.dy;
+    float slope         = (height[index3(i, j + 1, k)] - height[index3(i, j, k)]) / pc.dy;
+    return computational - slope * 0.5 * (column_gradient_prime(i, j, k) + column_gradient_prime(i, j + 1, k));
+}
+
+float zeta_x(float ux, float uy, float wz, int i, int j, int k)
+{
+    float slope_x = (height[index3(i + 1, j, k)] - height[index3(i, j, k)]) / pc.dx;
+    float north   = 0.5 * (height[index3(i, j + 1, k)] + height[index3(i + 1, j + 1, k)]);
+    float south   = 0.5 * (height[index3(i, j - 1, k)] + height[index3(i + 1, j - 1, k)]);
+    return (wz - ux * slope_x - uy * (north - south) / (2.0 * pc.dy)) / jacobian_x[index3(i, j, k)];
+}
+
+float zeta_y(float ux, float uy, float wz, int i, int j, int k)
+{
+    float east    = 0.5 * (height[index3(i + 1, j, k)] + height[index3(i + 1, j + 1, k)]);
+    float west    = 0.5 * (height[index3(i - 1, j, k)] + height[index3(i - 1, j + 1, k)]);
+    float slope_y = (height[index3(i, j + 1, k)] - height[index3(i, j, k)]) / pc.dy;
+    return (wz - ux * (east - west) / (2.0 * pc.dx) - uy * slope_y) / jacobian_y[index3(i, j, k)];
+}
+
+float zeta_z(float ux, float uy, float wz, int i, int j, int k)
+{
+    uint  n        = index3(i, j, k);
+    float jacobian = (height[index3(i, j, k + 1)] - height[n]) / pc.dzeta;
+    return (wz + metric_x[n] * ux + metric_y[n] * uy) / jacobian;
+}
+
+void main()
+{
+    uint n     = gl_GlobalInvocationID.x;
+    uint count = uint(pc.nx) * uint(pc.ny) * uint(pc.nz);
+    if (n >= count)
+        return;
+    int k              = int(n % uint(pc.nz));
+    int j              = int((n / uint(pc.nz)) % uint(pc.ny));
+    int i              = int(n / (uint(pc.ny) * uint(pc.nz)));
+    du_dt[n]           = 0.0;
+    dv_dt[n]           = 0.0;
+    dw_dt[n]           = 0.0;
+    drho_dt[n]         = 0.0;
+    dp_dt[n]           = 0.0;
+    du_advection_dt[n] = 0.0;
+    dv_advection_dt[n] = 0.0;
+    dw_advection_dt[n] = 0.0;
+    if (i <= 0 || i >= pc.nx - 1 || j <= 0 || j >= pc.ny - 1)
+        return;
+
+    if (k < pc.nz - 1)
+    {
+        float ux   = u[n];
+        float uy_x = 0.25 * (v[index3(i, j - 1, k)] + v[n] + v[index3(i + 1, j - 1, k)] + v[index3(i + 1, j, k)]);
+        float wx   = k == 0
+                         ? 0.25 * (ground_w[index3(i, j, 0)] + ground_w[index3(i + 1, j, 0)] + w[index3(i, j, 0)] +
+                                   w[index3(i + 1, j, 0)])
+                         : 0.25 * (w[index3(i, j, k - 1)] + w[n] + w[index3(i + 1, j, k - 1)] + w[index3(i + 1, j, k)]);
+        float az_x = zeta_x(ux, uy_x, wx, i, j, k);
+        float duz =
+            k == 0 ? (az_x >= 0.0 ? 0.0 : (u[index3(i, j, 1)] - ux) / pc.nominal_dz) : upwind_z(0, az_x, i, j, k);
+        float adv_x        = -ux * upwind_x(0, ux, i, j, k) - uy_x * upwind_y(0, uy_x, i, j, k) - az_x * duz;
+        du_dt[n]           = adv_x;
+        du_advection_dt[n] = adv_x;
+
+        float uy   = v[n];
+        float ux_y = 0.25 * (u[index3(i - 1, j, k)] + u[n] + u[index3(i - 1, j + 1, k)] + u[index3(i, j + 1, k)]);
+        float wy   = k == 0
+                         ? 0.25 * (ground_w[index3(i, j, 0)] + ground_w[index3(i, j + 1, 0)] + w[index3(i, j, 0)] +
+                                   w[index3(i, j + 1, 0)])
+                         : 0.25 * (w[index3(i, j, k - 1)] + w[n] + w[index3(i, j + 1, k - 1)] + w[index3(i, j + 1, k)]);
+        float az_y = zeta_y(ux_y, uy, wy, i, j, k);
+        float dvz =
+            k == 0 ? (az_y >= 0.0 ? 0.0 : (v[index3(i, j, 1)] - uy) / pc.nominal_dz) : upwind_z(1, az_y, i, j, k);
+        float adv_y        = -ux_y * upwind_x(1, ux_y, i, j, k) - uy * upwind_y(1, uy, i, j, k) - az_y * dvz;
+        dv_dt[n]           = adv_y;
+        dv_advection_dt[n] = adv_y;
+
+        float ux_w  = 0.25 * (u[index3(i - 1, j, k)] + u[n] + u[index3(i - 1, j, k + 1)] + u[index3(i, j, k + 1)]);
+        float uy_w  = 0.25 * (v[index3(i, j - 1, k)] + v[n] + v[index3(i, j - 1, k + 1)] + v[index3(i, j, k + 1)]);
+        float az_w  = zeta_z(ux_w, uy_w, w[n], i, j, k);
+        float dwz   = k == 0 ? (az_w >= 0.0 ? (w[n] - ground_w[index3(i, j, 0)]) / pc.nominal_dz
+                                            : (w[index3(i, j, 1)] - w[n]) / pc.nominal_dz)
+                             : upwind_z(2, az_w, i, j, k);
+        float adv_w = -ux_w * upwind_x(2, ux_w, i, j, k) - uy_w * upwind_y(2, uy_w, i, j, k) - az_w * dwz;
+        precise float rho_face          = 0.5 * (rho[n] + rho[index3(i, j, k + 1)]);
+        precise float rho0_face         = 0.5 * (reference_density(n) + reference_density(index3(i, j, k + 1)));
+        precise float density_departure = rho_face - rho0_face;
+        precise float vapor_departure   = pc.has_moisture != 0
+                                              ? 0.5 * (qv[n] + qv[index3(i, j, k + 1)]) -
+                                                    0.5 * (reference_vapor(n) + reference_vapor(index3(i, j, k + 1)))
+                                              : 0.0;
+        float         moisture          = pc.gravity * 0.608 * vapor_departure;
+        float load = pc.has_loading != 0 ? -pc.gravity * 0.5 * (loading[n] + loading[index3(i, j, k + 1)]) : 0.0;
+        dw_dt[n]   = adv_w - pc.gravity * density_departure / rho_face + moisture + load;
+        dw_advection_dt[n] = adv_w;
+    }
+
+    if (k > 0 && k < pc.nz - 1)
+    {
+        float center_u = 0.5 * (u[n] + u[index3(i - 1, j, k)]);
+        float center_v = 0.5 * (v[n] + v[index3(i, j - 1, k)]);
+        float center_w = 0.5 * (w[n] + w[index3(i, j, k - 1)]);
+        float gx       = 0.5 * (gradient_prime_x(i - 1, j, k) + gradient_prime_x(i, j, k));
+        float gy       = 0.5 * (gradient_prime_y(i, j - 1, k) + gradient_prime_y(i, j, k));
+        float gz       = (pressure[index3(i, j, k + 1)] - pressure[index3(i, j, k - 1)]) /
+                         (height[index3(i, j, k + 1)] - height[index3(i, j, k - 1)]);
+        dp_dt[n]       = -center_u * gx - center_v * gy - center_w * gz;
+    }
+}

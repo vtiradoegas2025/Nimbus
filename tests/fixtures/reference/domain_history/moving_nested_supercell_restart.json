@@ -1,0 +1,51 @@
+{
+  "binary_sha256": "f069cff8fcb8508a5498673bb4a2c9e50a1d7c202911a34896b72e6c87ba3dbe",
+  "changed_thread_count": false,
+  "checkpoint_exact": true,
+  "child_endpoint_fields_exact": true,
+  "config_sha256": "b707dd70a560f13f757782ccdcd45bd8cfcced4ebe83161a63fa8f20da4a12a8",
+  "continuous": {
+    "checkpoint_bytes": 283114616,
+    "checkpoint_count": 2,
+    "coherent_samples": 27,
+    "committed_movements": 1,
+    "maximum_absolute_updraft_helicity_m2s2": 744.707360683259,
+    "maximum_tracker_updraft_ms": 27.6126070022583,
+    "measured_peak_rss_bytes": 722944000,
+    "motion_available_samples": 25,
+    "predicted_memory_bytes": 826595116,
+    "simulated_seconds_per_wall_second": 1.73837,
+    "storm_samples": 30,
+    "wall_seconds": 519.2774293750117
+  },
+  "detector_coordinate_frame": "earth_absolute",
+  "final_time_s": 900,
+  "limitations": [
+    "internal qualification-only CPU profile; public moving_nest selection remains closed",
+    "900-second bounded campaign, not the complete 4500-second fine-child/reference frontier",
+    "same-binary/same-12-thread evidence; no changed-thread or cross-hardware identity claim",
+    "no live-storm Vulkan, terrain, two-way feedback, AMR, or broad-combination claim"
+  ],
+  "resumed": {
+    "ledger_rows": {
+      "budget.csv": 810,
+      "energy_budget.csv": 90,
+      "moisture_budget.csv": 90,
+      "momentum_budget.csv": 90,
+      "thermodynamic_source_budget.csv": 900
+    },
+    "movement_sequence": 1,
+    "movement_shift_parent_cells": {"i": 2, "j": 0},
+    "movement_time_s": 720,
+    "tracker_suffix_samples": 15,
+    "wall_seconds": 242.85576862499875
+  },
+  "root_endpoint_fields_exact": true,
+  "schema": "nimbus.qualification.moving_nested_supercell.restart",
+  "schema_version": 2,
+  "scope": "internal_cpu_fine_child_live_storm_restart_not_selectable",
+  "split_time_s": 450,
+  "status": "pass",
+  "storm_tracking_schema_version": 11,
+  "tracking_source": "synchronized_nested_child"
+}
