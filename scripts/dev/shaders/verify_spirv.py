@@ -33,12 +33,22 @@ SHADER_ROOT = ROOT / "vulkan" / "shaders"
 MANIFEST = SHADER_ROOT / "manifest.json"
 SOURCE_SUFFIXES = {".comp": "comp", ".vert": "vert", ".frag": "frag"}
 COMPILE_FLAGS = ["-V", "-Os"]
+COMPILER_POLICY_FILES = (pathlib.Path(__file__).resolve(), pathlib.Path(division_workaround.__file__).resolve())
 
 
 def compile_flags(source: pathlib.Path) -> list[str]:
-    # Full inlining of the compensated cold process family exhausts glslang's optimizer.
-    if source.name in ("milbrandt_cold.comp", "milbrandt_sedimentation.comp"):
-        return ["-V"]
+    # Flattening repeated compensated operations exhausts front-end/driver compilers.
+    pending = [source.resolve()]
+    visited = set()
+    while pending:
+        dependency = pending.pop()
+        if dependency in visited:
+            continue
+        visited.add(dependency)
+        if dependency.name in ("compensated_fma.glsl", "thompson_compensated.glsl"):
+            return ["-V"]
+        pending.extend((dependency.parent / include).resolve() for include in re.findall(
+            r'^\s*#include\s+"([^"\n]+)"', dependency.read_text(), flags=re.MULTILINE))
     return COMPILE_FLAGS
 
 
@@ -83,6 +93,19 @@ def sources() -> list[pathlib.Path]:
     )
 
 
+def compilation_input_digests(shader_sources: list[pathlib.Path]) -> dict[pathlib.Path, str]:
+    paths = set(shader_sources) | set(SHADER_ROOT.rglob("*.glsl")) | set(COMPILER_POLICY_FILES)
+    return {path: sha256(path) for path in sorted(paths)}
+
+
+def require_unchanged_compilation_inputs(expected: dict[pathlib.Path, str]) -> None:
+    actual = compilation_input_digests(sources())
+    if actual != expected:
+        changed = sorted(str(path) for path in expected.keys() | actual.keys()
+                         if expected.get(path) != actual.get(path))
+        raise RuntimeError("shader compilation inputs changed; metadata publication refused: " + ", ".join(changed))
+
+
 def compile_shader(source: pathlib.Path, output: pathlib.Path) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     stage = SOURCE_SUFFIXES[source.suffix]
@@ -93,16 +116,37 @@ def compile_shader(source: pathlib.Path, output: pathlib.Path) -> None:
         str(source),
         "-o", str(output),
     ])
-    if source.name == "acoustic_retained_flux_fp64.comp":
-        # spirv_instruction does not propagate GLSL precise to extension ops.
-        assembly = run([tool("spirv-dis"), str(output)], capture=True)
-        decorations = "".join(
-            f"OpDecorate {result} NoContraction\n"
-            for result in re.findall(r"(%\S+) = OpFmaKHR", assembly)
-            if f"OpDecorate {result} NoContraction" not in assembly)
+    assembly = run([tool("spirv-dis"), str(output)], capture=True)
+    helpers = set(re.findall(r'OpName (%\S+) "df_[^"]+"', assembly)) if re.search(
+        r'^\s*#define\s+NIMBUS_PORTABLE_COMPENSATED_PRODUCT\b', source.read_text(), flags=re.MULTILINE) else set()
+    if helpers:
+        lines = []
+        in_helper = False
+        for line in assembly.splitlines(keepends=True):
+            function = re.search(r"(%\S+) = OpFunction %\S+ (\S+) ", line)
+            if function:
+                in_helper = function[1] in helpers
+                if in_helper:
+                    line = line[:function.start(2)] + "DontInline" + line[function.end(2):]
+            if in_helper:
+                line = re.sub(r"(OpLoopMerge %\S+ %\S+) None", r"\1 DontUnroll", line)
+            if "OpFunctionEnd" in line:
+                in_helper = False
+            lines.append(line)
+        assembly = "".join(lines)
+    # glslang does not propagate `precise` to these extension instructions.
+    # Preserve their operation/order constraints without assuming IEEE FMA accuracy.
+    fmas = re.findall(r"(%\S+) = (?:OpFmaKHR\b|OpExtInst %\S+ %\S+ Fma\b)", assembly)
+    protected = set(re.findall(r"OpDecorate (%\S+) NoContraction\b", assembly))
+    decorations = "".join(
+        f"OpDecorate {result} NoContraction\n"
+        for result in fmas
+        if result not in protected)
+    if decorations:
         at = re.search(r"^\s*%\S+ = OpType", assembly, flags=re.M).start()
         assembly = assembly[:at] + decorations + assembly[at:]
-        with tempfile.TemporaryDirectory(prefix="nimbus-fp64-modes-") as temporary:
+    if decorations or helpers:
+        with tempfile.TemporaryDirectory(prefix="nimbus-fma-modes-") as temporary:
             path = pathlib.Path(temporary) / "shader.spvasm"
             path.write_text(assembly)
             run([tool("spirv-as"), "--target-env", "spv1.0", str(path), "-o", str(output)])
@@ -276,6 +320,7 @@ def main() -> int:
     shader_sources = sources()
     if not shader_sources:
         raise RuntimeError("no shader sources found")
+    input_digests = compilation_input_digests(shader_sources)
     failures: list[str] = []
 
     with tempfile.TemporaryDirectory(prefix="nimbus-spirv-") as raw_temp:
@@ -336,9 +381,7 @@ def main() -> int:
             })
         header = ROOT / "vulkan/include/compute/generated_division_variants.hpp"
         header_text = division_workaround.render_header(variants)
-        if args.refresh:
-            header.write_text(header_text)
-        elif not header.is_file() or header.read_text() != header_text:
+        if not args.refresh and (not header.is_file() or header.read_text() != header_text):
             failures.append("division variant header drift")
 
     if failures:
@@ -351,7 +394,9 @@ def main() -> int:
     payload = manifest_payload(entries)
     payload["division_variants"] = variants
     rendered = json.dumps(payload, indent=2, sort_keys=True) + "\n"
+    require_unchanged_compilation_inputs(input_digests)
     if args.refresh:
+        header.write_text(header_text)
         MANIFEST.write_text(rendered, encoding="utf-8")
     elif not MANIFEST.is_file():
         print(f"ERROR: missing manifest: {MANIFEST.relative_to(ROOT)}", file=sys.stderr)

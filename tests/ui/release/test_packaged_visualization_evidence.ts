@@ -19,7 +19,6 @@ const checkNames = [
   "packaged-native-brick-streamlines",
   "packaged-terrain-brick-diagnostics",
   "physical-gpu-residency",
-  "physical-gpu-restart-plateau",
   ...[1, 2].flatMap((cycle) => [
     `cycle-${cycle}-scalar-worker-handle`,
     `cycle-${cycle}-scalar-main-resolution`,
@@ -37,8 +36,12 @@ function report() {
   const vectorBytes = 120 * 1024 * 1024;
   const residentHighWaterBytes = 160 * 1024 * 1024;
   const highWaterBytes = 280 * 1024 * 1024;
-  const memorySamples = Array.from({ length: 19 }, (_, index) => ({
-    label: `sample-${index}`,
+  const labels = ["startup", "fixture-allocated", "gpu-baseline",
+    "gpu-cycle-1-resident", "gpu-cycle-1-retired", "gpu-cycle-2-resident", "gpu-cycle-2-retired",
+    ...[1, 2].flatMap(cycle => ["scalar-resident", "contour-published", "scalar-vector-resident", "streamline-published", "shutdown"]
+      .map(stage => `cycle-${cycle}-${stage}`)), "packaged-native-bricks-resident", "final"];
+  const memorySamples = labels.map((label, index) => ({
+    label,
     elapsedMs: index,
     samplingMs: 1,
     memory: {
@@ -46,7 +49,7 @@ function report() {
       schemaVersion: 3,
       currentRssBytes: 200_000_000 + index,
       peakRssBytes: 400_000_000,
-      processTreeRssBytes: 300_000_000 + index * 10_000_000,
+      processTreeRssBytes: index === 5 ? 329_000_000 : index === 6 ? 328_000_000 : 300_000_000 + index * 10_000_000,
       processTreePeakRssBytes: 300_000_000 + index * 10_000_000,
       processTreeProcessCount: 5,
       processTreeCoverage: "whole_application",
@@ -59,7 +62,9 @@ function report() {
   const accounted = scalarBytes + vectorBytes + residentHighWaterBytes;
   return {
     schema: "nimbus.studio.packaged-visualization-qualification",
-    schemaVersion: 1,
+    schemaVersion: 2,
+    scope: "bounded-packaged-lifecycle",
+    memoryCampaign: "pending",
     status: "passed",
     profile: "production",
     inputHandoffYieldMode: "scheduler-yield",
@@ -141,12 +146,26 @@ function report() {
       terrainDiagnosticRange: [-0.01, 0.02],
     },
     physicalGpuEvidence: {
+      measurementProtocol: "isolated-prepared-pair-post-scope-v2",
+      renderingPath: "nimbus-coherent-volume",
       cycles: 2,
       scalarTextureBytesPerCycle: 80 * 1024 * 1024,
+      preparedCpuBufferBytes: 80 * 1024 * 1024,
+      preparedCpuBuffers: 2,
+      retiredContexts: 2,
+      retiredOwnedObjects: [15, 15],
+      zeroedCanvasBackingStores: 2,
+      postScopeRetirementMs: [30, 32],
       maximumLogicalGpuResidentBytes: 80 * 1024 * 1024,
-      firstResidentDeltaBytes: 40 * 1024 * 1024,
-      secondResidentDeltaBytes: 38 * 1024 * 1024,
-      maximumPhysicalResidentDeltaBytes: 40 * 1024 * 1024,
+      rss: {
+        currency: "process-tree-rss",
+        baselineBytes: 320_000_000,
+        residentBytes: [330_000_000, 329_000_000],
+        retiredBytes: [340_000_000, 328_000_000],
+        residentDeltaBytes: [10_000_000, 9_000_000],
+        restartGrowthBytes: -1_000_000,
+        limitation: "Process-tree RSS is not physical VRAM.",
+      },
       viewport: { width: 640, height: 420 },
       actualRenderedTexturesPerCycle: 2,
       contextLost: false,
@@ -193,7 +212,7 @@ function accepts(label: string, mutate?: (value: ReturnType<typeof report>) => v
     failures.push(`FAIL ${label}: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
-function rejects(label: string, mutate: (value: ReturnType<typeof report>) => void): void {
+function rejects(label: string, mutate: (value: ReturnType<typeof report>) => void, expectedError?: string): void {
   const value = report();
   mutate(value);
   try {
@@ -201,8 +220,10 @@ function rejects(label: string, mutate: (value: ReturnType<typeof report>) => vo
       profile: "production", mode: "release", targetOs: "macos", targetArch: "aarch64",
     });
     failures.push(`FAIL ${label}: invalid evidence was accepted`);
-  } catch {
-    passed += 1;
+  } catch (error) {
+    if (expectedError && !(error instanceof Error && error.message.includes(expectedError))) {
+      failures.push(`FAIL ${label}: unexpected rejection ${String(error)}`);
+    } else passed += 1;
   }
 }
 function rejectsForTarget(
@@ -265,10 +286,54 @@ rejects("invalid packaged backing store", (value) => {
 rejects("retained handle", (value) => { value.finalRegistry.handles = 1; });
 rejects("retained worker bytes", (value) => { value.finalResources.residentBytes = 1; });
 rejects("underprediction", (value) => { value.finalResources.prediction.underpredictions = 1; });
-rejects("growing physical GPU restart delta", (value) => {
-  value.physicalGpuEvidence.secondResidentDeltaBytes
-    = value.physicalGpuEvidence.firstResidentDeltaBytes + 1;
+function gpuSamples(value: ReturnType<typeof report>, bytes: [number, number, number, number, number]): void {
+  bytes.forEach((rss, index) => { value.memorySamples[index + 2].memory.processTreeRssBytes = rss; });
+  const [baselineBytes, first, retiredFirst, second, retiredSecond] = bytes;
+  Object.assign(value.physicalGpuEvidence.rss, { baselineBytes,
+    residentBytes: [first, second], retiredBytes: [retiredFirst, retiredSecond],
+    residentDeltaBytes: [first - baselineBytes, second - baselineBytes], restartGrowthBytes: second - first });
+  let peak = 0;
+  value.memorySamples.forEach(sample => {
+    peak = Math.max(peak, sample.memory.processTreeRssBytes);
+    sample.memory.processTreePeakRssBytes = peak;
+  });
+  const reconciliation = value.memoryReconciliation;
+  reconciliation.processTreeCurrentHighBytes = reconciliation.processTreePeakBytes = peak;
+  reconciliation.processTreeDeltaBytes = peak - reconciliation.baselineTreeRssBytes;
+  reconciliation.observedMinusAccountedBytes = reconciliation.processTreeDeltaBytes - reconciliation.accountedInputAndResidentHighWaterBytes;
+}
+rejects("obsolete v1 report", value => { value.schemaVersion = 1; });
+rejects("memory campaign promotion", value => { value.memoryCampaign = "validated"; });
+rejects("unbounded scope claim", value => { value.scope = "capacity-qualified"; });
+rejects("legacy clipped GPU protocol", value => { value.physicalGpuEvidence.measurementProtocol = "legacy-per-cycle-clipped"; });
+rejects("upstream-only GPU path", value => { value.physicalGpuEvidence.renderingPath = "upstream-volume"; });
+rejects("missing prepared input ownership", value => { value.physicalGpuEvidence.preparedCpuBufferBytes -= 4; });
+rejects("retained core owner", value => { value.physicalGpuEvidence.retiredOwnedObjects[1] = 14; });
+rejects("retained canvas backing", value => { value.physicalGpuEvidence.zeroedCanvasBackingStores = 1; });
+rejects("unconfirmed context retirement", value => { value.physicalGpuEvidence.retiredContexts = 1; });
+rejects("scope-retained GPU protocol", value => { value.physicalGpuEvidence.measurementProtocol = "isolated-prepared-pair-common-baseline-v1"; });
+rejects("missing post-scope retirement timing", value => { value.physicalGpuEvidence.postScopeRetirementMs = []; });
+rejects("invalid post-scope retirement timing", value => { value.physicalGpuEvidence.postScopeRetirementMs[0] = -1; });
+accepts("signed negative common-baseline deltas", value => {
+  gpuSamples(value, [400_000_000, 350_000_000, 340_000_000, 349_000_000, 339_000_000]);
 });
+accepts("unclipped growth below the common baseline remains an observation", value => {
+  gpuSamples(value, [400_000_000, 350_000_000, 340_000_000, 360_000_000, 339_000_000]);
+});
+accepts("positive growth is retained without claiming a plateau", value => {
+  gpuSamples(value, [300_000_000, 400_000_000, 390_000_000, 450_000_000, 390_000_000]);
+});
+accepts("first-cycle decline does not hide subsequent growth", value => {
+  gpuSamples(value, [400_000_000, 350_000_000, 351_000_000, 450_000_000, 449_000_000]);
+});
+rejects("clipped signed RSS summary", value => {
+  gpuSamples(value, [400_000_000, 350_000_000, 340_000_000, 349_000_000, 339_000_000]);
+  value.physicalGpuEvidence.rss.residentDeltaBytes[0] = 0;
+}, "without clipping");
+rejects("forged resident RSS summary", value => { value.physicalGpuEvidence.rss.residentBytes[1] -= 1; });
+rejects("forged retired RSS summary", value => { value.physicalGpuEvidence.rss.retiredBytes[1] -= 1; });
+rejects("forged GPU baseline", value => { value.physicalGpuEvidence.rss.baselineBytes += 1; });
+rejects("GPU phase after worker phases", value => { value.memorySamples[2].label = "cycle-1-scalar-resident"; });
 rejects("missing memory sample", (value) => { value.memorySamples.pop(); });
 rejects("host-only memory", (value) => { value.memorySamples[0].memory.processTreeCoverage = "host_only"; });
 rejects("incomplete macOS coalition", (value) => {

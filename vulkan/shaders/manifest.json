@@ -5,22 +5,22 @@
   ],
   "division_variants": [
     {
-      "arithmetic_rewrites": 9450,
+      "arithmetic_rewrites": 23,
       "artifact": "variants/nvidia-rte-precise-v1/boundary_layer/slab_column.comp.spv",
-      "artifact_hash": "33d03bcb8c4f18e2",
+      "artifact_hash": "d3d8b22a36cab4c1",
       "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
       "requires_fma": true,
       "source_artifact": "boundary_layer/slab_column.comp.spv",
-      "source_hash": "0533932ed4169f2a"
+      "source_hash": "f5b5659db7b11bff"
     },
     {
-      "arithmetic_rewrites": 216,
+      "arithmetic_rewrites": 4,
       "artifact": "variants/nvidia-rte-precise-v1/microphysics/milbrandt_cloud_adjustment.comp.spv",
-      "artifact_hash": "992b4f3bd6f34c83",
+      "artifact_hash": "6e3ccb9f81a36d11",
       "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
       "requires_fma": true,
       "source_artifact": "microphysics/milbrandt_cloud_adjustment.comp.spv",
-      "source_hash": "10e55c8792a0eed8"
+      "source_hash": "dbc1cfd29eef710f"
     },
     {
       "arithmetic_rewrites": 23,
@@ -29,16 +29,16 @@
       "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
       "requires_fma": true,
       "source_artifact": "microphysics/milbrandt_cold.comp.spv",
-      "source_hash": "6c1400a6acb6a3cf"
+      "source_hash": "9884ccfca60a2f35"
     },
     {
-      "arithmetic_rewrites": 7680,
+      "arithmetic_rewrites": 23,
       "artifact": "variants/nvidia-rte-precise-v1/microphysics/milbrandt_melting.comp.spv",
-      "artifact_hash": "f98ceca1337f5482",
+      "artifact_hash": "4f8e971ab4388f93",
       "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
       "requires_fma": true,
       "source_artifact": "microphysics/milbrandt_melting.comp.spv",
-      "source_hash": "1320b943f4fb2b10"
+      "source_hash": "c8597652137fab74"
     },
     {
       "arithmetic_rewrites": 23,
@@ -47,176 +47,176 @@
       "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
       "requires_fma": true,
       "source_artifact": "microphysics/milbrandt_sedimentation.comp.spv",
-      "source_hash": "e08e8461de17bbea"
+      "source_hash": "b87921fd33f236b2"
     },
     {
-      "arithmetic_rewrites": 385,
+      "arithmetic_rewrites": 55,
       "artifact": "variants/nvidia-rte-precise-v1/microphysics/milbrandt_warm_rain.comp.spv",
-      "artifact_hash": "7e55f13c209005d1",
+      "artifact_hash": "cb872fa10002689b",
       "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
       "requires_fma": true,
       "source_artifact": "microphysics/milbrandt_warm_rain.comp.spv",
-      "source_hash": "1d51c25de76aca9c"
+      "source_hash": "5b12883a9c382a6d"
     },
     {
-      "arithmetic_rewrites": 482,
+      "arithmetic_rewrites": 9,
       "artifact": "variants/nvidia-rte-precise-v1/microphysics/thompson_cloud_adjustment.comp.spv",
-      "artifact_hash": "82e474901c4becac",
+      "artifact_hash": "bd4a436fa8d8fc06",
       "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
       "requires_fma": true,
       "source_artifact": "microphysics/thompson_cloud_adjustment.comp.spv",
-      "source_hash": "b067ce7c197ff366"
+      "source_hash": "1b71246919ab88d0"
     },
     {
-      "arithmetic_rewrites": 224,
+      "arithmetic_rewrites": 3,
       "artifact": "variants/nvidia-rte-precise-v1/microphysics/thompson_cloud_phase.comp.spv",
-      "artifact_hash": "07c2e3818a16f609",
+      "artifact_hash": "9217522054b0c5d3",
       "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
       "requires_fma": true,
       "source_artifact": "microphysics/thompson_cloud_phase.comp.spv",
-      "source_hash": "be3560046aef2336"
+      "source_hash": "fb9940e42734e5ab"
     },
     {
-      "arithmetic_rewrites": 3240,
+      "arithmetic_rewrites": 4,
       "artifact": "variants/nvidia-rte-precise-v1/microphysics/thompson_completion.comp.spv",
-      "artifact_hash": "8c1de83faf2a9acc",
+      "artifact_hash": "a9ffbe6c02317bbe",
       "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
       "requires_fma": true,
       "source_artifact": "microphysics/thompson_completion.comp.spv",
-      "source_hash": "8e16568186c94251"
+      "source_hash": "4413901236eaab8f"
     },
     {
-      "arithmetic_rewrites": 583,
+      "arithmetic_rewrites": 4,
       "artifact": "variants/nvidia-rte-precise-v1/microphysics/thompson_deposition.comp.spv",
-      "artifact_hash": "fb5e2bebdc231dd3",
+      "artifact_hash": "0463d12e4683ceb9",
       "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
       "requires_fma": true,
       "source_artifact": "microphysics/thompson_deposition.comp.spv",
-      "source_hash": "534432a37abf704f"
+      "source_hash": "e73ee9547171b5f0"
     },
     {
-      "arithmetic_rewrites": 501,
+      "arithmetic_rewrites": 4,
       "artifact": "variants/nvidia-rte-precise-v1/microphysics/thompson_freezing.comp.spv",
-      "artifact_hash": "8f6a68110e2c9b29",
+      "artifact_hash": "758e2c336f370a2e",
       "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
       "requires_fma": true,
       "source_artifact": "microphysics/thompson_freezing.comp.spv",
-      "source_hash": "0ab08bcbfb7be4bd"
+      "source_hash": "a1c0710cde07a404"
     },
     {
-      "arithmetic_rewrites": 559,
+      "arithmetic_rewrites": 4,
       "artifact": "variants/nvidia-rte-precise-v1/microphysics/thompson_warm_rain.comp.spv",
-      "artifact_hash": "c1a495b229c7263d",
+      "artifact_hash": "690859d3cd1b1aea",
       "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
       "requires_fma": true,
       "source_artifact": "microphysics/thompson_warm_rain.comp.spv",
-      "source_hash": "ad0219f45de23a7b"
+      "source_hash": "43d2e861e86269c9"
     },
     {
-      "arithmetic_rewrites": 3801,
+      "arithmetic_rewrites": 23,
       "artifact": "variants/nvidia-rte-precise-v1/radiation/simple_grey.comp.spv",
-      "artifact_hash": "8afd8b0daef6ed77",
+      "artifact_hash": "891b591bd5ff7298",
       "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
       "requires_fma": true,
       "source_artifact": "radiation/simple_grey.comp.spv",
-      "source_hash": "d5ddb598b9945b85"
+      "source_hash": "7d1a2f6aaf0e148c"
     },
     {
-      "arithmetic_rewrites": 489,
+      "arithmetic_rewrites": 24,
       "artifact": "variants/nvidia-rte-precise-v1/terrain/column_remap.comp.spv",
-      "artifact_hash": "4374ad58c856be78",
+      "artifact_hash": "2454d2551d8d4b3d",
       "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
       "requires_fma": true,
       "source_artifact": "terrain/column_remap.comp.spv",
-      "source_hash": "2b92fb2bfae9437c"
+      "source_hash": "d6f606e47593105f"
     },
     {
-      "arithmetic_rewrites": 606,
+      "arithmetic_rewrites": 24,
       "artifact": "variants/nvidia-rte-precise-v1/terrain/conservative_remap.comp.spv",
-      "artifact_hash": "bf8ceba075b6a271",
+      "artifact_hash": "3539f84a78b46fe4",
       "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
       "requires_fma": true,
       "source_artifact": "terrain/conservative_remap.comp.spv",
-      "source_hash": "bfeb00eb90b152ad"
+      "source_hash": "a54a3b07668cfa98"
     },
     {
-      "arithmetic_rewrites": 13390,
+      "arithmetic_rewrites": 23,
       "artifact": "variants/nvidia-rte-precise-v1/terrain/earth_geometry.comp.spv",
-      "artifact_hash": "16fcec915db3b6ee",
+      "artifact_hash": "9898739288680156",
       "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
       "requires_fma": true,
       "source_artifact": "terrain/earth_geometry.comp.spv",
-      "source_hash": "998b6a6578d4c974"
+      "source_hash": "6fdd830b23565fd3"
     },
     {
-      "arithmetic_rewrites": 1518,
+      "arithmetic_rewrites": 25,
       "artifact": "variants/nvidia-rte-precise-v1/terrain/held_sources.comp.spv",
-      "artifact_hash": "1699ff56082bdff7",
+      "artifact_hash": "3d1598613b300d8e",
       "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
       "requires_fma": true,
       "source_artifact": "terrain/held_sources.comp.spv",
-      "source_hash": "69694193dca0a6cb"
+      "source_hash": "740eec00158d6c5d"
     },
     {
-      "arithmetic_rewrites": 2212,
+      "arithmetic_rewrites": 24,
       "artifact": "variants/nvidia-rte-precise-v1/terrain/moving_energy.comp.spv",
-      "artifact_hash": "c85812ab444004fc",
+      "artifact_hash": "1fa62d1194d145db",
       "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
       "requires_fma": true,
       "source_artifact": "terrain/moving_energy.comp.spv",
-      "source_hash": "15d885996e3e2922"
+      "source_hash": "8d569d0a392f57aa"
     },
     {
-      "arithmetic_rewrites": 5297,
+      "arithmetic_rewrites": 24,
       "artifact": "variants/nvidia-rte-precise-v1/terrain/moving_momentum.comp.spv",
-      "artifact_hash": "383e7de75f6bd049",
+      "artifact_hash": "bf4382c5b1fb5f9e",
       "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
       "requires_fma": true,
       "source_artifact": "terrain/moving_momentum.comp.spv",
-      "source_hash": "0a5200d008ce5325"
+      "source_hash": "583fdc339bb49da8"
     },
     {
-      "arithmetic_rewrites": 1082,
+      "arithmetic_rewrites": 26,
       "artifact": "variants/nvidia-rte-precise-v1/terrain/reference_atmosphere.comp.spv",
-      "artifact_hash": "cd28ba3918564bf1",
+      "artifact_hash": "8eb1b5680d1d51a3",
       "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
       "requires_fma": true,
       "source_artifact": "terrain/reference_atmosphere.comp.spv",
-      "source_hash": "80d76c70d1765224"
+      "source_hash": "794ec6786cf6867b"
     },
     {
-      "arithmetic_rewrites": 287,
+      "arithmetic_rewrites": 22,
       "artifact": "variants/nvidia-rte-precise-v1/time_stepping/rk_combination.comp.spv",
-      "artifact_hash": "e9a8eb721c1d2087",
+      "artifact_hash": "79cd3f4c96b0e69c",
       "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
       "requires_fma": true,
       "source_artifact": "time_stepping/rk_combination.comp.spv",
-      "source_hash": "3b43f5ae41beaee5"
+      "source_hash": "0f3defca792671f1"
     },
     {
-      "arithmetic_rewrites": 8431,
+      "arithmetic_rewrites": 26,
       "artifact": "variants/nvidia-rte-precise-v1/time_stepping/rk_tendency.comp.spv",
-      "artifact_hash": "bc3145a83d92fb18",
+      "artifact_hash": "aa859b8f7cf9493c",
       "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
       "requires_fma": true,
       "source_artifact": "time_stepping/rk_tendency.comp.spv",
-      "source_hash": "d9588873ec35e908"
+      "source_hash": "fe9f61763281b3d7"
     },
     {
-      "arithmetic_rewrites": 25073,
+      "arithmetic_rewrites": 34,
       "artifact": "variants/nvidia-rte-precise-v1/turbulence/collocated_sgs.comp.spv",
-      "artifact_hash": "824d6079e08b24b9",
+      "artifact_hash": "259eae083d9df4d4",
       "helper_sha256": "924ffdaecedb3201953a6e64f487aa7c7865d937a9548a2629892dcfaa744854",
       "requires_fma": true,
       "source_artifact": "turbulence/collocated_sgs.comp.spv",
-      "source_hash": "4f21d73cda657727"
+      "source_hash": "e4cdc2eb9bde0730"
     }
   ],
   "include_sha256": {
     "vulkan/shaders/compute/acoustic/momentum_precision.glsl": "bda4bf5d1a439fe20be22d816b27e77d9e3e1549bc80d243e501515f93208540",
     "vulkan/shaders/compute/acoustic/pressure_eos.glsl": "428d1354ab6131e4f1af97c6624b56991f451b58f957dd0c7bba1f0a5b2233e3",
     "vulkan/shaders/compute/dynamics/boundary_float32.glsl": "0c13df48da453c39293f1e963d790a2d17842383918bf3aee653f48de00effff",
-    "vulkan/shaders/compute/microphysics/compensated_fma.glsl": "1aa62d1a150d642050eb4afe6881f6c5b683f30f859df07d0686fad918573139",
+    "vulkan/shaders/compute/microphysics/compensated_fma.glsl": "09b4b4bbbf9ee4dbb07e25a14e9b46b9c05b26d4de94c18fd8e695d443de3b62",
     "vulkan/shaders/compute/microphysics/liquid_adjustment.glsl": "a3b27fdf846492b4064faf2454974be035af5a6d4ecc219120543d01d0acb35b",
     "vulkan/shaders/compute/microphysics/milbrandt_thermodynamics.glsl": "809a87d96a8d43aecf81fbcd5804f3b19d2d228659514ac131cfaed4e23139ed",
     "vulkan/shaders/compute/microphysics/thompson_compensated.glsl": "249fb162bae663bf06a6991954de797c50eb0dbddc59222701a4a7ff650c7761",
@@ -279,9 +279,9 @@
       "generator_word": "0x0008000b",
       "push_constant_bytes": 16,
       "source": "vulkan/shaders/compute/acoustic/acoustic_boundary_cartesian_agrid.comp",
-      "source_sha256": "59c9dee8cb4de4936140d7efbf650032e64c058d7d71bd14d5f1b99e01dc0296",
-      "spirv_fnv1a64": "df90cca9220f6567",
-      "spirv_sha256": "8a57c95afea45df6ff909d2811c45f5304f437e11809d25e5c33ec4cf4bc4517",
+      "source_sha256": "d30fd8e0fe05caf4af2ba0bd98de530707b6becdf22db84caf3c408a47e77b4e",
+      "spirv_fnv1a64": "99bb7a86c5d9ce3a",
+      "spirv_sha256": "2c2bea81dbe35968df4cb437c3d030a8f0eee9bbeb411e2bd6c86fd7cc973537",
       "stage": "comp"
     },
     {
@@ -485,15 +485,14 @@
       ],
       "entry_point": "main",
       "flags": [
-        "-V",
-        "-Os"
+        "-V"
       ],
-      "generator_word": "0x0008000b",
+      "generator_word": "0x00070000",
       "push_constant_bytes": 44,
       "source": "vulkan/shaders/compute/acoustic/acoustic_momentum_cartesian_cgrid.comp",
-      "source_sha256": "16694bffbb5edf09ef88154e2145c226de0822d75b3f3a9e2ec75a79c4b11a74",
-      "spirv_fnv1a64": "ff184576aa4bd7ed",
-      "spirv_sha256": "07f79a36df385423506b822a7aa87d7102f4170582d10a93bc002da9d0d93bf1",
+      "source_sha256": "ab6c59be6f170f4bd9fd466473793314fb3cc0202d96b8a9e1575a9dc25cc9b4",
+      "spirv_fnv1a64": "5aaa9864523d9afe",
+      "spirv_sha256": "7a3c86f946ecfa4ab3e379928e8ce91ce7be5a15c9d46d43efc8e9d6be9a182d",
       "stage": "comp"
     },
     {
@@ -622,7 +621,15 @@
           "set": 0
         },
         {
+          "binding": 4,
+          "set": 0
+        },
+        {
           "binding": 5,
+          "set": 0
+        },
+        {
+          "binding": 6,
           "set": 0
         },
         {
@@ -640,15 +647,14 @@
       ],
       "entry_point": "main",
       "flags": [
-        "-V",
-        "-Os"
+        "-V"
       ],
-      "generator_word": "0x0008000b",
+      "generator_word": "0x00070000",
       "push_constant_bytes": 72,
       "source": "vulkan/shaders/compute/acoustic/acoustic_pressure_cartesian_cgrid.comp",
-      "source_sha256": "820ca5048642a9a9b0e6d975f616c455c61ea2ce67e0ec3660fcc7932a63939e",
-      "spirv_fnv1a64": "12c11b8636f940fe",
-      "spirv_sha256": "b5dbbb7a4ee5c0838974db9f8752130d6be328175d877994865c1c98f011f980",
+      "source_sha256": "91e22523c502e3591bb76176270c45b5e16d4ed17de6eedd1fd1b57be14d849d",
+      "spirv_fnv1a64": "6c894aca4fa6b927",
+      "spirv_sha256": "806e4c31ea261156063ebfa205dbc058cca1c06fb36823eb07227ab4bf3745e0",
       "stage": "comp"
     },
     {
@@ -876,12 +882,12 @@
         "-V",
         "-Os"
       ],
-      "generator_word": "0x0008000b",
+      "generator_word": "0x00070000",
       "push_constant_bytes": 16,
       "source": "vulkan/shaders/compute/advection/advect_conservative_scalar_flux_cartesian_cgrid.comp",
       "source_sha256": "a012cb97e19af7ee0956c9823821858810372bc8d5e46613ed35620f213b84b4",
-      "spirv_fnv1a64": "c6663293e8b3ff6a",
-      "spirv_sha256": "d5fd008162868bb247e9b313e2b4eef9077a1f1fba8a1a68ef744b7e8ac8c92a",
+      "spirv_fnv1a64": "d06fdf77b3f8dc9d",
+      "spirv_sha256": "1e18f33f7293bcb94b93d3fb2b3e60018b933b653251d269ea24043c9dd57370",
       "stage": "comp"
     },
     {
@@ -1156,15 +1162,14 @@
       ],
       "entry_point": "main",
       "flags": [
-        "-V",
-        "-Os"
+        "-V"
       ],
-      "generator_word": "0x0008000b",
+      "generator_word": "0x00070000",
       "push_constant_bytes": 32,
       "source": "vulkan/shaders/compute/boundary_layer/slab_column.comp",
       "source_sha256": "ef744ee59f5d153abc0af3c76bb92d6f96be224290cd4e0949e0b6813261d1e3",
-      "spirv_fnv1a64": "0533932ed4169f2a",
-      "spirv_sha256": "9b2042e2a59e61efeba4e8c9ade3db30de6674cf23321b62561a141c52dcf81c",
+      "spirv_fnv1a64": "f5b5659db7b11bff",
+      "spirv_sha256": "5e0bf96a957f1bae54c073a88cd6aabac2a772b20b40e78a7a84ff754ceb5611",
       "stage": "comp"
     },
     {
@@ -1181,15 +1186,14 @@
       ],
       "entry_point": "main",
       "flags": [
-        "-V",
-        "-Os"
+        "-V"
       ],
-      "generator_word": "0x0008000b",
+      "generator_word": "0x00070000",
       "push_constant_bytes": 80,
       "source": "vulkan/shaders/compute/chaos/earth_control_evolution.comp",
-      "source_sha256": "640b86a4c1be12b593c5e18bcd8fb35937331bded69211b9ce502f505e66f192",
-      "spirv_fnv1a64": "4de32726b640ea78",
-      "spirv_sha256": "9e59126384aed2fecb6ec3f61856b591f8bd46325ed098dc6cd07c7e4e44aba7",
+      "source_sha256": "187f456359ae27bc515e3ed514506fe5b237794e5189a7657a3c30624945c5f5",
+      "spirv_fnv1a64": "ad1ec8614e502ab2",
+      "spirv_sha256": "b20f1c69fedad3050b4b0357a951b223c237608bf78d8f65248ef4e3c0a2942a",
       "stage": "comp"
     },
     {
@@ -1634,15 +1638,14 @@
       ],
       "entry_point": "main",
       "flags": [
-        "-V",
-        "-Os"
+        "-V"
       ],
-      "generator_word": "0x0008000b",
+      "generator_word": "0x00070000",
       "push_constant_bytes": 80,
       "source": "vulkan/shaders/compute/dynamics/conservative_momentum.comp",
       "source_sha256": "f242ccf3e073242524b08fb48d9777f37e347011ba6e12b8e215bc2d5f22688c",
-      "spirv_fnv1a64": "34ea6cb005636aeb",
-      "spirv_sha256": "28c854e2d936870351654d85706bee74d1d91b49b6dfa48d1bac63712f1b68f5",
+      "spirv_fnv1a64": "09fff86ade92406e",
+      "spirv_sha256": "4359869bcc98f48d71acc63996ddfd78c83f354c181bdb9d0e3b8c014987d09c",
       "stage": "comp"
     },
     {
@@ -1659,15 +1662,14 @@
       ],
       "entry_point": "main",
       "flags": [
-        "-V",
-        "-Os"
+        "-V"
       ],
-      "generator_word": "0x0008000b",
+      "generator_word": "0x00070000",
       "push_constant_bytes": 8,
       "source": "vulkan/shaders/compute/dynamics/conservative_reduction.comp",
       "source_sha256": "86957bcd06b3bc0dcc16a60b05afbfe8f16fd05d77c58939e4e9cabbffd34203",
-      "spirv_fnv1a64": "ac0410b844aa84d3",
-      "spirv_sha256": "a973d3f6d51147ada826f2bbace133ccbccc1d8f4ec7325a9884dad6f5c1f937",
+      "spirv_fnv1a64": "2eda27e1074ccd5e",
+      "spirv_sha256": "13808b7d13a80797c3c1ca508b9942be4c5083a10ebf61643a28223a820c3f3c",
       "stage": "comp"
     },
     {
@@ -2195,15 +2197,14 @@
       ],
       "entry_point": "main",
       "flags": [
-        "-V",
-        "-Os"
+        "-V"
       ],
-      "generator_word": "0x0008000b",
+      "generator_word": "0x00070000",
       "push_constant_bytes": 48,
       "source": "vulkan/shaders/compute/microphysics/milbrandt_cloud_adjustment.comp",
       "source_sha256": "c7bae35dea20d3f1db2abdc84f01352f1571242528e63f22555dd0a05338ea2d",
-      "spirv_fnv1a64": "10e55c8792a0eed8",
-      "spirv_sha256": "d0dd9030329614096cc40dba5c3f6e044037ab569a38872ab188569fdc840900",
+      "spirv_fnv1a64": "dbc1cfd29eef710f",
+      "spirv_sha256": "86e517b86143d559e4d9e96799b241d184ee484d4ba86098fbf29c969f255722",
       "stage": "comp"
     },
     {
@@ -2278,12 +2279,12 @@
       "flags": [
         "-V"
       ],
-      "generator_word": "0x0008000b",
+      "generator_word": "0x00070000",
       "push_constant_bytes": 48,
       "source": "vulkan/shaders/compute/microphysics/milbrandt_cold.comp",
       "source_sha256": "5dc81efbca9c498d86f550e4c0beee28abfe2d5968ec0c13664406ef80a6c67c",
-      "spirv_fnv1a64": "6c1400a6acb6a3cf",
-      "spirv_sha256": "2c8c04996cbc88cee9b0bbae4b749f893646b0b28fab6ffd8e5a39203267852c",
+      "spirv_fnv1a64": "9884ccfca60a2f35",
+      "spirv_sha256": "53df3d4f67558f23b07bdedfd0c2864cc31e47b8eba2f531bcd8846759b80884",
       "stage": "comp"
     },
     {
@@ -2388,15 +2389,14 @@
       ],
       "entry_point": "main",
       "flags": [
-        "-V",
-        "-Os"
+        "-V"
       ],
-      "generator_word": "0x0008000b",
+      "generator_word": "0x00070000",
       "push_constant_bytes": 44,
       "source": "vulkan/shaders/compute/microphysics/milbrandt_melting.comp",
       "source_sha256": "ac3d00702ff7f27e62e766c744dc58f22bdfa33bad602986bc8928fea04ba828",
-      "spirv_fnv1a64": "1320b943f4fb2b10",
-      "spirv_sha256": "2e5e2baa372b741fee120b917438e201e28a34c34dc5d05dc17cfdab3dfc14bc",
+      "spirv_fnv1a64": "c8597652137fab74",
+      "spirv_sha256": "43f30788d74303f3c984f53b40049c3d2ecba1b16d067a32395c5b0201a71445",
       "stage": "comp"
     },
     {
@@ -2455,12 +2455,12 @@
       "flags": [
         "-V"
       ],
-      "generator_word": "0x0008000b",
+      "generator_word": "0x00070000",
       "push_constant_bytes": 48,
       "source": "vulkan/shaders/compute/microphysics/milbrandt_sedimentation.comp",
       "source_sha256": "e42cb1a65eb633f1ebccfb33011f632f4401e4479ad8c36f906b87147dcd20d4",
-      "spirv_fnv1a64": "e08e8461de17bbea",
-      "spirv_sha256": "9399d9fa145c067be44ee868d610e43114fd4e3d598f7bf038797d3f8c9ae0bc",
+      "spirv_fnv1a64": "b87921fd33f236b2",
+      "spirv_sha256": "83907e6ca30221dae2fae428c8009c6f30bf453b9c899a1fc5152e46d9e0acbf",
       "stage": "comp"
     },
     {
@@ -2553,15 +2553,14 @@
       ],
       "entry_point": "main",
       "flags": [
-        "-V",
-        "-Os"
+        "-V"
       ],
-      "generator_word": "0x0008000b",
+      "generator_word": "0x00070000",
       "push_constant_bytes": 44,
       "source": "vulkan/shaders/compute/microphysics/milbrandt_warm_rain.comp",
       "source_sha256": "ab06e71e3b67ad40fe5d1a01780a1c6e730c78cbbc401d74c86982c9f7bfec1b",
-      "spirv_fnv1a64": "1d51c25de76aca9c",
-      "spirv_sha256": "31049a357be32f77fc3bf24ddb4d75cbdb1ac58c7ef436e349e5a81af6deadf8",
+      "spirv_fnv1a64": "5b12883a9c382a6d",
+      "spirv_sha256": "36264d641732d9bd67f3c9ca7525dea9de512886a395bb5c187e34a704a1bbac",
       "stage": "comp"
     },
     {
@@ -2642,15 +2641,14 @@
       ],
       "entry_point": "main",
       "flags": [
-        "-V",
-        "-Os"
+        "-V"
       ],
-      "generator_word": "0x0008000b",
+      "generator_word": "0x00070000",
       "push_constant_bytes": 48,
       "source": "vulkan/shaders/compute/microphysics/thompson_cloud_adjustment.comp",
       "source_sha256": "6a5880fca21ab7d43e66fb4f02f379643089d00f9863bb3df7afe799fc62523d",
-      "spirv_fnv1a64": "b067ce7c197ff366",
-      "spirv_sha256": "8317391423e4729e7faa34f95b32eebf2c97cb422ef27e2ea2c96301073689a9",
+      "spirv_fnv1a64": "1b71246919ab88d0",
+      "spirv_sha256": "92acaedf7c8a46c33d41b9cc395e23814ed344360e5a30f12577c27375036c06",
       "stage": "comp"
     },
     {
@@ -2731,15 +2729,14 @@
       ],
       "entry_point": "main",
       "flags": [
-        "-V",
-        "-Os"
+        "-V"
       ],
-      "generator_word": "0x0008000b",
+      "generator_word": "0x00070000",
       "push_constant_bytes": 44,
       "source": "vulkan/shaders/compute/microphysics/thompson_cloud_phase.comp",
       "source_sha256": "98f009360a161fe76c2de5ff7082744b05ac73512f04d5167238757aca4c6b2f",
-      "spirv_fnv1a64": "be3560046aef2336",
-      "spirv_sha256": "fb6d9d41d4ec3edbdcf1d90a1edaedd9cc5f405adf1cba57596010f6b3662362",
+      "spirv_fnv1a64": "fb9940e42734e5ab",
+      "spirv_sha256": "25585321877d8a1277772c7e9d4d8368339393355e426ffd983fac58f618ea2d",
       "stage": "comp"
     },
     {
@@ -2760,15 +2757,14 @@
       ],
       "entry_point": "main",
       "flags": [
-        "-V",
-        "-Os"
+        "-V"
       ],
-      "generator_word": "0x0008000b",
+      "generator_word": "0x00070000",
       "push_constant_bytes": 12,
       "source": "vulkan/shaders/compute/microphysics/thompson_completion.comp",
       "source_sha256": "a26a197743bd00d74d28760525426aceef5b2cb72080d09792776e98c2117fa7",
-      "spirv_fnv1a64": "8e16568186c94251",
-      "spirv_sha256": "7a55d7ddebc9d31489528b970d75bb858e467109708dbeb2bc953b359aabebe6",
+      "spirv_fnv1a64": "4413901236eaab8f",
+      "spirv_sha256": "50d98eb505eafac9c33f809d8c9d074e060db1e91df9ed3261802e802caba70c",
       "stage": "comp"
     },
     {
@@ -2881,15 +2877,14 @@
       ],
       "entry_point": "main",
       "flags": [
-        "-V",
-        "-Os"
+        "-V"
       ],
-      "generator_word": "0x0008000b",
+      "generator_word": "0x00070000",
       "push_constant_bytes": 44,
       "source": "vulkan/shaders/compute/microphysics/thompson_deposition.comp",
       "source_sha256": "a89b79aef3c04437816706e9d5ef105b12e39ac2094194be002bf2a0990ff6ee",
-      "spirv_fnv1a64": "534432a37abf704f",
-      "spirv_sha256": "b2072219183035aca238950f758576e4fd27dcaa29ec8d9b7f27346f67f0b429",
+      "spirv_fnv1a64": "e73ee9547171b5f0",
+      "spirv_sha256": "1cd37983f69c4553cd00840faa898ea10683f8e661aa63f015ec8d88105a8f32",
       "stage": "comp"
     },
     {
@@ -3014,15 +3009,14 @@
       ],
       "entry_point": "main",
       "flags": [
-        "-V",
-        "-Os"
+        "-V"
       ],
-      "generator_word": "0x0008000b",
+      "generator_word": "0x00070000",
       "push_constant_bytes": 44,
       "source": "vulkan/shaders/compute/microphysics/thompson_freezing.comp",
       "source_sha256": "97dee19d798abeed7155e30e7993100f67e4141e22630db17fde60604fc82dfc",
-      "spirv_fnv1a64": "0ab08bcbfb7be4bd",
-      "spirv_sha256": "bbc5f83b6ebdb8abf3f66da3504c6917d71958fc68002af336030ef25d863980",
+      "spirv_fnv1a64": "a1c0710cde07a404",
+      "spirv_sha256": "06c7d73037c744dc837a0ccab56e11bcdcd35173d48054ea58eb6ddd8d44912e",
       "stage": "comp"
     },
     {
@@ -3334,15 +3328,14 @@
       ],
       "entry_point": "main",
       "flags": [
-        "-V",
-        "-Os"
+        "-V"
       ],
-      "generator_word": "0x0008000b",
+      "generator_word": "0x00070000",
       "push_constant_bytes": 44,
       "source": "vulkan/shaders/compute/microphysics/thompson_warm_rain.comp",
       "source_sha256": "4ec0ceea4abb8558fbb6760af09ebd760d93ca900f6fc14492d957ad02b22827",
-      "spirv_fnv1a64": "ad0219f45de23a7b",
-      "spirv_sha256": "411b4070257a082bcb0209d855ce8859bc97f3017ae3f0fc5909038092c7527a",
+      "spirv_fnv1a64": "43d2e861e86269c9",
+      "spirv_sha256": "4240519dae6b50f36c1beb80ae88659c3393e8ef6bff595d076b270d0600a6c7",
       "stage": "comp"
     },
     {
@@ -3651,15 +3644,14 @@
       ],
       "entry_point": "main",
       "flags": [
-        "-V",
-        "-Os"
+        "-V"
       ],
-      "generator_word": "0x0008000b",
+      "generator_word": "0x00070000",
       "push_constant_bytes": 32,
       "source": "vulkan/shaders/compute/radiation/simple_grey.comp",
       "source_sha256": "fdbd6040f845671dcc3038d21948ae2581941b9a78e44b215da73db0499de86d",
-      "spirv_fnv1a64": "d5ddb598b9945b85",
-      "spirv_sha256": "368b8100ddac869289d1f6dd6f2c82c599417a1f8c6d7ad8cad90ce8235840d7",
+      "spirv_fnv1a64": "7d1a2f6aaf0e148c",
+      "spirv_sha256": "ad2a2de35faa25a42084ce06c01f74e9e7939a5063ccda0e8e239b210ad5600d",
       "stage": "comp"
     },
     {
@@ -3676,15 +3668,14 @@
       ],
       "entry_point": "main",
       "flags": [
-        "-V",
-        "-Os"
+        "-V"
       ],
-      "generator_word": "0x0008000b",
+      "generator_word": "0x00070000",
       "push_constant_bytes": 32,
       "source": "vulkan/shaders/compute/terrain/column_remap.comp",
       "source_sha256": "0bce9e4c22aa08fa3d33143cd6a557a01b142b2b6ee6ecd7928788e525defa5c",
-      "spirv_fnv1a64": "2b92fb2bfae9437c",
-      "spirv_sha256": "09f162f6c371f06b5a9fe23fee8ab53ff99e6a2a0bcdfc0460749b66905c40d7",
+      "spirv_fnv1a64": "d6f606e47593105f",
+      "spirv_sha256": "b90d0e17e7a6ec2ef1fff84257c5a9293684e06df16f0a65c2f846a1399ef2da",
       "stage": "comp"
     },
     {
@@ -3797,15 +3788,14 @@
       ],
       "entry_point": "main",
       "flags": [
-        "-V",
-        "-Os"
+        "-V"
       ],
-      "generator_word": "0x0008000b",
+      "generator_word": "0x00070000",
       "push_constant_bytes": 24,
       "source": "vulkan/shaders/compute/terrain/conservative_remap.comp",
       "source_sha256": "c40e2e0f4045a7f5600ec81b91016d68c31179d42c47abc01a5c97b0f19fee79",
-      "spirv_fnv1a64": "bfeb00eb90b152ad",
-      "spirv_sha256": "f2021e457ff409840c1c332c32aec532e96525ec2ed93b1f0ca8d4c52275da00",
+      "spirv_fnv1a64": "a54a3b07668cfa98",
+      "spirv_sha256": "b8acabda09789fcd4ee1079911e1b6d982954086d6d12ba9d97b2ccbf3a7156f",
       "stage": "comp"
     },
     {
@@ -3926,15 +3916,14 @@
       ],
       "entry_point": "main",
       "flags": [
-        "-V",
-        "-Os"
+        "-V"
       ],
-      "generator_word": "0x0008000b",
+      "generator_word": "0x00070000",
       "push_constant_bytes": 112,
       "source": "vulkan/shaders/compute/terrain/earth_geometry.comp",
       "source_sha256": "e79cc510fa48084e7b13f7621d25b46d799dfe5ae26c98d85d06a988721f8b4c",
-      "spirv_fnv1a64": "998b6a6578d4c974",
-      "spirv_sha256": "c76ccf2f5e6bb0bb68ae1669467527c95644d29b240252f4206ad21511386523",
+      "spirv_fnv1a64": "6fdd830b23565fd3",
+      "spirv_sha256": "8a57e6d3fb705c23f13e108a1bac5cb1b1565e185d13cde5de63631005569c6b",
       "stage": "comp"
     },
     {
@@ -3951,15 +3940,14 @@
       ],
       "entry_point": "main",
       "flags": [
-        "-V",
-        "-Os"
+        "-V"
       ],
-      "generator_word": "0x0008000b",
+      "generator_word": "0x00070000",
       "push_constant_bytes": 84,
       "source": "vulkan/shaders/compute/terrain/held_sources.comp",
       "source_sha256": "a502491d728b58164bd6b2ab5d3b674af6b2736b97e8368207905493327c25d4",
-      "spirv_fnv1a64": "69694193dca0a6cb",
-      "spirv_sha256": "50e3f0ffdd8c6655f4e77880d8c17ce6a9c2ac383826d34ff62d376cdd18b310",
+      "spirv_fnv1a64": "740eec00158d6c5d",
+      "spirv_sha256": "ca28c61a66ba5ca43f2c4ff9fd1c58e153bfb40234e05ad9d6bf660b561207e2",
       "stage": "comp"
     },
     {
@@ -4330,15 +4318,14 @@
       ],
       "entry_point": "main",
       "flags": [
-        "-V",
-        "-Os"
+        "-V"
       ],
-      "generator_word": "0x0008000b",
+      "generator_word": "0x00070000",
       "push_constant_bytes": 48,
       "source": "vulkan/shaders/compute/terrain/mapped_scalar_update.comp",
       "source_sha256": "c2c0b67aa7aee759c0b8cf2c94f2d34799ec6d18c5106085ce803dd1b2f6b9b6",
-      "spirv_fnv1a64": "ed9dd8ac18410944",
-      "spirv_sha256": "823db9f680575687c741199d6b561a8d5059ea85bbea1b08c18721b01a426794",
+      "spirv_fnv1a64": "69ee3b1adb8063a6",
+      "spirv_sha256": "b6bdaf3b8c1fb51cf85f0f2cc57042a151da1bbfd981fd68a1352e1f2249519e",
       "stage": "comp"
     },
     {
@@ -4549,15 +4536,14 @@
       ],
       "entry_point": "main",
       "flags": [
-        "-V",
-        "-Os"
+        "-V"
       ],
-      "generator_word": "0x0008000b",
+      "generator_word": "0x00070000",
       "push_constant_bytes": 128,
       "source": "vulkan/shaders/compute/terrain/moving_energy.comp",
       "source_sha256": "9e46e250b2555b4f7d28edb30385d644f518e815fb7c9a08883feb8d2af80ba8",
-      "spirv_fnv1a64": "15d885996e3e2922",
-      "spirv_sha256": "e08d88a4c69bab34c3a79d13362b58fd281c35291e89e58d8408f18de43eff78",
+      "spirv_fnv1a64": "8d569d0a392f57aa",
+      "spirv_sha256": "1132aed0174574f7f608de4865f695de88807ad904f1eebc96c5dc6be9ac2a3b",
       "stage": "comp"
     },
     {
@@ -4574,15 +4560,14 @@
       ],
       "entry_point": "main",
       "flags": [
-        "-V",
-        "-Os"
+        "-V"
       ],
-      "generator_word": "0x0008000b",
+      "generator_word": "0x00070000",
       "push_constant_bytes": 64,
       "source": "vulkan/shaders/compute/terrain/moving_momentum.comp",
       "source_sha256": "985fbc5e28b30dbecadcaac7377930ff0e152d1f9058b2b6f8351ab7a5d19e40",
-      "spirv_fnv1a64": "0a5200d008ce5325",
-      "spirv_sha256": "200fa3687a628f5d2f9359a5652c87540d6368cec614d9cd75e1a72bea716f5f",
+      "spirv_fnv1a64": "583fdc339bb49da8",
+      "spirv_sha256": "7c43cceee285a225ec602612f2c71a393606c1af01dcf04b37b84d74ece2aa4f",
       "stage": "comp"
     },
     {
@@ -4599,15 +4584,14 @@
       ],
       "entry_point": "main",
       "flags": [
-        "-V",
-        "-Os"
+        "-V"
       ],
-      "generator_word": "0x0008000b",
+      "generator_word": "0x00070000",
       "push_constant_bytes": 64,
       "source": "vulkan/shaders/compute/terrain/reference_atmosphere.comp",
       "source_sha256": "49bdf349dcf90a79f5ad9674b555983ff65a2488042ec2d62212799081bb1ae3",
-      "spirv_fnv1a64": "80d76c70d1765224",
-      "spirv_sha256": "199b4e9563432d945e45a8ebd07bd2736a9792e0f1dfefd1d399fdce74534061",
+      "spirv_fnv1a64": "794ec6786cf6867b",
+      "spirv_sha256": "bb264c0d7d8586389b8cad8d00093fb8a03f49ebcd845e3474a0e8880350524c",
       "stage": "comp"
     },
     {
@@ -4668,15 +4652,14 @@
       ],
       "entry_point": "main",
       "flags": [
-        "-V",
-        "-Os"
+        "-V"
       ],
-      "generator_word": "0x0008000b",
+      "generator_word": "0x00070000",
       "push_constant_bytes": 64,
       "source": "vulkan/shaders/compute/time_stepping/rk_combination.comp",
       "source_sha256": "f5908effc4e3e2b95e8c1013e1e87cc5ab70cad559d54d6b149013a776bf88aa",
-      "spirv_fnv1a64": "3b43f5ae41beaee5",
-      "spirv_sha256": "76ea103d789c73dcaa72746168e7e16f771374663b34f1f15666875299d648bf",
+      "spirv_fnv1a64": "0f3defca792671f1",
+      "spirv_sha256": "b34aba10622f8ed38da0814d751cd406fdd57f48edd70660ef623cc782a971a7",
       "stage": "comp"
     },
     {
@@ -4733,15 +4716,14 @@
       ],
       "entry_point": "main",
       "flags": [
-        "-V",
-        "-Os"
+        "-V"
       ],
-      "generator_word": "0x0008000b",
+      "generator_word": "0x00070000",
       "push_constant_bytes": 64,
       "source": "vulkan/shaders/compute/time_stepping/rk_tendency.comp",
       "source_sha256": "996fa622acaafdc5133363c20b9e99d0ffd862a91feda83b1516d59b9dfdce46",
-      "spirv_fnv1a64": "d9588873ec35e908",
-      "spirv_sha256": "19f15c5622d4502b2d464229233fc9d0996823cca484aa1714432c9a4cfa746c",
+      "spirv_fnv1a64": "fe9f61763281b3d7",
+      "spirv_sha256": "5e049f10d241c5ce481bec428810200c3038d5eb3ce480125dc7e6c48bbaa8d7",
       "stage": "comp"
     },
     {
@@ -4842,15 +4824,14 @@
       ],
       "entry_point": "main",
       "flags": [
-        "-V",
-        "-Os"
+        "-V"
       ],
-      "generator_word": "0x0008000b",
+      "generator_word": "0x00070000",
       "push_constant_bytes": 64,
       "source": "vulkan/shaders/compute/turbulence/collocated_sgs.comp",
       "source_sha256": "c225bf3040f4474c56d1ac63d799f710dcbac7d8773b6ef7637602bf60bce225",
-      "spirv_fnv1a64": "4f21d73cda657727",
-      "spirv_sha256": "ebd82ca0f6ef03e60c504815b2d9390beb51039fe3ad219a0f6c0ab2f40457ca",
+      "spirv_fnv1a64": "e4cdc2eb9bde0730",
+      "spirv_sha256": "be56888556ec19c86f2786c0aa4005b73d0688681c18dc1ce0eb7b79b53d1585",
       "stage": "comp"
     },
     {

@@ -9,6 +9,12 @@ async function open3D(page: Page, plot: string): Promise<void> {
   await page.getByRole("button", { name: "3D", exact: true }).click();
   await page.getByRole("button", { name: plot, exact: true }).click();
   await expect(page.locator(".volume-render__controls").first()).toBeVisible({ timeout: 30_000 });
+  if (plot === "Rendered supercell") {
+    await page.waitForFunction(() => {
+      const data = document.querySelector<HTMLElement>(".plot3d-overlay-host")?.dataset;
+      return data?.sceneFrameCommitPending === "false" && data.scenePresentationPending === "false";
+    }, undefined, { timeout: 30_000 });
+  }
 }
 
 async function openDirect3D(page: Page, plot: "isosurface" | "streamlines"): Promise<void> {

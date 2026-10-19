@@ -11,8 +11,8 @@ test("companion 3D playback stays available with a whole-run primary plot", asyn
   await page.locator(".plot-studio__panes-options").getByRole("button", { name: "Quad", exact: true }).click();
   const slider = page.getByRole("slider", { name: "Selected frame", exact: true });
   await expect(slider).toBeVisible();
-  const frames = () => page.evaluate(async () => (await window.__nimbusStudioHarness!.capturePaneAppearances())
-    .map(capture => capture?.evidence.descriptor.frameIndex ?? null));
+  const frames = () => page.evaluate(() => window.__nimbusStudioHarness!.inspectPaneDescriptors()
+    .map(descriptor => descriptor?.frameIndex ?? null));
   await expect.poll(frames, { timeout: 60_000 }).toEqual([null, 0, 0, 0]);
   await slider.fill("1");
   await expect.poll(frames, { timeout: 60_000 }).toEqual([null, 1, 1, 1]);
@@ -60,8 +60,8 @@ test("mixed3D panes retain one saved time while a required streamline read is he
   await pickers.nth(0).selectOption("isosurface");
   await pickers.nth(1).selectOption("streamlines");
   await pickers.nth(2).selectOption("supercell");
-  const frames = () => page.evaluate(async () => (await window.__nimbusStudioHarness!.capturePaneAppearances())
-    .map(capture => capture?.evidence.descriptor.frameIndex ?? null));
+  const frames = () => page.evaluate(() => window.__nimbusStudioHarness!.inspectPaneDescriptors()
+    .map(descriptor => descriptor?.frameIndex ?? null));
   await expect.poll(frames, { timeout: 90_000 }).toEqual([0, 0, 0, 0]);
   await expect(page.locator('[data-volume-quality-preview="true"]')).toHaveCount(0);
   await expect(page.locator('.plot3d-control-notice.is-visible')).toHaveCount(0);
@@ -92,8 +92,8 @@ test("mixed3D panes retain one saved time while a required streamline read is he
   await page.getByRole("button", { name: "Pause frame playback", exact: true }).click();
   await page.evaluate(() => (window as unknown as { paneReadHold: { release: () => void } }).paneReadHold.release());
   await expect.poll(frames, { timeout: 90_000 }).toEqual([1, 1, 1, 1]);
-  const published = await page.evaluate(async () => (await window.__nimbusStudioHarness!.capturePaneAppearances())
-    .map(capture => capture?.evidence.descriptor.parameters?.renderedPublicationGeneration));
+  const published = await page.evaluate(() => window.__nimbusStudioHarness!.inspectPaneDescriptors()
+    .map(descriptor => descriptor?.parameters?.renderedPublicationGeneration));
   expect(published.every(generation => typeof generation === "string" && generation.length > 0)).toBe(true);
   expect(new Set(published).size).toBe(1);
   await page.getByRole("button", { name: "Play frames", exact: true }).click();

@@ -10,10 +10,15 @@ export interface VtkDisposable {
 export interface VtkRenderWindowDisposable extends VtkDisposable {
   /** The interactor, which `delete()` does NOT release — see `disposeVtkScene`. */
   getInteractor?: () => VtkDisposable | null | undefined;
+  getRenderer?: () => VtkDisposable | null | undefined;
+  getRenderWindow?: () => VtkDisposable | null | undefined;
   getApiSpecificRenderWindow?: () => {
+    releaseGraphicsResources?: () => void;
     setContainer?: (container: null) => void;
     getCanvas?: () => {
       dataset?: Record<string, string>;
+      width?: number;
+      height?: number;
       getContext?: (kind: "webgl2" | "webgl") => {
         getExtension?: (name: "WEBGL_lose_context") => {
           loseContext: () => void;
@@ -54,14 +59,23 @@ export function disposeVtkScene(options: DisposeVtkSceneOptions): unknown[] {
   // Capture now, delete last: render window must be deleted before the interactor.
   let interactor: VtkDisposable | null | undefined;
   attempt(() => { interactor = options.renderWindow.getInteractor?.(); }, errors);
+  let renderer: VtkDisposable | null | undefined;
+  let coreWindow: VtkDisposable | null | undefined;
+  attempt(() => { renderer = options.renderWindow.getRenderer?.(); }, errors);
+  attempt(() => { coreWindow = options.renderWindow.getRenderWindow?.(); }, errors);
+  // VTK window deletion drops its JS model without releasing cached graphics resources.
+  attempt(() => options.renderWindow.getApiSpecificRenderWindow?.().releaseGraphicsResources?.(), errors);
   for (const error of runVtkCleanupSteps(options.cleanupSteps ?? [])) {
     errors.push(error);
   }
   for (const resource of options.resources ?? []) {
-    const pointData = resource.getPointData?.();
+    let pointData: ReturnType<NonNullable<VtkDisposable["getPointData"]>> | undefined;
+    attempt(() => { pointData = resource.getPointData?.(); }, errors);
     if (pointData) {
-      const arrays = [...new Set(pointData.getArrays())];
-      attempt(() => pointData.removeAllArrays(), errors);
+      const data = pointData;
+      let arrays: ReturnType<typeof data.getArrays> = [];
+      attempt(() => { arrays = [...new Set(data.getArrays())]; }, errors);
+      attempt(() => data.removeAllArrays(), errors);
       for (const array of arrays) {
         if (typeof array.delete === "function") attempt(() => array.delete!(), errors);
       }
@@ -70,14 +84,19 @@ export function disposeVtkScene(options: DisposeVtkSceneOptions): unknown[] {
       attempt(() => resource.delete!(), errors);
     }
   }
-  // Chromium does not release WebGL contexts promptly on delete; explicitly
-  // retire via WEBGL_lose_context to stay under the browser's context ceiling.
+  let retireContext: (() => void) | undefined;
+  let retireDrawingBuffer: (() => void) | undefined;
   attempt(() => {
     const canvas = options.renderWindow.getApiSpecificRenderWindow?.().getCanvas?.();
-    if (!canvas?.getContext) return;
+    if (!canvas) return;
+    retireDrawingBuffer = () => {
+      if (typeof canvas.width === "number") canvas.width = 0;
+      if (typeof canvas.height === "number") canvas.height = 0;
+    };
     if (canvas.dataset) canvas.dataset.nimbusVtkRelease = "planned";
-    const context = canvas.getContext("webgl2") ?? canvas.getContext("webgl");
-    context?.getExtension?.("WEBGL_lose_context")?.loseContext();
+    const context = canvas.getContext?.("webgl2") ?? canvas.getContext?.("webgl");
+    const extension = context?.getExtension?.("WEBGL_lose_context");
+    if (extension) retireContext = () => extension.loseContext();
   }, errors);
   attempt(
     () => options.renderWindow.getApiSpecificRenderWindow?.().setContainer?.(null),
@@ -89,9 +108,21 @@ export function disposeVtkScene(options: DisposeVtkSceneOptions): unknown[] {
   if (typeof options.renderWindow.delete === "function") {
     attempt(() => options.renderWindow.delete!(), errors);
   }
+  // Mapper/framebuffer deletion needs a live GL context. Retire the captured
+  // context afterward; waiting for browser GC can exhaust the context ceiling.
+  if (retireContext) attempt(retireContext, errors);
+  // Detached canvases can retain native drawing surfaces until collection.
+  if (retireDrawingBuffer) attempt(retireDrawingBuffer, errors);
   if (interactor && typeof interactor.delete === "function") {
     attempt(() => interactor!.delete!(), errors);
   }
+  // GenericRenderWindow creates these core owners but only deletes its API view
+  // and wrapper. Keep them alive until interactor callbacks have stopped.
+  const coreOwners = new Set([renderer, coreWindow]);
+  coreOwners.delete(options.renderWindow);
+  coreOwners.delete(interactor);
+  for (const resource of options.resources ?? []) coreOwners.delete(resource);
+  for (const owner of coreOwners) attempt(() => owner?.delete?.(), errors);
   return errors;
 }
 

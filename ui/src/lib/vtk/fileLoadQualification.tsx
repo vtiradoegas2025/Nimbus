@@ -131,7 +131,8 @@ export async function runFileLoadQualification(request: PackagedVisualizationQua
     lastTick = now;
   }, 50);
   const report: Record<string, unknown> = {
-    schema: "nimbus.studio.packaged-visualization-qualification", schemaVersion: 1,
+    schema: "nimbus.studio.packaged-visualization-qualification", schemaVersion: 2,
+    scope: "bounded-packaged-lifecycle", memoryCampaign: "pending",
     profile: "file-load", fixture: request.visualLoad, checks, scenes, transitions, watchdog, glCalls,
     userAgent: navigator.userAgent, status: "failed",
   };

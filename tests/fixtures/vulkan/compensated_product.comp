@@ -1,0 +1,16 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+#define NIMBUS_PORTABLE_COMPENSATED_PRODUCT
+#include "../../../vulkan/shaders/compute/microphysics/compensated_fma.glsl"
+layout(local_size_x=64) in;
+layout(set=0,binding=0) readonly buffer Input { uint source[]; };
+layout(set=0,binding=1) writeonly buffer Output { uint result[]; };
+void main()
+{
+    uint n = gl_GlobalInvocationID.x;
+    float a = uintBitsToFloat(source[2*n]);
+    float b = uintBitsToFloat(source[2*n+1]);
+    precise float product = df_product(a, b);
+    result[2*n] = floatBitsToUint(df_product_error(a, b, product));
+    result[2*n+1] = floatBitsToUint(product);
+}

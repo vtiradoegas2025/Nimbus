@@ -19,6 +19,7 @@ METAL_TEST_SOURCES := \
 	$(ROOT)/tests/metal/test_metal_compute_backend.cpp \
 	$(ROOT)/metal/src/compute/metal_compute_backend.mm \
 	$(ROOT)/src/compute/backend_runtime.cpp \
+	$(ROOT)/src/compute/backend_types.cpp \
 	$(ROOT)/src/compute/resident_field_store.cpp \
 	$(ROOT)/src/compute/kernel_manifest.cpp \
 	$(ROOT)/src/chaos/base/earth_correlated_noise.cpp \
@@ -34,6 +35,7 @@ METAL_TEST_SOURCES := \
 	$(ROOT)/src/dynamics/device_slow_energy_attribution.cpp \
 	$(ROOT)/src/dynamics/native_cgrid_boundary.cpp \
 	$(ROOT)/src/numerics/advection/advection_cartesian.cpp \
+	$(ROOT)/src/numerics/advection/advection_perf.cpp \
 	$(ROOT)/src/numerics/diffusion/schemes/explicit/explicit.cpp \
 	$(ROOT)/src/microphysics/schemes/lin/lin.cpp \
 	$(ROOT)/src/turbulence/base/eddy_viscosity.cpp \
@@ -58,12 +60,14 @@ METAL_TEST_HEADERS := $(shell find $(ROOT)/metal/include -type f -name '*.hpp') 
 all: $(BIN)
 
 $(BIN): $(ROOT)/vulkan/shaders/compute/acoustic/pressure_eos.glsl $(ROOT)/vulkan/shaders/compute/acoustic/momentum_precision.glsl $(ROOT)/scripts/dev/shaders/generate_acoustic_eos_msl.py
+$(BIN): $(ROOT)/vulkan/shaders/compute/terrain/signed_scalar_update.glsl $(ROOT)/scripts/dev/shaders/generate_mapped_scalar_math_msl.py
 
 $(BIN): $(ROOT)/vulkan/shaders/compute/chaos/earth_control_evolution.comp $(ROOT)/scripts/dev/shaders/generate_earth_control_msl.py
 
 $(BIN): $(ROOT)/vulkan/shaders/compute/dynamics/conservative_reduction.comp $(ROOT)/scripts/dev/shaders/generate_conservative_reduction_msl.py $(ROOT)/vulkan/shaders/compute/dynamics/conservative_momentum.comp $(ROOT)/scripts/dev/shaders/generate_conservative_momentum_msl.py $(ROOT)/vulkan/shaders/compute/microphysics/lin_pointwise.comp $(ROOT)/vulkan/shaders/compute/microphysics/lin_sedimentation.comp $(ROOT)/scripts/dev/shaders/generate_lin_msl.py $(ROOT)/vulkan/shaders/compute/microphysics/kessler_sedimentation.comp $(ROOT)/scripts/dev/shaders/generate_kessler_sedimentation_msl.py $(ROOT)/vulkan/shaders/compute/dynamics/acoustic_bc_face_cartesian_cgrid.comp $(ROOT)/vulkan/shaders/compute/dynamics/boundary_float32.glsl $(ROOT)/scripts/dev/shaders/generate_acoustic_bc_face_cartesian_cgrid_msl.py $(ROOT)/vulkan/shaders/compute/advection/advect_conservative_scalar_flux_cartesian_cgrid.comp $(ROOT)/scripts/dev/shaders/generate_advect_conservative_scalar_flux_cartesian_cgrid_msl.py $(ROOT)/vulkan/shaders/compute/terrain/held_sources.comp $(ROOT)/scripts/dev/shaders/generate_held_sources_msl.py $(ROOT)/vulkan/shaders/compute/boundary_layer/slab_column.comp $(ROOT)/scripts/dev/shaders/generate_slab_column_msl.py $(ROOT)/vulkan/shaders/compute/radiation/simple_grey.comp $(ROOT)/scripts/dev/shaders/generate_simple_grey_msl.py $(ROOT)/vulkan/shaders/compute/terrain/column_remap.comp $(ROOT)/scripts/dev/shaders/generate_column_remap_msl.py $(ROOT)/vulkan/shaders/compute/terrain/mapped_boundary.comp $(ROOT)/scripts/dev/shaders/generate_mapped_boundary_msl.py $(ROOT)/vulkan/shaders/compute/terrain/reference_atmosphere.comp $(ROOT)/scripts/dev/shaders/generate_reference_atmosphere_msl.py $(ROOT)/vulkan/shaders/compute/terrain/moving_energy.comp $(ROOT)/scripts/dev/shaders/generate_moving_energy_msl.py $(ROOT)/vulkan/shaders/compute/terrain/moving_momentum.comp $(ROOT)/vulkan/shaders/compute/terrain/compensated_storage.glsl $(ROOT)/scripts/dev/shaders/generate_moving_momentum_msl.py $(ROOT)/vulkan/shaders/compute/terrain/earth_geometry.comp $(ROOT)/scripts/dev/shaders/generate_earth_geometry_msl.py $(ROOT)/vulkan/shaders/compute/terrain/conservative_remap.comp $(ROOT)/scripts/dev/shaders/generate_remap_msl.py $(ROOT)/vulkan/shaders/compute/turbulence/collocated_sgs.comp $(ROOT)/vulkan/shaders/compute/time_stepping/rk_tendency.comp $(ROOT)/vulkan/shaders/compute/time_stepping/rk_combination.comp $(ROOT)/scripts/dev/shaders/generate_rk_msl.py $(ROOT)/vulkan/shaders/compute/microphysics/milbrandt_sedimentation.comp $(ROOT)/vulkan/shaders/compute/microphysics/milbrandt_cold.comp $(ROOT)/vulkan/shaders/compute/microphysics/compensated_fma.glsl $(ROOT)/vulkan/shaders/compute/microphysics/milbrandt_melting.comp $(ROOT)/vulkan/shaders/compute/microphysics/milbrandt_cloud_adjustment.comp $(ROOT)/vulkan/shaders/compute/microphysics/milbrandt_thermodynamics.glsl $(ROOT)/vulkan/shaders/compute/microphysics/milbrandt_warm_rain.comp $(ROOT)/vulkan/shaders/compute/microphysics/thompson_compensated.glsl $(ROOT)/scripts/dev/shaders/generate_milbrandt_msl.py $(ROOT)/vulkan/shaders/compute/diffusion/implicit_diffusion_stencil.comp $(ROOT)/vulkan/shaders/compute/diffusion/implicit_diffusion_vector.comp $(ROOT)/scripts/dev/shaders/generate_implicit_msl.py $(METAL_TEST_SOURCES) $(METAL_TEST_HEADERS) $(ROOT)/vulkan/shaders/compute/turbulence/tke_closure.comp $(ROOT)/vulkan/shaders/compute/turbulence/tke_tendency.comp $(ROOT)/scripts/dev/shaders/generate_tke_msl.py
 	python3 $(ROOT)/scripts/dev/shaders/generate_earth_control_msl.py
 	python3 $(ROOT)/scripts/dev/shaders/generate_acoustic_eos_msl.py
+	python3 $(ROOT)/scripts/dev/shaders/generate_mapped_scalar_math_msl.py
 	python3 $(ROOT)/scripts/dev/shaders/generate_implicit_msl.py
 	python3 $(ROOT)/scripts/dev/shaders/generate_tke_msl.py
 	python3 $(ROOT)/scripts/dev/shaders/generate_mapped_boundary_msl.py

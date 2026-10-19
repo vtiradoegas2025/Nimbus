@@ -72,9 +72,10 @@ test("ordinary supercell export restores full quality for every field and includ
     inputs: window.__nimbusVtkHarness!.inspectVolumeInputs(), snapshot: window.__nimbusVtkHarness!.snapshot(),
     overlays: window.__nimbusVtkHarness!.inspectExportOverlays() }));
   expect(baseline.inputs.fingerprints.length).toBeGreaterThanOrEqual(2);
-  const paintTexts = baseline.overlays?.overlays.flatMap(overlay => overlay.paint.filter(item => item.kind === "text").map(item => item.text)) ?? [];
-  expect(paintTexts).toContain("Precipitation volume");
-  expect(paintTexts).toContain("vorticity_z vortex hierarchy");
+  const panelTexts = baseline.overlays?.overlays.map(overlay => overlay.paint
+    .filter(item => item.kind === "text").map(item => item.text).join(" ").replace(/\s+/g, " ").trim()) ?? [];
+  expect(panelTexts.some(text => text.includes("Precipitation volume"))).toBe(true);
+  expect(panelTexts.some(text => text.includes("vorticity_z vortex hierarchy"))).toBe(true);
   const canvas = page.locator(".volume-render__canvas");
   const box = (await canvas.boundingBox())!;
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);

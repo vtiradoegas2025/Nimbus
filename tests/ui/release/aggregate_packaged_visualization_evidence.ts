@@ -69,7 +69,9 @@ export function aggregatePackagedVisualizationEvidence(inputDirectory: string) {
   if (versions.size !== 1) throw new Error("packaged visualization matrix mixes app versions");
   return {
     schema: "nimbus.studio.packaged-visualization-matrix",
-    schemaVersion: 1,
+    schemaVersion: 2,
+    scope: "bounded-packaged-lifecycle",
+    memoryCampaign: "pending",
     status: "passed",
     profile: "production",
     appVersion: entries[0]?.appVersion,

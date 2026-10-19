@@ -27,6 +27,10 @@ test("portable 3D viewpoints restore the camera, preserve PNGs and work offline"
   await expect(page.locator(".plot3d-colorbar")).toBeVisible();
   await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
   const before = await page.evaluate(async () => { await window.__nimbusVtkHarness!.captureSavedFrame(); return window.__nimbusVtkHarness!.inspectLastSavedFrame(); });
+  const backing = await page.locator(".volume-render__canvas canvas").evaluate(element => {
+    const canvas = element as HTMLCanvasElement;
+    return { width: canvas.width, height: canvas.height, cssWidth: canvas.getBoundingClientRect().width };
+  });
   const html = await page.evaluate(() => window.__nimbusVtkHarness!.capturePortableViewpoints(12));
   const after = await page.evaluate(async () => { await window.__nimbusVtkHarness!.captureSavedFrame(); return window.__nimbusVtkHarness!.inspectLastSavedFrame(); });
   expect(after?.camera).toEqual(before?.camera);
@@ -36,8 +40,10 @@ test("portable 3D viewpoints restore the camera, preserve PNGs and work offline"
   await viewer.setContent(html);
   await expect(viewer.getByRole("heading", { level: 1 })).toHaveText("Portable storm fixture");
   const metadata = JSON.parse(/<script id="nimbus-viewpoints" type="application\/json">(.*?)<\/script>/s.exec(html)![1]);
-  expect(metadata.width).toBeGreaterThan(400);
-  expect(metadata.width).toBeLessThanOrEqual(480);
+  expect(backing.cssWidth).toBeGreaterThan(400);
+  expect(backing.cssWidth).toBeLessThanOrEqual(480);
+  expect(metadata.width).toBe(backing.width);
+  expect(metadata.height).toBe(backing.height);
   await expect(viewer.getByRole("img")).toHaveJSProperty("naturalWidth", metadata.width);
   await expect(viewer.locator("#position")).toHaveText("1 / 12 · 0°");
   const first = await viewer.getByRole("img").getAttribute("src");
@@ -108,9 +114,11 @@ test("Studio recorder offers portable export for a complete saved 3D frame", asy
 test("portable supercell viewpoints retain every prepared field without rebuilding source arrays", async ({ page }, info) => {
   test.setTimeout(150_000);
   const progress: { done: number; count: number; elapsedMs: number }[] = [];
+  const flushWarnings: string[] = [];
   page.on("console", message => {
     const prefix = "NIMBUS_VIEWPOINT_PROGRESS ";
     if (message.text().startsWith(prefix)) progress.push(JSON.parse(message.text().slice(prefix.length)));
+    if (message.text().includes("flushSync")) flushWarnings.push(message.text());
   });
   await page.goto("/harness/index.html");
   await page.waitForFunction(() => !!window.__nimbusVtkHarness);
@@ -142,4 +150,16 @@ test("portable supercell viewpoints retain every prepared field without rebuildi
   expect(exportDocument.views).toHaveLength(12);
   expect(exportDocument.views.every((view: { png: string }) => view.png.startsWith("data:image/png;base64,"))).toBe(true);
   await writeFile(info.outputPath("portable-supercell.html"), html);
+  if (process.env.NIMBUS_VIEWPOINT_REFERENCE === "1") {
+    const exportedOverlays = await page.evaluate(() => window.__nimbusVtkHarness!.inspectViewpointOverlays());
+    const references = await page.evaluate(() => window.__nimbusVtkHarness!.captureSettledViewpointReferences([90, 330]));
+    for (const reference of references) {
+      await writeFile(info.outputPath(`settled-${reference.angleDeg}.png`), Buffer.from(reference.png.split(",")[1], "base64"));
+      await info.attach(`settled-${reference.angleDeg}-overlays`, {
+        body: JSON.stringify(reference.overlays), contentType: "application/json",
+      });
+      expect(exportedOverlays.find(view => view.angleDeg === reference.angleDeg)?.overlays).toEqual(reference.overlays);
+    }
+  }
+  expect(flushWarnings).toEqual([]);
 });

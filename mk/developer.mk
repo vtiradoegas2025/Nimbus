@@ -6,10 +6,7 @@
 # clang-tidy / IDEs stay accurate. Self-maintaining: it globs src/, vulkan/src/,
 # and tests/ (test TUs get the test recipe's -O0 -I tests), so new files are
 # picked up automatically and the DB never drifts the way the old one did.
-.PHONY: compile-commands clang-dead-code generate-public-configs check-public-configs check-docs docs-pdf
-
-docs-pdf:
-	python3 scripts/dev/docs/build_guides.py
+.PHONY: compile-commands clang-dead-code generate-public-configs check-public-configs check-docs
 
 check-docs:
 	PYTHONDONTWRITEBYTECODE=1 python3 scripts/tests/architecture/check_docs.py

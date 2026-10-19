@@ -288,6 +288,36 @@ check(getVisualizationResourceSnapshot().committedBytes === baseline.committedBy
   "external worker load remains owned only by the hierarchy reservation");
 externalClient.shutdown();
 
+{
+  const originalWorker = Object.getOwnPropertyDescriptor(globalThis, "Worker");
+  const urls: string[] = [];
+  Object.defineProperty(globalThis, "Worker", { configurable: true, value: class extends FakeWorker {
+    constructor(url: string | URL, options?: WorkerOptions) {
+      super();
+      urls.push(String(url));
+      check(options?.type === "module" && options.name === "nimbus-bricked-contour-set",
+        "native brick worker generations preserve module execution and worker identity");
+    }
+  } });
+  try {
+    const first = new BrickedContourClient();
+    await first.reset("first-generation");
+    first.shutdown();
+    const second = new BrickedContourClient();
+    await second.reset("replacement-generation");
+    second.shutdown();
+    const parsed = urls.map(url => new URL(url, "https://nimbus.invalid/"));
+    check(parsed.length === 2 && parsed[0].pathname === parsed[1].pathname,
+      "replacement workers load the same maintained script");
+    check(parsed.every(url => /^\d+$/.test(url.searchParams.get("generation") ?? ""))
+      && parsed[0].searchParams.get("generation") !== parsed[1].searchParams.get("generation"),
+    "replacement brick workers cannot reuse a cancelled cached module response");
+  } finally {
+    if (originalWorker) Object.defineProperty(globalThis, "Worker", originalWorker);
+    else Reflect.deleteProperty(globalThis, "Worker");
+  }
+}
+
 console.log(`\nbricked contour client tests: ${passed} passed, ${failures.length} failed.`);
 if (failures.length > 0) {
   for (const failure of failures) console.error(`FAIL: ${failure}`);

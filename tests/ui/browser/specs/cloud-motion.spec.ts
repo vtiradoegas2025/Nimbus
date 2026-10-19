@@ -42,10 +42,14 @@ test("cloud interpolation preserves endpoints, reports intermediate time, and re
   await ready(0);
   await page.evaluate(() => window.__nimbusVtkHarness!.setStep(1)); await ready(1);
   const assertExactTime = async (timeS: number) => {
-    const capture = await page.evaluate(() => window.__nimbusVtkHarness!.captureAppearance());
-    const motion = capture!.evidence.descriptor.parameters!.cloudMotion as { active: boolean; fraction: number; timeS: number };
+    const evidence = await page.evaluate(() => window.__nimbusVtkHarness!.inspectAppearance());
+    const motion = evidence!.descriptor.parameters!.cloudMotion as { active: boolean; fraction: number; timeS: number };
     expect(motion.active).toBe(false); expect(motion.fraction).toBe(1); expect(motion.timeS).toBe(timeS);
   };
+  const readyForNextFrame = () => page.waitForFunction(() => {
+    const motion = window.__nimbusVtkHarness!.inspectAppearance()?.descriptor.parameters?.cloudMotion as { reason?: string } | undefined;
+    return motion?.reason === "Waiting for the next saved cloud frame";
+  });
   const endpoint = await page.evaluate(() => window.__nimbusVtkHarness!.inspectVolumeInputs().fingerprints);
   await page.evaluate(() => window.__nimbusVtkHarness!.setStep(0)); await ready(0);
   await page.locator(".plot3d-control-tab", { hasText: "Cloud" }).click();
@@ -74,7 +78,7 @@ test("cloud interpolation preserves endpoints, reports intermediate time, and re
   });
   try {
     await page.evaluate(() => window.__nimbusVtkHarness!.setPlayback(true, false, 2500));
-    await page.waitForTimeout(100);
+    await readyForNextFrame();
     await armCloudMotionClock(page);
     await page.evaluate(() => window.__nimbusVtkHarness!.setStep(1));
     await page.waitForFunction(() => document.querySelector<HTMLElement>(".plot3d-overlay-host")?.dataset.cloudMotionActive === "true", undefined, { timeout: 30_000 });
@@ -113,7 +117,7 @@ test("cloud interpolation preserves endpoints, reports intermediate time, and re
   await assertExactTime(60);
   expect(await page.locator(".plot3d-overlay-host").getAttribute("data-cloud-motion-active")).toBe("false");
   await page.evaluate(() => window.__nimbusVtkHarness!.setPlayback(true, false, 2500));
-  await page.waitForTimeout(100);
+  await readyForNextFrame();
   await armCloudMotionClock(page);
   await page.evaluate(() => window.__nimbusVtkHarness!.setStep(3));
   await page.waitForFunction(() => document.querySelector<HTMLElement>(".plot3d-overlay-host")?.dataset.cloudMotionActive === "true");
@@ -137,7 +141,7 @@ test("cloud interpolation preserves endpoints, reports intermediate time, and re
   await armCloudMotionClock(page);
   await page.evaluate(() => window.__nimbusVtkHarness!.setStep(1));
   await page.waitForFunction(() => document.querySelector<HTMLElement>(".plot3d-overlay-host")?.dataset.cloudMotionActive === "true");
-  const cameraBefore = (await page.evaluate(() => window.__nimbusVtkHarness!.captureAppearance()))!.evidence.camera;
+  const cameraBefore = (await page.evaluate(() => window.__nimbusVtkHarness!.inspectAppearance()))!.camera;
   const canvas = (await page.locator(".volume-render__canvas canvas").boundingBox())!;
   await page.mouse.move(canvas.x + canvas.width * 0.5, canvas.y + canvas.height * 0.5);
   await page.mouse.down();
@@ -145,7 +149,7 @@ test("cloud interpolation preserves endpoints, reports intermediate time, and re
   await page.mouse.move(canvas.x + canvas.width * 0.5 + 20, canvas.y + canvas.height * 0.5, { steps: 4 });
   await page.mouse.up(); await ready(1);
   await assertExactTime(30);
-  const cameraAfter = (await page.evaluate(() => window.__nimbusVtkHarness!.captureAppearance()))!.evidence.camera;
+  const cameraAfter = (await page.evaluate(() => window.__nimbusVtkHarness!.inspectAppearance()))!.camera;
   const direction = (camera: typeof cameraBefore) => camera.position!.map((value, axis) => value - camera.focalPoint![axis]);
   const left = direction(cameraBefore), right = direction(cameraAfter);
   const cosine = left.reduce((sum, value, axis) => sum + value * right[axis], 0) / (Math.hypot(...left) * Math.hypot(...right));

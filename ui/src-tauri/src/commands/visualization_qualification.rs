@@ -589,10 +589,12 @@ fn validate_report(report: &Value) -> AppResult<bool> {
         AppError::Invalid("visualization qualification report must be an object".into())
     })?;
     if object.get("schema").and_then(Value::as_str) != Some(REPORT_SCHEMA)
-        || object.get("schemaVersion").and_then(Value::as_u64) != Some(1)
+        || object.get("schemaVersion").and_then(Value::as_u64) != Some(2)
+        || object.get("scope").and_then(Value::as_str) != Some("bounded-packaged-lifecycle")
+        || object.get("memoryCampaign").and_then(Value::as_str) != Some("pending")
     {
         return Err(AppError::Invalid(
-            "visualization qualification report schema/version mismatch".into(),
+            "visualization qualification report schema/version/scope mismatch".into(),
         ));
     }
     let expected_profile = std::env::var(PROFILE_ENV).unwrap_or_else(|_| "smoke".into());
@@ -870,20 +872,24 @@ mod tests {
     fn report_validation_is_fail_closed() {
         assert!(validate_report(&json!({})).is_err());
         assert!(validate_report(&json!({
-            "schema": REPORT_SCHEMA, "schemaVersion": 1, "profile": "smoke", "status": "unknown"
+            "schema": REPORT_SCHEMA, "schemaVersion": 2,
+                "scope": "bounded-packaged-lifecycle", "memoryCampaign": "pending", "profile": "smoke", "status": "unknown"
         }))
         .is_err());
         assert!(validate_report(&json!({
-            "schema": REPORT_SCHEMA, "schemaVersion": 1, "profile": "smoke", "status": "passed", "checks": []
+            "schema": REPORT_SCHEMA, "schemaVersion": 2,
+                "scope": "bounded-packaged-lifecycle", "memoryCampaign": "pending", "profile": "smoke", "status": "passed", "checks": []
         })).is_err());
         assert!(validate_report(&json!({
-            "schema": REPORT_SCHEMA, "schemaVersion": 1, "profile": "smoke", "status": "passed",
+            "schema": REPORT_SCHEMA, "schemaVersion": 2,
+                "scope": "bounded-packaged-lifecycle", "memoryCampaign": "pending", "profile": "smoke", "status": "passed",
             "checks": [{ "passed": false }]
         }))
         .is_err());
         assert_eq!(
             validate_report(&json!({
-                "schema": REPORT_SCHEMA, "schemaVersion": 1, "profile": "smoke", "status": "passed",
+                "schema": REPORT_SCHEMA, "schemaVersion": 2,
+                "scope": "bounded-packaged-lifecycle", "memoryCampaign": "pending", "profile": "smoke", "status": "passed",
                 "checks": [{ "passed": true }], "packagedAppearance": appearance()
             }))
             .unwrap(),
@@ -891,7 +897,8 @@ mod tests {
         );
         assert_eq!(
             validate_report(&json!({
-                "schema": REPORT_SCHEMA, "schemaVersion": 1, "profile": "smoke", "status": "failed"
+                "schema": REPORT_SCHEMA, "schemaVersion": 2,
+                "scope": "bounded-packaged-lifecycle", "memoryCampaign": "pending", "profile": "smoke", "status": "failed"
             }))
             .unwrap(),
             false
@@ -908,7 +915,8 @@ mod tests {
         let _ = std::fs::remove_dir_all(&root);
         let report = json!({
             "schema": REPORT_SCHEMA,
-            "schemaVersion": 1,
+            "schemaVersion": 2,
+            "scope": "bounded-packaged-lifecycle", "memoryCampaign": "pending",
             "profile": "smoke",
             "status": "passed",
             "checks": [{ "name": "worker", "passed": true }],

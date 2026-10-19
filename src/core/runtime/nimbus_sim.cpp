@@ -2004,7 +2004,7 @@ bool initialize_initial_conditions()
     }
     catch (const std::exception& e)
     {
-        std::cerr << "[CONFIG ERROR] Initial-condition build failed: " << e.what() << std::endl;
+        tmv::log_error("[CONFIG ERROR] Initial-condition build failed: ", e.what());
         return false;
     }
     return true;
@@ -2040,7 +2040,7 @@ bool initialize_runtime_modules(const std::string& dynamics_scheme_name)
     }
     catch (const std::exception& e)
     {
-        std::cerr << "[CONFIG ERROR] Module initialization failed: " << e.what() << std::endl;
+        tmv::log_error("[CONFIG ERROR] Module initialization failed: ", e.what());
         return false;
     }
 
@@ -2057,8 +2057,7 @@ bool initialize_simulation_runtime()
         std::string compute_backend_error;
         if (!initialize_compute_backend_runtime(compute_backend_error))
         {
-            std::cerr << "[COMPUTE] Failed to initialize runtime compute backend: " << compute_backend_error
-                      << std::endl;
+            tmv::log_error("[COMPUTE] Failed to initialize runtime compute backend: ", compute_backend_error);
             return false;
         }
     }

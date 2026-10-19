@@ -29,8 +29,8 @@ process/output interfaces. Studio rendering is separate from solver compute.
 - `configs/` contains public configuration. `scripts/` and `mk/` contain build,
   provisioning, validation and release automation.
 - `docs/` contains reader-facing Markdown guides and the mathematics,
-  architecture and Studio PDFs. Their editable LaTeX sources, figures and
-  source/PDF hash manifest live in `scripts/dev/docs/latex/`.
+  architecture and Studio PDFs. The maintainer keeps editable manual sources
+  and PDF build tooling locally; they are not distributed in the repository.
 
 Start with [README.md](README.md), [docs/BUILDING.md](docs/BUILDING.md),
 [CONTRIBUTING.md](CONTRIBUTING.md), [the mathematics guide](docs/MATHEMATICS.pdf),
@@ -179,7 +179,6 @@ make -j4 CPU_ONLY=1 PORTABLE=1 all
 make test-script-suite
 make test-qualification-tools
 make check-docs
-python3 scripts/dev/docs/build_guides.py --check
 npm --prefix ui ci
 npm --prefix ui run typecheck
 npm --prefix ui run test:unit
@@ -200,11 +199,11 @@ datasets in `ui/`. A test that needs an external integration dataset must make
 that prerequisite explicit and report an unavailable requirement as such. Test
 discovery must fail when an expected suite is accidentally empty.
 
-Rebuild technical documents with `make docs-pdf`. Keep LaTeX inputs, their hash
-manifest and published PDFs in agreement, inspect changed equations/figures,
-and run the link check. A paper supplies scientific context; describe the
-implemented approximation, parameter choices and remaining limitations in
-natural language alongside the equations.
+Coordinate PDF manual updates with the maintainer, who retains their editable
+sources and build tooling locally. Review changed equations and figures in the
+published PDFs and run `make check-docs` for public documentation links. A paper
+supplies scientific context; describe the implemented approximation, parameter
+choices and remaining limitations in natural language alongside the equations.
 
 ## Scope and reporting
 

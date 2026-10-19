@@ -27,6 +27,7 @@ STATIC_TESTS = (
     "test_domain_motion_inventory",
     "test_qualification_fixture_paths",
     "test_studio_distribution",
+    "test_checkout_endings",
     "test_windows_release_safeguards",
     "test_shader_assets",
 )

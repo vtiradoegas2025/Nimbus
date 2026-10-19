@@ -1088,17 +1088,13 @@ The [strict loader](../src/init/config/v1_loader.cpp),
 [typed configuration](../include/init/config/config_v1.hpp),
 [microphysics defaults](../include/microphysics/config.hpp), enum parsers and
 ordinary runtime admission are authoritative. Linked key names lead to their
-loader consumers. The reviewed inventory and document generator live under
-`scripts/dev/docs/`; `make check-docs` checks their source identities and the
-rendered reference. A source change requires reviewing affected entries rather
-than silently carrying old descriptions forward.
+loader consumers. `make check-docs` verifies the reviewed published bytes and
+pinned configuration-source identities. A source change requires reviewing
+affected entries rather than silently carrying old descriptions forward.
 
-The optional native-default check constructs `ConfigV1` and reads its fields;
-it runs no atmosphere and loads no scientific data:
-
-```sh
-python3 scripts/dev/docs/generate_namelist.py --check --verify-defaults
-```
-
-Constructor-default verification establishes the omission-value inventory,
-not correctness of the physical assumptions or qualification of a combination.
+The maintainer keeps the editable inventory and document generator locally;
+they are not distributed in the public checkout. Coordinate reference updates
+with the maintainer and verify omission values against the typed configuration
+constructors. Constructor-default verification establishes the omission-value
+inventory, not correctness of the physical assumptions or qualification of a
+combination.

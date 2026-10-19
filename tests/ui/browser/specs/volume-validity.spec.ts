@@ -123,7 +123,7 @@ test("mounted playback screen adaptation preserves scalar textures ray spacing a
   page.on("pageerror", error => errors.push(error.message));
   await page.goto("/harness/index.html?mode=playback-screen");
   await page.waitForFunction(() => Boolean(window.__nimbusPlaybackScreenHarness)
-    && document.querySelector("canvas")?.width === 256);
+    && document.querySelector("canvas")?.width === Math.round(256 * window.devicePixelRatio));
   const initialCapture = await page.evaluate(() => window.__nimbusPlaybackScreenHarness!.capture());
   const initial = await page.evaluate(() => window.__nimbusPlaybackScreenHarness!.snapshot());
   expect(initial.distance).toBe(1);

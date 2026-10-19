@@ -28,7 +28,7 @@ export function cssColorbarGradient(name: string): string {
   return `linear-gradient(to top, ${stops})`;
 }
 
-/* NWS reflectivity ramp [-30, 75] dBZ. Anchors: -30=grey, 0=blue, 10=green, 30=yellow, 50=red, 70=white. */
+/* NWS reflectivity ramp [-30, 75] dBZ. Anchors: -30=grey, 0=blue, 10=green, 30=yellow, 50=red, 70=magenta, 75=white. */
 export const DBZ_RANGE: readonly [number, number] = [-30, 75];
 
 /**

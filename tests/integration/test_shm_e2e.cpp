@@ -26,7 +26,9 @@
 #include <limits>
 #include <vector>
 
-#if defined(__APPLE__) || defined(__linux__)
+#if defined(_WIN32)
+#include <process.h>
+#elif defined(__APPLE__) || defined(__linux__)
 #include <sys/wait.h>
 #include <unistd.h>
 #endif
@@ -36,11 +38,16 @@ static constexpr int kNY = 8;
 static constexpr int kNZ = 8;
 static constexpr const char* kShmName = "/tmv_test_e2e";
 
-TEST_CASE("disk viewer crops manifest-v4 storage closures before normalization",
-          "[integration][vulkan][manifest]")
+TEST_CASE("disk viewer crops manifest-v4 storage closures before normalization", "[integration][vulkan][manifest]")
 {
-    const std::filesystem::path root = std::filesystem::temp_directory_path() /
-        ("nimbus_vulkan_manifest_crop_" + std::to_string(static_cast<long long>(::getpid())));
+#if defined(_WIN32)
+    const auto process_id = ::_getpid();
+#else
+    const auto process_id = ::getpid();
+#endif
+    const std::filesystem::path root =
+        std::filesystem::temp_directory_path() /
+        ("nimbus_vulkan_manifest_crop_" + std::to_string(static_cast<long long>(process_id)));
     const std::filesystem::path step = root / "step_000000";
     struct Cleanup
     {

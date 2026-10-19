@@ -6,6 +6,7 @@ import { lookupVtkRenderWindow, lookupVtkDescriptor } from "./vtkCaptureRegistry
 import { holdVtkFullQuality } from "./vtkInteraction";
 import { holdFullVtkPlaybackResolution } from "./vtkPlaybackScreenResolution";
 import { collectVtkAppearanceEvidence } from "./vtkAppearanceEvidence";
+import { holdVtkSceneRendering } from "./vtkContextRenderGuard";
 
 interface Camera {
   getPosition: () => number[]; getFocalPoint: () => number[]; getViewUp: () => number[];
@@ -40,12 +41,15 @@ export async function captureViewpoints(element: HTMLElement, size: CaptureSize,
       assertCaptureCurrent(current);
       if (lookupVtkRenderWindow(element) !== window) throw new Error("3D scene changed during viewpoint export");
       const angleDeg = i * 360 / count;
-      camera.setPosition(...orbitPoint(position, center, angleDeg));
-      camera.setViewUp(...orbitPoint(up, [0, 0, 0], angleDeg));
-      renderer.resetCameraClippingRange();
-      window.getRenderWindow().render();
-      // Camera labels follow the draw through React; capture both after paint.
-      await waitForCapturePaint(guard.signal);
+      const releaseTraversal = holdVtkSceneRendering(window);
+      try {
+        camera.setPosition(...orbitPoint(position, center, angleDeg));
+        camera.setViewUp(...orbitPoint(up, [0, 0, 0], angleDeg));
+        renderer.resetCameraClippingRange();
+        // Camera subscriptions update ticks and labels before the capture's
+        // full-quality draw; their incidental renders must not duplicate it.
+        await waitForCapturePaint(guard.signal);
+      } finally { releaseTraversal(); }
       assertCaptureCurrent(current);
       const png = await captureFrameDataUri(element, size, current);
       bytes += png.length;

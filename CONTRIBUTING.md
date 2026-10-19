@@ -64,6 +64,9 @@ to silence a failing test.
 
 Update operating instructions and the relevant mathematical or architectural
 explanation when behavior changes. Run `make check-docs` before submitting.
+Coordinate PDF manual corrections with the maintainer; their editable sources
+and build tooling are maintained locally and are not part of a public checkout.
+Identify the affected section and the assumptions or behavior that changed.
 Do not add dated development diaries, run receipts or generated output to Git.
 Keep essential small test fixtures with their tests and explain their purpose.
 

@@ -869,6 +869,8 @@ export function Isosurface3D({
     scale: sceneScale,
     lifecycleGeneration: vtkLifecycleGeneration,
   });
+  const fieldDisplayError = fieldResult.error || preparation.error || contourError
+    || brickedContourExtraction.error || primaryContourExtraction.error || negativeContourExtraction.error || gpuUpload.error;
   const panePreparationError = floor.error ?? fieldResult.error ?? preparation.error ?? brickedContourExtraction.error
     ?? primaryContourExtraction.error ?? negativeContourExtraction.error ?? gpuUpload.error ?? boundedLoadError;
   const panePreparationReady = !fieldLoadBlocked && !panePreparationError && !fieldResult.loading
@@ -1743,12 +1745,12 @@ export function Isosurface3D({
             </div>
           </div>
         )}
-        {(fieldResult.error || preparation.error || contourError) && (
+        {fieldDisplayError && (
           <div className="volume-render__overlay volume-render__overlay--error">
-            Field failed: {fieldResult.error || preparation.error || contourError}
+            Field failed: {fieldDisplayError}
           </div>
         )}
-        {!fieldLoadBlocked && !hasField && !fieldResult.loading && !preparation.loading && !fieldResult.error && !preparation.error && (
+        {!fieldName && !fieldLoadBlocked && !hasField && !fieldResult.loading && !preparation.loading && !fieldDisplayError && (
           <div className="volume-render__overlay volume-render__overlay--muted">
             Pick a 3D scalar field above.
           </div>

@@ -1,0 +1,33 @@
+{
+  "schema": "nimbus.published-document-review.v1",
+  "documents": {
+    "docs/MATHEMATICS.pdf": "9aba76435bcc83a19061123339fb1cccaa7cc0a85ac0cb16da82ef9a07e02ffe",
+    "docs/ARCHITECTURE.pdf": "75fbef4c6617cddf0cb51f2fddec25857a11911f0b69d18ac6f895c2115876b9",
+    "docs/STUDIO.pdf": "08085f4d32f90e31f8e525884aea606f26f3418c2d8efcbd6e0bf7b2d35c2d47",
+    "docs/NAMELIST.md": "364201388b8b896a64da6ac670eae229a57d8241ab76e9b2f4eb3092303865c3"
+  },
+  "namelistSources": {
+    "include/init/config/config_v1.hpp": "1da58f1e5e140b4a59fd253de65e04eeb0ee5b8ea94dfa0599d32eb6a319ebfe",
+    "include/microphysics/config.hpp": "cd1eb7236b9663c08d86877e499c285f1dadcb9710add1cfe7700ced6c49454d",
+    "src/init/config/v1_loader.cpp": "5c962a3b0b41c54a9e1152613aa4aa59927a84bebfaca22a67a950312e69e7ae",
+    "src/init/config/config_v1.cpp": "805fbda9104a46d495da8333d776f64a5da75b3947c33e5e7d205685d8795b0f",
+    "src/init/config/config_v1_physics.cpp": "24efface2f11ee36982e113017dd137e05058624415ea3467e6f1c5b63b0ab3c",
+    "src/init/config/config_v1_initialization.cpp": "ce25156eadda19bea2cf0c400e889b82fbe9bd498828351d96b35df0c9ee2497",
+    "src/init/config/config_v1_output.cpp": "9c0d21d5e30689c277f7ececbb88c0eb55f8db8bffc782560e868854e4a6d7b2",
+    "src/init/config/config_v1_projection.cpp": "93a6f33e7a9d9db1e0e9f17189baa66391249f15408e6995b579536279826083",
+    "src/init/config/config_v1_serialization_common.cpp": "d966df78dae03b4c502027b1a152976c392fcb0edd05562d370f110d528cdc55",
+    "src/core/runtime/yaml_helpers.cpp": "b78e235f3e0cdca68cd2ce3c214ff2c615c2019152064452df37c3443a9725f5",
+    "src/core/runtime/nimbus_sim.cpp": "066d575a6847059b17d7b8d8ce06c2a8882d7ce76708b8f07438dc8bee60036e",
+    "src/core/runtime/readiness.cpp": "5dd13071bb1a65e8cf15ba0180d95287806cd43b58347dd9e3022e30eaa276ce",
+    "include/radiation/rrtmg_config_limits.hpp": "925bcf3efae322ce81817d0caa51971a9cc07765e2c1a7f99070dc2ff2994595",
+    "src/init/trigger/sources/vortex_seed.cpp": "21d714249878a7ecc02beeaea062c8d2a294255560ad2e75deab09d3e5645518",
+    "src/radiation/runtime.cpp": "28dbf11ad61e21de7a1278d819815f27ecaea40dfd5713b41cb14290c7d7c6f6",
+    "src/core/runtime/runtime_config.cpp": "522628718e45382e98c0e7d88b78d5a7208240c49dd998426571a428ea3b3ec7",
+    "src/core/output/output_config.cpp": "b28d5a36e36372ca7b974ba7d4033ee2cb6aa914f7452867b82f1ca740286651",
+    "src/init/config/v0_to_v1.cpp": "88a3bb8f7dc6488f6f63f91c6f898fb5a6f28dd6a66973deeab4d813748e7e1c",
+    "src/init/config/v0_to_v1_physics.cpp": "481424de9b1a4e52a9c1ac4797b9405cd4e583190d1fdefca70bdcc69a152889",
+    "src/init/config/v0_to_v1_initialization.cpp": "0be673d2a99bf231f70e34af3fa22b074bca2ce53573b9417c3e919d736bd05f",
+    "src/init/config/v0_to_v1_runtime.cpp": "525c72b7b16395e2a0aa91d930a0b0ac8855db80b52d2069265124994f50101b",
+    "src/core/infra/nested_grid.cpp": "dc36fd5f2cc72eed88fd3a9e3ff11d71f3935dcc1ea9c459b4ca1d3581e180d1"
+  }
+}

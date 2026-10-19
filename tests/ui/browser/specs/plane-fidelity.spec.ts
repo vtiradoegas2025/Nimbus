@@ -39,8 +39,20 @@ async function sampleVerticalRamp(
   fractions: number[],
   targets: ReadonlyArray<readonly number[]>,
 ): Promise<number[][]> {
-  const png = await locator.screenshot();
-  return page.evaluate(async ({ dataUrl, fractions: positions, targets: expected }) => {
+  await locator.scrollIntoViewIfNeeded();
+  const bounds = await locator.boundingBox();
+  if (!bounds) throw new Error("Colorbar has no visible bounds");
+  const clip = { x: Math.floor(bounds.x), y: Math.floor(bounds.y),
+    width: Math.ceil(bounds.x + bounds.width) - Math.floor(bounds.x),
+    height: Math.ceil(bounds.y + bounds.height) - Math.floor(bounds.y) };
+  const inset = await locator.evaluate(element => {
+    const style = getComputedStyle(element);
+    return element instanceof SVGElement ? { top: 0, bottom: 0 } : {
+      top: parseFloat(style.borderTopWidth) || 0, bottom: parseFloat(style.borderBottomWidth) || 0,
+    };
+  });
+  const png = await page.screenshot({ clip });
+  return page.evaluate(async ({ dataUrl, fractions: positions, targets: expected, bounds, clip, inset }) => {
     const image = new Image();
     image.src = dataUrl;
     await new Promise<void>((resolve, reject) => {
@@ -53,17 +65,19 @@ async function sampleVerticalRamp(
     const context = canvas.getContext("2d", { willReadFrequently: true });
     if (!context) throw new Error("Canvas 2D unavailable");
     context.drawImage(image, 0, 0);
+    const scaleX = canvas.width / clip.width, scaleY = canvas.height / clip.height;
+    const x = Math.floor((bounds.x - clip.x + bounds.width / 2) * scaleX);
     return positions.map((fraction, index) => {
-      const y = Math.max(0, Math.min(
-        canvas.height - 1,
-        Math.round((1 - fraction) * (canvas.height - 1)),
-      ));
-      // A physical stop can fall between screenshot pixels on a compact ramp.
-      const pixels = [-1, 0, 1].map(offset => [...context.getImageData(Math.floor(canvas.width / 2), Math.max(0, Math.min(canvas.height - 1, y + offset)), 1, 1).data.slice(0, 3)]);
+      // The screenshot encloses fractional CSS bounds; locate the actual fill,
+      // then choose the nearest device-pixel center rather than scaling its padded image.
+      const position = bounds.y - clip.y + inset.top
+        + (1 - fraction) * (bounds.height - inset.top - inset.bottom);
+      const y = Math.max(0, Math.min(canvas.height - 1, Math.round(position * scaleY - 0.5)));
+      const pixels = [-1, 0, 1].map(offset => [...context.getImageData(x, Math.max(0, Math.min(canvas.height - 1, y + offset)), 1, 1).data.slice(0, 3)]);
       const distance = (pixel: number[]) => Math.max(...pixel.map((value, channel) => Math.abs(value - expected[index][channel])));
       return pixels.sort((a, b) => distance(a) - distance(b))[0];
     });
-  }, { dataUrl: `data:image/png;base64,${png.toString("base64")}`, fractions, targets });
+  }, { dataUrl: `data:image/png;base64,${png.toString("base64")}`, fractions, targets, bounds, clip, inset });
 }
 
 function expectRgbClose(actual: number[], expected: readonly number[], tolerance = 30): void {

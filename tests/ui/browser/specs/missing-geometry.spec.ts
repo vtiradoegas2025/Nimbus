@@ -66,3 +66,31 @@ for (const plot of ["streamlines", "isosurface"] as const) test(`an empty ${plot
   }
   await expect(page.locator(".volume-render__overlay--error")).toHaveCount(0);
 });
+
+test("a rejected brick worker load is visible and a later frame can recover", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  const worker = "**/brickedContour.worker*.js*";
+  await page.route(worker, route => route.abort("failed"));
+  await page.goto("/harness/index.html?missingGeometry=1&derivedBricks=1&mounted=0");
+  await page.waitForFunction(() => Boolean(window.__nimbusVtkHarness));
+  await page.evaluate(() => { window.__nimbusVtkHarness!.setPlot("isosurface"); window.__nimbusVtkHarness!.setMounted(true); });
+  await expect(page.getByRole("toolbar", { name: "Isosurface controls" })).toBeVisible();
+  const data = page.locator(".plot3d-control-tab", { hasText: "Data" });
+  if (await data.getAttribute("aria-expanded") !== "true") await data.click();
+  await page.getByRole("combobox", { name: "Field", exact: true }).selectOption("w");
+  await expect(page.locator(".volume-render__overlay--error")).toContainText("Field failed:");
+  await expect(page.locator(".plot3d-overlay-host")).toHaveAttribute("data-brick-error", /.+/);
+  await expect(page.getByText("Pick a 3D scalar field above.", { exact: true })).toHaveCount(0);
+  await page.unroute(worker);
+  await page.evaluate(() => window.__nimbusVtkHarness!.setStep(1));
+  await page.waitForFunction(() => {
+    const scene = document.querySelector<HTMLElement>('[data-testid="scene"]');
+    return scene?.dataset.framePlot === "isosurface" && scene.dataset.frameLoading === "false" && scene.dataset.renderedStep === "1";
+  }, undefined, { timeout: 30_000 });
+  await expect(page.locator(".volume-render__overlay--error")).toHaveCount(0);
+  const capture = await page.evaluate(() => window.__nimbusVtkHarness!.captureAppearance());
+  expect(capture?.evidence.descriptor.frameIndex).toBe(1);
+  expect(capture?.evidence.layers.some(layer => layer.visible && (layer.cellCount ?? 0) > 0)).toBe(true);
+  expect(errors).toEqual([]);
+});

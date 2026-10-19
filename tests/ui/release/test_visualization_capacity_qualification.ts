@@ -60,6 +60,15 @@ try {
 } catch { shortRejected = true; }
 check(shortRejected, "a short campaign cannot produce an artifact");
 
+let boundedRejected = false;
+try {
+  buildVisualizationCapacityQualification(Buffer.from(JSON.stringify({
+    schema: "nimbus.studio.packaged-visualization-matrix", schemaVersion: 2,
+    status: "passed", scope: "bounded-packaged-lifecycle", memoryCampaign: "pending",
+  })));
+} catch { boundedRejected = true; }
+check(boundedRejected, "bounded lifecycle success cannot promote aggregate memory capacity");
+
 console.log(`\nvisualization capacity qualification tests: ${passed} passed, ${failures.length} failed.`);
 if (failures.length) {
   for (const failure of failures) console.error(`FAIL: ${failure}`);

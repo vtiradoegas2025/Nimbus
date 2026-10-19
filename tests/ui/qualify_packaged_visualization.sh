@@ -45,6 +45,7 @@ if ! [[ "$TIMEOUT_SECONDS" =~ ^[1-9][0-9]*$ ]]; then
 fi
 
 mkdir -p "$(dirname "$OUTPUT")"
+OUTPUT="$(python3 -c 'import pathlib,sys; print(pathlib.Path(sys.argv[1]).resolve())' "$OUTPUT")"
 if [[ -n "$CONFIG_PREFLIGHT_INPUT" ]]; then
   CONFIG_PREFLIGHT_INPUT="$(python3 -c 'import pathlib,sys; print(pathlib.Path(sys.argv[1]).resolve(strict=True))' "$CONFIG_PREFLIGHT_INPUT")"
 fi

@@ -85,10 +85,15 @@ export async function captureFrameDataUri(
     if (!vtkCapture) return uri;
     const image = await dataUriToImageData(uri, size, checked);
     const canvas = document.createElement("canvas"); canvas.width = size.width; canvas.height = size.height;
-    const context = canvas.getContext("2d"); if (!context) throw new Error("Capture resize canvas is unavailable");
-    context.putImageData(image, 0, 0);
-    assertCaptureCurrent(checked);
-    return canvas.toDataURL("image/png");
+    try {
+      const context = canvas.getContext("2d"); if (!context) throw new Error("Capture resize canvas is unavailable");
+      context.putImageData(image, 0, 0);
+      assertCaptureCurrent(checked);
+      return canvas.toDataURL("image/png");
+    } finally {
+      canvas.width = 0;
+      canvas.height = 0;
+    }
   } finally {
     try { releaseResolution(); } finally { releaseQuality(); }
   }
@@ -128,16 +133,22 @@ export async function dataUriToImageData(
   const canvas = document.createElement("canvas");
   canvas.width = size.width;
   canvas.height = size.height;
-  const ctx = canvas.getContext("2d", { willReadFrequently: true });
-  if (!ctx) throw new Error("2d canvas context unavailable");
-  // Fill transparent panels with the active semantic app background so
-  // light-theme captures do not acquire dark bands during quantization.
-  ctx.fillStyle = getComputedStyle(document.documentElement)
-    .getPropertyValue("--color-bg")
-    .trim() || "#0e1117";
-  ctx.fillRect(0, 0, size.width, size.height);
-  const scale = Math.min(size.width / img.naturalWidth, size.height / img.naturalHeight);
-  const width = img.naturalWidth * scale, height = img.naturalHeight * scale;
-  ctx.drawImage(img, (size.width - width) / 2, (size.height - height) / 2, width, height);
-  return ctx.getImageData(0, 0, size.width, size.height);
+  try {
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) throw new Error("2d canvas context unavailable");
+    // Fill transparent panels with the active semantic app background so
+    // light-theme captures do not acquire dark bands during quantization.
+    ctx.fillStyle = getComputedStyle(document.documentElement)
+      .getPropertyValue("--color-bg")
+      .trim() || "#0e1117";
+    ctx.fillRect(0, 0, size.width, size.height);
+    const scale = Math.min(size.width / img.naturalWidth, size.height / img.naturalHeight);
+    const width = img.naturalWidth * scale, height = img.naturalHeight * scale;
+    ctx.drawImage(img, (size.width - width) / 2, (size.height - height) / 2, width, height);
+    return ctx.getImageData(0, 0, size.width, size.height);
+  } finally {
+    canvas.width = 0;
+    canvas.height = 0;
+    img.src = "";
+  }
 }

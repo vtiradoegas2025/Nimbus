@@ -7,7 +7,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[3]
 RETIRED = (
     'benchmarks/', 'tools/', 'examples/', 'data/', 'docs/latex/',
-    'ui/integration/', 'ui/testdata/', 'docs/devDocs/',
+    'ui/integration/', 'ui/testdata/', 'docs/devDocs/', 'scripts/dev/docs/',
 )
 GENERATED = ('build/', 'bin/', 'reports/', 'runs/', 'tests/artifacts/', 'ui/build/')
 CACHE_PARTS = {'node_modules', 'target', '__pycache__', '.venv', '.cache'}

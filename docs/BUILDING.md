@@ -331,6 +331,12 @@ and a portable simulator before packaging. Its dependency cache defaults to
 another cache location and build parallelism. Linux creates an AppImage. Native
 Windows uses `ui/scripts/build_native_app.ps1` and NSIS.
 
+If a macOS checkout is in an iCloud or other synchronized Desktop/Documents
+folder, use `--bundle-dir` with an output directory outside that synchronized
+folder. File-provider metadata can prevent macOS code signing even after a
+successful build. The builder copies the app without resource-fork metadata,
+then signs and verifies the copy; it refuses to overwrite an existing app there.
+
 A package must be tested on its target OS and architecture, including scientific
 input availability, native dispatch, output reopening and restart. A successful
 link, frontend build or installer creation does not complete those checks.
@@ -361,18 +367,11 @@ are regenerable local files. Do not commit them. `make compile-commands` creates
 an ignored editor compilation database. `make clean` affects the selected build
 products; inspect its target before deleting unrelated working data.
 
-## Rebuild the technical documents
+## Technical manuals
 
-The mathematics, architecture and Studio guides are LaTeX PDFs. Their maintained
-sources live with the [document build scripts](../scripts/dev/docs/latex/README.md);
-`docs/` holds the published PDFs and reader-facing Markdown guides.
-Install Tectonic and run:
-
-```sh
-make docs-pdf
-python3 scripts/dev/docs/build_guides.py --check
-```
-
-The first build may download TeX packages and fonts. Intermediate files remain
-under the ignored `build/docs/` directory. Commit the `.tex` sources, PDF and
-source-identity manifest together.
+Read the published [mathematics](MATHEMATICS.pdf),
+[architecture](ARCHITECTURE.pdf) and [Studio](STUDIO.pdf) manuals directly from
+`docs/`. Their editable sources and PDF build tooling are maintained locally
+by the maintainer and are not included in a public checkout. Building or opening
+Nimbus does not require a TeX installation. Coordinate manual corrections with
+the maintainer and identify the affected section and implementation change.

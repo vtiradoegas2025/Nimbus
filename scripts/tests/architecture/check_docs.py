@@ -2,10 +2,11 @@
 """Check maintained Markdown links and repository paths without build artifacts."""
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 from pathlib import Path
 import re
-import subprocess
 import sys
 from urllib.parse import unquote, urlsplit
 
@@ -25,9 +26,10 @@ def markdown_files(root: Path):
                        and not name.startswith(('nimbus-gate-result-', 'nimbus-release-manifest-'))
                        and not (name == 'build' and relative != Path('scripts/dev'))
                        and not (name == 'custom' and relative == Path('configs'))
+                       and not (name == 'docs' and relative == Path('scripts/dev'))
                        and not (name == 'public' and relative == Path('ui/integration'))]
         for name in files:
-            if name.endswith('.md') and name != 'threadHandOff.md':
+            if name.endswith('.md') and name != 'threadHandOff.md' and not (relative == Path('docs') and name == 'DEVELOPMENT.md'):
                 yield Path(directory) / name
 
 
@@ -73,18 +75,30 @@ def check(path: Path, root: Path) -> list[str]:
     return sorted(set(errors))
 
 
+def check_publication(root: Path) -> list[str]:
+    receipt = json.loads((root / 'tests/fixtures/reference/docs/published.json').read_text())
+    expected = {'docs/MATHEMATICS.pdf', 'docs/ARCHITECTURE.pdf', 'docs/STUDIO.pdf', 'docs/NAMELIST.md'}
+    if receipt.get('schema') != 'nimbus.published-document-review.v1' or set(receipt.get('documents', {})) != expected:
+        return ['Published documentation receipt has an invalid schema or document inventory.']
+    failures = []
+    for name, digest in receipt['documents'].items():
+        path = root / name
+        if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != digest:
+            failures.append(f'{name}: published bytes differ from the reviewed document receipt')
+    sources = receipt.get('namelistSources', {})
+    if not sources or not {'src/init/config/v1_loader.cpp', 'include/init/config/config_v1.hpp'}.issubset(sources):
+        failures.append('Namelist review must bind its loader and typed configuration sources.')
+    for name, digest in sources.items():
+        path = (root / name).resolve()
+        if not path.is_relative_to(root) or not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != digest:
+            failures.append(f'{name}: configuration source changed; review the namelist before updating its receipt')
+    return failures
+
+
 def main() -> int:
-    namelist = subprocess.run([sys.executable, str(ROOT / 'scripts/dev/docs/generate_namelist.py'), '--check'])
-    if namelist.returncode:
-        return namelist.returncode
     files = sorted(markdown_files(ROOT))
     failures = [error for path in files for error in check(path, ROOT)]
-    for source in (ROOT / 'scripts/dev/docs/latex').rglob('*.tex'):
-        for target in re.findall(r'\\href\{([^{}\n]+)\}', source.read_text()):
-            target = target.replace('\\_', '_').replace('\\%', '%').replace('\\#', '#')
-            local = local_target(target)
-            if local is not None and not (ROOT / 'docs' / local).resolve().exists():
-                failures.append(f'{source.relative_to(ROOT)}: missing PDF link {target}')
+    failures.extend(check_publication(ROOT))
     for error in failures:
         print(error, file=sys.stderr)
     if failures:

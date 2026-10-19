@@ -174,10 +174,10 @@ kernel void acoustic_boundary_cartesian_agrid(
         uint count = uint(c.nx) * uint(c.ny); if (gid >= count) return;
         int j = int(gid % uint(c.ny)); int i = int(gid / uint(c.ny));
         uint b=line_at(i,j,0,c), bi=line_at(i,j,1,c), t=line_at(i,j,c.nz-1,c), ti=line_at(i,j,c.nz-2,c);
-        w[b]=0.0f;w[t]=0.0f;u[b]=u0[0]+u[bi]-u0[1];v[b]=v0[0]+v[bi]-v0[1];
-        u[t]=u0[c.nz-1]+u[ti]-u0[c.nz-2];v[t]=v0[c.nz-1]+v[ti]-v0[c.nz-2];
-        rho[b]=rho0[0]+rho[bi]-rho0[1];rho[t]=rho0[c.nz-1]+rho[ti]-rho0[c.nz-2];
-        pressure[b]=p0[0]+pressure[bi]-p0[1];pressure[t]=p0[c.nz-1]+pressure[ti]-p0[c.nz-2];
+        w[b]=0.0f;w[t]=0.0f;u[b]=u0[0]+(u[bi]-u0[1]);v[b]=v0[0]+(v[bi]-v0[1]);
+        u[t]=u0[c.nz-1]+(u[ti]-u0[c.nz-2]);v[t]=v0[c.nz-1]+(v[ti]-v0[c.nz-2]);
+        rho[b]=rho0[0]+(rho[bi]-rho0[1]);rho[t]=rho0[c.nz-1]+(rho[ti]-rho0[c.nz-2]);
+        pressure[b]=p0[0]+(pressure[bi]-p0[1]);pressure[t]=p0[c.nz-1]+(pressure[ti]-p0[c.nz-2]);
     }
 }
 )msl";

@@ -41,8 +41,10 @@ import { inflightPrefetchCount } from "@nimbus/lib/run/framePrefetch";
 import { registerExpressionDerivedFields, registerListedStepMetadata } from "@nimbus/lib/run/runOutputs";
 import { augmentStepWithExpressionDerivedFields, createExpressionDerivedField } from "@nimbus/lib/derived/expressionDerivedFields";
 import { captureFrameDataUri } from "@nimbus/lib/run/frameCapture";
+import { captureSettledViewpointReferences } from "../support/settledViewpointReference";
 import {
   lookupVtkAppearanceCapture,
+  lookupVtkDescriptor,
   lookupVtkRenderWindow,
   registerVtkCapture,
   unregisterVtkCapture,
@@ -263,11 +265,15 @@ export interface NimbusVtkHarness {
   restoreContext: () => boolean;
   capture: () => boolean;
   captureAppearance: () => Promise<VtkAppearanceCapture | null>;
+  compareCanvasCapturePaths: () => Promise<{ equal: boolean; bytes: number }>;
+  inspectAppearance: () => VtkAppearanceCapture["evidence"] | null;
   inspectSurfaceNormals: () => Array<{ points: number; normals: number; strips: number }>;
   inspectReferences: () => Array<{ id: number; points: number; bounds: number[] }>;
   inspectLighting: () => Array<{ direction: number[]; color: number[]; intensity: number; type: string }>;
   captureSavedFrame: () => Promise<string>;
   capturePortableViewpoints: (count: number, cancelAfter?: number) => Promise<string>;
+  captureSettledViewpointReferences: (angles: readonly number[]) => ReturnType<typeof captureSettledViewpointReferences>;
+  inspectViewpointOverlays: () => { angleDeg: number; overlays: ReturnType<typeof snapshotVtkOverlays> }[];
   inspectLastSavedFrame: () => VtkAppearanceCapture["evidence"] | null;
   inspectExportOverlays: () => ReturnType<typeof snapshotVtkOverlays>;
   setCamera: (position: [number, number, number], focalPoint: [number, number, number], parallel?: boolean) => Promise<void>;
@@ -306,6 +312,7 @@ declare global {
       snapshot: typeof fixtureControl.snapshot;
       resourceSnapshot: () => ReturnType<typeof snapshotBrowserResources> & { visualization: VisualizationResourceSnapshot };
       capturePaneAppearances: () => Promise<Array<VtkAppearanceCapture | null>>;
+      inspectPaneDescriptors: () => Array<VtkAppearanceCapture["evidence"]["descriptor"] | null>;
       inspectPrimaryVolumeScalarImages: typeof inspectBoundedVolumeScalarImages;
       presentationSnapshot: () => PanePresentationSnapshot | null;
       readExportFile: (path: string) => string | null;
@@ -511,6 +518,7 @@ function Scene({ plot, step, coarse, large, bricked, derivedBricks, beastReferen
 
 function Harness() {
   const savedFrameEvidence = useRef<VtkAppearanceCapture["evidence"] | null>(null);
+  const viewpointOverlays = useRef<{ angleDeg: number; overlays: ReturnType<typeof snapshotVtkOverlays> }[]>([]);
   const scalarReference = useRef<ScalarImage | null>(null);
   const harnessParams = new URLSearchParams(window.location.search);
   const large = harnessParams.get("large") === "1";
@@ -736,13 +744,19 @@ function Harness() {
         const started = performance.now();
         const record = (done: number) => console.info("NIMBUS_VIEWPOINT_PROGRESS "
           + JSON.stringify({ done, count, elapsedMs: performance.now() - started }));
+        viewpointOverlays.current = [];
         record(0);
         const bytes = await captureViewpoints(element, { width: canvas.width, height: canvas.height }, count, "Portable storm fixture", { frameIndex: step }, { signal: abort.signal }, done => {
           record(done);
+          viewpointOverlays.current.push({ angleDeg: (done - 1) * 360 / count, overlays: snapshotVtkOverlays(element) });
           if (cancelAfter && done >= cancelAfter) abort.abort();
         });
         return new TextDecoder().decode(bytes);
       },
+      captureSettledViewpointReferences: angles => captureSettledViewpointReferences(
+        document.querySelector<HTMLElement>(".volume-render__canvas")!, angles,
+      ),
+      inspectViewpointOverlays: () => viewpointOverlays.current,
       inspectLastSavedFrame: () => savedFrameEvidence.current,
       inspectExportOverlays: () => snapshotVtkOverlays(document.querySelector<HTMLElement>(".volume-render__canvas")!),
       inspectSurfaceNormals: () => {
@@ -770,10 +784,28 @@ function Harness() {
           intensity: light.getIntensity(), type: light.getLightType(),
         })) ?? [];
       },
+      compareCanvasCapturePaths: async () => {
+        const renderWindow = lookupVtkRenderWindow(document.querySelector(".volume-render__canvas"))!;
+        const api = renderWindow.getApiSpecificRenderWindow() as unknown as {
+          captureNextImage(format: string): Promise<string>;
+          captureCurrentImage(format: string): string;
+        };
+        const pending = api.captureNextImage("image/png");
+        renderWindow.getRenderWindow().render();
+        const owned = api.captureCurrentImage("image/png");
+        const upstream = await pending;
+        return { equal: owned === upstream, bytes: owned.length };
+      },
       captureAppearance: async () => {
         const target = document.querySelector<HTMLElement>(".volume-render__canvas");
         const captureAppearance = lookupVtkAppearanceCapture(target);
         return captureAppearance ? captureAppearance() : null;
+      },
+      inspectAppearance: () => {
+        const target = document.querySelector<HTMLElement>(".volume-render__canvas");
+        const window = lookupVtkRenderWindow(target);
+        const descriptor = lookupVtkDescriptor(target);
+        return window && descriptor ? collectVtkAppearanceEvidence(window, descriptor()) : null;
       },
       setCamera: async (position, focalPoint, parallel = true) => {
         const window = lookupVtkRenderWindow(document.querySelector(".volume-render__canvas"));
@@ -968,6 +1000,13 @@ function StudioHarness() {
         return results;
       },
       inspectPrimaryVolumeScalarImages: inspectBoundedVolumeScalarImages,
+      inspectPaneDescriptors: () => {
+        const panes = [...document.querySelectorAll(".plot-studio__pane")];
+        const canvases = panes.length > 0
+          ? panes.map(pane => pane.querySelector<HTMLElement>(".volume-render__canvas"))
+          : [...document.querySelectorAll<HTMLElement>(".plot-studio .volume-render__canvas")];
+        return canvases.map(canvas => lookupVtkDescriptor(canvas)?.() ?? null);
+      },
       presentationSnapshot: () => presentation.current,
       readExportFile: path => { const bytes = fixtureControl.readFileBytes(path); return bytes ? new TextDecoder().decode(bytes) : null; },
     };

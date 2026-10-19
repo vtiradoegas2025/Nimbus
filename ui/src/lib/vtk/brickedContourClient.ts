@@ -75,7 +75,9 @@ export class BrickedContourClient {
 
   constructor(worker?: WorkerLike, options?: { externallyReserved?: boolean }) {
     this.externallyReserved = options?.externallyReserved ?? false;
-    this.worker = worker ?? new Worker(brickedContourWorkerUrl, {
+    const separator = brickedContourWorkerUrl.includes("?") ? "&" : "?";
+    const url = `${brickedContourWorkerUrl}${separator}generation=${clientSequence}`;
+    this.worker = worker ?? new Worker(url, {
       type: "module",
       name: "nimbus-bricked-contour-set",
     }) as unknown as WorkerLike;

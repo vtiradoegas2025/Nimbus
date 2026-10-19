@@ -38,6 +38,7 @@ function check(condition: boolean, label: string): void {
     ],
     renderWindow: {
       getApiSpecificRenderWindow: () => ({
+        releaseGraphicsResources: () => calls.push("graphics-release"),
         getCanvas: () => ({
           dataset: {},
           getContext: () => ({
@@ -51,6 +52,10 @@ function check(condition: boolean, label: string): void {
     },
   });
   check(calls[0] === "clear", "owner ref clears before VTK cleanup");
+  check(calls.indexOf("graphics-release") > 0
+    && calls.indexOf("graphics-release") < calls.indexOf("actor-delete")
+    && calls.indexOf("graphics-release") < calls.indexOf("context-release"),
+  "graphics allocations retire while pipeline owners and the GL context are alive");
   check(
     calls.includes("remove-actor"),
     "a throwing listener does not skip renderer detach",
@@ -61,15 +66,75 @@ function check(condition: boolean, label: string): void {
   );
   check(
     calls.includes("context-release") &&
-      calls.indexOf("context-release") < calls.indexOf("detach-container"),
-    "WebGL context retires before its canvas detaches",
+      calls.indexOf("context-release") > calls.indexOf("window-delete"),
+    "WebGL context remains valid until mapper and framebuffer deletion completes",
   );
   check(
-    calls.at(-2) === "detach-container",
+    calls.indexOf("detach-container") < calls.indexOf("window-delete"),
     "render window detaches from its DOM container",
   );
-  check(calls.at(-1) === "window-delete", "render window deletion is always attempted last");
+  check(calls.includes("window-delete"), "render window deletion is attempted after cleanup failures");
   check(errors.length === 2, "individual cleanup failures are captured");
+}
+
+{
+  let resourceDeleted = false;
+  let windowDeleted = false;
+  const failure = new Error("partially initialized graphics resource");
+  const errors = disposeVtkScene({
+    clearScene: () => undefined,
+    resources: [{ delete: () => { resourceDeleted = true; } }],
+    renderWindow: {
+      getApiSpecificRenderWindow: () => ({ releaseGraphicsResources: () => { throw failure; } }),
+      delete: () => { windowDeleted = true; },
+    },
+  });
+  check(resourceDeleted && windowDeleted, "graphics-release failure cannot strand pipeline or window owners");
+  check(errors.length === 1 && errors[0] === failure, "graphics-release errors remain observable");
+}
+
+for (const failurePoint of ["point-data", "array-list"] as const) {
+  const calls: string[] = [];
+  const failure = new Error(`unavailable ${failurePoint}`);
+  const errors = disposeVtkScene({
+    clearScene: () => undefined,
+    resources: [{
+      getPointData: () => {
+        if (failurePoint === "point-data") throw failure;
+        return { getArrays: () => { throw failure; }, removeAllArrays: () => { calls.push("arrays-remove"); } };
+      },
+      delete: () => { calls.push("resource-delete"); },
+    }, { delete: () => { calls.push("next-delete"); } }],
+    renderWindow: { delete: () => { calls.push("window-delete"); } },
+  });
+  check(errors.length === 1 && errors[0] === failure, `${failurePoint} failure remains observable`);
+  check(calls.includes("resource-delete") && calls.includes("next-delete") && calls.includes("window-delete"),
+    `${failurePoint} failure does not strand remaining owners`);
+  if (failurePoint === "array-list") check(calls.includes("arrays-remove"), "array-list failure still detaches point data");
+}
+
+{
+  let windowDeleted = false;
+  let contextRetired = false;
+  const canvas = {
+    width: 1280, height: 840, dataset: {} as Record<string, string>,
+    getContext: () => ({ getExtension: () => ({ loseContext: () => {
+      check(windowDeleted, "drawing context retires after its VTK window");
+      check(canvas.width === 1280 && canvas.height === 840,
+        "drawing buffer remains intact through graphics resource deletion");
+      contextRetired = true;
+    } }) }),
+  };
+  const errors = disposeVtkScene({
+    clearScene: () => undefined,
+    renderWindow: {
+      getApiSpecificRenderWindow: () => ({ getCanvas: () => canvas }),
+      delete: () => { windowDeleted = true; },
+    },
+  });
+  check(errors.length === 0 && contextRetired, "drawing-buffer retirement preserves context cleanup");
+  check(canvas.width === 0 && canvas.height === 0,
+    "retired canvases release their native backing dimensions before garbage collection");
 }
 
 /*
@@ -116,6 +181,67 @@ function check(condition: boolean, label: string): void {
     calls.indexOf("interactor-delete") > calls.indexOf("window-delete"),
     "and deleted after it, because the window's teardown unbinds events on it",
   );
+}
+
+{
+  const calls: string[] = [];
+  let wrapperDeleted = false;
+  const coreRenderer = {
+    delete: () => { calls.push("renderer-delete"); },
+    getActiveCamera: () => { throw new Error("borrowed camera must not be inspected or deleted"); },
+  };
+  const coreWindow = { delete: () => { calls.push("core-window-delete"); } };
+  const errors = disposeVtkScene({
+    clearScene: () => undefined,
+    renderWindow: {
+      getRenderer: () => {
+        if (wrapperDeleted) throw new Error("renderer no longer available");
+        return coreRenderer;
+      },
+      getRenderWindow: () => {
+        if (wrapperDeleted) throw new Error("core window no longer available");
+        return coreWindow;
+      },
+      getInteractor: () => ({ delete: () => { calls.push("interactor-delete"); } }),
+      delete: () => { wrapperDeleted = true; calls.push("wrapper-delete"); },
+    },
+  });
+  check(errors.length === 0, "owned cores are captured before wrapper deletion without inspecting borrowed cameras");
+  check(calls.join(",") === "wrapper-delete,interactor-delete,renderer-delete,core-window-delete",
+    "API wrapper and interactor retire before the owned renderer and core window");
+}
+
+for (const failurePoint of ["renderer-get", "core-get", "renderer-delete", "core-delete"] as const) {
+  const calls: string[] = [];
+  const failure = new Error(failurePoint);
+  const errors = disposeVtkScene({
+    clearScene: () => undefined,
+    renderWindow: {
+      getRenderer: () => {
+        if (failurePoint === "renderer-get") throw failure;
+        return { delete: () => { calls.push("renderer-delete"); if (failurePoint === "renderer-delete") throw failure; } };
+      },
+      getRenderWindow: () => {
+        if (failurePoint === "core-get") throw failure;
+        return { delete: () => { calls.push("core-delete"); if (failurePoint === "core-delete") throw failure; } };
+      },
+      getInteractor: () => ({ delete: () => { calls.push("interactor-delete"); } }),
+      delete: () => { calls.push("wrapper-delete"); },
+    },
+  });
+  check(errors.length === 1 && errors[0] === failure, `${failurePoint} is reported without throwing`);
+  check(calls.includes("wrapper-delete") && calls.includes("interactor-delete")
+    && (failurePoint === "renderer-get" || calls.includes("renderer-delete"))
+    && (failurePoint === "core-get" || calls.includes("core-delete")),
+  `${failurePoint} does not skip remaining owner teardown`);
+}
+
+{
+  let deletions = 0;
+  const owner = { delete: () => { deletions++; } };
+  disposeVtkScene({ clearScene: () => undefined,
+    resources: [owner], renderWindow: { getRenderer: () => owner, getRenderWindow: () => owner } });
+  check(deletions === 1, "aliased core owners already present in resources are deleted once");
 }
 
 {
@@ -262,6 +388,26 @@ function check(condition: boolean, label: string): void {
   check(state.lost, "an obsolete renderer cannot clear the recovery overlay");
   state = reduceVtkContextState(state, { type: "frame_rendered", generation: 2 });
   check(!state.lost, "the rebuilt generation clears recovery only after rendering");
+}
+
+{
+  const [{ default: vtkRenderWindow }, { default: vtkRenderer }, { default: vtkCamera }] = await Promise.all([
+    import("@kitware/vtk.js/Rendering/Core/RenderWindow.js"),
+    import("@kitware/vtk.js/Rendering/Core/Renderer.js"),
+    import("@kitware/vtk.js/Rendering/Core/Camera.js"),
+  ]);
+  const core = vtkRenderWindow.newInstance();
+  const renderer = vtkRenderer.newInstance();
+  const borrowedCamera = vtkCamera.newInstance();
+  renderer.setActiveCamera(borrowedCamera);
+  core.addRenderer(renderer);
+  const errors = disposeVtkScene({ clearScene: () => undefined, renderWindow: {
+    getRenderer: () => renderer, getRenderWindow: () => core,
+  } });
+  check(errors.length === 0 && renderer.isDeleted() && core.isDeleted(),
+    "actual VTK renderer and core window are deterministically deleted");
+  check(!borrowedCamera.isDeleted(), "deleting owned core objects leaves an externally supplied camera intact");
+  borrowedCamera.delete();
 }
 
 console.log(`\nvtkLifecycle tests: ${passed} passed, ${failed} failed.`);

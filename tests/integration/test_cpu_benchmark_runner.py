@@ -9,10 +9,11 @@ import json
 import math
 import os
 from pathlib import Path
+import shlex
+import shutil
 import subprocess
 import sys
 import tempfile
-import textwrap
 import unittest
 from unittest import mock
 
@@ -25,15 +26,47 @@ runner = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(runner)
 
 
-def write_fake_benchmark(path: Path, body: str) -> None:
-    path.write_text(
-        "#!/usr/bin/env python3\n" + textwrap.dedent(body),
-        encoding="utf-8",
-    )
-    path.chmod(0o755)
-
-
 class CpuBenchmarkRunnerTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        temporary = tempfile.TemporaryDirectory(prefix="nimbus benchmark native ")
+        cls.addClassCleanup(temporary.cleanup)
+        cls.fake_binary = Path(temporary.name) / (
+            "fake_benchmark.exe" if sys.platform == "win32" else "fake_benchmark"
+        )
+        configured = os.environ.get("CXX")
+        if configured:
+            compiler = (
+                [configured] if Path(configured).is_file() else shlex.split(configured)
+            )
+        else:
+            executable = next(
+                (path for name in ("c++", "clang++", "g++")
+                 if (path := shutil.which(name))),
+                None,
+            )
+            if executable is None:
+                raise RuntimeError(
+                    "CPU runner integration tests require a C++17 compiler; set CXX"
+                )
+            compiler = [executable]
+        completed = subprocess.run(
+            [
+                *compiler, "-std=c++17",
+                str(Path(__file__).with_name("cpu_benchmark_fixture.cpp")),
+                "-o", str(cls.fake_binary),
+            ],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=60,
+        )
+        if completed.returncode != 0:
+            raise RuntimeError(
+                f"Could not compile native CPU runner fixture:\n{completed.stdout}{completed.stderr}"
+            )
+
     def test_nearest_rank_p95(self) -> None:
         self.assertEqual(runner.nearest_rank_p95([1.0, 2.0, 3.0]), 3.0)
         self.assertEqual(runner.nearest_rank_p95(list(range(1, 101))), 95)
@@ -161,33 +194,8 @@ class CpuBenchmarkRunnerTests(unittest.TestCase):
     def test_main_clears_inherited_environment_and_records_explicit_tuning(self) -> None:
         with tempfile.TemporaryDirectory(prefix="nimbus_benchmark_test_") as temp:
             temp_path = Path(temp)
-            fake = temp_path / "fake_benchmark.py"
             config = temp_path / "fixture.yaml"
             config.write_text("schema: fake\n", encoding="utf-8")
-            write_fake_benchmark(
-                fake,
-                """
-                import os
-                import sys
-
-                if os.environ.get("NIMBUS_DEBUG_EXPORTS") is not None:
-                    raise SystemExit("inherited NIMBUS variable leaked")
-                if os.environ.get("OMP_THREAD_LIMIT") is not None:
-                    raise SystemExit("inherited OMP variable leaked")
-                if os.environ.get("OMP_NUM_THREADS") != "3":
-                    raise SystemExit("controlled thread count missing")
-                if os.environ.get("OMP_PROC_BIND") != "close":
-                    raise SystemExit("explicit tuning variable missing")
-                print("[PERF SUMMARY] measured_steps=4, warmup_steps=2, "
-                      "scope=test_scope, step_wall_s=2, avg_step_ms=500, "
-                      "sim_s_per_wall_s=3, measured_simulated_s=6")
-                print("[MEMORY MILESTONE] phase=startup_ready, "
-                      "peak_rss_bytes=123456")
-                print("[MEMORY PLAN] cells=1024, field_bytes=4096, "
-                      "predicted_fields=40000, fixed_overhead_bytes=0, "
-                      "predicted_bytes=163840000")
-                """,
-            )
             environment = os.environ.copy()
             environment["NIMBUS_DEBUG_EXPORTS"] = "1"
             environment["OMP_THREAD_LIMIT"] = "1"
@@ -195,11 +203,12 @@ class CpuBenchmarkRunnerTests(unittest.TestCase):
                 [
                     sys.executable,
                     str(RUNNER_PATH),
-                    "--binary", str(fake),
+                    "--binary", str(self.fake_binary),
                     "--config", str(config),
                     "--trials", "1",
                     "--threads", "3",
                     "--env", "OMP_PROC_BIND=close",
+                    "--extra-arg=--fixture=environment",
                 ],
                 cwd=ROOT,
                 env=environment,
@@ -225,36 +234,24 @@ class CpuBenchmarkRunnerTests(unittest.TestCase):
             self.assertTrue(
                 report["trials"][0]["memory_calibration"]["within_plan"]
             )
+            self.assertGreater(report["trials"][0]["peak_rss_bytes"], 0)
 
     def test_main_rejects_heterogeneous_trials(self) -> None:
         with tempfile.TemporaryDirectory(prefix="nimbus_benchmark_test_") as temp:
             temp_path = Path(temp)
-            fake = temp_path / "fake_benchmark.py"
             counter = temp_path / "counter"
             config = temp_path / "fixture.yaml"
             config.write_text("schema: fake\n", encoding="utf-8")
-            write_fake_benchmark(
-                fake,
-                f"""
-                from pathlib import Path
-
-                counter = Path({str(counter)!r})
-                value = int(counter.read_text()) + 1 if counter.exists() else 1
-                counter.write_text(str(value))
-                scope = "scope_a" if value == 1 else "scope_b"
-                print(f"[PERF SUMMARY] measured_steps=4, warmup_steps=2, "
-                      f"scope={{scope}}, step_wall_s=2, avg_step_ms=500, "
-                      f"sim_s_per_wall_s=3, measured_simulated_s=6")
-                """,
-            )
             completed = subprocess.run(
                 [
                     sys.executable,
                     str(RUNNER_PATH),
-                    "--binary", str(fake),
+                    "--binary", str(self.fake_binary),
                     "--config", str(config),
                     "--trials", "2",
                     "--threads", "2",
+                    "--extra-arg=--fixture=heterogeneous",
+                    f"--extra-arg=--counter={counter}",
                 ],
                 cwd=ROOT,
                 text=True,
@@ -263,6 +260,7 @@ class CpuBenchmarkRunnerTests(unittest.TestCase):
             )
             self.assertNotEqual(completed.returncode, 0)
             self.assertIn("refusing to aggregate heterogeneous trials", completed.stderr)
+            self.assertEqual(counter.read_text(), "2")
 
 
 if __name__ == "__main__":

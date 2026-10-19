@@ -15,15 +15,23 @@ for (const plot of ["volume", "isosurface", "streamlines", "trajectories", "supe
       let previousViewport = "";
       let lastEvidence: unknown;
       await expect.poll(async () => {
-        const capture = await page.evaluate(() => window.__nimbusVtkHarness!.captureAppearance());
-        lastEvidence = capture?.evidence;
-        const viewport = JSON.stringify(capture?.evidence.viewport);
+        const { evidence, displayed } = await page.evaluate(plot => {
+          const data = document.querySelector<HTMLElement>('[data-testid="scene"]')?.dataset;
+          const evidence = window.__nimbusVtkHarness!.inspectAppearance();
+          return { evidence,
+            displayed: plot === "trajectories"
+              ? evidence?.descriptor.parameters?.temporalScope === "whole-recorded-history"
+                && evidence.descriptor.frameIndex === null
+              : data?.frameLoading === "false" && data.framePlot === plot && data.renderedStep === "1" };
+        }, plot);
+        lastEvidence = evidence;
+        const viewport = JSON.stringify(evidence?.viewport);
         const stable = viewport === previousViewport;
         previousViewport = viewport;
-        const parameters = capture?.evidence.descriptor.parameters;
+        const parameters = evidence?.descriptor.parameters;
         const fullQuality = plot === "volume" ? parameters?.interactionQuality === "settled"
           : plot === "supercell" ? parameters?.shadowSampleFactor === 4 : true;
-        return stable && fullQuality && capture?.evidence.descriptor.plot === plot && capture.evidence.layers.some(layer =>
+        return displayed && stable && fullQuality && evidence?.descriptor.plot === plot && evidence.layers.some(layer =>
           layer.visible && (layer.pointCount ?? 0) > 100 && (layer.cellCount ?? 0) > 0);
       }, { timeout: 30000, intervals: [250] }).toBe(true).catch(async (error: unknown) => {
         await info.attach("readiness-evidence", { body: JSON.stringify(lastEvidence ?? null), contentType: "application/json" });

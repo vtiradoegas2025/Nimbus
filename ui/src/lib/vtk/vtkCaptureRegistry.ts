@@ -1,5 +1,5 @@
-/* Frame-capture registry for VTK widgets. captureNextImage arms a one-shot
- * grab that resolves only on the next render pass — always arm then render. */
+/* Capture requests arm before rendering and resolve after an actual traversal,
+ * including when an active interactor defers the draw to its animation frame. */
 
 import {
   collectVtkAppearanceEvidence,
@@ -10,6 +10,7 @@ import {
 import { holdFullVtkPlaybackResolution } from "./vtkPlaybackScreenResolution";
 import { compositeVtkOverlays, snapshotVtkOverlays } from "./vtkOverlayCapture";
 import { holdVtkFullQuality } from "./vtkInteraction";
+import type { OwnedCanvasCaptureRequest } from "./ownedCanvasCapture";
 
 export type FrameCapture = () => Promise<string>;
 
@@ -25,24 +26,25 @@ export type VtkAppearanceEvidenceCapture = () => Promise<VtkAppearanceCapture>;
 interface VtkGenericRenderWindowLike {
   getApiSpecificRenderWindow: () => {
     captureNextImage?: (format: string) => Promise<string> | string | undefined;
+    requestImageCapture?: (format: string) => OwnedCanvasCaptureRequest;
   };
   getRenderWindow: () => { render: () => void };
 }
 
 /**
- * Capture the current 3D scene to a PNG data URL. Arms `captureNextImage`,
- * then issues a render so the capture pass actually runs and resolves the
- * promise; a timeout guard turns a future regression into an error instead of
- * an unkillable hang in the recorder loop.
+ * Capture the current 3D scene to a PNG data URL. Owned snapshots retire their
+ * temporary backing store; asynchronous backend capture has a deadline.
  */
 export async function captureVtkPng(
   renderWindow: VtkGenericRenderWindowLike,
   timeoutMs = 8000,
 ): Promise<string> {
   const releaseResolution = holdFullVtkPlaybackResolution(renderWindow);
+  let ownedRequest: OwnedCanvasCaptureRequest | undefined;
   try {
     const glWindow = renderWindow.getApiSpecificRenderWindow();
-    const pending = Promise.resolve(glWindow.captureNextImage?.("image/png"));
+    ownedRequest = glWindow.requestImageCapture?.("image/png");
+    const pending = ownedRequest?.promise ?? Promise.resolve(glWindow.captureNextImage?.("image/png"));
     // On the timeout path `Promise.race` settles via `guard`, leaving `pending`
     // unsettled; a later rejection would surface as an unhandledrejection. Attach
     // a second no-op handler so a post-timeout rejection is always handled. The
@@ -67,7 +69,7 @@ export async function captureVtkPng(
     } finally {
       if (timer) clearTimeout(timer);
     }
-  } finally { releaseResolution(); }
+  } finally { try { ownedRequest?.cancel(); } finally { releaseResolution(); } }
 }
 
 // WeakMap: a missed unregister would otherwise pin an entire GPU scene for the process lifetime.

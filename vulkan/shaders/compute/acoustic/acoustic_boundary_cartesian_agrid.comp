@@ -15,6 +15,12 @@ layout(set = 0, binding = 8) buffer Pressure { float pressure[]; };
 layout(push_constant) uniform PushConstants { int nx; int ny; int nz; int pass; } pc;
 uint at(int i, int j, int k) { return uint((i * pc.ny + j) * pc.nz + k); }
 
+float close_base_perturbation(float ghost_base, float interior, float interior_base) {
+    precise float perturbation = interior - interior_base;
+    precise float closed = ghost_base + perturbation;
+    return closed;
+}
+
 void main() {
     uint gid = gl_GlobalInvocationID.x;
     if (pc.pass == 0) {
@@ -39,13 +45,13 @@ void main() {
         uint bottom = at(i, j, 0), bottom_source = at(i, j, 1);
         uint top = at(i, j, pc.nz - 1), top_source = at(i, j, pc.nz - 2);
         w[bottom] = 0.0; w[top] = 0.0;
-        u[bottom] = u0[0] + (u[bottom_source] - u0[1]);
-        v[bottom] = v0[0] + (v[bottom_source] - v0[1]);
-        u[top] = u0[pc.nz - 1] + (u[top_source] - u0[pc.nz - 2]);
-        v[top] = v0[pc.nz - 1] + (v[top_source] - v0[pc.nz - 2]);
-        rho[bottom] = rho0[0] + (rho[bottom_source] - rho0[1]);
-        rho[top] = rho0[pc.nz - 1] + (rho[top_source] - rho0[pc.nz - 2]);
-        pressure[bottom] = p0[0] + (pressure[bottom_source] - p0[1]);
-        pressure[top] = p0[pc.nz - 1] + (pressure[top_source] - p0[pc.nz - 2]);
+        u[bottom] = close_base_perturbation(u0[0], u[bottom_source], u0[1]);
+        v[bottom] = close_base_perturbation(v0[0], v[bottom_source], v0[1]);
+        u[top] = close_base_perturbation(u0[pc.nz - 1], u[top_source], u0[pc.nz - 2]);
+        v[top] = close_base_perturbation(v0[pc.nz - 1], v[top_source], v0[pc.nz - 2]);
+        rho[bottom] = close_base_perturbation(rho0[0], rho[bottom_source], rho0[1]);
+        rho[top] = close_base_perturbation(rho0[pc.nz - 1], rho[top_source], rho0[pc.nz - 2]);
+        pressure[bottom] = close_base_perturbation(p0[0], pressure[bottom_source], p0[1]);
+        pressure[top] = close_base_perturbation(p0[pc.nz - 1], pressure[top_source], p0[pc.nz - 2]);
     }
 }

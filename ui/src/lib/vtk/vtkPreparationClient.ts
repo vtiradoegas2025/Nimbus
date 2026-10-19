@@ -759,10 +759,9 @@ export function prepareVtkInWorker(
         options,
       );
     }
-    return qualifySharedVtkGeometryHandoff().then((qualified) => prepareVtkInWorker(
+    return qualifySharedVtkGeometryHandoff().then((qualified) => coordinatedPreparation(
       { ...request, datasetHandoff: qualified ? "shared-geometry" : "render-only" },
       signal,
-      workerFactory,
       options,
     ));
   }

@@ -27,6 +27,7 @@ compile_commands.json
 /docs/WINDOWS_ACCEPTANCE.md
 /docs/latex/
 /docs/**/*.tex
+/scripts/dev/docs/
 /threadHandOff.md
 /configs/custom/
 /nimbus-gate-result-*/

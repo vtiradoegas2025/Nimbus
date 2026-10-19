@@ -915,6 +915,73 @@ class QueueFakeWorker implements PreparationWorker {
   }
 }
 
+{
+  const saved = new Map(["Worker", "document", "navigator", "crossOriginIsolated"]
+    .map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+  const workers: QueueFakeWorker[] = [];
+  let capabilityReads = 0;
+  let uploads = 0;
+  const gl = {
+    ARRAY_BUFFER: 34962, STATIC_DRAW: 35044, NO_ERROR: 0,
+    createBuffer: () => ({}), bindBuffer: () => undefined,
+    bufferData: (_target: number, values: Float32Array) => {
+      check(values.buffer instanceof SharedArrayBuffer, "shared preparation probes an actual shared buffer");
+      uploads++;
+    },
+    getError: () => 0, deleteBuffer: () => undefined,
+    getExtension: () => ({ loseContext: () => undefined }),
+  };
+  class QualifiedWorker extends QueueFakeWorker {
+    constructor() {
+      super(); workers.push(this); queueMicrotask(() => this.ready());
+    }
+    override postMessage(message: Parameters<QueueFakeWorker["postMessage"]>[0]): void {
+      super.postMessage(message);
+      if (message.kind !== "prepare") return;
+      const result = prepareVtkRequest(message.request);
+      sharePreparedVtkResult(result, message.request.datasetHandoff === "shared-geometry");
+      queueMicrotask(() => this.succeed(message.requestId, result));
+    }
+  }
+  Object.defineProperties(globalThis, {
+    Worker: { configurable: true, value: QualifiedWorker },
+    document: { configurable: true, value: { createElement: () => ({ getContext: () => gl }) } },
+    navigator: { configurable: true, value: { get userAgent() {
+      // Bound re-entry so a recursion regression cannot starve the test process's timers.
+      if (++capabilityReads > 4) throw new Error("Shared preparation admission recursed");
+      return "Chromium";
+    } } },
+    crossOriginIsolated: { configurable: true, value: true },
+  });
+  try {
+    const request = { kind: "velocity-diagnostic" as const, diagnostic: "q-criterion" as const,
+      fields: [field, field, field] as [typeof field, typeof field, typeof field], grid,
+      datasetHandoff: "shared-geometry" as const };
+    let result: VtkPreparationResult | null = null;
+    let failure: unknown = null;
+    try { result = await prepareVtkInWorker(request); } catch (error) { failure = error; }
+    check(failure == null, "qualified shared preparation reaches the worker without recursive admission");
+    check(uploads === 1 && capabilityReads === 1, "shared geometry is qualified once for the preparation request");
+    check(workers.length === 1 && workers[0].prepares.length === 1,
+      "qualified shared preparation submits one diagnostic preparation task");
+    check(result != null && "values" in result && result.values.buffer instanceof SharedArrayBuffer,
+      "successful preparation retains the qualified shared geometry path");
+    capabilityReads = 0;
+    const controller = new AbortController();
+    const cancelled = prepareVtkInWorker(request, controller.signal);
+    controller.abort();
+    check(await cancelled.then(() => false, isPreparationAbort),
+      "cancellation during shared qualification prevents a preparation dispatch");
+    check(workers.length === 1 && workers[0].prepares.length === 1,
+      "cancelled shared qualification adds no worker work");
+  } finally {
+    for (const [key, descriptor] of saved) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else Reflect.deleteProperty(globalThis, key);
+    }
+  }
+}
+
 for (const panes of [2, 4]) {
   const worker = new QueueFakeWorker();
   const coordinator = new PreparationCoordinator(() => worker);

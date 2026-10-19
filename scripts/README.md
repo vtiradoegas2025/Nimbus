@@ -35,17 +35,18 @@ SPIR-V tools used for explicit shader reproducibility checks.
 
 ## Configuration reference
 
-`dev/docs/namelist.json` holds the reviewed parameter inventory and source
-identities for [the namelist reference](../docs/NAMELIST.md). After a configuration
-change, review the affected names, defaults, enum aliases, conditional rules and
-ordinary admission behavior. Update those entries and record the reviewed
-sources' SHA-256 identities; changing a hash alone is not a documentation review.
-Render with `python3 scripts/dev/docs/generate_namelist.py --write`, then run
-`python3 scripts/dev/docs/generate_namelist.py --check --verify-defaults`.
-The latter compiles a small C++17 default-value reader using `CXX` (or `--cxx`);
-it runs no simulation. `make check-docs` checks source identities and the rendered
-reference without requiring a compiler. LaTeX/PDF builds are described in
-[the technical document source guide](dev/docs/latex/README.md).
+The [namelist reference](../docs/NAMELIST.md) records configuration names,
+defaults, enum aliases, conditional rules and ordinary admission behavior.
+The source, typed configuration and runtime remain authoritative. After a
+configuration change, review affected entries with the maintainer, who keeps
+the editable inventory and generator locally. `make check-docs` verifies the
+reviewed published bytes and pinned configuration-source identities; changing
+a hash alone is not a documentation review.
+
+The [mathematics](../docs/MATHEMATICS.pdf),
+[architecture](../docs/ARCHITECTURE.pdf) and [Studio](../docs/STUDIO.pdf) manuals
+are published PDFs. Their editable sources and PDF build tooling are maintained
+locally by the maintainer and are not distributed in the public checkout.
 
 ## Volume source inspection
 

@@ -272,6 +272,7 @@ let activeFailureContext: {
   checks: Check[];
   memorySamples: MemorySample[];
   watchdog: WatchdogDiagnostics;
+  physicalGpuEvidence?: Awaited<ReturnType<typeof qualifyPackagedPhysicalGpuResidency>>;
 } | null = null;
 
 function failureContext() {
@@ -548,6 +549,47 @@ async function execute(profile: string) {
   let physicalGpuEvidence: Awaited<ReturnType<typeof qualifyPackagedPhysicalGpuResidency>> | null = null;
   let packagedAppearance: Awaited<ReturnType<typeof capturePackagedAppearanceEvidence>> | null = null;
   try {
+    await beginWatchdogStage("physical-gpu-residency");
+    physicalGpuEvidence = await qualifyPackagedPhysicalGpuResidency(scalar, sampleMemory);
+    const gpuRss = (label: string) => {
+      const bytes = memorySamples.find(sample => sample.label === label)?.memory.processTreeRssBytes;
+      if (bytes == null || !Number.isSafeInteger(bytes) || bytes <= 0) {
+        throw new Error(`Invalid process-tree RSS at ${label}`);
+      }
+      return bytes;
+    };
+    const baselineBytes = gpuRss("gpu-baseline");
+    const residentBytes: [number, number] = [gpuRss("gpu-cycle-1-resident"), gpuRss("gpu-cycle-2-resident")];
+    const retiredBytes: [number, number] = [gpuRss("gpu-cycle-1-retired"), gpuRss("gpu-cycle-2-retired")];
+    physicalGpuEvidence = {
+      ...physicalGpuEvidence,
+      rss: {
+        currency: "process-tree-rss",
+        baselineBytes, residentBytes, retiredBytes,
+        residentDeltaBytes: [residentBytes[0] - baselineBytes, residentBytes[1] - baselineBytes],
+        restartGrowthBytes: residentBytes[1] - residentBytes[0],
+        limitation: "Application RSS includes CPU heaps, driver allocations and renderer services; it is not physical VRAM or proof of an exact GPU allocation. Signed deltas share one baseline. Two cycles do not establish a memory plateau; garbage collection and native reclamation may be asynchronous. Capacity campaigns remain pending.",
+      },
+    };
+    if (activeFailureContext) activeFailureContext.physicalGpuEvidence = physicalGpuEvidence;
+    requireCheck(checks, "physical-gpu-residency",
+      physicalGpuEvidence.renderingPath === "nimbus-coherent-volume"
+        && physicalGpuEvidence.maximumLogicalGpuResidentBytes
+        >= physicalGpuEvidence.scalarTextureBytesPerCycle
+        && physicalGpuEvidence.preparedCpuBuffers === 2
+        && physicalGpuEvidence.preparedCpuBufferBytes === physicalGpuEvidence.scalarTextureBytesPerCycle
+        && physicalGpuEvidence.actualRenderedTexturesPerCycle === 2
+        && physicalGpuEvidence.retiredContexts === 2
+        && physicalGpuEvidence.retiredOwnedObjects.length === 2
+        && physicalGpuEvidence.retiredOwnedObjects.every(count => count >= 15)
+        && physicalGpuEvidence.zeroedCanvasBackingStores === 2
+        && physicalGpuEvidence.postScopeRetirementMs.length === 2
+        && physicalGpuEvidence.postScopeRetirementMs.every(value => Number.isFinite(value) && value >= 0)
+        && !physicalGpuEvidence.contextLost
+        && physicalGpuEvidence.glErrors.every((error) => error === 0)
+        && physicalGpuEvidence.maximum3DTextureSize >= Math.max(...shape)
+        && physicalGpuEvidence.renderPngSha256.length === 2,
+      `two rendered 3D textures must allocate, render, and retire each fresh context (logical ${physicalGpuEvidence.maximumLogicalGpuResidentBytes}; absolute process-tree RSS ${residentBytes.join(", ")})`);
     for (let cycle = 1; cycle <= 2; cycle += 1) {
       cycles.push(await runCycle(
         cycle,
@@ -591,44 +633,6 @@ async function execute(profile: string) {
         && nativeBrickEvidence.terrainDiagnosticTriangles > 0
         && nativeBrickEvidence.terrainDiagnosticRange[1] > nativeBrickEvidence.terrainDiagnosticRange[0],
       `manifest-v5 terrain windows must publish physical geometry and Q contours (got ${JSON.stringify(nativeBrickEvidence)})`);
-    await beginWatchdogStage("physical-gpu-residency");
-    physicalGpuEvidence = await qualifyPackagedPhysicalGpuResidency(scalar, sampleMemory);
-    const gpuBaseline = memorySamples.find((sample) => sample.label === "gpu-baseline")!;
-    const gpuResidentOne = memorySamples.find((sample) => sample.label === "gpu-cycle-1-resident")!;
-    const gpuRetiredOne = memorySamples.find((sample) => sample.label === "gpu-cycle-1-retired")!;
-    const gpuResidentTwo = memorySamples.find((sample) => sample.label === "gpu-cycle-2-resident")!;
-    const baselineRss = gpuBaseline.memory.processTreeRssBytes!;
-    const firstResidentDeltaBytes = Math.max(
-      0,
-      gpuResidentOne.memory.processTreeRssBytes! - baselineRss,
-    );
-    const secondResidentDeltaBytes = Math.max(
-      0,
-      gpuResidentTwo.memory.processTreeRssBytes! - gpuRetiredOne.memory.processTreeRssBytes!,
-    );
-    const maximumPhysicalResidentDeltaBytes = Math.max(
-      firstResidentDeltaBytes,
-      secondResidentDeltaBytes,
-    );
-    requireCheck(checks, "physical-gpu-residency",
-      physicalGpuEvidence.maximumLogicalGpuResidentBytes
-        >= physicalGpuEvidence.scalarTextureBytesPerCycle
-        && physicalGpuEvidence.actualRenderedTexturesPerCycle === 2
-        && !physicalGpuEvidence.contextLost
-        && physicalGpuEvidence.glErrors.every((error) => error === 0)
-        && physicalGpuEvidence.maximum3DTextureSize >= Math.max(...shape)
-        && physicalGpuEvidence.renderPngSha256.length === 2
-        && maximumPhysicalResidentDeltaBytes >= 0,
-      `two rendered 3D textures must allocate, render, and survive restart (logical ${physicalGpuEvidence.maximumLogicalGpuResidentBytes}, RSS-observed delta ${maximumPhysicalResidentDeltaBytes})`);
-    requireCheck(checks, "physical-gpu-restart-plateau",
-      secondResidentDeltaBytes <= firstResidentDeltaBytes,
-      `the second fresh GPU-cycle RSS delta (${secondResidentDeltaBytes}) must not exceed the first observed allocation delta (${firstResidentDeltaBytes})`);
-    physicalGpuEvidence = {
-      ...physicalGpuEvidence,
-      firstResidentDeltaBytes,
-      secondResidentDeltaBytes,
-      maximumPhysicalResidentDeltaBytes,
-    };
     await beginWatchdogStage("packaged-appearance");
     packagedAppearance = await capturePackagedAppearanceEvidence();
     requireCheck(checks, "packaged-appearance-scenes",
@@ -697,7 +701,9 @@ async function execute(profile: string) {
   await recordProgress("qualification-complete");
   return {
     schema: REPORT_SCHEMA,
-    schemaVersion: 1,
+    schemaVersion: 2,
+    scope: "bounded-packaged-lifecycle" as const,
+    memoryCampaign: "pending" as const,
     status: "passed" as const,
     profile,
     userAgent: navigator.userAgent,
@@ -743,7 +749,9 @@ export async function runPackagedVisualizationQualification(
 ): Promise<void> {
   let report: Awaited<ReturnType<typeof execute>> | {
     schema: typeof REPORT_SCHEMA;
-    schemaVersion: 1;
+    schemaVersion: 2;
+    scope: "bounded-packaged-lifecycle";
+    memoryCampaign: "pending";
     status: "failed";
     profile: string;
     userAgent: string;
@@ -753,6 +761,7 @@ export async function runPackagedVisualizationQualification(
     checks: Check[];
     memorySamples: MemorySample[];
     watchdog: WatchdogDiagnostics;
+    physicalGpuEvidence?: Awaited<ReturnType<typeof qualifyPackagedPhysicalGpuResidency>>;
   };
   activeFailureContext = null;
   try {
@@ -773,7 +782,9 @@ export async function runPackagedVisualizationQualification(
     const context = failureContext();
     report = {
       schema: REPORT_SCHEMA,
-      schemaVersion: 1,
+      schemaVersion: 2,
+      scope: "bounded-packaged-lifecycle",
+      memoryCampaign: "pending",
       status: "failed",
       profile: request.profile,
       userAgent: navigator.userAgent,
@@ -782,6 +793,7 @@ export async function runPackagedVisualizationQualification(
       errorStack: error instanceof Error ? error.stack ?? null : null,
       checks: context?.checks ?? [],
       memorySamples: context?.memorySamples ?? [],
+      physicalGpuEvidence: context?.physicalGpuEvidence,
       watchdog: context?.watchdog ?? {
         intervalMs: 50,
         eventThresholdMs: 25,

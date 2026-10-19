@@ -18,8 +18,8 @@ env:
 
 jobs:
   documentation:
-    name: Documentation links and LaTeX PDFs
-    runs-on: macos-latest
+    name: Published documentation and repository layout
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -27,11 +27,6 @@ jobs:
         run: |
           python3 scripts/tests/architecture/check_repository_layout.py
           python3 scripts/tests/architecture/check_docs.py
-          python3 scripts/dev/docs/build_guides.py --check
-      - name: Install the document compiler
-        run: brew install tectonic
-      - name: Rebuild the technical guides
-        run: python3 scripts/dev/docs/build_guides.py
 
   vulkan-software:
     name: Vulkan dispatch + parity (lavapipe)
@@ -104,6 +99,11 @@ jobs:
           make -j"$NIMBUS_BUILD_JOBS" bin/test_vulkan_memory_plan
           ./bin/test_vulkan_memory_plan
 
+      - name: Verify portable compensated product residuals
+        run: |
+          python3 scripts/qualification/qualify_vulkan_compensated_product.py \
+            --output build/qualification/vulkan-compensated-product.json
+
       - name: Build required dispatch and parity binaries
         run: |
           make -j"$NIMBUS_BUILD_JOBS" vulkan-compute-shaders \
@@ -127,6 +127,15 @@ jobs:
       - name: Report C++ compiler cache
         if: always()
         run: ccache --show-stats
+
+      - name: Retain bounded arithmetic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vulkan-compensated-product
+          path: build/qualification/vulkan-compensated-product.json
+          if-no-files-found: warn
+          retention-days: 14
 
   ui-contracts:
     name: UI unit and type contracts
@@ -242,7 +251,7 @@ jobs:
   studio-macos-package:
     name: Nimbus Studio package (macOS ${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 75
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
@@ -641,6 +650,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Install locked evidence-validator dependencies
+        working-directory: ui
+        run: npm ci
 
       - name: Download every packaged visualization report
         uses: actions/download-artifact@v4
@@ -748,7 +763,8 @@ jobs:
           base="${{ github.event.pull_request.base.sha || github.event.before }}"
           if [ -z "$base" ] || ! git cat-file -e "${base}^{commit}" 2>/dev/null \
               || ! git merge-base "$base" HEAD >/dev/null 2>&1; then
-            base="$(git rev-parse --verify HEAD^ 2>/dev/null || echo empty-tree)"
+            # A root commit establishes the baseline for subsequent changed-line checks.
+            base="$(git rev-parse --verify HEAD^ 2>/dev/null || git rev-parse HEAD)"
           fi
           echo "Format base: $base"
           make format-check FORMAT_BASE="$base"

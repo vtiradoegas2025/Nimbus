@@ -105,41 +105,49 @@ export async function compositeVtkOverlays(png: string, snapshot: VtkOverlaySnap
   const canvas = document.createElement("canvas");
   canvas.width = image.naturalWidth;
   canvas.height = image.naturalHeight;
-  const context = canvas.getContext("2d");
-  if (!context) throw new Error("Could not compose the captured 3D legends");
-  context.drawImage(image, 0, 0);
-  context.scale(canvas.width / snapshot.width, canvas.height / snapshot.height);
-  for (const overlay of snapshot.overlays) {
-    context.save();
-    context.beginPath();
-    context.rect(overlay.clip.x, overlay.clip.y, overlay.clip.width, overlay.clip.height);
-    context.clip();
-    for (const item of overlay.paint) {
-      if (item.kind === "text") {
-        context.font = item.font;
-        context.fillStyle = item.color;
-        const metrics = context.measureText(item.text);
-        const ascent = metrics.fontBoundingBoxAscent ?? item.size * 0.8;
-        const descent = metrics.fontBoundingBoxDescent ?? item.size * 0.2;
-        context.fillText(item.text, item.x, item.y + (item.height - ascent - descent) / 2 + ascent);
-      } else {
-        context.beginPath();
-        context.roundRect(item.x, item.y, item.width, item.height, item.radius);
-        context.fillStyle = item.color;
-        if (item.gradient) {
-          const gradient = context.createLinearGradient(0, item.y + item.height, 0, item.y);
-          for (const stop of item.gradient) gradient.addColorStop(stop.offset, stop.color);
-          context.fillStyle = gradient;
-        }
-        context.fill();
-        if (item.borderWidth > 0) {
-          context.strokeStyle = item.border;
-          context.lineWidth = item.borderWidth;
-          context.stroke();
+  try {
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Could not compose the captured 3D legends");
+    context.drawImage(image, 0, 0);
+    context.scale(canvas.width / snapshot.width, canvas.height / snapshot.height);
+    for (const overlay of snapshot.overlays) {
+      context.save();
+      context.beginPath();
+      context.rect(overlay.clip.x, overlay.clip.y, overlay.clip.width, overlay.clip.height);
+      context.clip();
+      for (const item of overlay.paint) {
+        if (item.kind === "text") {
+          context.font = item.font;
+          context.fillStyle = item.color;
+          const metrics = context.measureText(item.text);
+          const ascent = metrics.fontBoundingBoxAscent ?? item.size * 0.8;
+          const descent = metrics.fontBoundingBoxDescent ?? item.size * 0.2;
+          context.fillText(item.text, item.x, item.y + (item.height - ascent - descent) / 2 + ascent);
+        } else {
+          context.beginPath();
+          context.roundRect(item.x, item.y, item.width, item.height, item.radius);
+          context.fillStyle = item.color;
+          if (item.gradient) {
+            const gradient = context.createLinearGradient(0, item.y + item.height, 0, item.y);
+            for (const stop of item.gradient) gradient.addColorStop(stop.offset, stop.color);
+            context.fillStyle = gradient;
+          }
+          context.fill();
+          if (item.borderWidth > 0) {
+            context.strokeStyle = item.border;
+            context.lineWidth = item.borderWidth;
+            context.stroke();
+          }
         }
       }
+      context.restore();
     }
-    context.restore();
+    return canvas.toDataURL("image/png");
+  } finally {
+    canvas.width = 0;
+    canvas.height = 0;
+    image.onload = null;
+    image.onerror = null;
+    image.src = "";
   }
-  return canvas.toDataURL("image/png");
 }

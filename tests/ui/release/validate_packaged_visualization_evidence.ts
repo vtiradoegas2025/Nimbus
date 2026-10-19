@@ -16,7 +16,6 @@ const REQUIRED_CHECKS = new Set([
   "packaged-native-brick-streamlines",
   "packaged-terrain-brick-diagnostics",
   "physical-gpu-residency",
-  "physical-gpu-restart-plateau",
   ...[1, 2].flatMap((cycle) => [
     `cycle-${cycle}-scalar-worker-handle`,
     `cycle-${cycle}-scalar-main-resolution`,
@@ -65,9 +64,12 @@ export function validatePackagedVisualizationEvidence(
   expected: EvidenceExpectation,
 ): UnknownRecord {
   const report = record(input, "report");
-  if (report.schema !== SCHEMA || report.schemaVersion !== 1 || report.status !== "passed") {
+  if (report.schema !== SCHEMA || report.schemaVersion !== 2 || report.status !== "passed") {
     const detail = typeof report.error === "string" && report.error ? `: ${report.error}` : "";
-    throw new Error(`report schema/version/status is not a passed v1 qualification${detail}`);
+    throw new Error(`report schema/version/status is not a passed v2 bounded lifecycle report${detail}`);
+  }
+  if (report.scope !== "bounded-packaged-lifecycle" || report.memoryCampaign !== "pending") {
+    throw new Error("bounded lifecycle evidence must not claim memory campaign validation");
   }
   if (report.profile !== expected.profile) {
     throw new Error(`report profile ${String(report.profile)} does not match ${expected.profile}`);
@@ -339,7 +341,16 @@ export function validatePackagedVisualizationEvidence(
   }
   const physicalGpu = record(report.physicalGpuEvidence, "physicalGpuEvidence");
   const expectedGpuTextureBytes = number(report.scalarBytes, "scalarBytes") * 2;
-  if (physicalGpu.cycles !== 2
+  if (physicalGpu.measurementProtocol !== "isolated-prepared-pair-post-scope-v2"
+      || physicalGpu.renderingPath !== "nimbus-coherent-volume"
+      || physicalGpu.cycles !== 2
+      || physicalGpu.preparedCpuBuffers !== 2
+      || physicalGpu.retiredContexts !== 2
+      || !Array.isArray(physicalGpu.postScopeRetirementMs)
+      || physicalGpu.postScopeRetirementMs.length !== 2
+      || physicalGpu.postScopeRetirementMs.some(value => number(value, "physicalGpuEvidence.postScopeRetirementMs") < 0)
+      || number(physicalGpu.preparedCpuBufferBytes,
+        "physicalGpuEvidence.preparedCpuBufferBytes") !== expectedGpuTextureBytes
       || number(physicalGpu.scalarTextureBytesPerCycle,
         "physicalGpuEvidence.scalarTextureBytesPerCycle") !== expectedGpuTextureBytes
       || number(physicalGpu.maximumLogicalGpuResidentBytes,
@@ -353,24 +364,25 @@ export function validatePackagedVisualizationEvidence(
         "physicalGpuEvidence.maximum3DTextureSize") < Math.max(...(report.shape as number[]))
       || !Array.isArray(physicalGpu.renderPngSha256)
       || physicalGpu.renderPngSha256.length !== 2
-      || physicalGpu.renderPngSha256.some((value) => !/^[a-f0-9]{64}$/.test(String(value)))
-      || number(physicalGpu.maximumPhysicalResidentDeltaBytes,
-        "physicalGpuEvidence.maximumPhysicalResidentDeltaBytes") < 0
-      || number(physicalGpu.secondResidentDeltaBytes,
-        "physicalGpuEvidence.secondResidentDeltaBytes")
-          > number(physicalGpu.firstResidentDeltaBytes,
-            "physicalGpuEvidence.firstResidentDeltaBytes")) {
+      || physicalGpu.renderPngSha256.some((value) => !/^[a-f0-9]{64}$/.test(String(value)))) {
     throw new Error("physical GPU-residency evidence is incomplete");
   }
 
   if (!Array.isArray(report.memorySamples) || report.memorySamples.length !== 19) {
     throw new Error("report must contain exactly 19 lifecycle memory samples");
   }
+  const expectedLabels = [
+    "startup", "fixture-allocated", "gpu-baseline",
+    "gpu-cycle-1-resident", "gpu-cycle-1-retired", "gpu-cycle-2-resident", "gpu-cycle-2-retired",
+    ...[1, 2].flatMap(cycle => ["scalar-resident", "contour-published", "scalar-vector-resident", "streamline-published", "shutdown"]
+      .map(stage => `cycle-${cycle}-${stage}`)),
+    "packaged-native-bricks-resident", "final",
+  ];
   let priorPeak = 0;
   for (const [index, value] of report.memorySamples.entries()) {
     const sample = record(value, `memorySamples[${index}]`);
-    if (typeof sample.label !== "string" || sample.label.length === 0) {
-      throw new Error(`memorySamples[${index}] has no label`);
+    if (sample.label !== expectedLabels[index]) {
+      throw new Error(`memorySamples[${index}] must be ${expectedLabels[index]} for the isolated GPU protocol`);
     }
     if (number(sample.samplingMs, `memorySamples[${index}].samplingMs`) < 0) {
       throw new Error(`memorySamples[${index}].samplingMs must be nonnegative`);
@@ -396,6 +408,35 @@ export function validatePackagedVisualizationEvidence(
       `memorySamples[${index}].memory.processTreePeakRssBytes`);
     if (peak < priorPeak) throw new Error("process-tree peak is not monotonic");
     priorPeak = peak;
+  }
+  if (!Array.isArray(physicalGpu.retiredOwnedObjects) || physicalGpu.retiredOwnedObjects.length !== 2
+      || physicalGpu.retiredOwnedObjects.some(count => !Number.isSafeInteger(count) || Number(count) < 15)
+      || physicalGpu.zeroedCanvasBackingStores !== 2) {
+    throw new Error("GPU-cycle owned object and canvas retirement is incomplete");
+  }
+  const rss = record(physicalGpu.rss, "physicalGpuEvidence.rss");
+  const lifecycleSamples = report.memorySamples;
+  const rawRss = (index: number) => number(record(record(lifecycleSamples[index],
+    `memorySamples[${index}]`).memory, `memorySamples[${index}].memory`).processTreeRssBytes,
+  `memorySamples[${index}].memory.processTreeRssBytes`);
+  const baselineRss = rawRss(2);
+  const residentRss = [rawRss(3), rawRss(5)];
+  const retiredRss = [rawRss(4), rawRss(6)];
+  if (rss.currency !== "process-tree-rss" || typeof rss.limitation !== "string" || !rss.limitation
+      || number(rss.baselineBytes, "physicalGpuEvidence.rss.baselineBytes") !== baselineRss
+      || number(rss.restartGrowthBytes, "physicalGpuEvidence.rss.restartGrowthBytes") !== residentRss[1] - residentRss[0]) {
+    throw new Error("GPU restart RSS summary must use the recorded common process-tree baseline");
+  }
+  for (const [key, expectedValues] of Object.entries({
+    residentBytes: residentRss,
+    retiredBytes: retiredRss,
+    residentDeltaBytes: residentRss.map(bytes => bytes - baselineRss),
+  })) {
+    const values = rss[key];
+    if (!Array.isArray(values) || values.length !== 2
+        || values.some((value, index) => number(value, `physicalGpuEvidence.rss.${key}[${index}]`) !== expectedValues[index])) {
+      throw new Error(`GPU restart RSS ${key} must match raw lifecycle samples without clipping`);
+    }
   }
   if (expected.targetOs === "macos" && report.memorySamples.some((value, index) =>
     record(value, `memorySamples[${index}]`).memory == null

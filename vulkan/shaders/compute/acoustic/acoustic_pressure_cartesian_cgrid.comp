@@ -39,6 +39,7 @@
 #version 450
 #extension GL_GOOGLE_include_directive : require
 
+#define NIMBUS_PORTABLE_COMPENSATED_PRODUCT
 #include "../microphysics/compensated_fma.glsl"
 #include "pressure_eos.glsl"
 #include "momentum_precision.glsl"

@@ -1126,7 +1126,12 @@ test("vorticity scenes expose signed structures and resolved-feature seeds", asy
   await expect(page.locator(".plot3d-badge__sub")).toContainText("resolved-feature seeds");
   await expect(page.locator('[data-streamline-loading="false"]')).toBeVisible({ timeout: 90_000 });
   expect(await page.locator(".volume-render__overlay--error").count()).toBe(0);
+  // The preceding Q-contour worker retains its shared lattice until its bounded idle retirement.
+  await expect.poll(async () => (await snapshot(page))
+    .visualization.byStage["prepared-main"].residentBytes, { timeout: 30_000 }).toBe(0);
   const streamlineResources = await snapshot(page);
+  expect(streamlineResources.preparedRegistry.mainHandles).toBe(0);
+  expect(streamlineResources.preparedRegistry.workerHandles).toBeGreaterThan(0);
   expect(streamlineResources.visualization.byStage["prepared-main"].residentBytes).toBe(0);
   expect(streamlineResources.visualization.byStage["worker-resident"].residentBytes).toBeGreaterThan(0);
   expect(streamlineResources.visualization.byStage["retained-geometry"].residentBytes).toBeGreaterThan(0);
@@ -1543,7 +1548,8 @@ test("two large supercell panes sustain cloud flow vortex and condensate layers"
   await writeFile(budgetPath, JSON.stringify(mounted.visualization, null, 2));
   await testInfo.attach("supercell-resource-budget", { path: budgetPath, contentType: "application/json" });
   expect(mounted.preparedRegistry.handles).toBeGreaterThan(0);
-  expect(mounted.preparedRegistry.references).toBeGreaterThan(mounted.preparedRegistry.handles);
+  // Identical preparations share only while their worker requests overlap.
+  expect(mounted.preparedRegistry.references).toBeGreaterThanOrEqual(mounted.preparedRegistry.handles);
   expect(mounted.visualization.byStage["decoded-field"].residentBytes).toBeGreaterThan(0);
   expect(mounted.visualization.byStage["prepared-main"].residentBytes).toBeGreaterThan(0);
   expect(mounted.visualization.byStage["worker-resident"].residentBytes).toBeGreaterThan(0);

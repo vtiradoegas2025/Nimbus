@@ -40,8 +40,10 @@ journals, campaign reports and one-off build records are maintained outside
 this source repository. The executable catalog and retained tests describe the
 current implementation; old reports are not a substitute for current evidence.
 
-The editable LaTeX sources are kept with the [document build scripts](../scripts/dev/docs/latex/README.md),
-so this directory remains the reader-facing publication surface.
+The published PDF manuals are available here. The maintainer keeps their
+editable sources and build tooling locally; those files are not distributed
+in the GitHub repository. Report corrections against the relevant manual and
+section so the published explanation can stay aligned with the implementation.
 
 
 Both Architecture and Mathematics PDF's were orginal source material from my 

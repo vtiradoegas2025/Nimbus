@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
+import { flushSync } from "react-dom";
 import vtkPolyData from "@kitware/vtk.js/Common/DataModel/PolyData";
 import vtkMapper from "@kitware/vtk.js/Rendering/Core/Mapper";
 import vtkActor from "@kitware/vtk.js/Rendering/Core/Actor";
@@ -277,7 +278,9 @@ export function useDomainAxes(
         .join("|");
       if (nextLabelKey === labelKey) return;
       labelKey = nextLabelKey;
-      setLabels(next);
+      // This callback runs in RAF; publish its camera projection before a
+      // capture can snapshot labels from the previous view.
+      flushSync(() => setLabels(next));
     };
 
     const schedule = () => {

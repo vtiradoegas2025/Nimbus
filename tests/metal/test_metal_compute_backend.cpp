@@ -113,6 +113,7 @@ namespace
 LogProfile test_log_profile = LogProfile::quiet;
 }
 LogProfile& global_log_profile = test_log_profile;
+bool&       global_perf_timing_enabled = global_simulation_storage.configuration.perf_timing_enabled;
 
 ComputeBackendKind active_compute_backend_kind(const ComputeBackendRuntimeState&)
 {
@@ -122,6 +123,16 @@ ComputeBackendKind active_compute_backend_kind(const ComputeBackendRuntimeState&
 bool compute_backend_fallback_active(const ComputeBackendRuntimeState&)
 {
     return false;
+}
+
+ComputeBackendKind active_compute_backend_kind()
+{
+    return active_compute_backend_kind(global_compute_backend_runtime_state);
+}
+
+bool compute_backend_fallback_active()
+{
+    return compute_backend_fallback_active(global_compute_backend_runtime_state);
 }
 
 ComputeBackend* mutable_compute_backend()

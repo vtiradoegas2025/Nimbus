@@ -328,6 +328,18 @@ inline AgridCompleteNativeMetrics run_agrid_complete_native_fixture(
             REQUIRE(std::abs(slow_actual[field][n] - slow_expected[field][n]) <= 3.0e-5f);
         }
 
+    constexpr int balanced_i = 2;
+    constexpr int balanced_j = 2;
+    for (int k = 0; k < nz; ++k)
+    {
+        const auto n     = at(balanced_i, balanced_j, k);
+        constrained_u[n] = u0[k];
+        constrained_v[n] = v0[k];
+        constrained_w[n] = 0.0f;
+        actual_rho[n]    = rho0[k];
+        actual_p[n]      = p0[k];
+    }
+
     auto expected_boundary_u = constrained_u;
     auto expected_boundary_v = constrained_v;
     auto expected_boundary_w = constrained_w;
@@ -366,14 +378,14 @@ inline AgridCompleteNativeMetrics run_agrid_complete_native_fixture(
             const std::size_t top = at(i, j, nz - 1), top_source = at(i, j, nz - 2);
             expected_boundary_w[bottom] = 0.0f;
             expected_boundary_w[top] = 0.0f;
-            expected_boundary_u[bottom] = u0[0] + expected_boundary_u[bottom_source] - u0[1];
-            expected_boundary_v[bottom] = v0[0] + expected_boundary_v[bottom_source] - v0[1];
-            expected_boundary_u[top] = u0[nz - 1] + expected_boundary_u[top_source] - u0[nz - 2];
-            expected_boundary_v[top] = v0[nz - 1] + expected_boundary_v[top_source] - v0[nz - 2];
-            expected_boundary_rho[bottom] = rho0[0] + expected_boundary_rho[bottom_source] - rho0[1];
-            expected_boundary_rho[top] = rho0[nz - 1] + expected_boundary_rho[top_source] - rho0[nz - 2];
-            expected_boundary_p[bottom] = p0[0] + expected_boundary_p[bottom_source] - p0[1];
-            expected_boundary_p[top] = p0[nz - 1] + expected_boundary_p[top_source] - p0[nz - 2];
+            expected_boundary_u[bottom]   = u0[0] + (expected_boundary_u[bottom_source] - u0[1]);
+            expected_boundary_v[bottom]   = v0[0] + (expected_boundary_v[bottom_source] - v0[1]);
+            expected_boundary_u[top]      = u0[nz - 1] + (expected_boundary_u[top_source] - u0[nz - 2]);
+            expected_boundary_v[top]      = v0[nz - 1] + (expected_boundary_v[top_source] - v0[nz - 2]);
+            expected_boundary_rho[bottom] = rho0[0] + (expected_boundary_rho[bottom_source] - rho0[1]);
+            expected_boundary_rho[top]    = rho0[nz - 1] + (expected_boundary_rho[top_source] - rho0[nz - 2]);
+            expected_boundary_p[bottom]   = p0[0] + (expected_boundary_p[bottom_source] - p0[1]);
+            expected_boundary_p[top]      = p0[nz - 1] + (expected_boundary_p[top_source] - p0[nz - 2]);
         }
 
     AcousticBoundaryCartesianAgridDispatch boundary{};
@@ -401,6 +413,15 @@ inline AgridCompleteNativeMetrics run_agrid_complete_native_fixture(
     REQUIRE(constrained_w == expected_boundary_w);
     REQUIRE(actual_rho == expected_boundary_rho);
     REQUIRE(actual_p == expected_boundary_p);
+    for (int k : {0, nz - 1})
+    {
+        const auto n = at(balanced_i, balanced_j, k);
+        REQUIRE(constrained_u[n] == u0[k]);
+        REQUIRE(constrained_v[n] == v0[k]);
+        REQUIRE(constrained_w[n] == 0.0f);
+        REQUIRE(actual_rho[n] == rho0[k]);
+        REQUIRE(actual_p[n] == p0[k]);
+    }
     return metrics;
 }
 

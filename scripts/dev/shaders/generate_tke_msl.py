@@ -41,6 +41,7 @@ def translate(name: str, module: str = "turbulence") -> str:
         body = re.sub(r"\b" + glsl_type + r"\b", metal_type, body)
     body = re.sub(r"\b(?:out|inout)\s+(vec2|float|int)\s+(\w+)", r"thread \1& \2", body)
     body = body.replace("floatBitsToUint(", "as_type<uint>(").replace("uintBitsToFloat(", "as_type<float>(")
+    body = re.sub(r"\bfindMSB\((\w+)\)", r"(31 - int(clz(\1)))", body)
     symbol = "".join(part.capitalize() for part in name.split("_"))
     pointer = lambda access: "device const float*" if access == "readonly" else "device float*"
     members = "\n".join(f"    {pointer(access)} {field};" for _, access, field in buffers)
@@ -83,7 +84,7 @@ kernel void {name}(
         declaration = f"inline const std::string k{symbol}MslStorage = {expression};\ninline const char* const k{symbol}Msl = k{symbol}MslStorage.c_str();"
         first = rendered.index(f"inline constexpr char k{symbol}Msl[]")
         rendered = rendered[:first] + declaration + rendered[end + len(')msl";'):]
-        rendered = rendered.replace('#pragma once', '#pragma once\n#include <string>', 1)
+        rendered = rendered.replace('#pragma once', '#pragma once\n#include <string>\n// clang-format off', 1)
     return rendered
 
 
