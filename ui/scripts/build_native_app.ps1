@@ -12,6 +12,7 @@ if ($null -ne $env:NIMBUS_BUILD_JOBS -and $env:NIMBUS_BUILD_JOBS -cnotmatch '\A[
 
 $UiDir = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $RootDir = (Resolve-Path (Join-Path $UiDir "..")).Path
+. (Join-Path $RootDir "scripts\windows\invoke_bash.ps1")
 $PortableSimulator = Join-Path $RootDir "bin\nimbus_sim_portable.exe"
 $RuntimeDir = Join-Path $UiDir "src-tauri\windows-runtime"
 $Icon = Join-Path $UiDir "src-tauri\icons\icon.ico"
@@ -184,8 +185,7 @@ if ($PrintPlan) {
 if (-not $BundleOnly) {
     $env:NIMBUS_WINDOWS_RELEASE_ROOT = $RootDir
     $env:NIMBUS_WINDOWS_RELEASE_PREFIX = Join-Path $RootDir "build\$WindowsPrefixName"
-    & $MsysBash -lc 'set -euo pipefail; root=$(cygpath -u "$NIMBUS_WINDOWS_RELEASE_ROOT"); prefix=$(cygpath -u "$NIMBUS_WINDOWS_RELEASE_PREFIX"); cd "$root"; make -j"${NIMBUS_BUILD_JOBS:-$(nproc)}" PORTABLE=1 DISTRIBUTION=1 REQUIRE_FULL_STACK=1 ZFP_PREFIX="$prefix" NETCDF=1'
-    if ($LASTEXITCODE -ne 0) { throw "Portable Windows simulator build failed." }
+    Invoke-NimbusBash -Bash $MsysBash -Script 'set -euo pipefail; root=$(cygpath -u "$NIMBUS_WINDOWS_RELEASE_ROOT"); prefix=$(cygpath -u "$NIMBUS_WINDOWS_RELEASE_PREFIX"); cd "$root"; make -j"${NIMBUS_BUILD_JOBS:-$(nproc)}" PORTABLE=1 DISTRIBUTION=1 REQUIRE_FULL_STACK=1 ZFP_PREFIX="$prefix" NETCDF=1'
 }
 if (-not (Test-Path -LiteralPath $PortableSimulator -PathType Leaf)) {
     $Hint = if ($BundleOnly) {
@@ -220,17 +220,14 @@ Copy-Item -LiteralPath $Ffmpeg -Destination (Join-Path $RuntimeDir "ffmpeg.exe")
 $Dlls = @()
 foreach ($Payload in @($PortableSimulator, $Ffmpeg)) {
     $env:NIMBUS_WINDOWS_PAYLOAD = $Payload
-    $Resolved = & $MsysBash -lc 'set -o pipefail; payload=$(cygpath -u "$NIMBUS_WINDOWS_PAYLOAD"); ldd "$payload" | awk ''/=> \/(ucrt64|clangarm64)\// {print $3} /^\/(ucrt64|clangarm64)\// {print $1}'''
-    if ($LASTEXITCODE -ne 0) {
-        throw "Could not resolve Windows DLL dependencies for $Payload."
-    }
+    $Resolved = Invoke-NimbusBash -Bash $MsysBash -CaptureOutput -Script 'set -o pipefail; payload=$(cygpath -u "$NIMBUS_WINDOWS_PAYLOAD"); ldd "$payload" | awk ''/=> \/(ucrt64|clangarm64)\// {print $3} /^\/(ucrt64|clangarm64)\// {print $1}'''
     $Dlls += $Resolved
 }
 foreach ($Dll in ($Dlls | Sort-Object -Unique)) {
     if ([string]::IsNullOrWhiteSpace($Dll)) { continue }
     $env:NIMBUS_WINDOWS_DLL = $Dll
-    $WindowsDll = (& $MsysBash -lc 'cygpath -w "$NIMBUS_WINDOWS_DLL"').Trim()
-    if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $WindowsDll -PathType Leaf)) {
+    $WindowsDll = (Invoke-NimbusBash -Bash $MsysBash -CaptureOutput -Script 'cygpath -w "$NIMBUS_WINDOWS_DLL"').Trim()
+    if (-not (Test-Path -LiteralPath $WindowsDll -PathType Leaf)) {
         throw "Could not stage Windows runtime dependency: $Dll"
     }
     Copy-Item -LiteralPath $WindowsDll -Destination $RuntimeDir

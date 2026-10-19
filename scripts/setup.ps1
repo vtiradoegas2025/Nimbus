@@ -233,6 +233,7 @@ switch ($ArchitectureKey)
 Show-NimbusBanner
 
 $RootDir = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+. (Join-Path $RootDir "scripts\windows\invoke_bash.ps1")
 $MsysRoot = if ($env:NIMBUS_MSYS2_ROOT) { $env:NIMBUS_MSYS2_ROOT } else { "C:\msys64" }
 $MsysShell = Join-Path $MsysRoot "msys2_shell.cmd"
 $MsysBash = Join-Path $MsysRoot "usr\bin\bash.exe"
@@ -315,8 +316,10 @@ function Install-WingetPackage([string]$Id, [string]$Label, [string]$Override = 
 
 function Invoke-Msys([string]$Command) 
 {
-    & $MsysShell -defterm -no-start "-$MsysEnvironment" -here -c $Command
-    if ($LASTEXITCODE -ne 0) { throw "MSYS2 command failed: $Command" }
+    $env:MSYSTEM = $MsysSystem
+    $env:MSYS2_PATH_TYPE = "inherit"
+    $env:CHERE_INVOKING = "1"
+    Invoke-NimbusBash -Bash $MsysBash -Script $Command
 }
 
 function Test-MsysPackageSet 
@@ -325,8 +328,8 @@ function Test-MsysPackageSet
     # base-devel and toolchain are pacman groups, not queryable package names;
     # verify the concrete runtime/compiler members the product actually uses.
     $PackageNames = $MsysCheckPackages -join " "
-    & $MsysShell -defterm -no-start "-$MsysEnvironment" -here -c "pacman -Q $PackageNames >/dev/null 2>&1"
-    return $LASTEXITCODE -eq 0
+    try { Invoke-Msys "pacman -Q $PackageNames >/dev/null 2>&1"; return $true }
+    catch { return $false }
 }
 
 function Test-NodeVersion 

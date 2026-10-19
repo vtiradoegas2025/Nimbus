@@ -486,6 +486,14 @@ jobs:
         shell: pwsh
         run: .\scripts\tests\architecture\test_windows_rust_environment.ps1
 
+      - name: Check Bash source transport in both PowerShell runtimes
+        shell: pwsh
+        run: |
+          $Bash = Join-Path '${{ steps.msys2.outputs.msys2-location }}' 'usr\bin\bash.exe'
+          .\scripts\tests\architecture\test_windows_bash.ps1 -Bash $Bash
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\tests\architecture\test_windows_bash.ps1 -Bash $Bash
+          if ($LASTEXITCODE -ne 0) { throw "Windows PowerShell Bash transport failed." }
+
       - name: Build pinned ZFP for the native simulator
         shell: msys2 {0}
         run: NIMBUS_WINDOWS_PREFIX="$PWD/build/${{ matrix.prefix_dir }}" ./scripts/windows/install_zfp.sh
