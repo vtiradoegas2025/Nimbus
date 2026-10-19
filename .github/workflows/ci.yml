@@ -662,7 +662,6 @@ jobs:
   packaged-visualization-matrix:
     if: ${{ false }}
     name: Packaged verification coverage
-    if: ${{ always() }}
     needs: [studio-macos-package, studio-linux-package, studio-windows-package]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
