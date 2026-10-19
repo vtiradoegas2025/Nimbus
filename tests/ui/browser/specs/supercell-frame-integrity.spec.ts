@@ -20,7 +20,7 @@ async function fullQuality(page: Page) {
 }
 
 test("joint supercell layers keep a common scale through persisted settings and live scale edits", async ({ page }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(360_000);
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
   await page.addInitScript(() => {

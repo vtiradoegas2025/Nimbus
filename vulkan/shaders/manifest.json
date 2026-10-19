@@ -215,6 +215,7 @@
   "include_sha256": {
     "vulkan/shaders/compute/acoustic/momentum_precision.glsl": "bda4bf5d1a439fe20be22d816b27e77d9e3e1549bc80d243e501515f93208540",
     "vulkan/shaders/compute/acoustic/pressure_eos.glsl": "428d1354ab6131e4f1af97c6624b56991f451b58f957dd0c7bba1f0a5b2233e3",
+    "vulkan/shaders/compute/advection/positive_scalar_budget.glsl": "9d2a139a4ed08db893bebd99e39bc613f6e54f5f283491f0533e1c9ae1f9652b",
     "vulkan/shaders/compute/dynamics/boundary_float32.glsl": "0c13df48da453c39293f1e963d790a2d17842383918bf3aee653f48de00effff",
     "vulkan/shaders/compute/microphysics/compensated_fma.glsl": "09b4b4bbbf9ee4dbb07e25a14e9b46b9c05b26d4de94c18fd8e695d443de3b62",
     "vulkan/shaders/compute/microphysics/liquid_adjustment.glsl": "a3b27fdf846492b4064faf2454974be035af5a6d4ecc219120543d01d0acb35b",
@@ -885,9 +886,9 @@
       "generator_word": "0x00070000",
       "push_constant_bytes": 16,
       "source": "vulkan/shaders/compute/advection/advect_conservative_scalar_flux_cartesian_cgrid.comp",
-      "source_sha256": "a012cb97e19af7ee0956c9823821858810372bc8d5e46613ed35620f213b84b4",
-      "spirv_fnv1a64": "d06fdf77b3f8dc9d",
-      "spirv_sha256": "1e18f33f7293bcb94b93d3fb2b3e60018b933b653251d269ea24043c9dd57370",
+      "source_sha256": "adbb4e0c8fbbc5cee61035405b7b80a5e63f559ed5e0a13d9f72133cb3e32ba0",
+      "spirv_fnv1a64": "7897138c10c7512f",
+      "spirv_sha256": "2ee6de56301ccd0ed11603cf739161b903e4f9fa72cde5305a650bd9c512fa87",
       "stage": "comp"
     },
     {
@@ -954,9 +955,9 @@
       "generator_word": "0x0008000b",
       "push_constant_bytes": 76,
       "source": "vulkan/shaders/compute/advection/advect_conservative_update_cartesian_cgrid.comp",
-      "source_sha256": "3ff08c2e512a888573a5adb7dace019a70271526bd166163119841ef5b5358fe",
-      "spirv_fnv1a64": "5bb5c8b80e9a9c36",
-      "spirv_sha256": "077c7a8973eec90ee96e7647f4f5f116e245baec7d4f5eeaec3ee3c63c765b4f",
+      "source_sha256": "002d85adc9738f4a8f882daa94de12af21713ce5fa8d35345bdf167e36178a73",
+      "spirv_fnv1a64": "054da83d6d3fc477",
+      "spirv_sha256": "d6c4c50300bbaa156d2679b1e6f3825b6e7b1979259bd7447704a008c80906ca",
       "stage": "comp"
     },
     {
@@ -999,9 +1000,9 @@
       "generator_word": "0x0008000b",
       "push_constant_bytes": 32,
       "source": "vulkan/shaders/compute/advection/advect_pd_limiter_cartesian_cgrid.comp",
-      "source_sha256": "4e5b680e5f6a2ea9e89255d8c2e78f0004c0bc8237f611ff9dcae6ca62cd7560",
-      "spirv_fnv1a64": "cce1050331a8b908",
-      "spirv_sha256": "f899c4a4440f19220c6efb3020360c37b146b5153c9d58213c41b6886fa468cb",
+      "source_sha256": "8659638014802d5b4eea2b2c9cfc733d3ee275b8027ba19827e21f824b000cf3",
+      "spirv_fnv1a64": "61b9e21134cbad06",
+      "spirv_sha256": "4f350bf3d42bc45295b935398149bbaaac556125958b21587465d0545a261765",
       "stage": "comp"
     },
     {

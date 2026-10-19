@@ -536,7 +536,7 @@ bin/test_numerics_advection_cartesian bin/test_numerics_advection_cartesian_opti
 bin/test_numerics_weno5_reconstruction: $(TEST_INFRA) tests/numerics/test_weno5_reconstruction.cpp | bin
 	$(CXX_COMPILE) $(TEST_CXXFLAGS) $(CPPFLAGS) $(filter %.cpp,$^) $(LDLIBS) -o $@
 
-bin/test_numerics_advect_conservative_cartesian_cgrid_gpu_parity: $(TEST_INFRA) tests/numerics/test_advect_conservative_cartesian_cgrid_gpu_parity.cpp src/numerics/advection/advection_cartesian.cpp src/core/infra/coordinate_system.cpp $(BACKEND_COMMON_SRCS) | bin
+bin/test_numerics_advect_conservative_cartesian_cgrid_gpu_parity: $(TEST_INFRA) tests/numerics/test_advect_conservative_cartesian_cgrid_gpu_parity.cpp tests/numerics/positive_scalar_budget_contract.hpp include/compute/cartesian_scalar_capture.hpp src/numerics/advection/advection_cartesian.cpp src/core/infra/coordinate_system.cpp $(BACKEND_COMMON_SRCS) | bin
 	$(CXX_COMPILE) $(TEST_CXXFLAGS) $(CPPFLAGS) $(filter %.cpp,$^) $(LDLIBS) -o $@
 
 bin/test_numerics_diffusion: $(TEST_INFRA) tests/numerics/test_diffusion.cpp $(DIFFUSION_SCHEME_SRCS) $(TERRAIN_TRANSPORT_SRC) src/turbulence/base/eddy_viscosity.cpp src/turbulence/base/collocated_eddy_viscosity.cpp src/core/orchestration/physics/diffusion_step.cpp src/core/runtime/simulation_state.cpp src/core/infra/coordinate_system.cpp $(BACKEND_COMMON_SRCS) | bin
@@ -1080,10 +1080,16 @@ test-build-manifest:
 test-domain-motion-inventory:
 	python3 scripts/run.py test domain_motion_inventory
 
-test-script-suite:
+test-script-suite: test-positive-scalar-budget
 	python3 scripts/run.py test static --compiler "$(CXX)"
 	python3 scripts/dev/configs/generate_resolution_catalog.py --check
 	python3 -m unittest tests/integration/test_public_config_catalog.py
+
+.PHONY: test-positive-scalar-budget
+test-positive-scalar-budget:
+	python3 scripts/dev/shaders/generate_positive_scalar_budget_msl.py --check
+	python3 scripts/dev/shaders/generate_advect_conservative_scalar_flux_cartesian_cgrid_msl.py --check
+	NIMBUS_TEST_CXX="$(CXX)" python3 scripts/tests/architecture/test_positive_scalar_budget.py
 
 test-compute: bin/test_compute_backend_types bin/test_compute_backend_contracts bin/test_compute_cpu_backend bin/test_compute_memory_admission bin/test_compute_residency bin/test_parity_check
 	./bin/test_compute_backend_types && ./bin/test_compute_backend_contracts && ./bin/test_compute_cpu_backend && ./bin/test_compute_memory_admission && ./bin/test_compute_residency && ./bin/test_parity_check

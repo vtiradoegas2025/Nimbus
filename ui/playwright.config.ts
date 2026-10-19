@@ -1,5 +1,6 @@
 import "../tests/ui/prepare.mjs";
 import { defineConfig, devices } from "@playwright/test";
+import { arch, availableParallelism, cpus, platform, totalmem } from "node:os";
 
 const executablePath = process.env.NIMBUS_BROWSER_EXECUTABLE;
 const hardwareWebGpuEnabled = process.env.NIMBUS_WEBGPU_HARDWARE === "1";
@@ -11,8 +12,16 @@ const hardwareWebGpuExecutable = process.env.NIMBUS_WEBGPU_EXECUTABLE
 export default defineConfig({
   testDir: "../tests/ui/browser",
   testMatch: /^(?!.*webgpu-hardware\.spec\.ts$).*\.spec\.ts$/,
-  fullyParallel: false,
+  // Shard individual tests while retaining one browser worker per job.
+  fullyParallel: true,
   workers: 1,
+  metadata: {
+    hostOs: platform(),
+    hostArchitecture: arch(),
+    availableCpuCount: availableParallelism(),
+    cpuModel: cpus()[0]?.model ?? "unavailable",
+    totalRamMiB: Math.round(totalmem() / (1024 * 1024)),
+  },
   /*
    * Ceiling for ordinary specs. The soak test raises its own via
    * test.setTimeout, because its runtime is set by NIMBUS_SOAK_MINUTES and a
@@ -55,6 +64,7 @@ export default defineConfig({
       name: "chromium-swiftshader",
       use: {
         ...devices["Desktop Chrome"],
+        actionTimeout: 60_000,
         launchOptions: {
           executablePath,
           args: [

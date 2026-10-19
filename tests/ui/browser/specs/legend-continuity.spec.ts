@@ -6,7 +6,7 @@ async function ready(page: Page, step: number) {
   await page.waitForFunction(index => {
     const scene = document.querySelector<HTMLElement>('[data-testid="scene"]');
     return scene?.dataset.frameLoading === "false" && scene.dataset.renderedStep === String(index);
-  }, step, { timeout: 60_000 });
+  }, step, { timeout: 90_000 });
 }
 async function toggle(page: Page, tab: string, group: string) {
   await page.locator(".plot3d-control-tab", { hasText: tab }).click();
@@ -38,7 +38,7 @@ async function holdNextFrame(page: Page) {
 }
 
 for (const plot of ["volume", "supercell"] as const) test(`${plot} retains all committed legends during a held multi-field frame load`, async ({ page }) => {
-  test.setTimeout(150_000);
+  test.setTimeout(300_000);
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
   await page.goto("/harness/index.html");

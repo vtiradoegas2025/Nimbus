@@ -21,6 +21,7 @@
 #include "numerics/diffusion/schemes/explicit/explicit.hpp"
 #include "numerics/derivatives/derivative_operators.hpp"
 #include "numerics/advection/advection_cartesian.hpp"
+#include "numerics/positive_scalar_budget_contract.hpp"
 #include "numerics/advection/cartesian_mass_flux.hpp"
 #include "numerics/advection/scalar_boundary_report.hpp"
 #include "terrain/base/topography.hpp"
@@ -7892,4 +7893,208 @@ TEST_CASE("Metal acoustic validation preserves unrepaired candidates", "[metal][
     MetalComputeBackend backend;
     initialize_backend(backend);
     exercise_acoustic_unrepaired(*backend.dynamics_kernels());
+}
+
+TEST_CASE("Metal Cartesian positive scalar budget preserves tiny fields and rejects invalid batches",
+          "[metal][physical][gpu_parity][advection][pd-contract]")
+{
+    MetalComputeBackend backend;
+    initialize_backend(backend);
+    nimbus::testing::exercise_positive_scalar_contract(backend);
+    nimbus::testing::exercise_positive_scalar_scales(backend);
+}
+
+TEST_CASE("Metal retained-rho positive-definite transport remains nonnegative over repeated steps",
+          "[metal][physical][gpu_parity][advection][pd-repeat]")
+{
+    constexpr int    nx = 18, ny = 18, nz = 18;
+    constexpr double dt_step = 2.0;
+    NR                       = nx;
+    NTH                      = ny;
+    NZ                       = nz;
+    dr                       = 500.0;
+    dtheta                   = 750.0;
+    dz                       = 250.0;
+    global_stagger_type      = StaggerType::CGrid;
+    global_grid_geometry.initialize(nx, ny, nz, dr, dz, dtheta, CoordinateSystem::Cartesian, StaggerType::CGrid);
+    SimulationStorageState storage{{nx, ny, nz, dr, dz, dt_step, dtheta}};
+    storage.grid.geometry                   = global_grid_geometry;
+    storage.configuration.coordinate_system = CoordinateSystem::Cartesian;
+    storage.configuration.stagger_type      = StaggerType::CGrid;
+    storage.configuration.lateral_bc_west   = tmv::init::config::LateralBC::RigidSlip;
+    storage.configuration.lateral_bc_east   = tmv::init::config::LateralBC::RigidSlip;
+    storage.configuration.lateral_bc_south  = tmv::init::config::LateralBC::RigidSlip;
+    storage.configuration.lateral_bc_north  = tmv::init::config::LateralBC::RigidSlip;
+    storage.configuration.bottom_bc         = tmv::init::config::BottomBC::RigidSlip;
+    storage.configuration.top_bc            = tmv::init::config::TopBC::Rigid;
+    auto& u                                 = storage.fields.u;
+    auto& v                                 = storage.fields.v;
+    auto& w                                 = storage.fields.w;
+    auto& rho                               = storage.fields.rho;
+    u.resize(nx, ny, nz, 0.0f);
+    v.resize(nx, ny, nz, 0.0f);
+    w.resize(nx, ny, nz, 0.0f);
+    rho.resize(nx, ny, nz, 0.0f);
+    auto                transport_view = make_simulation_state_view(storage);
+    MetalComputeBackend backend;
+    initialize_backend(backend);
+    const auto interior_rho_q_sum = [](const Field3D& density, const Field3D& scalar)
+    {
+        double sum = 0.0;
+        for (int i = 1; i < nx - 1; ++i)
+            for (int j = 1; j < ny - 1; ++j)
+                for (int k = 0; k < nz; ++k)
+                    sum += double(density(i, j, k)) * double(scalar(i, j, k));
+        return sum;
+    };
+    const auto run_metal_batch = [&](const float* const*                   inputs,
+                                     float* const*                         outputs,
+                                     const float*                          kappas,
+                                     int                                   count,
+                                     double                                dt,
+                                     const int*                            positive,
+                                     const CartesianCGridTransportContext* context)
+    {
+        ConservativeCartesianCgridTransportDispatch d{};
+        d.execution_state        = &transport_view;
+        d.u                      = u.data();
+        d.v                      = v.data();
+        d.w                      = w.data();
+        d.rho_data               = rho.data();
+        d.q_in                   = inputs;
+        d.q_out                  = outputs;
+        d.dt_kappas              = kappas;
+        d.n_scalars              = count;
+        d.positive_definite      = positive;
+        d.nx                     = nx;
+        d.ny                     = ny;
+        d.nz                     = nz;
+        d.inv_dx                 = float(1.0 / dr);
+        d.inv_dy                 = float(1.0 / dtheta);
+        d.inv_dz                 = float(1.0 / dz);
+        d.inv_dx2                = d.inv_dx * d.inv_dx;
+        d.inv_dy2                = d.inv_dy * d.inv_dy;
+        d.inv_dz2                = d.inv_dz * d.inv_dz;
+        d.dt_step                = float(dt);
+        d.rho_floor              = 0.05f;
+        d.density_begin          = context->density_begin.data();
+        d.mass_flux_x            = context->mass_flux_x.data();
+        d.mass_flux_y            = context->mass_flux_y.data();
+        d.mass_flux_z            = context->mass_flux_z.data();
+        d.use_supplied_mass_flux = true;
+        return backend.dispatch_advect_scalars_conservative_cartesian_cgrid(d);
+    };
+
+    // This is the device path used by production after the acoustic
+    // solve: scalar transport receives the beginning density and the
+    // acoustic loop's retained FP32 face-mass-flux history.  Exercise a
+    // sparse tracer repeatedly so a round-off-scale undershoot cannot
+    // hide behind a one-step smooth-field parity comparison.
+    constexpr double pi = 3.14159265358979323846;
+    for (int i = 0; i < NR; ++i)
+        for (int j = 0; j < NTH; ++j)
+            for (int k = 0; k < NZ; ++k)
+            {
+                const double xi = static_cast<double>(i) / (NR - 1);
+                const double yj = static_cast<double>(j) / (NTH - 1);
+                const double zk = static_cast<double>(k) / (NZ - 1);
+                rho(i, j, k) =
+                    static_cast<float>(0.9 + 0.12 * std::sin(2.0 * pi * xi) * std::cos(2.0 * pi * yj) + 0.08 * zk);
+                // Keep the prescribed compressible flow admissible over
+                // the full 400 s stress interval.  The sparse tracer
+                // still activates the donor limiter at zero/nonzero
+                // interfaces, while density remains a valid denominator
+                // instead of being drained by an indefinitely repeated
+                // analytic divergence field.
+                u(i, j, k) = (i >= 1 && i <= NR - 3)
+                                 ? static_cast<float>(1.4 * std::sin(2.0 * pi * xi) + 0.35 * std::cos(2.0 * pi * yj))
+                                 : 0.0f;
+                v(i, j, k) = (j >= 1 && j <= NTH - 3)
+                                 ? static_cast<float>(-1.2 * std::sin(2.0 * pi * yj) + 0.25 * std::cos(2.0 * pi * zk))
+                                 : 0.0f;
+                w(i, j, k) = (k <= NZ - 2)
+                                 ? static_cast<float>(0.4 * std::sin(2.0 * pi * zk) + 0.1 * std::cos(2.0 * pi * xi))
+                                 : 0.0f;
+            }
+
+    Field3D q_cpu(NR, NTH, NZ, 0.0f);
+    for (int i = 2; i < NR - 2; ++i)
+        for (int j = 2; j < NTH - 2; ++j)
+            for (int k = 1; k < NZ - 1; ++k)
+            {
+                const unsigned hash = static_cast<unsigned>(i * 73856093u ^ j * 19349663u ^ k * 83492791u);
+                if ((hash % 17u) == 0u)
+                {
+                    const int decade = static_cast<int>((hash / 17u) % 6u);
+                    q_cpu(i, j, k)   = static_cast<float>(1.0e-3 * std::pow(0.1, decade));
+                }
+            }
+    Field3D     q_gpu                     = q_cpu;
+    const float dtk[1]                    = {0.0f};
+    const int   pd[1]                     = {1};
+    double      worst_mass_relative_error = 0.0;
+
+    for (int step = 1; step <= 200; ++step)
+    {
+        const Field3D                  rho_begin = rho;
+        CartesianCGridTransportContext context;
+        context.begin(transport_view, NR, NTH, NZ, dt_step);
+        context.accumulate(
+            transport_view, rho_begin, u, v, w, dt_step, nullptr, nullptr, tmv::AcousticMassFluxPrecision::NativeFloat);
+        context.complete(transport_view);
+
+        for (int i = 1; i < NR - 1; ++i)
+            for (int j = 1; j < NTH - 1; ++j)
+                for (int k = 0; k < NZ; ++k)
+                {
+                    const double mx        = static_cast<double>(context.mass_flux_x(i, j, k)) -
+                                             static_cast<double>(context.mass_flux_x(i - 1, j, k));
+                    const double my        = static_cast<double>(context.mass_flux_y(i, j, k)) -
+                                             static_cast<double>(context.mass_flux_y(i, j - 1, k));
+                    const double mz_top    = static_cast<double>(context.mass_flux_z(i, j, k));
+                    const double mz_bottom = k >= 1 ? static_cast<double>(context.mass_flux_z(i, j, k - 1)) : 0.0;
+                    rho(i, j, k) = static_cast<float>(static_cast<double>(rho_begin(i, j, k)) -
+                                                      dt_step * (mx / dr + my / dtheta + (mz_top - mz_bottom) / dz));
+                }
+
+        const double mass_before = interior_rho_q_sum(rho_begin, q_gpu);
+        Field3D      cpu_next;
+        advect_scalar_conservative_3d_cartesian(transport_view, q_cpu, cpu_next, dt_step, true, &context);
+
+        const float* q_in[1]  = {q_gpu.data()};
+        float*       q_out[1] = {q_gpu.data()};
+        REQUIRE(run_metal_batch(q_in, q_out, dtk, 1, dt_step, pd, &context));
+        q_cpu = std::move(cpu_next);
+
+        double maximum_error = 0.0;
+        for (std::size_t index = 0; index < q_cpu.size(); ++index)
+            maximum_error =
+                std::max(maximum_error, std::abs(double(q_cpu.data()[index]) - double(q_gpu.data()[index])));
+        INFO("step=" << step << " maximum CPU/Metal error=" << maximum_error);
+        REQUIRE(maximum_error <= 2.0e-5);
+
+        float gpu_min = std::numeric_limits<float>::infinity();
+        int   min_i   = -1;
+        int   min_j   = -1;
+        int   min_k   = -1;
+        for (int i = 1; i < NR - 1; ++i)
+            for (int j = 1; j < NTH - 1; ++j)
+                for (int k = 0; k < NZ; ++k)
+                    if (q_gpu(i, j, k) < gpu_min)
+                    {
+                        gpu_min = q_gpu(i, j, k);
+                        min_i   = i;
+                        min_j   = j;
+                        min_k   = k;
+                    }
+        const double mass_after = interior_rho_q_sum(rho, q_gpu);
+        const double relative_mass_error =
+            std::abs(mass_after - mass_before) / std::max(std::abs(mass_before), 1.0e-30);
+        worst_mass_relative_error = std::max(worst_mass_relative_error, relative_mass_error);
+        INFO("step=" << step << " minimum=" << gpu_min << " at (" << min_i << "," << min_j << "," << min_k
+                     << ") relative_mass_error=" << relative_mass_error);
+        REQUIRE(gpu_min >= 0.0f);
+    }
+    INFO("worst repeated coupled rho-q relative error=" << worst_mass_relative_error);
+    REQUIRE(worst_mass_relative_error < 3.0e-6);
 }

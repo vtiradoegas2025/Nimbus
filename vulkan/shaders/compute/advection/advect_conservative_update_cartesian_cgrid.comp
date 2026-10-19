@@ -30,6 +30,8 @@
 // Data layout: row-major [nx][ny][nz]. Index (i, j, k) = (i*ny + j)*nz + k.
 
 #version 450
+#extension GL_GOOGLE_include_directive : require
+#include "positive_scalar_budget.glsl"
 
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
@@ -124,14 +126,12 @@ void main()
         uint c_jp = uint((i * ny + (j + 1)) * nz + k);
         uint c_kp = (k < nz - 1)
             ? uint((i * ny + j) * nz + (k + 1)) : c;
-        sfx_c = sfx[c]    * ((sfx[c]    > 0.0) ? r_lim[c]    : r_lim[c_ip]);
-        sfx_m = sfx[c_im] * ((sfx[c_im] > 0.0) ? r_lim[c_im] : r_lim[c]);
-        sfy_c = sfy[c]    * ((sfy[c]    > 0.0) ? r_lim[c]    : r_lim[c_jp]);
-        sfy_m = sfy[c_jm] * ((sfy[c_jm] > 0.0) ? r_lim[c_jm] : r_lim[c]);
-        sfz_c = sfz[c]
-            * ((sfz[c] > 0.0) ? r_lim[c] : r_lim[c_kp]);
-        sfz_m = (k >= 1)
-            ? sfz[c_km] * ((sfz[c_km] > 0.0) ? r_lim[c_km] : r_lim[c]) : 0.0;
+        sfx_c     = pd_scaled_face(sfx[c], pd_positive(sfx[c]) ? r_lim[c] : r_lim[c_ip]);
+        sfx_m     = pd_scaled_face(sfx[c_im], pd_positive(sfx[c_im]) ? r_lim[c_im] : r_lim[c]);
+        sfy_c     = pd_scaled_face(sfy[c], pd_positive(sfy[c]) ? r_lim[c] : r_lim[c_jp]);
+        sfy_m     = pd_scaled_face(sfy[c_jm], pd_positive(sfy[c_jm]) ? r_lim[c_jm] : r_lim[c]);
+        sfz_c     = pd_scaled_face(sfz[c], pd_positive(sfz[c]) ? r_lim[c] : r_lim[c_kp]);
+        sfz_m     = k >= 1 ? pd_scaled_face(sfz[c_km], pd_positive(sfz[c_km]) ? r_lim[c_km] : r_lim[c]) : 0.0;
     }
     else
     {
@@ -190,28 +190,19 @@ void main()
         // outgoing and incoming rates separate avoids signed-divergence
         // cancellation when an active limiter intentionally exhausts a
         // sparse donor cell.
-        float outgoing = 0.0;
-        float incoming = 0.0;
-
-        if (sfx_c >= 0.0) { outgoing += sfx_c * inv_dx; }
-        else              { incoming -= sfx_c * inv_dx; }
-        if (sfx_m <= 0.0) { outgoing -= sfx_m * inv_dx; }
-        else              { incoming += sfx_m * inv_dx; }
-
-        if (sfy_c >= 0.0) { outgoing += sfy_c * inv_dy; }
-        else              { incoming -= sfy_c * inv_dy; }
-        if (sfy_m <= 0.0) { outgoing -= sfy_m * inv_dy; }
-        else              { incoming += sfy_m * inv_dy; }
-
-        if (sfz_c >= 0.0) { outgoing += sfz_c * inv_dz; }
-        else              { incoming -= sfz_c * inv_dz; }
-        if (sfz_m <= 0.0) { outgoing -= sfz_m * inv_dz; }
-        else              { incoming += sfz_m * inv_dz; }
-
+        float outgoing = pd_rate(sfx_c, sfx_m, sfy_c, sfy_m, sfz_c, sfz_m, inv_dx, inv_dy, inv_dz);
+        float incoming = pd_rate(pd_reverse(sfx_c),
+                                 pd_reverse(sfx_m),
+                                 pd_reverse(sfy_c),
+                                 pd_reverse(sfy_m),
+                                 pd_reverse(sfz_c),
+                                 pd_reverse(sfz_m),
+                                 inv_dx,
+                                 inv_dy,
+                                 inv_dz);
         if (report_offset >= 0)
-            requested_update[gid] = incoming - outgoing;
-        rho_phi = (rho_begin_eff * q_in[c] - dt_step * outgoing)
-                  + dt_step * incoming;
+            requested_update[gid] = pd_add(incoming, pd_reverse(outgoing));
+        rho_phi = pd_next_inventory(pd_remaining(rho_begin_eff, q_in[c], dt_step, outgoing), dt_step, incoming);
     }
     float rho_den = (use_coupled_mass != 0) ? rho_end : rho_check;
     float denom   = (rho_den > rho_floor) ? rho_den : rho_floor;
@@ -226,6 +217,11 @@ void main()
     }
     else
     {
-        q_out[c] = rho_phi / denom;
+        bool zero_transfer = ((floatBitsToUint(sfx_c) | floatBitsToUint(sfx_m) | floatBitsToUint(sfy_c) |
+                               floatBitsToUint(sfy_m) | floatBitsToUint(sfz_c) | floatBitsToUint(sfz_m)) &
+                              0x7fffffffu) == 0u;
+        q_out[c]           = zero_transfer && floatBitsToUint(rho_begin_eff) == floatBitsToUint(denom)
+                                 ? q_in[c]
+                                 : pd_positive_divide(rho_phi, denom);
     }
 }

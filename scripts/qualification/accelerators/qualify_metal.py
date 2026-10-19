@@ -62,6 +62,7 @@ REQUIRED_EVIDENCE = {
 }
 
 SHARED_SEALED_SOURCES = (
+    "include/compute/cartesian_scalar_capture.hpp",
     "include/compute/backend_services.hpp",
     "include/compute/compute_backend.hpp",
     "include/compute/compute_kernel_interfaces.hpp",
@@ -89,6 +90,9 @@ SEALED_SOURCES = SHARED_SEALED_SOURCES + (
     "metal/Makefile",
     "scripts/qualification/accelerators/qualify_metal.py",
 ) + METAL_SEALED_SOURCES + (
+    "vulkan/shaders/compute/advection/positive_scalar_budget.glsl",
+    "scripts/dev/shaders/generate_positive_scalar_budget_msl.py",
+    "tests/numerics/positive_scalar_budget_contract.hpp",
     "tests/metal/test_metal_compute_backend.cpp",
     "tests/metal/test_qualify_metal.py",
 )

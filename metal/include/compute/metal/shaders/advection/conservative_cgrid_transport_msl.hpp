@@ -1,6 +1,7 @@
 #pragma once
 
 #include "compute/metal/shaders/advection/weno_common_msl.hpp"
+#include "compute/metal/shaders/advection/positive_scalar_budget_msl.hpp"
 
 namespace nimbus::metal::shaders
 {
@@ -15,6 +16,7 @@ inline constexpr const char* kConservativeCgridTransportMsl = R"msl(
 
 #include <metal_stdlib>
 using namespace metal;
+)msl" NIMBUS_POSITIVE_SCALAR_BUDGET_MSL R"msl(
 
 struct MassConstants
 {
@@ -91,6 +93,18 @@ inline float mc_slope(float qm, float q0, float qp)
 }
 )msl" NIMBUS_WENO_COMMON_MSL R"msl(
 
+inline bool pd_nonzero_underflow_product(float a, float b)
+{
+    return (as_type<uint>(a) & 0x7fffffffu) != 0u
+        && (as_type<uint>(b) & 0x7fffffffu) != 0u && pd_product_protected(a, b);
+}
+inline float pd_raw_flux(float mass, float base, float offset, constant UpdateConstants& p)
+{
+    if (p.use_pd != 0 && (pd_nonzero_underflow_product(mass, base)
+        || pd_nonzero_underflow_product(mass, offset)))
+        return pd_add(pd_product(mass, base), pd_product(mass, offset));
+    return fma(mass, base, mass * offset);
+}
 inline float flux_x(device const float* q, device const float* mfx, int i, int j, int k, constant UpdateConstants& p)
 {
     if (i > p.nx - 2)
@@ -124,7 +138,7 @@ inline float flux_x(device const float* q, device const float* mfx, int i, int j
     }
     if ((p.weno & 2) != 0 && (base <= 0.0f || base + face <= 0.0f))
         face = 0.0f;
-    return fma(mf, base, mf * face);
+    return pd_raw_flux(mf, base, face, p);
 }
 inline float flux_y(device const float* q, device const float* mfy, int i, int j, int k, constant UpdateConstants& p)
 {
@@ -159,7 +173,7 @@ inline float flux_y(device const float* q, device const float* mfy, int i, int j
     }
     if ((p.weno & 2) != 0 && (base <= 0.0f || base + face <= 0.0f))
         face = 0.0f;
-    return fma(mf, base, mf * face);
+    return pd_raw_flux(mf, base, face, p);
 }
 inline float flux_z(device const float* q, device const float* mfz, int i, int j, int k, constant UpdateConstants& p)
 {
@@ -195,7 +209,7 @@ inline float flux_z(device const float* q, device const float* mfz, int i, int j
     }
     if ((p.weno & 2) != 0 && (base <= 0.0f || base + face <= 0.0f))
         face = 0.0f;
-    return fma(mf, base, mf * face);
+    return pd_raw_flux(mf, base, face, p);
 }
 
 inline float donor_factor(device const float*       q,
@@ -209,42 +223,27 @@ inline float donor_factor(device const float*       q,
                           int                       k,
                           constant UpdateConstants& p)
 {
-    uint  c    = at3(i, j, k, p.ny, p.nz);
-    float rate = 0.0f, f;
-    f          = flux_x(q, mfx, i, j, k, p);
-    if (i <= p.nx - 2 && f > 0.0f)
-        rate += f * p.inv_dx;
-    if (i >= 1)
-    {
-        f = flux_x(q, mfx, i - 1, j, k, p);
-        if (f < 0.0f)
-            rate -= f * p.inv_dx;
-    }
-    f = flux_y(q, mfy, i, j, k, p);
-    if (j <= p.ny - 2 && f > 0.0f)
-        rate += f * p.inv_dy;
-    if (j >= 1)
-    {
-        f = flux_y(q, mfy, i, j - 1, k, p);
-        if (f < 0.0f)
-            rate -= f * p.inv_dy;
-    }
-    f = flux_z(q, mfz, i, j, k, p);
-    if (f > 0.0f)
-        rate += f * p.inv_dz;
-    if (k >= 1)
-    {
-        f = flux_z(q, mfz, i, j, k - 1, p);
-        if (f < 0.0f)
-            rate -= f * p.inv_dz;
-    }
+    uint c = at3(i, j, k, p.ny, p.nz);
+    float xp = i <= p.nx - 2 ? flux_x(q, mfx, i, j, k, p) : 0.0f;
+    float xm = i >= 1 ? flux_x(q, mfx, i - 1, j, k, p) : 0.0f;
+    float yp = j <= p.ny - 2 ? flux_y(q, mfy, i, j, k, p) : 0.0f;
+    float ym = j >= 1 ? flux_y(q, mfy, i, j - 1, k, p) : 0.0f;
+    float zp = flux_z(q, mfz, i, j, k, p);
+    float zm = k >= 1 ? flux_z(q, mfz, i, j, k - 1, p) : 0.0f;
+    float rate = 0.0f;
+    if (xp > 0.0f) rate += xp * p.inv_dx;
+    if (xm < 0.0f) rate -= xm * p.inv_dx;
+    if (yp > 0.0f) rate += yp * p.inv_dy;
+    if (ym < 0.0f) rate -= ym * p.inv_dy;
+    if (zp > 0.0f) rate += zp * p.inv_dz;
+    if (zm < 0.0f) rate -= zm * p.inv_dz;
     float r = 1.0f;
     bool support_limit = false;
     if (rate > 0.0f)
     {
         float rb = p.use_coupled_mass != 0 ? rho_begin[c] : rho[c];
-        float available = rb * max(q[c], 0.0f) / p.dt_step;
-        r = min(1.0f, available / rate);
+        float available = pd_positive_divide(pd_inventory(rb, q[c]), p.dt_step);
+        r = min(1.0f, pd_positive_divide(available, rate));
         support_limit = (p.weno & 2) != 0 && available <= rate;
     }
     if (r > 0.0f && (r < 1.0f || support_limit))
@@ -253,7 +252,9 @@ inline float donor_factor(device const float*       q,
         if (r > 0.0f)
             r = as_type<float>(as_type<uint>(r) - 1u);
     }
-    return r;
+    float rb = p.use_coupled_mass != 0 ? rho_begin[c] : rho[c];
+    return pd_verified_factor(r, rb, q[c], p.dt_step,
+        xp, xm, yp, ym, zp, zm, p.inv_dx, p.inv_dy, p.inv_dz);
 }
 
 kernel void conservative_scalar_update(device const float*       q [[buffer(0)]],
@@ -291,12 +292,12 @@ kernel void conservative_scalar_update(device const float*       q [[buffer(0)]]
     if (p.use_pd != 0)
     {
         float rc = donor_factor(q, rho, rho_begin, mfx, mfy, mfz, i, j, k, p);
-        xc *= xc > 0.0f ? rc : donor_factor(q, rho, rho_begin, mfx, mfy, mfz, i + 1, j, k, p);
-        xm *= xm > 0.0f ? donor_factor(q, rho, rho_begin, mfx, mfy, mfz, i - 1, j, k, p) : rc;
-        yc *= yc > 0.0f ? rc : donor_factor(q, rho, rho_begin, mfx, mfy, mfz, i, j + 1, k, p);
-        ym *= ym > 0.0f ? donor_factor(q, rho, rho_begin, mfx, mfy, mfz, i, j - 1, k, p) : rc;
-        zc *= zc > 0.0f ? rc : donor_factor(q, rho, rho_begin, mfx, mfy, mfz, i, j, min(k + 1, p.nz - 1), p);
-        zm *= zm > 0.0f ? donor_factor(q, rho, rho_begin, mfx, mfy, mfz, i, j, k - 1, p) : rc;
+        xc = pd_scaled_face(xc, pd_positive(xc) ? rc : donor_factor(q, rho, rho_begin, mfx, mfy, mfz, i + 1, j, k, p));
+        xm = pd_scaled_face(xm, pd_positive(xm) ? donor_factor(q, rho, rho_begin, mfx, mfy, mfz, i - 1, j, k, p) : rc);
+        yc = pd_scaled_face(yc, pd_positive(yc) ? rc : donor_factor(q, rho, rho_begin, mfx, mfy, mfz, i, j + 1, k, p));
+        ym = pd_scaled_face(ym, pd_positive(ym) ? donor_factor(q, rho, rho_begin, mfx, mfy, mfz, i, j - 1, k, p) : rc);
+        zc = pd_scaled_face(zc, pd_positive(zc) ? rc : donor_factor(q, rho, rho_begin, mfx, mfy, mfz, i, j, min(k + 1, p.nz - 1), p));
+        zm = pd_scaled_face(zm, pd_positive(zm) ? donor_factor(q, rho, rho_begin, mfx, mfy, mfz, i, j, k - 1, p) : rc);
     }
     if (p.capture_offset >= 0 && k >= p.capture_k_begin && k < p.capture_k_end)
     {
@@ -338,34 +339,12 @@ kernel void conservative_scalar_update(device const float*       q [[buffer(0)]]
     float rho_phi;
     if (p.use_pd != 0)
     {
-        float outgoing = 0.0f, incoming = 0.0f;
-        if (xc >= 0.0f)
-            outgoing += xc * p.inv_dx;
-        else
-            incoming -= xc * p.inv_dx;
-        if (xm <= 0.0f)
-            outgoing -= xm * p.inv_dx;
-        else
-            incoming += xm * p.inv_dx;
-        if (yc >= 0.0f)
-            outgoing += yc * p.inv_dy;
-        else
-            incoming -= yc * p.inv_dy;
-        if (ym <= 0.0f)
-            outgoing -= ym * p.inv_dy;
-        else
-            incoming += ym * p.inv_dy;
-        if (zc >= 0.0f)
-            outgoing += zc * p.inv_dz;
-        else
-            incoming -= zc * p.inv_dz;
-        if (zm <= 0.0f)
-            outgoing -= zm * p.inv_dz;
-        else
-            incoming += zm * p.inv_dz;
+        float outgoing = pd_rate(xc, xm, yc, ym, zc, zm, p.inv_dx, p.inv_dy, p.inv_dz);
+        float incoming = pd_rate(pd_reverse(xc), pd_reverse(xm), pd_reverse(yc), pd_reverse(ym),
+            pd_reverse(zc), pd_reverse(zm), p.inv_dx, p.inv_dy, p.inv_dz);
         if (p.report_offset >= 0)
-            requested_update[gid] = incoming - outgoing;
-        rho_phi = (rb * q[gid] - p.dt_step * outgoing) + p.dt_step * incoming;
+            requested_update[gid] = pd_add(incoming, pd_reverse(outgoing));
+        rho_phi = pd_next_inventory(pd_remaining(rb, q[gid], p.dt_step, outgoing), p.dt_step, incoming);
     }
     float rho_den = p.use_coupled_mass != 0 ? rho[gid] : rho[gid] - p.dt_step * mass_div;
     float denom   = max(rho_den, p.rho_floor);
@@ -379,7 +358,12 @@ kernel void conservative_scalar_update(device const float*       q [[buffer(0)]]
         out[gid] = q[gid] + increment;
     }
     else
-        out[gid] = rho_phi / denom;
+        {
+        bool zero_transfer = ((as_type<uint>(xc) | as_type<uint>(xm) | as_type<uint>(yc)
+            | as_type<uint>(ym) | as_type<uint>(zc) | as_type<uint>(zm)) & 0x7fffffffu) == 0u;
+        out[gid] = zero_transfer && as_type<uint>(rb) == as_type<uint>(denom)
+            ? q[gid] : pd_positive_divide(rho_phi, denom);
+    }
 }
 )msl";
 

@@ -21,6 +21,7 @@
 // Data layout: row-major [nx][ny][nz]. Index (i, j, k) = (i*ny + j)*nz + k.
 
 #version 450
+#extension GL_GOOGLE_include_directive : require
 
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
@@ -38,8 +39,9 @@ layout(push_constant) uniform PushConstants {
     int nx;
     int ny;
     int nz;
-    int pad0; // Bit 0 selects MC; bit 1 preserves positive donor support.
+    int pad0; // MC, positive donor support, and protected flat-PD arithmetic bits.
 };
+#include "positive_scalar_budget.glsl"
 
 // Jiang & Shu (1996) WENO5 with ideal weights (1/10, 6/10, 3/10) and the
 // repo's epsilon (numerics_constants::weno_epsilon = 1e-6). Mirrors
@@ -99,6 +101,17 @@ uint at(int i, int j, int k)
     return uint((i * ny + j) * nz + k);
 }
 
+bool pd_nonzero_underflow_product(float a, float b)
+{
+    return (floatBitsToUint(a) & 0x7fffffffu) != 0u && (floatBitsToUint(b) & 0x7fffffffu) != 0u &&
+           pd_product_protected(a, b);
+}
+float pd_raw_flux(float mass, float base, float offset)
+{
+    if ((pad0 & 4) != 0 && (pd_nonzero_underflow_product(mass, base) || pd_nonzero_underflow_product(mass, offset)))
+        return pd_add(pd_product(mass, base), pd_product(mass, offset));
+    return fma(mass, base, mass * offset);
+}
 void evaluate(uint gid)
 {
     uint total = uint(nx) * uint(ny) * uint(nz);
@@ -158,7 +171,7 @@ void evaluate(uint gid)
         }
         if ((pad0 & 2) != 0 && (base <= 0.0 || base + phi_face <= 0.0))
             phi_face = 0.0;
-        sx = fma(mflux, base, mflux * phi_face);
+        sx = pd_raw_flux(mflux, base, phi_face);
     }
     sfx[c] = sx;
 
@@ -206,7 +219,7 @@ void evaluate(uint gid)
         }
         if ((pad0 & 2) != 0 && (base <= 0.0 || base + phi_face <= 0.0))
             phi_face = 0.0;
-        sy = fma(mflux, base, mflux * phi_face);
+        sy = pd_raw_flux(mflux, base, phi_face);
     }
     sfy[c] = sy;
 
@@ -215,7 +228,7 @@ void evaluate(uint gid)
     float sz = 0.0;
     if (k == nz - 1)
     {
-        sz = mfz[c] * q_in[c];
+        sz = (pad0 & 4) != 0 ? pd_product(mfz[c], q_in[c]) : mfz[c] * q_in[c];
     }
     else
     {
@@ -259,7 +272,7 @@ void evaluate(uint gid)
         }
         if ((pad0 & 2) != 0 && (base <= 0.0 || base + phi_face <= 0.0))
             phi_face = 0.0;
-        sz = fma(mflux, base, mflux * phi_face);
+        sz = pd_raw_flux(mflux, base, phi_face);
     }
     sfz[c] = sz;
 }

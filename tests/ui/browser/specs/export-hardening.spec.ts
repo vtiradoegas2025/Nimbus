@@ -112,7 +112,8 @@ test("Studio recorder offers portable export for a complete saved 3D frame", asy
 });
 
 test("portable supercell viewpoints retain every prepared field without rebuilding source arrays", async ({ page }, info) => {
-  test.setTimeout(150_000);
+  // Budget twelve full-quality software renders, setup and PNG encoding.
+  test.setTimeout(240_000);
   const progress: { done: number; count: number; elapsedMs: number }[] = [];
   const flushWarnings: string[] = [];
   page.on("console", message => {

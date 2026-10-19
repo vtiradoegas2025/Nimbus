@@ -18,6 +18,8 @@
 // Data layout: row-major [nx][ny][nz]. Index (i, j, k) = (i*ny + j)*nz + k.
 
 #version 450
+#extension GL_GOOGLE_include_directive : require
+#include "positive_scalar_budget.glsl"
 
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
@@ -124,9 +126,18 @@ void main()
         // it directly avoids a second, roundoff-sensitive density evolution.
         float rho_available = ((use_coupled_mass & 1) != 0)
             ? rho_begin[c] : rho_in[c];
-        float available = rho_available * max(q_in[c], 0.0) / dt_step;
-        r = min(1.0, available / out_rate);
+        float available     = pd_positive_divide(pd_inventory(rho_available, q_in[c]), dt_step);
+        r                   = min(1.0, pd_positive_divide(available, out_rate));
         r = conservative_limiter_factor(r, (use_coupled_mass & 2) != 0 && available <= out_rate);
     }
+    float raw_xp        = i <= nx - 2 ? sfx[c] : 0.0;
+    float raw_xm        = i >= 1 ? sfx[uint(((i - 1) * ny + j) * nz + k)] : 0.0;
+    float raw_yp        = j <= ny - 2 ? sfy[c] : 0.0;
+    float raw_ym        = j >= 1 ? sfy[uint((i * ny + j - 1) * nz + k)] : 0.0;
+    float raw_zp        = sfz[c];
+    float raw_zm        = k >= 1 ? sfz[c - 1u] : 0.0;
+    float rho_available = (use_coupled_mass & 1) != 0 ? rho_begin[c] : rho_in[c];
+    r                   = pd_verified_factor(
+        r, rho_available, q_in[c], dt_step, raw_xp, raw_xm, raw_yp, raw_ym, raw_zp, raw_zm, inv_dx, inv_dy, inv_dz);
     r_out[c] = r;
 }

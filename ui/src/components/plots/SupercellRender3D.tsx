@@ -1967,13 +1967,16 @@ export function SupercellRender3D({
   const sceneFrameCommitPending = !sceneGeneration.ready;
   const panePresentation = usePanePresentationBarrier({ ready: sceneGeneration.ready, error: sceneGeneration.error });
   const scenePresentationPending = sceneFrameCommitPending || panePresentation.pending;
-  useEffect(() => {
+  // Hold before layout effects rescale geometry; presentation releases after axes and materials agree.
+  useLayoutEffect(() => {
     const scene = sceneRef.current;
     if (!scene || scenePresentationPending) return;
     const release = holdVtkSceneRendering(scene.renderWindow);
     releaseSceneCommitRef.current = release;
     return () => { release(); if (releaseSceneCommitRef.current === release) releaseSceneCommitRef.current = null; };
-  }, [sceneGenerationIdentity, scenePresentationPending, vtkLifecycleGeneration]);
+  }, [sceneGenerationIdentity, scenePresentationPending, sceneScale.xy, sceneScale.z,
+    sceneAppearance.resolved, vortexSurfaceColors.core, vortexSurfaceColors.mesocyclone,
+    vortexSurfaceColors.opposite, vtkLifecycleGeneration]);
   const displayContextGrid = scenePresentationPending ? committedContextGrid ?? contextGrid : contextGrid;
   useDomainBox(() => sceneRef.current?.renderWindow ?? null, displayContextGrid, sceneScale,
     vtkLifecycleGeneration, sceneAppearance.resolved.reference);
@@ -2615,7 +2618,6 @@ export function SupercellRender3D({
       precipVisual.floorGkg / 1000,
       precipitationSceneColor(precipVisual.mode, precipVisual.customColor, appearance),
     );
-    scene.renderWindow.getRenderWindow().render();
   }, [
     sceneAppearance.resolved,
     vortexSurfaceColors.core,
@@ -3246,6 +3248,7 @@ export function SupercellRender3D({
     cloudWindEnabled, contextStep, windWindow, windU.field, windV.field, windU.error, windV.error, windW.field, windW.error, windRho.field, windRho.error, useWindDensity, windUnavailable,
     sourceRunDir, sourceDefinitionIdentity, cloudFieldName, cloudOpacity, committedCloudFloorGkg, cloudEdge, cloudTone,
     cloudCustomColor, cloudBrightness, sceneAppearance.resolved, sceneScale.xy, sceneScale.z,
+    vortexSurfaceColors.core, vortexSurfaceColors.mesocyclone, vortexSurfaceColors.opposite,
     radarFloor.commitData,
     showCloud,
     cloudPreparation.prepared,
@@ -3932,7 +3935,11 @@ export function SupercellRender3D({
           <PillGroup
             options={CLOUD_EDGE_OPTIONS}
             value={cloudEdge}
-            onChange={setCloudEdge}
+            onChange={(value) => {
+              beginVolumeControlPreview();
+              setCloudEdge(value);
+              endVolumeControlPreview();
+            }}
             disabled={!showCloud || !cloudFieldName}
             disabledReason={disabledLayerHint(showCloud, cloudFieldName, "Cloud")}
           />
@@ -4306,7 +4313,11 @@ export function SupercellRender3D({
             aria-label="Scene and camera controls"
           >
         <SceneAppearanceControls state={sceneAppearance} backend={vtkBackend} />
-        <SceneScaleControl value={sceneScale} onChange={setSceneScale} />
+        <SceneScaleControl value={sceneScale} onChange={(value) => {
+          beginVolumeControlPreview();
+          setSceneScale(value);
+          endVolumeControlPreview();
+        }} />
         {(!pane.cameraLocked || pane.cameraAuthority) && (
           <>
             <CameraElevationControls selection={cameraElevation} />

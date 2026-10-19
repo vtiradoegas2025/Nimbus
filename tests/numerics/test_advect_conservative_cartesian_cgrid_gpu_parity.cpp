@@ -32,6 +32,7 @@
 #include "core/runtime/runtime_config.hpp"
 #include "core/runtime/simulation.hpp"
 #include "numerics/advection/advection_cartesian.hpp"
+#include "numerics/positive_scalar_budget_contract.hpp"
 
 #include <algorithm>
 #include <array>
@@ -1634,4 +1635,19 @@ TEST_CASE("Positive-definite Cartesian C-grid transport remains nonnegative over
     REQUIRE(minimum_density > static_cast<double>(density_min_kgm3));
     REQUIRE(global_min >= 0.0f);
     REQUIRE(max_relative_mass_error < 2.0e-6);
+}
+
+TEST_CASE("Native Cartesian positive scalar budget preserves tiny fields and rejects invalid batches",
+          "[vulkan][gpu_parity][cgrid][advection][pd-contract]")
+{
+    if (!try_init_gpu())
+    {
+        WARN("Vulkan unavailable -- positive scalar budget contract was not exercised");
+        return;
+    }
+    auto* backend = mutable_compute_backend();
+    REQUIRE(backend != nullptr);
+    nimbus::testing::exercise_positive_scalar_contract(*backend);
+    nimbus::testing::exercise_positive_scalar_scales(*backend);
+    shutdown_backend();
 }

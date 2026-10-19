@@ -9,12 +9,20 @@
 #include <array>
 #include <cmath>
 #include <cstring>
+#include <cstdint>
 #include <limits>
 #include <stdexcept>
 #include <vector>
 
 namespace nimbus::compute
 {
+inline bool negative_scalar_word(float value) noexcept
+{
+    std::uint32_t bits;
+    std::memcpy(&bits, &value, sizeof(bits));
+    return (bits & 0x80000000u) != 0u && (bits & 0x7fffffffu) != 0u;
+}
+
 class CartesianScalarCapture
 {
 public:
@@ -70,7 +78,8 @@ public:
                  !std::isfinite(d.mass_flux_z[index])))
                 return false;
             for (int s = 0; s < d.n_scalars; ++s)
-                if (!std::isfinite(d.q_in[s][index]))
+                if (!std::isfinite(d.q_in[s][index]) ||
+                    (d.positive_definite && d.positive_definite[s] != 0 && negative_scalar_word(d.q_in[s][index])))
                     return false;
         }
         const std::size_t physical_faces =
@@ -229,8 +238,12 @@ void publish_cartesian_scalar_batch(const ConservativeCartesianCgridTransportDis
     capture.stage(d, fluxes);
     for (int s = 0; s < d.n_scalars; ++s)
         for (std::size_t index = 0; index < cells; ++index)
+        {
             if (!std::isfinite(candidate(s)[index]))
                 throw std::runtime_error("native Cartesian scalar transport produced a non-finite field");
+            if (d.positive_definite && d.positive_definite[s] != 0 && negative_scalar_word(candidate(s)[index]))
+                throw std::runtime_error("native Cartesian positive scalar transport produced a negative field");
+        }
 
     std::array<std::vector<float>, CartesianScalarCapture::maximum_scalars>                      saved_fields;
     std::array<tmv::ScalarBoundaryTransportReport, CartesianScalarCapture::maximum_scalars>      saved_boundary;

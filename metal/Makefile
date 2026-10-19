@@ -54,6 +54,7 @@ METAL_TEST_HEADERS := $(shell find $(ROOT)/metal/include -type f -name '*.hpp') 
 	$(ROOT)/tests/compute/support/agrid_complete_native_fixture.hpp \
 	$(ROOT)/tests/compute/support/sgs_scalar_boundary.hpp \
 	$(ROOT)/tests/compute/support/acoustic_unrepaired.hpp \
+	$(ROOT)/tests/numerics/positive_scalar_budget_contract.hpp \
 	$(ROOT)/include/dynamics/device_acoustic_energy_attribution.hpp \
 	$(ROOT)/tests/catch2/catch.hpp
 
@@ -61,6 +62,7 @@ all: $(BIN)
 
 $(BIN): $(ROOT)/vulkan/shaders/compute/acoustic/pressure_eos.glsl $(ROOT)/vulkan/shaders/compute/acoustic/momentum_precision.glsl $(ROOT)/scripts/dev/shaders/generate_acoustic_eos_msl.py
 $(BIN): $(ROOT)/vulkan/shaders/compute/terrain/signed_scalar_update.glsl $(ROOT)/scripts/dev/shaders/generate_mapped_scalar_math_msl.py
+$(BIN): $(ROOT)/vulkan/shaders/compute/advection/positive_scalar_budget.glsl $(ROOT)/scripts/dev/shaders/generate_positive_scalar_budget_msl.py
 
 $(BIN): $(ROOT)/vulkan/shaders/compute/chaos/earth_control_evolution.comp $(ROOT)/scripts/dev/shaders/generate_earth_control_msl.py
 
@@ -68,6 +70,7 @@ $(BIN): $(ROOT)/vulkan/shaders/compute/dynamics/conservative_reduction.comp $(RO
 	python3 $(ROOT)/scripts/dev/shaders/generate_earth_control_msl.py
 	python3 $(ROOT)/scripts/dev/shaders/generate_acoustic_eos_msl.py
 	python3 $(ROOT)/scripts/dev/shaders/generate_mapped_scalar_math_msl.py
+	python3 $(ROOT)/scripts/dev/shaders/generate_positive_scalar_budget_msl.py
 	python3 $(ROOT)/scripts/dev/shaders/generate_implicit_msl.py
 	python3 $(ROOT)/scripts/dev/shaders/generate_tke_msl.py
 	python3 $(ROOT)/scripts/dev/shaders/generate_mapped_boundary_msl.py

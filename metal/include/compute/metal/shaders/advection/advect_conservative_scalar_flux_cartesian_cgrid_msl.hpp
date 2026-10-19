@@ -11,7 +11,7 @@ struct AdvectConservativeScalarFluxCartesianCgridPushConstants
     int nx;
     int ny;
     int nz;
-    int pad0; // Bit 0 selects MC; bit 1 preserves positive donor support.
+    int pad0; // MC, positive donor support, and protected flat-PD arithmetic bits.
 };
 struct AdvectConservativeScalarFluxCartesianCgridProgram
 {
@@ -23,6 +23,351 @@ struct AdvectConservativeScalarFluxCartesianCgridProgram
     device float* sfy;
     device float* sfz;
     constant AdvectConservativeScalarFluxCartesianCgridPushConstants& pc;
+    uint pd_shift_jam(uint value, int distance)
+    {
+        if (distance <= 0)
+            return value;
+        if (distance >= 32)
+            return value == 0u ? 0u : 1u;
+        return (value >> uint(distance)) | ((value << uint(32 - distance)) == 0u ? 0u : 1u);
+    }
+    // Guard, round and sticky bits survive alignment without denormal arithmetic.
+    uint pd_add_bits(uint a, uint b)
+    {
+        uint ap = a & 0x7fffffffu, bp = b & 0x7fffffffu;
+        if (ap >= 0x7f800000u || bp >= 0x7f800000u)
+            return 0x7fc00000u;
+        if (ap == 0u)
+            return b;
+        if (bp == 0u)
+            return a;
+        if (ap < bp)
+        {
+            uint t = a;
+            a      = b;
+            b      = t;
+            t      = ap;
+            ap     = bp;
+            bp     = t;
+        }
+        uint sign = a & 0x80000000u;
+        int  ae = max(1, int(ap >> 23)), be = max(1, int(bp >> 23));
+        uint am   = (ap & 0x007fffffu) | (ap >= 0x00800000u ? 0x00800000u : 0u);
+        uint bm   = (bp & 0x007fffffu) | (bp >= 0x00800000u ? 0x00800000u : 0u);
+        uint left = am << 3, right = pd_shift_jam(bm << 3, ae - be);
+        uint total = ((a ^ b) & 0x80000000u) == 0u ? left + right : left - right;
+        if (total == 0u)
+            return 0u;
+        if (total >= 0x08000000u)
+        {
+            total = pd_shift_jam(total, 1);
+            ae += 1;
+        }
+        for (int i = 0; i < 26 && total < 0x04000000u && ae > 1; ++i)
+        {
+            total <<= 1;
+            ae -= 1;
+        }
+        uint remainder = total & 7u;
+        uint rounded   = total >> 3;
+        bool increment = remainder > 4u || (remainder == 4u && (rounded & 1u) != 0u);
+        if (increment)
+            rounded += 1u;
+        if (rounded >= 0x01000000u)
+        {
+            rounded >>= 1;
+            ae += 1;
+        }
+        if (ae >= 255)
+            return sign | 0x7f800000u;
+        return sign | (ae == 1 && rounded < 0x00800000u ? rounded : (uint(ae) << 23) | (rounded & 0x007fffffu));
+    }
+    float pd_add(float a, float b)
+    {
+        uint ab = as_type<uint>(a), bb = as_type<uint>(b);
+        uint ap = ab & 0x7fffffffu, bp = bb & 0x7fffffffu;
+        if (ap == 0u)
+            return b;
+        if (bp == 0u)
+            return a;
+        float result = a + b;
+        uint          rp     = as_type<uint>(result) & 0x7fffffffu;
+        if (ap >= 0x7f800000u || bp >= 0x7f800000u)
+            return result;
+        if (ap >= 0x00800000u && bp >= 0x00800000u && rp >= 0x00800000u)
+            return result;
+        return as_type<float>(pd_add_bits(ab, bb));
+    }
+    float pd_normalized_mantissa(float value, thread int& exponent)
+    {
+        uint bits = as_type<uint>(value), fraction = bits & 0x007fffffu;
+        int  encoded = int((bits >> 23) & 255u);
+        if (encoded == 0)
+        {
+            int top  = (31 - int(clz(fraction)));
+            exponent = top - 148;
+            fraction = (fraction << uint(23 - top)) & 0x007fffffu;
+        }
+        else
+            exponent = encoded - 126;
+        return as_type<float>((bits & 0x80000000u) | 0x3f000000u | fraction);
+    }
+    // The exact 48-bit significand uses two uints; final packing is nearest-even.
+    uint pd_product_bits(uint ab, uint bb)
+    {
+        uint ap = ab & 0x7fffffffu, bp = bb & 0x7fffffffu;
+        uint sign = (ab ^ bb) & 0x80000000u;
+        if (ap >= 0x7f800000u || bp >= 0x7f800000u)
+            return ap > 0x7f800000u || bp > 0x7f800000u || ap == 0u || bp == 0u ? 0x7fc00000u : sign | 0x7f800000u;
+        if (ap == 0u || bp == 0u)
+            return sign;
+        int  ae, be;
+        uint am      = (as_type<uint>(pd_normalized_mantissa(as_type<float>(ab), ae)) & 0x007fffffu) | 0x00800000u;
+        uint bm      = (as_type<uint>(pd_normalized_mantissa(as_type<float>(bb), be)) & 0x007fffffu) | 0x00800000u;
+        uint p0      = (am & 4095u) * (bm & 4095u);
+        uint p1      = (am >> 12) * (bm & 4095u) + (am & 4095u) * (bm >> 12) + (p0 >> 12);
+        uint p2      = (am >> 12) * (bm >> 12) + (p1 >> 12);
+        uint low     = (p0 & 4095u) | ((p1 & 4095u) << 12) | (p2 << 24);
+        uint high    = p2 >> 8;
+        int  top     = high >= 0x8000u ? 47 : 46;
+        int  encoded = ae + be + top + 79;
+        if (encoded >= 255)
+            return sign | 0x7f800000u;
+        int shift = encoded > 0 ? top - 23 : -ae - be - 101;
+        if (shift > 48)
+            return sign | 0u;
+        uint rounded;
+        bool above, tie;
+        if (shift < 32)
+        {
+            rounded        = (high << uint(32 - shift)) | (low >> uint(shift));
+            uint remainder = low & ((1u << uint(shift)) - 1u);
+            uint midpoint  = 1u << uint(shift - 1);
+            above          = remainder > midpoint;
+            tie            = remainder == midpoint;
+        }
+        else
+        {
+            int upper_shift = shift - 32;
+            rounded         = upper_shift == 0 ? high : high >> uint(upper_shift);
+            uint remainder  = upper_shift == 0 ? 0u : high & ((1u << uint(upper_shift)) - 1u);
+            uint midpoint   = upper_shift == 0 ? 0u : 1u << uint(upper_shift - 1);
+            above = upper_shift == 0 ? low > 0x80000000u : remainder > midpoint || (remainder == midpoint && low != 0u);
+            tie   = upper_shift == 0 ? low == 0x80000000u : remainder == midpoint && low == 0u;
+        }
+        if (above || (tie && (rounded & 1u) != 0u))
+            rounded += 1u;
+        if (encoded <= 0)
+            return sign | rounded;
+        if (rounded >= 0x01000000u)
+        {
+            rounded >>= 1;
+            encoded += 1;
+        }
+        return sign | (uint(encoded) << 23) | (rounded & 0x007fffffu);
+    }
+    float pd_product(float a, float b)
+    {
+        uint          ab = as_type<uint>(a), bb = as_type<uint>(b);
+        uint          ap = ab & 0x7fffffffu, bp = bb & 0x7fffffffu;
+        float result = a * b;
+        if (ap >= 0x00800000u && ap < 0x7f800000u && bp >= 0x00800000u && bp < 0x7f800000u &&
+            (ap >> 23) + (bp >> 23) > 127u)
+            return result;
+        return as_type<float>(pd_product_bits(ab, bb));
+    }
+    float pd_pack_scale(float normal, int scale)
+    {
+        uint bits = as_type<uint>(normal), sign = bits & 0x80000000u;
+        int  encoded = int((bits >> 23) & 255u) + scale;
+        if (encoded >= 255)
+            return as_type<float>(sign | 0x7f800000u);
+        if (encoded > 0)
+            return as_type<float>(sign | (uint(encoded) << 23) | (bits & 0x007fffffu));
+        int shift = 1 - encoded;
+        if (shift > 24)
+            return as_type<float>(sign);
+        uint significand = 0x00800000u | (bits & 0x007fffffu);
+        uint rounded = significand >> uint(shift), remainder = significand & ((1u << uint(shift)) - 1u);
+        uint midpoint = 1u << uint(shift - 1);
+        if (remainder > midpoint || (remainder == midpoint && (rounded & 1u) != 0u))
+            rounded += 1u;
+        return as_type<float>(sign | rounded);
+    }
+    float pd_positive_divide(float numerator, float denominator)
+    {
+        uint n = as_type<uint>(numerator), d = as_type<uint>(denominator);
+        if (d == 0u || d >= 0x7f800000u || n >= 0x7f800000u)
+            return numerator / denominator;
+        if ((n & 0x7fffffffu) == 0u)
+            return 0.0;
+        uint ne = n >> 23, de = d >> 23;
+        if (ne != 0u && de != 0u && d <= 0x7e800000u && int(ne) - int(de) >= -125)
+        {
+            float result = numerator / denominator;
+            return result;
+        }
+        int           n_exponent, d_exponent;
+        float         nm    = pd_normalized_mantissa(numerator, n_exponent);
+        float         dm    = pd_normalized_mantissa(denominator, d_exponent);
+        float ratio = nm / dm;
+        return pd_pack_scale(ratio, n_exponent - d_exponent);
+    }
+
+    float pd_inventory(float rho, float q)
+    {
+        return pd_product(rho, q);
+    }
+    bool pd_positive(float value)
+    {
+        uint bits = as_type<uint>(value);
+        return (bits & 0x80000000u) == 0u && (bits & 0x7fffffffu) != 0u;
+    }
+    float pd_outward(float value)
+    {
+        return pd_positive(value) ? value : 0.0;
+    }
+    float pd_reverse(float value)
+    {
+        return as_type<float>(as_type<uint>(value) ^ 0x80000000u);
+    }
+    float pd_scaled_face(float value, float factor)
+    {
+        float result = pd_product(value, factor);
+        return result;
+    }
+    float pd_rate(float xp, float xm, float yp, float ym, float zp, float zm, float inv_x, float inv_y, float inv_z)
+    {
+        float txp  = pd_product(pd_outward(xp), inv_x);
+        float txm  = pd_product(pd_outward(pd_reverse(xm)), inv_x);
+        float typ  = pd_product(pd_outward(yp), inv_y);
+        float tym  = pd_product(pd_outward(pd_reverse(ym)), inv_y);
+        float tzp  = pd_product(pd_outward(zp), inv_z);
+        float tzm  = pd_product(pd_outward(pd_reverse(zm)), inv_z);
+        float rate = 0.0;
+        rate               = pd_add(rate, txp);
+        rate               = pd_add(rate, txm);
+        rate               = pd_add(rate, typ);
+        rate               = pd_add(rate, tym);
+        rate               = pd_add(rate, tzp);
+        rate               = pd_add(rate, tzm);
+        return rate;
+    }
+    float pd_remaining(float rho, float q, float dt, float outgoing)
+    {
+        float inventory = pd_product(rho, q);
+        float removed   = pd_product(dt, outgoing);
+        float remaining = pd_add(inventory, pd_reverse(removed));
+        return remaining;
+    }
+    float pd_next_inventory(float remaining, float dt, float incoming)
+    {
+        float added  = pd_product(dt, incoming);
+        float result = pd_add(remaining, added);
+        return result;
+    }
+    bool pd_product_protected(float a, float b)
+    {
+        uint ap = as_type<uint>(a) & 0x7fffffffu, bp = as_type<uint>(b) & 0x7fffffffu;
+        return ap < 0x00800000u || bp < 0x00800000u || (ap >> 23) + (bp >> 23) <= 127u;
+    }
+    float pd_upper_product(float a, float b)
+    {
+        uint ap = as_type<uint>(a) & 0x7fffffffu, bp = as_type<uint>(b) & 0x7fffffffu;
+        if (ap >= 0x7f800000u || bp >= 0x7f800000u)
+            return as_type<float>(0x7f800000u);
+        float value = pd_product(a, b);
+        uint  bits  = as_type<uint>(value) & 0x7fffffffu;
+        return pd_product_protected(a, b) ? value : as_type<float>(bits < 0x7f800000u ? bits + 1u : 0x7f800000u);
+    }
+    float pd_upper_sum(float a, float b)
+    {
+        uint ap = as_type<uint>(a) & 0x7fffffffu, bp = as_type<uint>(b) & 0x7fffffffu;
+        if (ap >= 0x7f800000u || bp >= 0x7f800000u)
+            return as_type<float>(0x7f800000u);
+        if (ap == 0u)
+            return b;
+        if (bp == 0u)
+            return a;
+        float value = pd_add(a, b);
+        uint  bits  = as_type<uint>(value) & 0x7fffffffu;
+        return ap < 0x00800000u || bp < 0x00800000u ? value : as_type<float>(bits < 0x7f800000u ? bits + 1u : 0x7f800000u);
+    }
+    float pd_lower_inventory(float a, float b)
+    {
+        uint ap = as_type<uint>(a) & 0x7fffffffu, bp = as_type<uint>(b) & 0x7fffffffu;
+        if (ap >= 0x7f800000u || bp >= 0x7f800000u)
+            return as_type<float>(0x7f800000u);
+        float value = pd_product(a, b);
+        uint  bits  = as_type<uint>(value) & 0x7fffffffu;
+        return pd_product_protected(a, b) ? value : as_type<float>(bits < 0x7f800000u ? bits - 1u : 0x7f800000u);
+    }
+    // Limiter and update instructions may use different underflow modes.
+    bool pd_interval_fits(float r,
+                          float rho,
+                          float q,
+                          float dt,
+                          float xp,
+                          float xm,
+                          float yp,
+                          float ym,
+                          float zp,
+                          float zm,
+                          float inv_x,
+                          float inv_y,
+                          float inv_z)
+    {
+        float lower     = pd_lower_inventory(rho, q);
+        float rate      = 0.0;
+        rate            = pd_upper_sum(rate, pd_upper_product(pd_upper_product(pd_outward(xp), r), inv_x));
+        rate            = pd_upper_sum(rate, pd_upper_product(pd_upper_product(pd_outward(pd_reverse(xm)), r), inv_x));
+        rate            = pd_upper_sum(rate, pd_upper_product(pd_upper_product(pd_outward(yp), r), inv_y));
+        rate            = pd_upper_sum(rate, pd_upper_product(pd_upper_product(pd_outward(pd_reverse(ym)), r), inv_y));
+        rate            = pd_upper_sum(rate, pd_upper_product(pd_upper_product(pd_outward(zp), r), inv_z));
+        rate            = pd_upper_sum(rate, pd_upper_product(pd_upper_product(pd_outward(pd_reverse(zm)), r), inv_z));
+        float upper     = pd_upper_product(dt, rate);
+        uint  low_bits  = as_type<uint>(lower);
+        uint  high_bits = as_type<uint>(upper);
+        return low_bits < 0x7f800000u && high_bits < 0x7f800000u && low_bits >= high_bits;
+    }
+
+    float pd_verified_factor(float candidate,
+                             float rho,
+                             float q,
+                             float dt,
+                             float xp,
+                             float xm,
+                             float yp,
+                             float ym,
+                             float zp,
+                             float zm,
+                             float inv_x,
+                             float inv_y,
+                             float inv_z)
+    {
+        uint high = as_type<uint>(candidate);
+        if (high > 0x3f800000u)
+            return candidate;
+        if (pd_interval_fits(candidate, rho, q, dt, xp, xm, yp, ym, zp, zm, inv_x, inv_y, inv_z))
+            return candidate;
+        if (!pd_interval_fits(0.0, rho, q, dt, xp, xm, yp, ym, zp, zm, inv_x, inv_y, inv_z))
+            return candidate;
+        if ((as_type<uint>(pd_lower_inventory(rho, q)) & 0x7fffffffu) == 0u)
+        {
+            return 0.0;
+        }
+        uint low = 0u;
+        for (int iteration = 0; iteration < 32 && low < high; ++iteration)
+        {
+            uint middle = low + (high - low + 1u) / 2u;
+            if (pd_interval_fits(as_type<float>(middle), rho, q, dt, xp, xm, yp, ym, zp, zm, inv_x, inv_y, inv_z))
+                low = middle;
+            else
+                high = middle - 1u;
+        }
+        return as_type<float>(low);
+    }
+
     // Jiang & Shu (1996) WENO5 with ideal weights (1/10, 6/10, 3/10) and the
     // repo's epsilon (numerics_constants::weno_epsilon = 1e-6). Mirrors
     // weno5_face_value in advection_cartesian.cpp; falls back to the upwind
@@ -81,6 +426,17 @@ struct AdvectConservativeScalarFluxCartesianCgridProgram
         return uint((i * pc.ny + j) * pc.nz + k);
     }
 
+    bool pd_nonzero_underflow_product(float a, float b)
+    {
+        return (as_type<uint>(a) & 0x7fffffffu) != 0u && (as_type<uint>(b) & 0x7fffffffu) != 0u &&
+               pd_product_protected(a, b);
+    }
+    float pd_raw_flux(float mass, float base, float offset)
+    {
+        if ((pc.pad0 & 4) != 0 && (pd_nonzero_underflow_product(mass, base) || pd_nonzero_underflow_product(mass, offset)))
+            return pd_add(pd_product(mass, base), pd_product(mass, offset));
+        return fma(mass, base, mass * offset);
+    }
     void evaluate(uint gid)
     {
         uint total = uint(pc.nx) * uint(pc.ny) * uint(pc.nz);
@@ -140,7 +496,7 @@ struct AdvectConservativeScalarFluxCartesianCgridProgram
             }
             if ((pc.pad0 & 2) != 0 && (base <= 0.0 || base + phi_face <= 0.0))
                 phi_face = 0.0;
-            sx = fma(mflux, base, mflux * phi_face);
+            sx = pd_raw_flux(mflux, base, phi_face);
         }
         sfx[c] = sx;
 
@@ -188,7 +544,7 @@ struct AdvectConservativeScalarFluxCartesianCgridProgram
             }
             if ((pc.pad0 & 2) != 0 && (base <= 0.0 || base + phi_face <= 0.0))
                 phi_face = 0.0;
-            sy = fma(mflux, base, mflux * phi_face);
+            sy = pd_raw_flux(mflux, base, phi_face);
         }
         sfy[c] = sy;
 
@@ -197,7 +553,7 @@ struct AdvectConservativeScalarFluxCartesianCgridProgram
         float sz = 0.0;
         if (k == pc.nz - 1)
         {
-            sz = mfz[c] * q_in[c];
+            sz = (pc.pad0 & 4) != 0 ? pd_product(mfz[c], q_in[c]) : mfz[c] * q_in[c];
         }
         else
         {
@@ -241,7 +597,7 @@ struct AdvectConservativeScalarFluxCartesianCgridProgram
             }
             if ((pc.pad0 & 2) != 0 && (base <= 0.0 || base + phi_face <= 0.0))
                 phi_face = 0.0;
-            sz = fma(mflux, base, mflux * phi_face);
+            sz = pd_raw_flux(mflux, base, phi_face);
         }
         sfz[c] = sz;
     }

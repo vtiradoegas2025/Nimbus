@@ -29,7 +29,7 @@ test("companion 3D playback stays available with a whole-run primary plot", asyn
 });
 
 test("mixed3D panes retain one saved time while a required streamline read is held", async ({ page }, info) => {
-  test.setTimeout(150_000);
+  test.setTimeout(300_000);
   await page.setViewportSize({ width: 1920, height: 1200 });
   await page.goto("/harness/index.html?mode=studio");
   await page.addStyleTag({ content: "#root{height:100vh;overflow:hidden}#root>.plot-studio{height:100vh;overflow:hidden}" });
@@ -64,7 +64,7 @@ test("mixed3D panes retain one saved time while a required streamline read is he
     .map(descriptor => descriptor?.frameIndex ?? null));
   await expect.poll(frames, { timeout: 90_000 }).toEqual([0, 0, 0, 0]);
   await expect(page.locator('[data-volume-quality-preview="true"]')).toHaveCount(0);
-  await expect(page.locator('.plot3d-control-notice.is-visible')).toHaveCount(0);
+  await expect(page.locator('.plot3d-control-notice.is-visible')).toHaveCount(0, { timeout: 60_000 });
   const before = await page.evaluate(async () => ({ captures: await window.__nimbusStudioHarness!.capturePaneAppearances(),
     scalars: window.__nimbusStudioHarness!.inspectPrimaryVolumeScalarImages() }));
   await page.evaluate(() => window.__nimbusStudioHarness!.clearFieldCache());

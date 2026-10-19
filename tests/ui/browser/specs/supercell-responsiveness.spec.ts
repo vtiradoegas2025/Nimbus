@@ -14,12 +14,9 @@ import { expect, test, type Page } from "@playwright/test";
 const APP_SHELL = "#root{height:100vh;overflow:hidden}"
   + "#root>.plot-studio{height:100vh;overflow:hidden}";
 
-/*
- * A wall-clock budget is only meaningful against a known renderer. The chromium
- * project pins swiftshader, so its timings are comparable run to run; WebKit
- * uses whatever GPU path the host offers, and a threshold tuned here would
- * either fail on a slow host or pass on a regression.
- */
+/* These limits cover the Chromium regression profiles. A fixed software
+ * renderer still depends on the host CPU; retain the host metadata and do not
+ * interpret a pass as a latency guarantee for every supported computer. */
 /** A display-only control must not wait on a contour rebuild. */
 const DISPLAY_CONTROL_BUDGET_MS = 400;
 
@@ -34,6 +31,8 @@ async function openSupercell(page: Page): Promise<void> {
     expect(await page.locator(".volume-render__overlay").count()).toBe(0);
     expect(Number(await page.locator(".plot3d-overlay-host")
       .getAttribute("data-logical-gpu-upload-bytes"))).toBeGreaterThan(0);
+    await expect(page.locator(".plot3d-overlay-host")).toHaveAttribute("data-scene-frame-commit-pending", "false");
+    await expect(page.locator(".plot3d-overlay-host")).toHaveAttribute("data-scene-presentation-pending", "false");
   }).toPass({ timeout: 30_000 });
 }
 
@@ -41,6 +40,15 @@ async function openControlGroup(page: Page, label: string): Promise<void> {
   const button = page.locator(".plot3d-control-tab", { hasText: label }).first();
   if (await button.getAttribute("aria-expanded") !== "true") await button.click();
   await expect(button).toHaveAttribute("aria-expanded", "true");
+}
+
+async function warmSupercellControl(page: Page) {
+  await expect(page.locator(".plot3d-overlay-host")).toHaveAttribute("data-scene-frame-commit-pending", "false");
+  await expect(page.locator(".plot3d-control-notice.is-visible")).toHaveCount(0);
+  const frames = await page.evaluate(() => window.__nimbusStudioHarness!.capturePaneAppearances());
+  expect(frames.length).toBeGreaterThan(0);
+  expect(frames.every(frame => frame?.evidence.descriptor.frameIndex === 0)).toBe(true);
+  return frames;
 }
 
 /**
@@ -52,18 +60,21 @@ async function openControlGroup(page: Page, label: string): Promise<void> {
  */
 async function blockingTimeMs(page: Page, click: () => Promise<void>): Promise<number> {
   await page.evaluate(() => {
-    const timings = window as unknown as { __t0?: number };
-    delete timings.__t0;
+    const timings = window as unknown as { __controlTiming?: Promise<number> };
+    delete timings.__controlTiming;
     document.addEventListener("click", () => {
-      timings.__t0 = performance.now();
+      const startedAt = performance.now();
+      timings.__controlTiming = new Promise(resolve => {
+        requestAnimationFrame(() => setTimeout(() => resolve(performance.now() - startedAt), 0));
+      });
     }, { capture: true, once: true });
   });
   await click();
-  return page.evaluate(async () => {
-    await new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
-    const startedAt = (window as unknown as { __t0?: number }).__t0;
-    if (startedAt == null) throw new Error("the timed click did not reach the page");
-    return performance.now() - startedAt;
+  // Automation and trace collection may return after the page already yielded.
+  return page.evaluate(() => {
+    const timing = (window as unknown as { __controlTiming?: Promise<number> }).__controlTiming;
+    if (!timing) throw new Error("the timed click did not reach the page");
+    return timing;
   });
 }
 
@@ -129,22 +140,35 @@ async function setLayer(page: Page, group: string, label: string, on: boolean): 
  * marching-cubes dependency or a translucent geometry actor.
  */
 test("changing the cloud edge stays on the volume-transfer path", async ({ page, browserName }) => {
-  test.skip(browserName !== "chromium", "timing budget is calibrated against pinned SwiftShader");
+  test.skip(browserName !== "chromium", "timing budget covers the Chromium regression profiles");
   await openSupercell(page);
   await openControlGroup(page, "Cloud");
   await expect(edgeButton(page, "Full")).toBeVisible();
+  const beforeFrames = await warmSupercellControl(page);
+  const before = await page.evaluate(() => window.__nimbusStudioHarness!.resourceSnapshot());
 
   const elapsed = await blockingTimeMs(page, () => edgeButton(page, "Full").click());
   expect(
     elapsed,
     `the cloud edge control blocked for ${Math.round(elapsed)}ms`,
   ).toBeLessThan(DISPLAY_CONTROL_BUDGET_MS);
+  await expect(edgeButton(page, "Full")).toHaveClass(/pill--active/);
+  await expect(page.locator(".plot3d-control-notice.is-visible")).toHaveCount(0);
+  const afterFrames = await page.evaluate(() => window.__nimbusStudioHarness!.capturePaneAppearances());
+  const after = await page.evaluate(() => window.__nimbusStudioHarness!.resourceSnapshot());
+  expect(after.workerPosts).toBe(before.workerPosts);
+  expect(after.texture3DUploads).toBe(before.texture3DUploads);
+  expect(after.webglContexts).toBe(before.webglContexts);
+  expect(afterFrames[0]?.evidence.camera).toEqual(beforeFrames[0]?.evidence.camera);
+  expect(afterFrames[0]?.evidence.descriptor.parameters?.interactionQuality).toBe("settled");
+  expect(afterFrames[0]?.evidence.descriptor.parameters?.cloudEdge).toBe("full");
 });
 
 test("turning the cloud edge off is immediate and stays off", async ({ page, browserName }) => {
-  test.skip(browserName !== "chromium", "timing budget is calibrated against pinned SwiftShader");
+  test.skip(browserName !== "chromium", "timing budget covers the Chromium regression profiles");
   await openSupercell(page);
   await openControlGroup(page, "Cloud");
+  await warmSupercellControl(page);
   const elapsed = await blockingTimeMs(page, () => edgeButton(page, "Off").click());
   expect(
     elapsed,
@@ -173,7 +197,7 @@ test("turning the cloud edge off is immediate and stays off", async ({ page, bro
  * clicks it again, which queues another rebuild.
  */
 test("layer toggles respond without a contour stall", async ({ page, browserName }) => {
-  test.skip(browserName !== "chromium", "timing budget is calibrated against pinned SwiftShader");
+  test.skip(browserName !== "chromium", "timing budget covers the Chromium regression profiles");
   await openSupercell(page);
   for (const [controlGroup, layer] of [
     ["Flow", "Updraft / downdraft"],
@@ -183,6 +207,7 @@ test("layer toggles respond without a contour stall", async ({ page, browserName
     const toggle = page.locator(".control-group", { hasText: layer })
       .getByRole("button").first();
     if (await toggle.isDisabled()) continue;
+    await warmSupercellControl(page);
     const elapsed = await blockingTimeMs(page, () => toggle.click());
     expect(
       elapsed,

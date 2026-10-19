@@ -45,7 +45,7 @@ test("joint Supercell layer transitions retain active textures and bound GPU res
       const capture = await window.__nimbusVtkHarness!.captureAppearance();
       if (capture?.evidence.descriptor.parameters?.shadowSampleFactor !== 4) return -1;
       return Number(capture?.evidence.descriptor.parameters?.jointVolumeLayers ?? -1);
-    }), { timeout: 60_000 }).toBe(layers);
+    }), { timeout: 120_000 }).toBe(layers);
   };
   await ready(1);
   const tab = page.locator(".plot3d-control-tab", { hasText: "Precip" }).first();

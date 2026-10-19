@@ -716,6 +716,9 @@ run: $(BIN)
 metal/include/compute/metal/shaders/acoustics/acoustic_eos_msl.hpp: vulkan/shaders/compute/acoustic/pressure_eos.glsl vulkan/shaders/compute/acoustic/momentum_precision.glsl vulkan/shaders/compute/microphysics/compensated_fma.glsl scripts/dev/shaders/generate_acoustic_eos_msl.py
 	python3 scripts/dev/shaders/generate_acoustic_eos_msl.py
 
+metal/include/compute/metal/shaders/advection/positive_scalar_budget_msl.hpp: vulkan/shaders/compute/advection/positive_scalar_budget.glsl scripts/dev/shaders/generate_positive_scalar_budget_msl.py
+	python3 scripts/dev/shaders/generate_positive_scalar_budget_msl.py
+
 metal/include/compute/metal/shaders/chaos/earth_control_evolution_msl.hpp: vulkan/shaders/compute/chaos/earth_control_evolution.comp vulkan/shaders/compute/microphysics/compensated_fma.glsl scripts/dev/shaders/generate_earth_control_msl.py scripts/dev/shaders/generate_tke_msl.py
 	python3 scripts/dev/shaders/generate_earth_control_msl.py
 
@@ -784,7 +787,7 @@ metal/include/compute/metal/shaders/terrain/reference_atmosphere_msl.hpp: vulkan
 metal/include/compute/metal/shaders/terrain/moving_energy_msl.hpp: vulkan/shaders/compute/terrain/moving_energy.comp vulkan/shaders/compute/microphysics/compensated_fma.glsl scripts/dev/shaders/generate_moving_energy_msl.py scripts/dev/shaders/generate_tke_msl.py
 	python3 scripts/dev/shaders/generate_moving_energy_msl.py
 
-metal/include/compute/metal/shaders/advection/advect_conservative_scalar_flux_cartesian_cgrid_msl.hpp: vulkan/shaders/compute/advection/advect_conservative_scalar_flux_cartesian_cgrid.comp scripts/dev/shaders/generate_advect_conservative_scalar_flux_cartesian_cgrid_msl.py scripts/dev/shaders/generate_tke_msl.py
+metal/include/compute/metal/shaders/advection/advect_conservative_scalar_flux_cartesian_cgrid_msl.hpp: vulkan/shaders/compute/advection/advect_conservative_scalar_flux_cartesian_cgrid.comp vulkan/shaders/compute/advection/positive_scalar_budget.glsl scripts/dev/shaders/generate_advect_conservative_scalar_flux_cartesian_cgrid_msl.py scripts/dev/shaders/generate_tke_msl.py
 	python3 scripts/dev/shaders/generate_advect_conservative_scalar_flux_cartesian_cgrid_msl.py
 
 metal/include/compute/metal/shaders/dynamics/acoustic_bc_face_cartesian_cgrid_msl.hpp: vulkan/shaders/compute/dynamics/acoustic_bc_face_cartesian_cgrid.comp vulkan/shaders/compute/dynamics/boundary_float32.glsl scripts/dev/shaders/generate_acoustic_bc_face_cartesian_cgrid_msl.py scripts/dev/shaders/generate_tke_msl.py

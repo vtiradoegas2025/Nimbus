@@ -4443,7 +4443,8 @@ public:
                 pc.nx   = nx;
                 pc.ny   = ny;
                 pc.nz   = nz;
-                pc.pad0 = (dispatch.weno ? 0 : 1) | (dispatch.preserve_positive_support ? 2 : 0);
+                pc.pad0 = (dispatch.weno ? 0 : 1) | (dispatch.preserve_positive_support ? 2 : 0) |
+                          (positive_definite && positive_definite[s] != 0 ? 4 : 0);
                 vkCmdBindPipeline_(cmd_buf_,
                                    VK_PIPELINE_BIND_POINT_COMPUTE,
                                    pipeline(KernelId::AdvectConservativeScalarFluxCartesianCgrid).pipeline);
