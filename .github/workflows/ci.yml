@@ -785,3 +785,134 @@ jobs:
           fi
           echo "Format base: $base"
           make format-check FORMAT_BASE="$base"
+
+  macos-graphics-probe:
+    name: Isolated native WebKit graphics (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-15
+          - arch: x64
+            runner: macos-15-intel
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect basic graphics without VTK or simulation data
+        run: |
+          set -euo pipefail
+          probe_bundle="$RUNNER_TEMP/Nimbus Graphics Probe.app"
+          mkdir -p "$probe_bundle/Contents/MacOS" "$GITHUB_WORKSPACE/build/graphics-probe"
+          cat > "$RUNNER_TEMP/probe.swift" <<'NIMBUS_SWIFT'
+          import Cocoa
+          import WebKit
+          import Metal
+          
+          final class Probe: NSObject, NSApplicationDelegate, WKScriptMessageHandler {
+              var window: NSWindow!
+              var finished = false
+              func finish(_ body: Any) {
+                  guard !finished else { return }
+                  finished = true
+                  var report = body as? [String: Any] ?? ["error": String(describing: body)]
+                  report["metalDevices"] = MTLCopyAllDevices().map { device -> [String: Any] in
+                      ["name": device.name, "unifiedMemory": device.hasUnifiedMemory,
+                       "maximumBufferLength": device.maxBufferLength]
+                  }
+                  report["windowVisible"] = window?.isVisible ?? false
+                  report["osVersion"] = ProcessInfo.processInfo.operatingSystemVersionString
+                  do {
+                      let bytes = try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys])
+                      try bytes.write(to: URL(fileURLWithPath: CommandLine.arguments[1]), options: .atomic)
+                  } catch { fputs("Graphics probe report failed: \(error)\n", stderr) }
+                  NSApplication.shared.terminate(nil)
+              }
+              func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+                  finish(message.body)
+              }
+              func applicationDidFinishLaunching(_ notification: Notification) {
+                  let configuration = WKWebViewConfiguration()
+                  configuration.websiteDataStore = .nonPersistent()
+                  configuration.userContentController.add(self, name: "evidence")
+                  window = NSWindow(contentRect: NSRect(x: 40, y: 40, width: 640, height: 420),
+                                    styleMask: [.titled, .closable], backing: .buffered, defer: false)
+                  let view = WKWebView(frame: window.contentView!.bounds, configuration: configuration)
+                  view.autoresizingMask = [.width, .height]
+                  window.contentView = view
+                  window.makeKeyAndOrderFront(nil)
+                  NSApplication.shared.activate(ignoringOtherApps: true)
+                  view.loadHTMLString(#"""
+                  <!doctype html><html><body><script>
+                  const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+                  const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
+                  async function run() {
+                    await delay(500);
+                    const results = [];
+                    for (const api of ['webgl2', 'webgl']) for (const powerPreference of ['default', 'high-performance', 'low-power']) {
+                      const canvas = document.createElement('canvas'); canvas.width=16; canvas.height=16;
+                      document.body.append(canvas);
+                      const events = []; let retiring=false;
+                      canvas.addEventListener('webglcontextlost', event => { events.push({event:'lost',planned:retiring,message:event.statusMessage}); event.preventDefault(); });
+                      canvas.addEventListener('webglcontextrestored', () => events.push({event:'restored'}));
+                      const record = {api,powerPreference,events};
+                      try {
+                        const gl = canvas.getContext(api, {preserveDrawingBuffer:false,depth:true,alpha:true,powerPreference});
+                        record.created=!!gl;
+                        if (gl) {
+                          const caps = () => {
+                            const debug=gl.getExtension('WEBGL_debug_renderer_info');
+                            return {lost:gl.isContextLost(),version:gl.getParameter(gl.VERSION),
+                              renderer:gl.getParameter(debug?.UNMASKED_RENDERER_WEBGL ?? gl.RENDERER),
+                              vendor:gl.getParameter(debug?.UNMASKED_VENDOR_WEBGL ?? gl.VENDOR),
+                              maximumTextureSize:gl.getParameter(gl.MAX_TEXTURE_SIZE),
+                              maximum3DTextureSize:api==='webgl2'?gl.getParameter(gl.MAX_3D_TEXTURE_SIZE):null};
+                          };
+                          record.initial=caps(); await frame(); await frame(); await delay(100);
+                          gl.clearColor(0.25,0.5,0.75,1); gl.clear(gl.COLOR_BUFFER_BIT);
+                          const pixel=new Uint8Array(4); gl.readPixels(0,0,1,1,gl.RGBA,gl.UNSIGNED_BYTE,pixel);
+                          record.pixel=Array.from(pixel); record.afterDraw=caps(); record.error=gl.getError();
+                          const lose=gl.getExtension('WEBGL_lose_context');
+                          if(lose && !gl.isContextLost()) { retiring=true; lose.loseContext(); }
+                        }
+                      } catch(error) { record.exception=String(error); }
+                      canvas.remove(); await delay(50); results.push(record);
+                    }
+                    window.webkit.messageHandlers.evidence.postMessage({userAgent:navigator.userAgent,visibility:document.visibilityState,results});
+                  }
+                  run().catch(error=>window.webkit.messageHandlers.evidence.postMessage({error:String(error)}));
+                  </script></body></html>
+                  """#, baseURL: nil)
+                  DispatchQueue.main.asyncAfter(deadline: .now() + 45) { self.finish(["error": "graphics probe timed out"]) }
+              }
+          }
+          let app = NSApplication.shared
+          let probe = Probe()
+          app.setActivationPolicy(.regular)
+          app.delegate = probe
+          app.run()
+          NIMBUS_SWIFT
+          cat > "$probe_bundle/Contents/Info.plist" <<'NIMBUS_PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+          <key>CFBundleExecutable</key><string>probe</string>
+          <key>CFBundleIdentifier</key><string>dev.nimbus.graphics-probe</string>
+          <key>CFBundleName</key><string>Nimbus Graphics Probe</string>
+          <key>CFBundleVersion</key><string>1</string>
+          <key>CFBundlePackageType</key><string>APPL</string>
+          <key>NSPrincipalClass</key><string>NSApplication</string>
+          <key>NSHighResolutionCapable</key><true/>
+          </dict></plist>
+          NIMBUS_PLIST
+          swiftc "$RUNNER_TEMP/probe.swift" -framework Cocoa -framework WebKit -framework Metal -o "$probe_bundle/Contents/MacOS/probe"
+          system_profiler SPDisplaysDataType -json > build/graphics-probe/system-displays.json
+          open -W -n "$probe_bundle" --args "$GITHUB_WORKSPACE/build/graphics-probe/webkit.json"
+          cat build/graphics-probe/webkit.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-webkit-graphics-${{ matrix.arch }}
+          path: build/graphics-probe/
+          if-no-files-found: error
