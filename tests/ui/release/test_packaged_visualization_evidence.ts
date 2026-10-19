@@ -2,10 +2,11 @@ import {
   validatePackagedVisualizationEvidence,
 } from "./validate_packaged_visualization_evidence.ts";
 import { PACKAGED_VISUALIZATION_MATRIX } from "./aggregate_packaged_visualization_evidence.ts";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { aggregatePackagedVisualizationEvidence } from "./aggregate_packaged_visualization_evidence.ts";
+import { STARTUP_CHECKS } from "./validate_packaged_startup_evidence.ts";
 
 const checkNames = [
   "module-worker-api",
@@ -403,6 +404,30 @@ try {
   } else {
     failures.push("FAIL complete six-profile evidence does not aggregate deterministically");
   }
+  const intelPath = join(matrixRoot, "packaged-visualization-macos-x64.json");
+  const intelBytes = readFileSync(intelPath);
+  rmSync(intelPath);
+  const startup = {
+    schema: "nimbus.studio.packaged-startup-check", schemaVersion: 1, profile: "startup",
+    scope: "build-and-open", status: "passed", graphicsValidation: "pending", scienceQualification: "pending",
+    elapsedMs: 1, packagedRuntime: { ...report().packagedRuntime, targetOs: "macos", targetArch: "x86_64" },
+    checks: STARTUP_CHECKS.map(name => ({ name, passed: true })),
+  };
+  writeFileSync(join(matrixRoot, "packaged-startup-macos-x64.json"), JSON.stringify(startup));
+  const partial = aggregatePackagedVisualizationEvidence(matrixRoot, ["macos/x86_64"]);
+  if (partial.status === "incomplete" && partial.entries.length === 5 && partial.pending.length === 1
+      && partial.pending[0].targetArch === "x86_64" && partial.pending[0].scope === "build-and-open") passed++;
+  else failures.push("FAIL startup-only coverage was promoted to complete graphics validation");
+  try {
+    aggregatePackagedVisualizationEvidence(matrixRoot);
+    failures.push("FAIL strict graphics aggregation accepted startup evidence");
+  } catch { passed++; }
+  writeFileSync(intelPath, JSON.stringify({ ...JSON.parse(intelBytes.toString("utf8")), status: "failed" }));
+  try {
+    aggregatePackagedVisualizationEvidence(matrixRoot, ["macos/x86_64"]);
+    failures.push("FAIL a failed graphics report was concealed by startup-only evidence");
+  } catch { passed++; }
+  writeFileSync(intelPath, intelBytes);
   rmSync(join(matrixRoot, PACKAGED_VISUALIZATION_MATRIX[0].file));
   try {
     aggregatePackagedVisualizationEvidence(matrixRoot);

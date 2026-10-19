@@ -46,6 +46,12 @@ async function start(root: HTMLElement): Promise<void> {
       await invokeCommand("record_visualization_qualification_progress", {
         stage: "frontend-startup",
       }).catch(() => undefined);
+      if (qualification.profile === "startup") {
+        const { runPackagedStartupCheck } = await import("@/lib/studio/packagedStartupCheck");
+        createRoot(root).render(<App />);
+        await runPackagedStartupCheck(root);
+        return;
+      }
       if (qualification.profile === "file-load") {
         const { runFileLoadQualification } = await import("@/lib/vtk/fileLoadQualification");
         await runFileLoadQualification(qualification);

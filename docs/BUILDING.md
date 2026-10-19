@@ -129,6 +129,14 @@ closed and reopened successfully and whether you used an existing Studio profile
 This establishes build/startup behavior on that machine; it does not validate
 simulation correctness, GPU compute, output formats or performance.
 
+The maintained package matrix includes ARM64 and x86-64 on all three systems.
+Intel macOS currently has automated build and native startup checks, with 3-D
+graphics validation still pending: the hosted Intel VM loses even a minimal
+WebGL context in a standalone WebKit application. Its startup report checks
+the visible Studio shell, native bridge, simulator discovery and live catalog;
+it cannot qualify plots or GPU rendering. The collected matrix records this
+gap as `incomplete`. A graphics-capable Intel Mac is still needed to close it.
+
 ## Guided setup
 
 On macOS and Linux:

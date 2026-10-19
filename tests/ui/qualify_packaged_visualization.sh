@@ -31,8 +31,12 @@ if [[ -n "$APP_BUNDLE_OVERRIDE" && "$(uname -s)" != "Darwin" ]]; then
   exit 2
 fi
 
-if [[ "$PROFILE" != "smoke" && "$PROFILE" != "production" ]]; then
-  echo "Profile must be smoke or production." >&2
+if [[ "$PROFILE" != "smoke" && "$PROFILE" != "production" && "$PROFILE" != "startup" ]]; then
+  echo "Profile must be smoke, production or startup." >&2
+  exit 2
+fi
+if [[ "$PROFILE" == "startup" && ( "$PYTHON_CHECK" != 0 || -n "$CONFIG_PREFLIGHT_INPUT" ) ]]; then
+  echo "Startup checks opening the app; use smoke or production for Python/configuration checks." >&2
   exit 2
 fi
 if [[ "$MODE" != "debug" && "$MODE" != "release" ]]; then
@@ -198,11 +202,16 @@ case "$(uname -m)" in
   x86_64|amd64) TARGET_ARCH="x86_64" ;;
   *) echo "Unsupported packaged qualification architecture: $(uname -m)" >&2; exit 2 ;;
 esac
-node --experimental-strip-types --import ../tests/ui/register-ts-resolve.mjs \
-  ../tests/ui/release/validate_packaged_visualization_evidence.ts \
-  "$OUTPUT" --profile "$PROFILE" --mode "$MODE" \
-  --target-os "$TARGET_OS" --target-arch "$TARGET_ARCH" --require-python "$PYTHON_CHECK" \
-  --config-preflight "$CONFIG_PREFLIGHT_INPUT"
+if [[ "$PROFILE" == "startup" ]]; then
+  node --experimental-strip-types --import ../tests/ui/register-ts-resolve.mjs \
+    ../tests/ui/release/validate_packaged_startup_evidence.ts "$OUTPUT" "$MODE" "$TARGET_OS" "$TARGET_ARCH"
+else
+  node --experimental-strip-types --import ../tests/ui/register-ts-resolve.mjs \
+    ../tests/ui/release/validate_packaged_visualization_evidence.ts \
+    "$OUTPUT" --profile "$PROFILE" --mode "$MODE" \
+    --target-os "$TARGET_OS" --target-arch "$TARGET_ARCH" --require-python "$PYTHON_CHECK" \
+    --config-preflight "$CONFIG_PREFLIGHT_INPUT"
+fi
 
 if [[ "$APP_STATUS" -ne 0 ]]; then
   echo "Packaged application reported failure status $APP_STATUS." >&2

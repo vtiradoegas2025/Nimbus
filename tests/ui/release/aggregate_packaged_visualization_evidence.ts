@@ -1,11 +1,12 @@
 import { createHash } from "node:crypto";
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import {
   validatePackagedVisualizationEvidence,
   type EvidenceExpectation,
 } from "./validate_packaged_visualization_evidence.ts";
+import { validatePackagedStartupEvidence } from "./validate_packaged_startup_evidence.ts";
 
 export const PACKAGED_VISUALIZATION_MATRIX = [
   { file: "packaged-visualization-macos-arm64.json", targetOs: "macos", targetArch: "aarch64" },
@@ -21,9 +22,27 @@ function finiteNumber(value: unknown, label: string): number {
   return value;
 }
 
-export function aggregatePackagedVisualizationEvidence(inputDirectory: string) {
-  const entries = PACKAGED_VISUALIZATION_MATRIX.map((profile) => {
+export function aggregatePackagedVisualizationEvidence(inputDirectory: string, allowStartupOnly: readonly string[] = []) {
+  const knownProfiles = new Set<string>(PACKAGED_VISUALIZATION_MATRIX.map(profile => `${profile.targetOs}/${profile.targetArch}`));
+  if (new Set(allowStartupOnly).size !== allowStartupOnly.length || allowStartupOnly.some(profile => !knownProfiles.has(profile))) {
+    throw new Error("startup-only allowances must name unique maintained profiles");
+  }
+  const pending: Array<{ file: string; sha256: string; targetOs: string; targetArch: string;
+    appVersion: string; scope: string; reason: string }> = [];
+  const entries = PACKAGED_VISUALIZATION_MATRIX.flatMap((profile) => {
     const path = join(inputDirectory, profile.file);
+    if (!existsSync(path) && allowStartupOnly.includes(`${profile.targetOs}/${profile.targetArch}`)) {
+      const startupPath = join(inputDirectory, profile.file.replace("packaged-visualization-", "packaged-startup-"));
+      const bytes = readFileSync(startupPath);
+      const report = validatePackagedStartupEvidence(JSON.parse(bytes.toString("utf8")), {
+        mode: "release", targetOs: profile.targetOs, targetArch: profile.targetArch,
+      });
+      const runtime = report.packagedRuntime as { appVersion: string };
+      pending.push({ file: basename(startupPath), sha256: createHash("sha256").update(bytes).digest("hex"),
+        targetOs: profile.targetOs, targetArch: profile.targetArch, appVersion: runtime.appVersion,
+        scope: "build-and-open", reason: "Native 3D graphics validation remains pending; startup evidence cannot satisfy it." });
+      return [];
+    }
     const bytes = readFileSync(path);
     const expected: EvidenceExpectation = {
       profile: "production",
@@ -35,7 +54,7 @@ export function aggregatePackagedVisualizationEvidence(inputDirectory: string) {
     const runtime = report.packagedRuntime as Record<string, unknown>;
     const resources = report.finalResources as Record<string, unknown>;
     const reconciliation = report.memoryReconciliation as Record<string, unknown>;
-    return {
+    return [{
       file: basename(path),
       sha256: createHash("sha256").update(bytes).digest("hex"),
       targetOs: profile.targetOs,
@@ -64,29 +83,35 @@ export function aggregatePackagedVisualizationEvidence(inputDirectory: string) {
       observedMinusAccountedBytes: finiteNumber(
         reconciliation.observedMinusAccountedBytes, `${profile.file}.observedMinusAccountedBytes`,
       ),
-    };
+    }];
   });
-  const versions = new Set(entries.map((entry) => entry.appVersion));
+  const versions = new Set([...entries, ...pending].map((entry) => entry.appVersion));
   if (versions.size !== 1) throw new Error("packaged visualization matrix mixes app versions");
   return {
     schema: "nimbus.studio.packaged-visualization-matrix",
-    schemaVersion: 3,
+    schemaVersion: 4,
     scope: "bounded-packaged-lifecycle",
     memoryCampaign: "pending",
     renderPerformanceCampaign: "pending",
-    status: "passed",
+    status: pending.length === 0 ? "passed" : "incomplete",
     profile: "production",
-    appVersion: entries[0]?.appVersion,
+    appVersion: [...versions][0],
     entries,
+    pending,
   } as const;
 }
 
 function main(args: string[]): void {
-  const [inputDirectory, output] = args;
+  const [inputDirectory, output, ...options] = args;
   if (!inputDirectory || !output) {
     throw new Error("usage: aggregate_packaged_visualization_evidence.ts INPUT_DIR OUTPUT_JSON");
   }
-  const aggregate = aggregatePackagedVisualizationEvidence(inputDirectory);
+  const allowStartupOnly: string[] = [];
+  for (let index = 0; index < options.length; index += 2) {
+    if (options[index] !== "--allow-startup-only" || !options[index + 1]) throw new Error("invalid startup-only allowance");
+    allowStartupOnly.push(options[index + 1]);
+  }
+  const aggregate = aggregatePackagedVisualizationEvidence(inputDirectory, allowStartupOnly);
   mkdirSync(dirname(output), { recursive: true });
   const temporary = `${output}.${process.pid}.tmp`;
   writeFileSync(temporary, `${JSON.stringify(aggregate, null, 2)}\n`, { flag: "wx" });
@@ -94,8 +119,10 @@ function main(args: string[]): void {
   console.log(JSON.stringify({
     status: aggregate.status,
     profiles: aggregate.entries.length,
+    pending: aggregate.pending,
     appVersion: aggregate.appVersion,
-    maximumWatchdogDelayMs: Math.max(...aggregate.entries.map((entry) => entry.maximumWatchdogDelayMs)),
+    maximumWatchdogDelayMs: aggregate.entries.length > 0
+      ? Math.max(...aggregate.entries.map((entry) => entry.maximumWatchdogDelayMs)) : null,
   }, null, 2));
 }
 

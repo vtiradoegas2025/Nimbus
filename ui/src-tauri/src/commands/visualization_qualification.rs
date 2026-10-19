@@ -584,7 +584,40 @@ pub fn record_visualization_qualification_progress(stage: String) -> AppResult<(
     append_progress(&path, &stage)
 }
 
+fn validate_startup_report(report: &Value) -> AppResult<bool> {
+    if report["schema"] != "nimbus.studio.packaged-startup-check"
+        || report["schemaVersion"] != 1 || report["profile"] != "startup"
+        || report["scope"] != "build-and-open" || report["graphicsValidation"] != "pending"
+        || report["scienceQualification"] != "pending"
+    {
+        return Err(AppError::Invalid("startup evidence cannot claim graphics or science qualification".into()));
+    }
+    match report["status"].as_str() {
+        Some("failed") => Ok(false),
+        Some("passed") => {
+            if !report["elapsedMs"].as_f64().map_or(false, |elapsed| elapsed.is_finite() && elapsed >= 0.0) {
+                return Err(AppError::Invalid("startup elapsed time must be finite and nonnegative".into()));
+            }
+            let required = ["native-runtime", "native-bridge", "simulator-discovery", "live-catalog",
+                "rendered-shell", "navigation", "no-startup-errors"];
+            let checks = report["checks"].as_array()
+                .ok_or_else(|| AppError::Invalid("startup evidence requires checks".into()))?;
+            let names: BTreeSet<_> = checks.iter().filter_map(|check| check["name"].as_str()).collect();
+            if names.len() != checks.len() || checks.len() != required.len()
+                || required.iter().any(|name| !names.contains(name))
+                || checks.iter().any(|check| check["passed"].as_bool() != Some(true))
+            {
+                return Err(AppError::Invalid("startup evidence is incomplete or has failed checks".into()));
+            }
+            Ok(true)
+        }
+        _ => Err(AppError::Invalid("startup status must be passed or failed".into())),
+    }
+}
+
 fn validate_report(report: &Value) -> AppResult<bool> {
+    let expected_profile = std::env::var(PROFILE_ENV).unwrap_or_else(|_| "smoke".into());
+    if expected_profile == "startup" { return validate_startup_report(report); }
     let object = report.as_object().ok_or_else(|| {
         AppError::Invalid("visualization qualification report must be an object".into())
     })?;
@@ -598,7 +631,6 @@ fn validate_report(report: &Value) -> AppResult<bool> {
             "visualization qualification report schema/version/scope mismatch".into(),
         ));
     }
-    let expected_profile = std::env::var(PROFILE_ENV).unwrap_or_else(|_| "smoke".into());
     if object.get("profile").and_then(Value::as_str) != Some(expected_profile.as_str()) {
         return Err(AppError::Invalid(
             "visualization qualification report profile mismatch".into(),
@@ -777,6 +809,33 @@ pub fn finish_visualization_qualification(app: AppHandle, mut report: Value) -> 
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn startup_report_requires_opening_checks_and_cannot_qualify_graphics() {
+        let names = ["native-runtime", "native-bridge", "simulator-discovery", "live-catalog",
+            "rendered-shell", "navigation", "no-startup-errors"];
+        let report = json!({"schema": "nimbus.studio.packaged-startup-check", "schemaVersion": 1,
+            "profile": "startup", "scope": "build-and-open", "status": "passed",
+            "elapsedMs": 1.0,
+            "graphicsValidation": "pending", "scienceQualification": "pending",
+            "checks": names.iter().map(|name| json!({"name": name, "passed": true})).collect::<Vec<_>>()});
+        assert!(validate_startup_report(&report).unwrap());
+        let mut invalid = report.clone();
+        invalid["elapsedMs"] = json!(-1);
+        assert!(validate_startup_report(&invalid).is_err());
+        let mut invalid = report.clone();
+        invalid["graphicsValidation"] = json!("passed");
+        assert!(validate_startup_report(&invalid).is_err());
+        let mut invalid = report.clone();
+        invalid["checks"][0] = invalid["checks"][1].clone();
+        assert!(validate_startup_report(&invalid).is_err());
+        let mut invalid = report.clone();
+        invalid["checks"][0]["passed"] = json!(false);
+        assert!(validate_startup_report(&invalid).is_err());
+        let mut failed = report;
+        failed["status"] = json!("failed");
+        assert!(!validate_startup_report(&failed).unwrap());
+    }
 
     #[test]
     fn visual_fixture_requires_unambiguous_provenance() {
