@@ -3,7 +3,6 @@ name: CI
 # Maintained source, UI, package and documentation gates.
 on:
   push:
-    if: ${{ false }}
     branches: [main]
   pull_request:
 
