@@ -47,9 +47,13 @@ ifeq ($(DISTRIBUTION),1)
   endif
 endif
 
-# Auto-detect compiler: prefer CXX from environment, then g++, then clang++
+# Inherited Windows PATH entries can contain a compiler for another MSYS2 ABI.
 ifeq ($(origin CXX),default)
-  ifneq ($(shell command -v g++ 2>/dev/null),)
+  ifeq ($(WINDOWS_HOST):$(MSYSTEM),1:CLANGARM64)
+    CXX := /clangarm64/bin/clang++
+  else ifeq ($(WINDOWS_HOST):$(MSYSTEM),1:UCRT64)
+    CXX := /ucrt64/bin/g++
+  else ifneq ($(shell command -v g++ 2>/dev/null),)
     CXX := g++
   else ifneq ($(shell command -v clang++ 2>/dev/null),)
     CXX := clang++

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -34,6 +35,41 @@ def evaluate_flags(*assignments: str) -> subprocess.CompletedProcess[str]:
         stderr=subprocess.PIPE,
         check=False,
     )
+
+
+def evaluate_compiler(msystem: str, override: str | None = None, *, command_line: bool = False) -> str:
+    environment = dict(os.environ)
+    for key in ("CXX", "MAKEFLAGS", "MFLAGS", "MAKEOVERRIDES"):
+        environment.pop(key, None)
+    assignments = ["UNAME_S=MINGW64_NT", f"MSYSTEM={msystem}", "COMPILER_CACHE=none"]
+    if override is not None:
+        if command_line:
+            assignments.append(f"CXX={override}")
+        else:
+            environment["CXX"] = override
+    result = subprocess.run(
+        ["make", "--no-print-directory", "-f", "-", *assignments, "print-compiler"],
+        cwd=ROOT, env=environment, text=True, capture_output=True,
+        input="include mk/options.mk\nprint-compiler:\n\t@printf '%s' '$(CXX)'\n",
+    )
+    require(result.returncode == 0, f"compiler selection failed: {result.stderr}")
+    return result.stdout
+
+
+for system, compiler in (("CLANGARM64", "/clangarm64/bin/clang++"), ("UCRT64", "/ucrt64/bin/g++")):
+    require(evaluate_compiler(system) == compiler,
+            f"{system} default must select its compiler even when another g++ exists on PATH")
+    for command_line in (False, True):
+        require(evaluate_compiler(system, "custom-cxx", command_line=command_line) == "custom-cxx",
+                "explicit compiler selection must remain available")
+
+if os.name == "nt" and os.environ.get("MSYSTEM") in ("CLANGARM64", "UCRT64"):
+    system = os.environ["MSYSTEM"]
+    compiler = evaluate_compiler(system)
+    native_path = subprocess.check_output(["cygpath", "-w", compiler], text=True).strip()
+    target = subprocess.check_output([native_path, "-dumpmachine"], text=True).strip()
+    expected = "aarch64" if system == "CLANGARM64" else "x86_64"
+    require(target.startswith(expected + "-"), f"{system} compiler targets {target}, expected {expected}")
 
 
 native = evaluate_flags("PORTABLE=0", "DISTRIBUTION=0", "COMPILER_CACHE=none")
