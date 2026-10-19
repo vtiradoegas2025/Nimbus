@@ -97,12 +97,14 @@ function Initialize-NimbusMsvcHeaders([string]$Architecture) {
     if (-not (Test-Path -LiteralPath $DeveloperCommand -PathType Leaf)) {
         throw "Visual Studio developer environment is missing: $DeveloperCommand"
     }
-    $CommandLine = '""{0}" -no_logo -arch={1} -host_arch={1} >nul && set INCLUDE"' -f $DeveloperCommand, $Architecture
+    # CALL returns from the batch file before querying its resulting environment.
+    $CommandLine = 'call "{0}" -no_logo -arch={1} -host_arch={1} >nul && set INCLUDE' -f $DeveloperCommand, $Architecture
     $Output = & $env:ComSpec /d /s /c $CommandLine
+    $DeveloperExit = $LASTEXITCODE
     $Includes = @($Output | Where-Object { $_ -match '^INCLUDE=' })
-    if ($LASTEXITCODE -ne 0 -or $Includes.Count -ne 1 -or
+    if ($DeveloperExit -ne 0 -or $Includes.Count -ne 1 -or
         -not (Test-NimbusMsvcHeaders $Includes[0].Substring(8))) {
-        throw "Visual Studio did not provide the MSVC and Universal CRT headers for $Architecture."
+        throw "Visual Studio did not provide the MSVC and Universal CRT headers for $Architecture (command exit $DeveloperExit; INCLUDE records $($Includes.Count))."
     }
     # MSYS Clang can lack Visual Studio discovery; bindgen's driver consumes INCLUDE.
     $env:INCLUDE = $Includes[0].Substring(8)
