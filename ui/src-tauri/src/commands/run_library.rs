@@ -707,13 +707,15 @@ mod tests {
     use super::*;
     use std::io::Write;
     use std::process::{Command, Stdio};
+    use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn fixture_root(label: &str) -> PathBuf {
+        static NEXT_FIXTURE: AtomicU64 = AtomicU64::new(0);
         let root = std::env::temp_dir().join(format!(
             "nimbus-run-library-{label}-{}-{}",
             std::process::id(),
-            std::thread::current().name().unwrap_or("test")
+            NEXT_FIXTURE.fetch_add(1, Ordering::Relaxed)
         ));
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(&root).unwrap();
@@ -1072,6 +1074,9 @@ mod tests {
         write_manifest(&outside.join("step_000001"), "complete", 1.0);
         #[cfg(unix)]
         std::os::unix::fs::symlink(&outside, root.join("linked-run")).unwrap();
+        #[cfg(windows)]
+        std::os::windows::fs::symlink_dir(&outside, root.join("linked-run")).unwrap();
+        assert!(fs::symlink_metadata(root.join("linked-run")).unwrap().file_type().is_symlink());
         assert!(discover_runs(&root).unwrap().is_empty());
         fs::remove_dir_all(root).unwrap();
         fs::remove_dir_all(outside).unwrap();

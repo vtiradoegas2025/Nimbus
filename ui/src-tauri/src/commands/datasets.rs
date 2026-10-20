@@ -3006,7 +3006,8 @@ mod tests {
         assert_eq!(inventory.history_files.len(), 3);
         assert!(inventory.history_files[0].ends_with("cm1out_000001.NC4"));
         assert!(inventory.history_files[1].ends_with("cm1out_000002.nc"));
-        assert!(inventory.history_files[2].ends_with("nested/cm1out_000003.nc"));
+        assert!(std::path::Path::new(&inventory.history_files[2])
+            .ends_with(std::path::Path::new("nested").join("cm1out_000003.nc")));
         assert!(inventory
             .namelist_input
             .unwrap()
