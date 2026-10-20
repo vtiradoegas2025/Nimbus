@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { mock } from "node:test";
 import {
   cartesianGridToVtkScalars,
   cartesianGridToVtkVectors,
@@ -1529,6 +1530,60 @@ for (const panes of [2, 4]) {
     prediction.samples > 0 && prediction.underpredictions === 0,
     "prepared-result upper bounds cover every measured preparation result",
   );
+}
+
+{
+  mock.timers.enable({ apis: ["setTimeout"] });
+  const workers: QueueFakeWorker[] = [];
+  const coordinator = new PreparationCoordinator(() => {
+    const worker = new QueueFakeWorker();
+    workers.push(worker);
+    return worker;
+  });
+  try {
+    const request = { kind: "scalar" as const, field, grid };
+    const result = prepareVtkRequest(request);
+    const delayed = coordinator.enqueue(request);
+    mock.timers.tick(5_000);
+    check(workers.length === 1 && workers[0].terminated === 0,
+      "a slow cold module load is not mistaken for a dead preparation worker");
+    workers[0].ready();
+    workers[0].succeed(workers[0].prepares[0].requestId, result);
+    check(await delayed === result, "delayed startup retains the exact requested preparation");
+    coordinator.shutdown();
+
+    const canceled = new AbortController();
+    const abandoned = coordinator.enqueue(request, canceled.signal).then(() => false, isPreparationAbort);
+    canceled.abort();
+    check(await abandoned && workers[1].terminated === 1,
+      "canceling the last queued request immediately releases a starting worker");
+
+    const dead = coordinator.enqueue(request).then(() => null, error => error as Error);
+    mock.timers.tick(30_000);
+    mock.timers.tick(25);
+    mock.timers.tick(30_000);
+    check((await dead)?.message === "VTK preparation worker did not start"
+      && workers[2].terminated === 1 && workers[3].terminated === 1,
+    "two silent startups fail within the bounded deadline and release both workers");
+
+    const retryController = new AbortController();
+    const retryCanceled = coordinator.enqueue(request, retryController.signal).then(() => false, isPreparationAbort);
+    workers[4].fail("cold module rejected");
+    retryController.abort();
+    mock.timers.tick(25);
+    check(await retryCanceled && workers.length === 5,
+      "a canceled retry cannot create an unowned worker");
+
+    const recovered = coordinator.enqueue(request);
+    workers[5].fail("transient new module failure");
+    mock.timers.tick(25);
+    workers[6].ready();
+    workers[6].succeed(workers[6].prepares[0].requestId, result);
+    check(await recovered === result, "a later request receives a fresh startup retry budget");
+  } finally {
+    coordinator.shutdown();
+    mock.timers.reset();
+  }
 }
 
 console.log(`\nvtkPreparation tests: ${passed} passed, ${failed} failed.`);

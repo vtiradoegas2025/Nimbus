@@ -30,9 +30,11 @@
 #include "dynamics/dynamics_base.hpp"
 #include "terrain/conservative_transport.hpp"
 
+#include <array>
 #include <cstdlib>
 #include <limits>
 #include <string>
+#include <vector>
 
 // Local stub of `compute_wind_profile` (real def in nimbus_sim.cpp; pulled
 // into other tests with their own local copies). Returns zero base-state
@@ -1213,9 +1215,9 @@ TEST_CASE("sponge report closes exact collocated moist energy",
     constexpr double kappa =
         physical_constants::gas_constant_dry_air_jkgk
         / physical_constants::specific_heat_cp_jkgk;
-    const auto inventory = [&]()
+    const auto cell_energies = [&]()
     {
-        double total = 0.0;
+        std::vector<std::array<double, 2>> energies;
         const double volume = dr * dtheta * dz;
         for (int i = 1; i < NR - 1; ++i)
             for (int j = 1; j < NTH - 1; ++j)
@@ -1229,20 +1231,31 @@ TEST_CASE("sponge report closes exact collocated moist energy",
                         kappa);
                     const double mixture_mass =
                         dry_mass * (1.0 + vapor);
-                    total += dry_mass * (cv_d + vapor * cv_v)
-                            * temperature
-                        + 0.5 * mixture_mass
-                            * (u[i][j][k] * u[i][j][k]
-                               + v[i][j][k] * v[i][j][k]
-                               + w[i][j][k] * w[i][j][k]);
+                    const double stored_u = u[i][j][k];
+                    const double stored_v = v[i][j][k];
+                    const double stored_w = w[i][j][k];
+                    energies.push_back(
+                        {dry_mass * (cv_d + vapor * cv_v) * temperature,
+                         0.5 * mixture_mass * (stored_u * stored_u + stored_v * stored_v + stored_w * stored_w)});
                 }
-        return total;
+        return energies;
     };
 
-    const double before = inventory();
+    const auto before = cell_energies();
+
     const tmv::SpongeEnergyReportV1 energy =
         apply_rayleigh_damping(1.0);
-    const double after = inventory();
+
+    const auto after = cell_energies();
+    REQUIRE(after.size() == before.size());
+    // Subtract per-cell reservoirs rather than the large whole-domain inventory.
+    double thermal_change = 0.0;
+    double kinetic_change = 0.0;
+    for (std::size_t cell = 0; cell < before.size(); ++cell)
+    {
+        thermal_change += after[cell][0] - before[cell][0];
+        kinetic_change += after[cell][1] - before[cell][1];
+    }
 
     REQUIRE(energy.complete);
     REQUIRE(energy.upper.complete);
@@ -1253,8 +1266,10 @@ TEST_CASE("sponge report closes exact collocated moist energy",
               energy.upper.momentum_requested_linear_work_j
               + energy.upper.momentum_finite_step_correction_j
               + energy.upper.momentum_storage_rounding_j));
-    CHECK(energy.upper.committed_energy_change_j
-          == Approx(after - before).epsilon(1.0e-9));
+    CHECK(energy.upper.committed_energy_change_j == Approx(thermal_change + kinetic_change).epsilon(1.0e-9));
+    CHECK(energy.upper.dry_internal_change_j + energy.upper.water_sensible_change_j ==
+          Approx(thermal_change).epsilon(1.0e-9));
+    CHECK(energy.upper.carrier_kinetic_change_j == Approx(kinetic_change).epsilon(1.0e-9));
     CHECK(energy.upper.closure_residual_j == 0.0);
 
     reset_damping_globals_to_defaults();

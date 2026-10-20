@@ -135,7 +135,7 @@ for (const mode of ["grid", "terrain", "nested", "terrain-nested"]) test(`${mode
   expect(errors).toEqual([]);
 });
 
-for (const mode of ["grid", "terrain", "nested", "terrain-nested"]) test(`${mode} centroid preview preserves Earth registration`, async ({ page }) => {
+for (const mode of ["grid", "terrain", "nested", "terrain-nested"]) test(`${mode} centroid preview preserves Earth registration`, async ({ page }, info) => {
   if (mode.endsWith("nested")) test.setTimeout(300_000);
   await installCloudMotionClock(page);
   await page.goto(`/harness/index.html?fidelity=presentation&movingCloud=${mode}`);
@@ -146,10 +146,46 @@ for (const mode of ["grid", "terrain", "nested", "terrain-nested"]) test(`${mode
   await page.getByRole("button", { name: "Interpolate cloud", exact: true }).click();
   await page.evaluate(() => window.__nimbusVtkHarness!.setPlayback(true,false,4000));
   await expect(page.getByText("Waiting for the next saved cloud frame", { exact: true })).toBeVisible();
+  const inspectTransition = () => page.evaluate(() => ({
+    appearance: window.__nimbusVtkHarness!.inspectAppearance(),
+    clock: window.__nimbusCloudMotionClock.state(),
+    scene: { ...document.querySelector<HTMLElement>('[data-testid="scene"]')?.dataset },
+    host: { ...document.querySelector<HTMLElement>(".plot3d-overlay-host")?.dataset },
+    resources: window.__nimbusVtkHarness!.snapshot(),
+  }));
+  // Enabling interpolation also admits parent context; its stale waiting label
+  // alone does not establish that frame zero owns the complete source pair.
+  await page.waitForFunction(nested => {
+    const error = document.querySelector(".volume-render__overlay--error");
+    if (error) throw new Error(error.textContent ?? "Centroid source preparation failed");
+    const scene = document.querySelector<HTMLElement>('[data-testid="scene"]')?.dataset;
+    const host = document.querySelector<HTMLElement>(".plot3d-overlay-host")?.dataset;
+    const evidence = window.__nimbusVtkHarness!.inspectAppearance();
+    const motion = evidence?.descriptor.parameters?.cloudMotion as {
+      active: boolean; reason: string | null; toStep: number | null;
+      toSources: Array<{ role: string; step: number; publicationGeneration: string }>;
+    } | undefined;
+    const generation = evidence?.descriptor.parameters?.renderedPublicationGeneration;
+    return scene?.framePlot === "supercell" && scene.frameLoading === "false" && scene.renderedStep === "0"
+      && host?.sceneFrameCommitPending === "false" && host.scenePresentationPending === "false"
+      && host.committedSceneGeneration != null && host.committedSceneGeneration === host.requestedSceneGeneration
+      && evidence?.descriptor.frameIndex === 0 && motion?.active === false && motion.toStep === 0
+      && motion.reason === "Waiting for the next saved cloud frame"
+      && motion.toSources.some(source => source.role === "cloud")
+      && (!nested || motion.toSources.some(source => source.role === "context"))
+      && motion.toSources.every(source => source.step === 0 && source.publicationGeneration === generation);
+  }, mode.endsWith("nested"), { timeout: 90_000 });
+  await info.attach("centroid-before-transition", { body: JSON.stringify(await inspectTransition()), contentType: "application/json" });
   await armCloudMotionClock(page);
   await page.evaluate(() => window.__nimbusVtkHarness!.setStep(1));
-  await expect(page.locator(".plot3d-overlay-host")).toHaveAttribute("data-cloud-motion-active","true",
-    mode.endsWith("nested") ? { timeout: 90_000 } : undefined);
+  try {
+    await expect(page.locator(".plot3d-overlay-host")).toHaveAttribute("data-cloud-motion-active","true",
+      mode.endsWith("nested") ? { timeout: 90_000 } : undefined);
+  } catch (error) {
+    const state = await inspectTransition().catch(diagnosticError => ({ diagnosticError: String(diagnosticError) }));
+    await info.attach("centroid-transition-failure", { body: JSON.stringify(state), contentType: "application/json" });
+    throw error;
+  }
   const motion = (await page.evaluate(() => window.__nimbusVtkHarness!.captureAppearance()))!.evidence.descriptor.parameters!.cloudMotion as { alignment: string; displacementM: number[] };
   expect(motion.alignment).toBe("cloud-centroid");
   expect(Math.abs(motion.displacementM[0] - 60)).toBeLessThan(5);

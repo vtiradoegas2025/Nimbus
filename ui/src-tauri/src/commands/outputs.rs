@@ -219,7 +219,13 @@ struct CachedRunSteps {
 struct CachedStep {
     fingerprint: StepCacheFingerprint,
     manifest_sha256: Option<String>,
+    terrain_geometry: Option<Arc<CachedTerrainGeometry>>,
     info: StepInfo,
+}
+
+struct CachedTerrainGeometry {
+    manifest_version: u64,
+    validation_manifest: serde_json::Value,
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -495,6 +501,51 @@ fn step_cache_fingerprint(path: &Path) -> StepCacheFingerprint {
         directory_modified,
         manifest,
     }
+}
+
+fn cache_terrain_geometry(
+    manifest: &serde_json::Value,
+    manifest_version: u64,
+) -> Option<Arc<CachedTerrainGeometry>> {
+    let grid = manifest.get("grid")?;
+    let vertical = grid.get("vertical_geometry")?.as_object()?;
+    let keys = [
+        "kind", "center_coordinate", "interface_coordinate", "dtype", "layout", "storage",
+        "contract", "content_sha256", "publication_generation", "geometry_manifest",
+        "center_path", "interface_path",
+    ];
+    let vertical: serde_json::Map<String, serde_json::Value> = keys
+        .into_iter()
+        .filter_map(|key| vertical.get(key).map(|value| (key.to_owned(), value.clone())))
+        .collect();
+    Some(Arc::new(CachedTerrainGeometry {
+        manifest_version,
+        validation_manifest: serde_json::json!({
+            "publication_generation": manifest.get("publication_generation"),
+            "data_product": { "storage_format": manifest_storage_format(manifest) },
+            "grid": {
+                "dimensions": {
+                    "x": grid.pointer("/dimensions/x"),
+                    "y": grid.pointer("/dimensions/y"),
+                    "z": grid.pointer("/dimensions/z"),
+                },
+                "vertical_geometry": vertical,
+            },
+        }),
+    }))
+}
+
+fn cached_terrain_geometry_is_complete(entry: &CachedStep, step_dir: &Path) -> bool {
+    // A directory timestamp or sealed history cursor cannot prove that external
+    // geometry still exists. Reuse the validated contract, checking only bounded
+    // manifests/NPY headers and sizes; payload validation belongs to the reader.
+    entry.terrain_geometry.as_ref().map_or(true, |geometry| {
+        terrain_vertical_geometry_is_complete(
+            &geometry.validation_manifest,
+            step_dir,
+            geometry.manifest_version,
+        )
+    })
 }
 
 const FIELD_WINDOW_SCHEMA_VERSION: u32 = 2;
@@ -881,13 +932,20 @@ fn list_step_dirs_filtered_blocking(
     };
     if let (Some(cache), Some((sequence, _, _))) = (&cached, &indexed) {
         if cache.index_sequence == Some(*sequence) {
-            return Ok(cache
-                .steps
-                .values()
-                .map(|entry| entry.info.clone())
-                .collect());
-        }
-        if cache
+            if cache.steps.iter().all(|(index, entry)| {
+                entry.info.publication_state == StepPublicationState::Complete
+                    && cached_terrain_geometry_is_complete(
+                        entry,
+                        &dir.join(format!("step_{index:06}")),
+                    )
+            }) {
+                return Ok(cache
+                    .steps
+                    .values()
+                    .map(|entry| entry.info.clone())
+                    .collect());
+            }
+        } else if cache
             .index_sequence
             .is_some_and(|cached_sequence| *sequence <= cached_sequence)
         {
@@ -979,6 +1037,7 @@ fn list_step_dirs_filtered_blocking(
                 indexed_sha256.is_some()
                     && entry.info.publication_state == StepPublicationState::Complete
                     && entry.manifest_sha256.as_ref() == indexed_sha256
+                    && cached_terrain_geometry_is_complete(entry, &path)
             })
         {
             next_cache.insert(index, entry.clone());
@@ -994,6 +1053,7 @@ fn list_step_dirs_filtered_blocking(
             .filter(|entry| {
                 entry.info.publication_state == StepPublicationState::Complete
                     && entry.fingerprint == fingerprint
+                    && cached_terrain_geometry_is_complete(entry, &path)
             })
         {
             let info = entry.info.clone();
@@ -1148,6 +1208,11 @@ fn list_step_dirs_filtered_blocking(
             CachedStep {
                 fingerprint,
                 manifest_sha256: indexed_sha256.cloned(),
+                terrain_geometry: validated_manifest.and_then(|manifest| match &run_contract {
+                    RunOutputContract::Current { manifest_version, .. } =>
+                        cache_terrain_geometry(manifest, *manifest_version),
+                    RunOutputContract::Invalid | RunOutputContract::Legacy => None,
+                }),
                 info: info.clone(),
             },
         );
@@ -7614,12 +7679,86 @@ mod tests {
             .is_some());
         run.current_generation_version(GENERATION_A, "ready", TERRAIN_GEOMETRY_MANIFEST_VERSION);
 
+        let fingerprint = step_cache_fingerprint(&step);
+        let mut directory_options = fs::OpenOptions::new();
+        directory_options.read(true);
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::OpenOptionsExt;
+            use windows_sys::Win32::Storage::FileSystem::{
+                FILE_FLAG_BACKUP_SEMANTICS, FILE_WRITE_ATTRIBUTES,
+            };
+            directory_options
+                .access_mode(FILE_WRITE_ATTRIBUTES)
+                .custom_flags(FILE_FLAG_BACKUP_SEMANTICS);
+        }
+        let directory = directory_options.open(&step).unwrap();
         fs::remove_file(step.join("physical_z_interface_m.npy")).unwrap();
+        // Directory timestamps may coalesce or be deferred by the filesystem.
+        directory
+            .set_times(fs::FileTimes::new().set_modified(fingerprint.directory_modified.unwrap()))
+            .unwrap();
+        assert!(step_cache_fingerprint(&step) == fingerprint);
         let steps = list_step_dirs_blocking(run.0.to_string_lossy().into_owned()).unwrap();
         assert_eq!(
             steps[0].publication_state,
             StepPublicationState::InvalidManifest
         );
+    }
+
+    #[test]
+    fn cached_indexed_terrain_revalidates_required_geometry_without_reopening_step_manifests() {
+        let run = TestRunDir::new("indexed_terrain_dependencies");
+        run.current_indexed(GENERATION_A);
+        let digest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        let geometry_dir = publish_versioned_geometry(&run.0, GENERATION_A, digest);
+        let step = run.step_with_field(4);
+        let manifest = versioned_terrain_manifest(4, GENERATION_A, digest);
+        fs::write(step.join("manifest.json"), &manifest).unwrap();
+        write_history_index(&run.0, GENERATION_A, 1, &[(4, &manifest)]);
+        let publication = || {
+            list_step_dirs_blocking(run.0.to_string_lossy().into_owned())
+                .unwrap()
+                .into_iter()
+                .map(|step| step.publication_state)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(publication(), vec![StepPublicationState::Complete]);
+
+        fs::write(step.join("manifest.json"), b"{cached-sealed-step").unwrap();
+        assert_eq!(publication(), vec![StepPublicationState::Complete]);
+        fs::write(step.join("manifest.json"), &manifest).unwrap();
+
+        let interfaces = geometry_dir.join("physical_z_interface_m.npy");
+        let valid = fs::read(&interfaces).unwrap();
+        let mut wrong_dtype = valid.clone();
+        let offset = wrong_dtype.windows(3).position(|bytes| bytes == b"<f8").unwrap();
+        wrong_dtype[offset + 1] = b'i';
+        fs::write(&interfaces, wrong_dtype).unwrap();
+        assert_eq!(publication(), vec![StepPublicationState::InvalidManifest]);
+        fs::write(&interfaces, &valid).unwrap();
+        assert_eq!(publication(), vec![StepPublicationState::Complete]);
+
+        fs::remove_file(&interfaces).unwrap();
+        assert_eq!(publication(), vec![StepPublicationState::InvalidManifest]);
+        fs::write(&interfaces, &valid).unwrap();
+        assert_eq!(publication(), vec![StepPublicationState::Complete]);
+
+        let mut geometry: serde_json::Value = serde_json::from_str(
+            &fs::read_to_string(geometry_dir.join("manifest.json")).unwrap(),
+        ).unwrap();
+        geometry["publication_generation"] = serde_json::json!(GENERATION_B);
+        fs::write(geometry_dir.join("manifest.json"), geometry.to_string()).unwrap();
+        assert_eq!(publication(), vec![StepPublicationState::InvalidManifest]);
+        publish_versioned_geometry(&run.0, GENERATION_A, digest);
+        assert_eq!(publication(), vec![StepPublicationState::Complete]);
+
+        let next_step = run.step_with_field(5);
+        let next_manifest = versioned_terrain_manifest(5, GENERATION_A, digest);
+        fs::write(next_step.join("manifest.json"), &next_manifest).unwrap();
+        write_history_index(&run.0, GENERATION_A, 2, &[(4, &manifest), (5, &next_manifest)]);
+        fs::remove_file(geometry_dir.join("physical_z_center_m.npy")).unwrap();
+        assert_eq!(publication(), vec![StepPublicationState::InvalidManifest; 2]);
     }
 
     #[test]

@@ -1502,7 +1502,17 @@ test("two large supercell panes sustain cloud flow vortex and condensate layers"
   await page.waitForFunction(() => Boolean(window.__nimbusVtkHarness));
   await setPlot(page, "supercell");
   await mount(page, true);
-  await waitForDisplayedFrame(page, "supercell", 0);
+  try { await waitForDisplayedFrame(page, "supercell", 0); }
+  catch (error) {
+    const state = await page.evaluate(() => ({
+      scene: { ...document.querySelector<HTMLElement>('[data-testid="scene"]')?.dataset },
+      panes: Array.from(document.querySelectorAll<HTMLElement>(".plot3d-overlay-host"), pane => ({ ...pane.dataset })),
+      appearance: window.__nimbusVtkHarness!.inspectAppearance(),
+      resources: window.__nimbusVtkHarness!.snapshot(),
+    })).catch(diagnosticError => ({ diagnosticError: String(diagnosticError) }));
+    await testInfo.attach("initial-large-pane-state", { body: JSON.stringify(state), contentType: "application/json" });
+    throw error;
+  }
 
   const panes = page.locator(".harness-pane");
   await expect(panes).toHaveCount(2);
@@ -1751,6 +1761,7 @@ test("paired fine/coarse supercells remain distinct across time and display scal
   await page.goto("/harness/index.html");
   await page.waitForFunction(() => Boolean(window.__nimbusVtkHarness));
   await setPlot(page, "supercell");
+  await waitForDisplayedFrame(page, "supercell", 0);
   await waitForWorkers(page);
 
   const scene = page.locator('[data-testid="scene"]');

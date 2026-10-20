@@ -238,7 +238,7 @@ jobs:
         working-directory: ui
         env:
           NIMBUS_VTK_MOUNT_CYCLES: 100
-        run: npx playwright test --project="${{ matrix.project }}" --shard="${{ matrix.shard }}/${{ matrix.shardTotal }}"
+        run: node ../tests/ui/run_browser_partition.mjs "${{ matrix.project }}" "${{ matrix.shard }}/${{ matrix.shardTotal }}"
 
       - name: Upload lifecycle metrics and failure traces
         if: always()
@@ -248,6 +248,7 @@ jobs:
           path: |
             ui/build/test-results
             ui/build/playwright-report
+            ui/build/browser-partitions
           if-no-files-found: warn
           retention-days: 14
 
@@ -486,6 +487,19 @@ jobs:
           cache-dependency-path: ui/package-lock.json
 
       - uses: dtolnay/rust-toolchain@1.79.0
+
+      - name: Build native qualification process fixture
+        shell: msys2 {0}
+        run: |
+          mkdir -p build/qualification
+          ${{ matrix.compiler }} -static tests/ui/release/qualification_process_fixture.cpp -o build/qualification/process-fixture.exe
+
+      - name: Check qualification process lifetime in both PowerShell runtimes
+        shell: pwsh
+        run: |
+          .\tests\ui\release\test_qualification_job.ps1 -Fixture build\qualification\process-fixture.exe
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tests\ui\release\test_qualification_job.ps1 -Fixture build\qualification\process-fixture.exe
+          if ($LASTEXITCODE -ne 0) { throw "Windows PowerShell qualification process tests failed." }
 
       - name: Check native Rust dependency architecture guards
         shell: pwsh

@@ -161,6 +161,8 @@ interface QueuedPreparation {
  * keeps `workers === 0` useful as a settled-state signal for lifecycle and
  * resource-budget instrumentation. */
 const PREPARATION_WORKER_IDLE_MS = 250;
+// Cold module loading competes with software rendering before the ready handshake.
+const PREPARATION_WORKER_STARTUP_MS = 30_000;
 
 function preparationDeadlineMs(request: VtkPreparationRequest): number {
   // Structured cloning, resampling and packing are all proportional to input
@@ -199,6 +201,7 @@ export class PreparationCoordinator {
   ): Promise<VtkPreparationResult> {
     if (signal?.aborted) return Promise.reject(abortError());
     if (request.kind === "cloud") request = numericalCloudPreparationRequest(request);
+    if (!this.worker && !this.active && this.queue.length === 0) this.startupAttempts = 0;
     const scope = options.scope ?? null;
     if (scope) {
       for (let index = this.queue.length - 1; index >= 0; --index) {
@@ -263,6 +266,7 @@ export class PreparationCoordinator {
       return;
     }
     this.reject(item, abortError());
+    if (!this.active && this.queue.length === 0) this.disposeWorker();
   }
 
   private reject(item: QueuedPreparation, error: unknown): void {
@@ -342,7 +346,7 @@ export class PreparationCoordinator {
       if (this.worker === current && !this.ready) {
         this.workerFailed(new Error("VTK preparation worker did not start"));
       }
-    }, 3_000);
+    }, PREPARATION_WORKER_STARTUP_MS);
   }
 
   private startNext(): void {
@@ -414,6 +418,7 @@ export class PreparationCoordinator {
       }
       if (this.queue.length > 0) {
         setTimeout(() => {
+          if (this.queue.length === 0) return;
           this.ensureWorker();
           this.startNext();
         }, 25);
@@ -424,6 +429,7 @@ export class PreparationCoordinator {
     if (this.queue.length === 0) return;
     if (this.startupAttempts < 2) {
       setTimeout(() => {
+        if (this.queue.length === 0) return;
         this.ensureWorker();
         this.startNext();
       }, 25);

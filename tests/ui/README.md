@@ -15,6 +15,14 @@ npm --prefix ui run build:browser-test
 npm --prefix ui run test:browser
 ```
 
+CI distributes adjacent rendering cases across twelve partitions per browser,
+with one browser worker per job. To reproduce one partition from the repository
+root, run `node tests/ui/run_browser_partition.mjs chromium-swiftshader 1/12`.
+Use `webkit-standard` or `webkit-retina` for the other profiles. Append
+`--list-only` to inspect its inventory without running a browser. The runner
+verifies the selected tests through Playwright before execution and writes the
+inventory under `ui/build/browser-partitions/` alongside the usual test reports.
+
 The unit runner discovers `unit/**/test_*.ts` and `release/test_*.ts`; it fails
 if discovery is empty. Node.js 22 or newer is required. Browser tests also need
 the applicable Playwright browsers. Chromium/SwiftShader, WebKit and native
