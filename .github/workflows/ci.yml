@@ -490,6 +490,10 @@ jobs:
             ${{ matrix.package_prefix }}-netcdf
             ${{ matrix.package_prefix }}-ffmpeg
 
+      - name: Provision a compatible native netCDF and HDF5 runtime
+        shell: msys2 {0}
+        run: python3 scripts/windows/ensure_netcdf_runtime.py
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -529,7 +533,9 @@ jobs:
 
       - name: Check native simulator compiler selection and release flags
         shell: msys2 {0}
-        run: python3 scripts/tests/architecture/test_windows_release_safeguards.py
+        run: |
+          python3 scripts/tests/architecture/test_windows_release_safeguards.py
+          python3 scripts/tests/architecture/test_windows_netcdf_runtime.py
 
       - name: Prove the UI-first PowerShell setup sees a complete host
         shell: pwsh

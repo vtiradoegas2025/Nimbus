@@ -177,6 +177,9 @@ if ($PrintPlan) {
     exit 0
 }
 
+$env:NIMBUS_WINDOWS_RELEASE_ROOT = $RootDir
+Invoke-NimbusBash -Bash $MsysBash -Script 'set -euo pipefail; root=$(cygpath -u "$NIMBUS_WINDOWS_RELEASE_ROOT"); cd "$root"; python3 scripts/windows/ensure_netcdf_runtime.py'
+
 # Packaging is a distribution boundary, not a reuse of the locally tuned
 # development binary. The paired make switches deliberately fail closed if a
 # future edit drops PORTABLE=1, and the profile has its own object directory.

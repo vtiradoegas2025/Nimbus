@@ -85,6 +85,19 @@ restart. Use this Windows route instead of the Bash packaging command. An
 unsigned local installer may show an operating-system trust prompt; record
 whether it prevented installation or launch.
 
+Windows setup and direct Studio packaging also validate the native netCDF/HDF5
+DLL interface before building. The reviewed netCDF `4.10.1-2` package requires a
+ROS3 symbol removed from HDF5 `2.2.0-4`; for exactly that incompatible pair, the
+[provisioner](../scripts/windows/ensure_netcdf_runtime.py) installs the official
+compatible HDF5 `2.2.0-2` package. It checks architecture and imported symbols,
+verifies the pinned archive digest and requires a trusted MSYS2 package
+signature. Other incompatible combinations stop with an explicit error instead
+of changing packages. `-Check` and direct `make` validation are read-only;
+normal setup performs the reviewed repair. Its output records the previous and
+selected provider versions. netCDF4/HDF5 output remains enabled. This decision
+covers Nimbus's netCDF/HDF5 C and high-level runtime; it does not establish ABI
+compatibility for unrelated HDF5 C++ applications sharing that MSYS2 installation.
+
 These commands limit C++ and Rust compilation to two workers to reduce memory
 pressure on unfamiliar machines. Increase the limits if memory permits;
 `NIMBUS_BUILD_JOBS` controls Nimbus's build scripts, while `CARGO_BUILD_JOBS`

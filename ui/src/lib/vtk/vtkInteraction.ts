@@ -10,7 +10,7 @@ type TimerHandle = number | ReturnType<typeof setTimeout>;
 type AnimationFrameCallback = (timestamp: number) => void;
 
 export interface ResizeSchedulerOptions {
-  resize: () => void;
+  resize: (width: number, height: number, pixelRatio: number) => void;
   onPreviewChange?: (preview: boolean) => void;
   requestFrame?: (callback: AnimationFrameCallback) => number;
   cancelFrame?: (handle: number) => void;
@@ -47,7 +47,7 @@ export function createVtkResizeScheduler(options: ResizeSchedulerOptions): VtkRe
   const idleMs = options.idleMs ?? 160;
   let frame: number | null = null;
   let idle: TimerHandle | null = null;
-  let pending: ResizeIdentity | null = null;
+  let pending: { identity: ResizeIdentity; measurement: [number, number, number] } | null = null;
   let applied: ResizeIdentity | null = null;
   let disposed = false;
   let preview = false;
@@ -76,7 +76,7 @@ export function createVtkResizeScheduler(options: ResizeSchedulerOptions): VtkRe
       variant,
     ];
     if (frame === null && sameIdentity(applied, next)) return;
-    pending = next;
+    pending = { identity: next, measurement: [width, height, finitePixelRatio] };
     setPreview(true);
     if (idle !== null) { clearIdle(idle); idle = null; }
     if (frame !== null) return;
@@ -85,13 +85,13 @@ export function createVtkResizeScheduler(options: ResizeSchedulerOptions): VtkRe
       if (disposed || !pending) return;
       const size = pending;
       pending = null;
-      if (!sameIdentity(applied, size)) {
-        applied = size;
+      if (!sameIdentity(applied, size.identity)) {
+        applied = size.identity;
         // Keeping DPR in this scheduler's identity is what makes a same-size
         // move between a standard and a Retina display update the backing
         // store; keeping the variant in it is what makes entering and leaving
         // a gesture do the same without the container ever changing size.
-        options.resize();
+        options.resize(...size.measurement);
       }
       scheduleIdle();
     });
@@ -162,12 +162,12 @@ export function attachVtkResize(
     return Number.isFinite(ratio) && ratio > 0 ? ratio : 1;
   };
   /** Size the buffer under the policy; replaces GenericRenderWindow.resize() (no pixel ceiling). */
-  const applySize = (draw = true) => {
-    const rect = container.getBoundingClientRect();
+  const applySize = (draw = true, measurement?: { width: number; height: number; pixelRatio: number }) => {
+    const rect = measurement ?? container.getBoundingClientRect();
     let size = backingStoreSize(
       rect.width,
       rect.height,
-      currentPixelRatio(),
+      measurement?.pixelRatio ?? currentPixelRatio(),
       policy,
     );
     if (!size) return;
@@ -185,7 +185,11 @@ export function attachVtkResize(
   };
   resolutionUpdates.set(renderWindow, applySize);
 
-  const scheduler = createVtkResizeScheduler({ resize: applySize, onPreviewChange });
+  const scheduler = createVtkResizeScheduler({
+    // A later layout read must not allocate a different size from the identity the scheduler records.
+    resize: (width, height, pixelRatio) => applySize(true, { width, height, pixelRatio }),
+    onPreviewChange,
+  });
 
   const notifyContainer = () => {
     const rect = container.getBoundingClientRect();

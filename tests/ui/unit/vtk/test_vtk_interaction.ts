@@ -768,6 +768,32 @@ class FakeClock {
   );
   detachResizable();
 
+  const observedSizes: Array<[number, number]> = [];
+  let panelHeight = 570;
+  const detachObserved = attachVtkResize(
+    { getBoundingClientRect: () => ({ width: 958, height: panelHeight }) },
+    {
+      ...renderWindow,
+      getApiSpecificRenderWindow: () => ({
+        setSize: (width: number, height: number) => { observedSizes.push([width, height]); },
+      }),
+    },
+    { policy: VOLUME_RESOLUTION_POLICY },
+  );
+  panelHeight = 428.5;
+  flushFrames();
+  panelHeight = 570;
+  lastResizeObserver([{ contentRect: { width: 958, height: panelHeight } }]);
+  flushFrames();
+  check(observedSizes.at(-1)?.[0] === 1916 && observedSizes.at(-1)?.[1] === 1140,
+    "a layout change between observation and RAF cannot strand the old backing size after restoring the panel");
+  panelHeight = 428.5;
+  lastResizeObserver([{ contentRect: { width: 958, height: panelHeight } }]);
+  flushFrames();
+  check(observedSizes.at(-1)?.[1] === 857,
+    "the observed fractional CSS height is preserved when allocating device pixels");
+  detachObserved();
+
   // A rasterized scene pays nothing for pixels and must keep every one of them.
   const surfaceSizes: Array<[number, number]> = [];
   const surfaceWindow = {

@@ -362,10 +362,18 @@ $NeedsZfp = -not (
     (Test-Path -LiteralPath (Join-Path $WindowsPrefix "include\zfp.h") -PathType Leaf) -and
     (Test-Path -LiteralPath (Join-Path $WindowsPrefix "lib\libzfp.a") -PathType Leaf)
 )
+$NeedsNetcdfRuntime = $NeedsMsys -or $NeedsMsysPackages
+if (-not $NeedsNetcdfRuntime) {
+    $env:NIMBUS_WINDOWS_ROOT = $RootDir
+    try {
+        Invoke-Msys 'cd "$(cygpath -u "$NIMBUS_WINDOWS_ROOT")" && python3 scripts/windows/ensure_netcdf_runtime.py --check' | Out-Null
+    } catch { $NeedsNetcdfRuntime = $true }
+}
 $Missing = @()
 if ($NeedsMsys) { $Missing += "MSYS2 $MsysSystem scientific toolchain" }
 elseif ($NeedsMsysPackages) { $Missing += "MSYS2 $MsysSystem scientific packages" }
 if ($NeedsZfp) { $Missing += "digest-pinned ZFP 1.0.1" }
+if ($NeedsNetcdfRuntime) { $Missing += "compatible native netCDF/HDF5 runtime" }
 if (-not $HeadlessOnly -and $NeedsNode) { $Missing += "Node.js 22.13+ within 22, or 24+" }
 if (-not $HeadlessOnly -and $NeedsRust) { $Missing += "Rust" }
 if ($NeedsBuildTools) { $Missing += "Visual Studio C++ Build Tools" }
@@ -431,6 +439,7 @@ Invoke-Msys "pacman -S --needed --noconfirm $($MsysPackages -join ' ')"
 $env:NIMBUS_WINDOWS_ROOT = $RootDir
 $env:NIMBUS_WINDOWS_PREFIX = $WindowsPrefix
 Invoke-Msys 'cd "$(cygpath -u "$NIMBUS_WINDOWS_ROOT")" && NIMBUS_WINDOWS_PREFIX="$(cygpath -u "$NIMBUS_WINDOWS_PREFIX")" ./scripts/windows/install_zfp.sh'
+Invoke-Msys 'cd "$(cygpath -u "$NIMBUS_WINDOWS_ROOT")" && python3 scripts/windows/ensure_netcdf_runtime.py'
 
 if (-not $HeadlessOnly) {
     . (Join-Path $RootDir "scripts\windows\rust_build_environment.ps1")

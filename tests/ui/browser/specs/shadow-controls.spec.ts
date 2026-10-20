@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { backingStoreSize, SURFACE_RESOLUTION_POLICY, VOLUME_RESOLUTION_POLICY } from "../../../../ui/src/lib/vtk/vtkResolution";
 
 for (const plot of ["volume", "isosurface", "streamlines", "trajectories", "supercell"] as const) {
   test(`${plot} shadow depth and tint preserve saved data and reset`, async ({ page }, info) => {
@@ -15,10 +16,10 @@ for (const plot of ["volume", "isosurface", "streamlines", "trajectories", "supe
       let previousViewport = "";
       let lastEvidence: unknown;
       await expect.poll(async () => {
-        const { evidence, displayed } = await page.evaluate(plot => {
+        const { evidence, displayed, displayRatio } = await page.evaluate(plot => {
           const data = document.querySelector<HTMLElement>('[data-testid="scene"]')?.dataset;
           const evidence = window.__nimbusVtkHarness!.inspectAppearance();
-          return { evidence,
+          return { evidence, displayRatio: window.devicePixelRatio,
             displayed: plot === "trajectories"
               ? evidence?.descriptor.parameters?.temporalScope === "whole-recorded-history"
                 && evidence.descriptor.frameIndex === null
@@ -31,7 +32,11 @@ for (const plot of ["volume", "isosurface", "streamlines", "trajectories", "supe
         const parameters = evidence?.descriptor.parameters;
         const fullQuality = plot === "volume" ? parameters?.interactionQuality === "settled"
           : plot === "supercell" ? parameters?.shadowSampleFactor === 4 : true;
-        return displayed && stable && fullQuality && evidence?.descriptor.plot === plot && evidence.layers.some(layer =>
+        const expected = evidence ? backingStoreSize(evidence.viewport.cssWidth, evidence.viewport.cssHeight,
+          displayRatio, plot === "volume" || plot === "supercell" ? VOLUME_RESOLUTION_POLICY : SURFACE_RESOLUTION_POLICY) : null;
+        const resized = expected && evidence?.viewport.backingWidth === expected.width
+          && evidence.viewport.backingHeight === expected.height;
+        return displayed && stable && fullQuality && resized && evidence?.descriptor.plot === plot && evidence.layers.some(layer =>
           layer.visible && (layer.pointCount ?? 0) > 100 && (layer.cellCount ?? 0) > 0);
       }, { timeout: 30000, intervals: [250] }).toBe(true).catch(async (error: unknown) => {
         await info.attach("readiness-evidence", { body: JSON.stringify(lastEvidence ?? null), contentType: "application/json" });

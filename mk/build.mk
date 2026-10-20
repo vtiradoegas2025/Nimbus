@@ -250,6 +250,16 @@ all: check-vulkan-assets
 endif
 -include $(DEPS)
 
+ifeq ($(WINDOWS_HOST),1)
+ifneq ($(strip $(NETCDF_LDLIBS)),)
+.PHONY: check-windows-netcdf-runtime
+check-windows-netcdf-runtime:
+	python3 scripts/windows/ensure_netcdf_runtime.py --check
+all: check-windows-netcdf-runtime
+$(BIN) $(FIELD_VALIDATOR): | check-windows-netcdf-runtime
+endif
+endif
+
 # Compile each .cpp to a .o (incremental, parallelizable with -j)
 $(BUILDDIR)/%.o: %.cpp $(MAIN_FLAGS_STAMP)
 	@mkdir -p $(dir $@)
