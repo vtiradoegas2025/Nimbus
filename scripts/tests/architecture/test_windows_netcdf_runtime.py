@@ -3,6 +3,7 @@ import importlib.util
 import hashlib
 from pathlib import Path
 import struct
+import sys
 import tempfile
 import types
 import unittest
@@ -47,6 +48,11 @@ def fixture(machine, imported=("H5open", "H5Pset_fapl_ros3"), exported=("H5open"
 
 
 class WindowsNetcdfRuntime(unittest.TestCase):
+    def test_native_command_output_preserves_unicode_paths(self):
+        value = "C:/Météo/云"
+        command = f"import sys; sys.stdout.buffer.write({value!r}.encode('utf-8'))"
+        self.assertEqual(RUNTIME.output(sys.executable, "-c", command), value)
+
     def test_native_architectures_expose_the_missing_import(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "provider.dll"
@@ -110,8 +116,8 @@ class WindowsNetcdfRuntime(unittest.TestCase):
             archive = cache / f"{package}-hdf5-{RUNTIME.COMPATIBLE_HDF5}-any.pkg.tar.zst"
             archive.write_bytes(payload)
             config = cache / "original.conf"
-            original = "[options]\nLocalFileSigLevel = Never\n[repo]\nServer = trusted-mirror\n"
-            config.write_text(original)
+            original = "# Météo / 云\n[options]\nLocalFileSigLevel = Never\n[repo]\nServer = trusted-mirror\n"
+            config.write_text(original, encoding="utf-8")
             commands = []
 
             def execute(command, **_):
@@ -120,7 +126,7 @@ class WindowsNetcdfRuntime(unittest.TestCase):
                     self.assertTrue(command[-1].endswith(".pkg.tar.zst.sig"))
                     Path(command[command.index("--output") + 1]).write_bytes(b"signature fixture")
                 elif command[0] == "pacman":
-                    selected = Path(command[command.index("--config") + 1]).read_text()
+                    selected = Path(command[command.index("--config") + 1]).read_text(encoding="utf-8")
                     self.assertIn("LocalFileSigLevel = Required TrustedOnly", selected)
                     self.assertNotIn("LocalFileSigLevel = Never", selected)
                     self.assertEqual(command[3:], ["-U", "--noconfirm", str(archive)])
@@ -136,7 +142,7 @@ class WindowsNetcdfRuntime(unittest.TestCase):
                  patch.object(RUNTIME, "package_version", return_value=RUNTIME.COMPATIBLE_HDF5):
                 receipt = RUNTIME.provision(profile, state, cache)
             self.assertEqual([command[0] for command in commands], ["curl", "pacman"])
-            self.assertEqual(config.read_text(), original)
+            self.assertEqual(config.read_text(encoding="utf-8"), original)
             self.assertEqual(receipt["from_hdf5"], "2.2.0-4")
             self.assertEqual(receipt["to_hdf5"], "2.2.0-2")
             self.assertEqual(receipt["signature_policy"], "Required TrustedOnly")
@@ -159,12 +165,12 @@ class WindowsNetcdfRuntime(unittest.TestCase):
             install.assert_not_called()
 
     def test_setup_and_direct_packaging_validate_before_make(self):
-        setup = (ROOT / "scripts/setup.ps1").read_text()
-        package = (ROOT / "ui/scripts/build_native_app.ps1").read_text()
+        setup = (ROOT / "scripts/setup.ps1").read_text(encoding="utf-8")
+        package = (ROOT / "ui/scripts/build_native_app.ps1").read_text(encoding="utf-8")
         self.assertIn("ensure_netcdf_runtime.py --check", setup)
         self.assertLess(setup.index("python3 scripts/windows/ensure_netcdf_runtime.py'"), setup.index('make -j"${NIMBUS_BUILD_JOBS'))
         self.assertLess(package.index("python3 scripts/windows/ensure_netcdf_runtime.py'"), package.index('make -j"${NIMBUS_BUILD_JOBS'))
-        build = (ROOT / "mk/build.mk").read_text()
+        build = (ROOT / "mk/build.mk").read_text(encoding="utf-8")
         self.assertIn("ifeq ($(WINDOWS_HOST),1)\nifneq ($(strip $(NETCDF_LDLIBS)),)", build)
         self.assertIn("$(BIN) $(FIELD_VALIDATOR): | check-windows-netcdf-runtime", build)
         self.assertIn("python3 scripts/windows/ensure_netcdf_runtime.py --check", build)

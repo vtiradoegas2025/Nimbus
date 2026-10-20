@@ -104,7 +104,8 @@ def required_signature_config(text):
 
 
 def output(*command):
-    return subprocess.check_output(command, text=True).strip()
+    return subprocess.check_output(command, text=True, encoding="utf-8",
+                                   env={**os.environ, "LC_ALL": "C.UTF-8"}).strip()
 
 
 def package_version(package):
@@ -146,10 +147,10 @@ def provision(profile, state, cache):
         raise ValueError("Cached compatible HDF5 package digest mismatch; nothing installed")
     signature = archive.with_name(filename + ".sig")
     subprocess.run(["curl", "--fail", "--location", "--retry", "3", "--output", str(signature), url + ".sig"], check=True)
-    original = Path(output("cygpath", "-w", "/etc/pacman.conf")).read_text()
+    original = Path(output("cygpath", "-w", "/etc/pacman.conf")).read_text(encoding="utf-8")
     with tempfile.TemporaryDirectory(prefix="nimbus-netcdf-signature-") as temporary:
         config = Path(temporary) / "pacman.conf"
-        config.write_text(required_signature_config(original))
+        config.write_text(required_signature_config(original), encoding="utf-8")
         subprocess.run(["pacman", "--config", output("cygpath", "-u", str(config)),
                         "-U", "--noconfirm", output("cygpath", "-u", str(archive))], check=True)
     if package_version(package + "-hdf5") != COMPATIBLE_HDF5:
