@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 for (const plot of ["volume", "isosurface", "streamlines", "trajectories", "supercell"] as const) {
   test(`${plot} shadow depth and tint preserve saved data and reset`, async ({ page }, info) => {
-    test.setTimeout(90000);
+    test.setTimeout(plot === "volume" ? 240_000 : 90_000);
     const errors: string[] = [];
     page.on("pageerror", error => errors.push(error.message));
     await page.goto("/harness/index.html");

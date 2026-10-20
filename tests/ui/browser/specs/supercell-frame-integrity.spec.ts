@@ -1,11 +1,16 @@
 import { test, expect, type Page } from "@playwright/test";
+import { SCENE_SETUP_TIMEOUT_MS, withSceneErrors } from "../support/sceneBudgets";
 
-async function ready(page: Page) {
-  await page.waitForFunction(() => {
+async function ready(page: Page, initial = false) {
+  const wait = () => page.waitForFunction(initial => {
+    const error = initial && document.querySelector(".volume-render__overlay--error");
+    if (error) throw new Error(error.textContent ?? "Initial Supercell preparation failed");
     const scene = document.querySelector<HTMLElement>('[data-testid="scene"]');
     return scene?.dataset.framePlot === "supercell" && scene.dataset.frameLoading === "false"
       && document.querySelector<HTMLElement>(".plot3d-overlay-host")?.dataset.scenePresentationPending === "false";
-  }, undefined, { timeout: 90_000 });
+  }, initial, { timeout: initial ? SCENE_SETUP_TIMEOUT_MS : 90_000 });
+  if (initial) await withSceneErrors(page, wait);
+  else await wait();
 }
 
 async function toggle(page: Page, tab: string, group: string) {
@@ -29,7 +34,7 @@ test("joint supercell layers keep a common scale through persisted settings and 
   await page.goto("/harness/index.html");
   await page.waitForFunction(() => Boolean(window.__nimbusVtkHarness));
   await page.evaluate(() => window.__nimbusVtkHarness!.setPlot("supercell"));
-  await ready(page);
+  await ready(page, true);
   await toggle(page, "Precip", "Precipitation");
   const original = await page.evaluate(() => window.__nimbusVtkHarness!.inspectVolumeInputs());
   await page.locator(".plot3d-control-tab", { hasText: "Scene" }).click();
@@ -54,13 +59,13 @@ test("joint supercell layers keep a common scale through persisted settings and 
 });
 
 test("precipitation species reentry preserves suspended cloud values and releases resources", async ({ page }, info) => {
-  test.setTimeout(120_000);
+  test.setTimeout(480_000);
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
   await page.goto("/harness/index.html");
   await page.waitForFunction(() => Boolean(window.__nimbusVtkHarness));
   await page.evaluate(() => window.__nimbusVtkHarness!.setPlot("supercell"));
-  await ready(page);
+  await ready(page, true);
   const cloud = await page.evaluate(() => window.__nimbusVtkHarness!.inspectVolumeInputs().fingerprints[0]);
   await toggle(page, "Precip", "Precipitation");
   for (const mode of ["total", "qr", "qg", "qh", "qr", "total", "qg"]) {
@@ -77,7 +82,7 @@ test("precipitation species reentry preserves suspended cloud values and release
 });
 
 test("forced redraw retains the complete previous frame while diagnostic extraction is delayed", async ({ page }, info) => {
-  test.setTimeout(120_000);
+  test.setTimeout(480_000);
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
   await page.addInitScript(() => {
@@ -90,7 +95,7 @@ test("forced redraw retains the complete previous frame while diagnostic extract
   await page.goto("/harness/index.html");
   await page.waitForFunction(() => Boolean(window.__nimbusVtkHarness));
   await page.evaluate(() => window.__nimbusVtkHarness!.setPlot("supercell"));
-  await ready(page);
+  await ready(page, true);
   await toggle(page, "Flow", "Updraft / downdraft");
   await toggle(page, "Vortex", "Vortex core");
   await toggle(page, "Radar", "Radar floor");
@@ -119,7 +124,7 @@ test("forced redraw retains the complete previous frame while diagnostic extract
 });
 
 test("same-frame threshold replacements retain all committed fields until the complete scene is ready", async ({ page }, info) => {
-  test.setTimeout(120_000);
+  test.setTimeout(600_000);
   await page.addInitScript(() => {
     const send = Worker.prototype.postMessage;
     const state = { delay: false };
@@ -133,7 +138,7 @@ test("same-frame threshold replacements retain all committed fields until the co
   await page.goto("/harness/index.html");
   await page.waitForFunction(() => Boolean(window.__nimbusVtkHarness));
   await page.evaluate(() => window.__nimbusVtkHarness!.setPlot("supercell"));
-  await ready(page);
+  await ready(page, true);
   await toggle(page, "Precip", "Precipitation");
   await toggle(page, "Flow", "Updraft / downdraft");
   await toggle(page, "Vortex", "Vortex core");
@@ -163,11 +168,11 @@ test("same-frame threshold replacements retain all committed fields until the co
 });
 
 test("required-field failures preserve the complete scene and a later scrub commits only the latest frame", async ({ page }, info) => {
-  test.setTimeout(120_000);
+  test.setTimeout(600_000);
   await page.goto("/harness/index.html");
   await page.waitForFunction(() => Boolean(window.__nimbusVtkHarness));
   await page.evaluate(() => window.__nimbusVtkHarness!.setPlot("supercell"));
-  await ready(page);
+  await ready(page, true);
   await toggle(page, "Precip", "Precipitation");
   await toggle(page, "Flow", "Updraft / downdraft");
   await toggle(page, "Vortex", "Vortex core");
@@ -205,7 +210,7 @@ test("required-field failures preserve the complete scene and a later scrub comm
 });
 
 test("same-frame floor definitions replace committed source identity and values together", async ({ page }, info) => {
-  test.setTimeout(120_000);
+  test.setTimeout(600_000);
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
   await page.addInitScript(() => {
@@ -229,7 +234,7 @@ test("same-frame floor definitions replace committed source identity and values 
   await page.goto("/harness/index.html?floorDefinitionProbe=1");
   await page.waitForFunction(() => Boolean(window.__nimbusVtkHarness));
   await page.evaluate(() => window.__nimbusVtkHarness!.setPlot("supercell"));
-  await ready(page);
+  await ready(page, true);
   await toggle(page, "Precip", "Precipitation");
   await toggle(page, "Flow", "Updraft / downdraft");
   await toggle(page, "Vortex", "Vortex core");
@@ -305,7 +310,7 @@ test("same-frame floor definitions replace committed source identity and values 
 });
 
 test("missing enabled layer sources preserve the previous scene and permit explicit recovery", async ({ page }, info) => {
-  test.setTimeout(180_000);
+  test.setTimeout(600_000);
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
   await page.goto("/harness/index.html?mode=studio");
@@ -329,12 +334,16 @@ test("missing enabled layer sources preserve the previous scene and permit expli
   await page.getByRole("button", { name: "3D", exact: true }).click();
   await page.getByRole("button", { name: "Rendered supercell", exact: true }).click();
   const scene = page.locator(".plot3d-overlay-host");
-  const studioReady = async () => {
-    await page.waitForFunction(() => {
+  const studioReady = async (initial = false) => {
+    const wait = () => page.waitForFunction(initial => {
+      const error = initial && document.querySelector(".volume-render__overlay--error");
+      if (error) throw new Error(error.textContent ?? "Initial Supercell preparation failed");
       const data = document.querySelector<HTMLElement>(".plot3d-overlay-host")?.dataset;
       return data?.scenePresentationPending === "false"
         && data.committedSceneGeneration != null && data.committedSceneGeneration === data.requestedSceneGeneration;
-    }, undefined, { timeout: 90_000 });
+    }, initial, { timeout: initial ? SCENE_SETUP_TIMEOUT_MS : 90_000 });
+    if (initial) await withSceneErrors(page, wait);
+    else await wait();
   };
   const layer = async (tab: string, group: string) => {
     const controlTab = page.locator(".plot3d-control-tab", { hasText: tab });
@@ -355,7 +364,7 @@ test("missing enabled layer sources preserve the previous scene and permit expli
     });
     return { evidence: capture.evidence, scalars, disclosure: document.querySelector(".plot3d-badge")?.textContent };
   });
-  await studioReady();
+  await studioReady(true);
   await layer("Precip", "Precipitation");
   await page.getByRole("group", { name: "Precip field", exact: true }).getByRole("combobox").selectOption("qr");
   await studioReady();

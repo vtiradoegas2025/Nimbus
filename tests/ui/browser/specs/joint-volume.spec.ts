@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { writeFile } from "node:fs/promises";
+import { withSceneErrors } from "../support/sceneBudgets";
 
 test("joint volume rays preserve native lattices, analytic mixtures, and actor-order independence", async ({ page }, testInfo) => {
   test.setTimeout(300_000);
@@ -39,13 +40,20 @@ test("joint Supercell layer transitions retain active textures and bound GPU res
   await page.waitForFunction(() => Boolean(window.__nimbusVtkHarness));
   await page.evaluate(() => window.__nimbusVtkHarness!.setPlot("supercell"));
   const ready = async (layers: number) => {
-    await expect.poll(async () => page.evaluate(async () => {
+    await withSceneErrors(page, () => page.waitForFunction(layers => {
+      const error = document.querySelector(".volume-render__overlay--error");
+      if (error) throw new Error(error.textContent ?? "Joint Supercell preparation failed");
       const scene = document.querySelector<HTMLElement>('[data-testid="scene"]');
-      if (scene?.dataset.frameLoading !== "false") return -1;
-      const capture = await window.__nimbusVtkHarness!.captureAppearance();
-      if (capture?.evidence.descriptor.parameters?.shadowSampleFactor !== 4) return -1;
-      return Number(capture?.evidence.descriptor.parameters?.jointVolumeLayers ?? -1);
-    }), { timeout: 120_000 }).toBe(layers);
+      if (scene?.dataset.frameLoading !== "false") return false;
+      const host = document.querySelector<HTMLElement>(".plot3d-overlay-host");
+      if (host?.dataset.scenePresentationPending !== "false") return false;
+      const evidence = window.__nimbusVtkHarness!.inspectAppearance();
+      return evidence?.descriptor.parameters?.shadowSampleFactor === 4
+        && evidence.descriptor.parameters?.jointVolumeLayers === layers;
+    }, layers, { timeout: 120_000 }));
+    const capture = await page.evaluate(() => window.__nimbusVtkHarness!.captureAppearance());
+    expect(capture?.evidence.descriptor.parameters?.shadowSampleFactor).toBe(4);
+    expect(capture?.evidence.descriptor.parameters?.jointVolumeLayers).toBe(layers);
   };
   await ready(1);
   const tab = page.locator(".plot3d-control-tab", { hasText: "Precip" }).first();

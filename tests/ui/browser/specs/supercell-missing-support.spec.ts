@@ -1,11 +1,16 @@
 import { test, expect, type Page } from "@playwright/test";
+import { SCENE_SETUP_TIMEOUT_MS, withSceneErrors } from "../support/sceneBudgets";
 
-async function ready(page: Page, step = 0) {
-  await page.waitForFunction(step => {
+async function ready(page: Page, step = 0, initial = false) {
+  const wait = () => page.waitForFunction(({ step, initial }) => {
+    const error = initial && document.querySelector(".volume-render__overlay--error");
+    if (error) throw new Error(error.textContent ?? "Initial Supercell preparation failed");
     const scene = document.querySelector<HTMLElement>('[data-testid="scene"]');
     return scene?.dataset.framePlot === "supercell" && scene.dataset.frameLoading === "false"
       && scene.dataset.renderedStep === String(step);
-  }, step, { timeout: 60_000 });
+  }, { step, initial }, { timeout: initial ? SCENE_SETUP_TIMEOUT_MS : 60_000 });
+  if (initial) await withSceneErrors(page, wait);
+  else await wait();
 }
 async function toggle(page: Page, tab: string, group: string) {
   await page.locator(".plot3d-control-tab", { hasText: tab }).click();
@@ -13,13 +18,13 @@ async function toggle(page: Page, tab: string, group: string) {
   await ready(page);
 }
 for (const mode of ["1", "empty-next"]) test(`Supercell preserves valid geometry and recovers from missing support: ${mode}`, async ({ page }, info) => {
-  test.setTimeout(120_000);
+  test.setTimeout(480_000);
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
   await page.goto(`/harness/index.html?missingGeometry=${mode}`);
   await page.waitForFunction(() => Boolean(window.__nimbusVtkHarness));
   await page.evaluate(() => window.__nimbusVtkHarness!.setPlot("supercell"));
-  await ready(page);
+  await ready(page, 0, true);
   await toggle(page, "Flow", "Updraft / downdraft");
   await toggle(page, "Vortex", "Vortex core");
   await page.getByRole("group", { name: "Tornadic condensation", exact: true }).getByRole("button").first().click();

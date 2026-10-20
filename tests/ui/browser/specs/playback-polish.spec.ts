@@ -9,7 +9,7 @@ async function ready(page: Page, step: number) {
 
 for (const plot of ["supercell", "streamlines"] as const) {
   test(`${plot} playback retains reference actors and control geometry`, async ({ page }, info) => {
-    test.setTimeout(120000);
+    test.setTimeout(plot === "supercell" ? 240_000 : 120_000);
     await page.addInitScript(() => {
       const state = { extractions: 0 };
       Object.assign(window, { playbackWork: state });

@@ -1,6 +1,6 @@
 /**
  * @file test_turbulence_topology.cpp
- * @brief SGS j-topology regression tests (SCIENCE.md M16).
+ * @brief SGS topology regression tests for physical C-grid rows.
  *
  * The diffusion Laplacian used to wrap j unconditionally - the SGS
  * tendencies mixed the north and south edges of every open-y Cartesian
@@ -125,6 +125,7 @@ TEST_CASE("Periodic-y C-grid SGS wraps physical rows and leaves ghosts owned by 
     TopologyFixture f;
     set_open_x();
     set_periodic_y();
+    f.state.periodic_y = true;
     REQUIRE(eddy_viscosity::periodic_y_topology());
 
     Field3D phi(kN, kN, kN, 300.0f);
@@ -140,7 +141,7 @@ TEST_CASE("Periodic-y C-grid SGS wraps physical rows and leaves ghosts owned by 
         f.cfg, f.state, f.grid, f.K, phi, dphi);
 
     const int i = 4, k = 4;
-    REQUIRE(dphi(i, 1, k) != 0.0f);
+    REQUIRE(dphi(i, 1, k) == Approx(0.1f));
     REQUIRE(dphi(i, 0, k) == 0.0f);
     REQUIRE(dphi(i, kN - 1, k) == 0.0f);
 
@@ -153,6 +154,7 @@ TEST_CASE("Periodic-x C-grid SGS wraps physical rows and ignores x ghosts",
     TopologyFixture f;
     set_periodic_x();
     set_open_y();
+    f.state.periodic_x = true;
     REQUIRE(eddy_viscosity::periodic_x_topology());
 
     Field3D phi(kN, kN, kN, 300.0f);
@@ -172,7 +174,7 @@ TEST_CASE("Periodic-x C-grid SGS wraps physical rows and ignores x ghosts",
     eddy_viscosity::compute_scalar_diffusion_tendencies(
         f.cfg, f.state, f.grid, f.K, phi, dphi);
 
-    REQUIRE(dphi(1, 4, 4) != 0.0f);
+    REQUIRE(dphi(1, 4, 4) == Approx(0.1f));
     REQUIRE(dphi(0, 4, 4) == 0.0f);
     REQUIRE(dphi(kN - 1, 4, 4) == 0.0f);
 
@@ -185,6 +187,7 @@ TEST_CASE("Periodic-x SGS stress owns and conserves the seam u face",
     TopologyFixture f;
     set_periodic_x();
     set_open_y();
+    f.state.periodic_x = true;
     f.cfg.mode = "horizontal_only";
     for (int j = 1; j <= kN - 2; ++j)
         for (int k = 0; k < kN - 1; ++k)
@@ -195,8 +198,8 @@ TEST_CASE("Periodic-x SGS stress owns and conserves the seam u face",
     eddy_viscosity::compute_momentum_diffusion_tendencies(
         f.cfg, f.state, f.grid, f.nu, du, dv, dw);
 
-    REQUIRE(eddy_viscosity::compute_strain_sq_centered(
-                f.state, f.grid, 1, 4, 4) > 0.0);
+    REQUIRE(eddy_viscosity::compute_strain_sq_centered(f.state, f.grid, 1, 4, 4) == Approx(0.02).epsilon(1.0e-12));
+
     REQUIRE(du(kN - 2, 4, 4) != 0.0f);
     double sum = 0.0;
     for (int i = 1; i <= kN - 2; ++i)

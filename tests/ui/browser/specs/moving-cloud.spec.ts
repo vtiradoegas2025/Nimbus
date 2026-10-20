@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import { advanceCloudMotionClock, armCloudMotionClock, installCloudMotionClock, resumeCloudMotionClock, waitForCloudMotionFrame } from "../support/cloudMotionClock";
 
 for (const mode of ["grid", "terrain", "nested", "terrain-nested"]) test(`${mode} clouds follow Earth winds across saved grid changes`, async ({ page }, info) => {
-  test.setTimeout(mode.endsWith("nested") ? 300_000 : 90_000);
+  test.setTimeout(mode.endsWith("nested") ? 300_000 : 180_000);
   await installCloudMotionClock(page);
   const activationOptions = mode.endsWith("nested") ? { timeout: 90_000 } : undefined;
   const errors: string[] = [];

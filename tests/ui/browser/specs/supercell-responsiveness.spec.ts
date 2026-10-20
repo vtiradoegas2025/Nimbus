@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { SCENE_SETUP_TIMEOUT_MS, withSceneErrors } from "../support/sceneBudgets";
 
 /*
  * How long the Rendered supercell scene blocks the main thread.
@@ -26,14 +27,15 @@ async function openSupercell(page: Page): Promise<void> {
   await page.getByRole("button", { name: "3D", exact: true }).click();
   await page.getByRole("button", { name: "Rendered supercell", exact: true }).click();
   await expect(page.locator(".volume-render__controls").first()).toBeVisible({ timeout: 30_000 });
-  // Poll for the first frame to settle so we time the interaction, not the load.
-  await expect(async () => {
-    expect(await page.locator(".volume-render__overlay").count()).toBe(0);
-    expect(Number(await page.locator(".plot3d-overlay-host")
-      .getAttribute("data-logical-gpu-upload-bytes"))).toBeGreaterThan(0);
-    await expect(page.locator(".plot3d-overlay-host")).toHaveAttribute("data-scene-frame-commit-pending", "false");
-    await expect(page.locator(".plot3d-overlay-host")).toHaveAttribute("data-scene-presentation-pending", "false");
-  }).toPass({ timeout: 30_000 });
+  await withSceneErrors(page, () => page.waitForFunction(() => {
+    const error = document.querySelector(".volume-render__overlay--error");
+    if (error) throw new Error(error.textContent ?? "Initial Supercell preparation failed");
+    const host = document.querySelector<HTMLElement>(".plot3d-overlay-host");
+    return document.querySelectorAll(".volume-render__overlay").length === 0
+      && Number(host?.dataset.logicalGpuUploadBytes ?? 0) > 0
+      && host?.dataset.sceneFrameCommitPending === "false"
+      && host.dataset.scenePresentationPending === "false";
+  }, undefined, { timeout: SCENE_SETUP_TIMEOUT_MS }));
 }
 
 async function openControlGroup(page: Page, label: string): Promise<void> {

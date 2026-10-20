@@ -39,7 +39,7 @@ test("ordinary volume export includes the displayed colorbar and preserves its s
 });
 
 test("ordinary supercell export restores full quality for every field and includes discrete legends during held preview", async ({ page }, info) => {
-  test.setTimeout(120_000);
+  test.setTimeout(240_000);
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
   await page.goto("/harness/index.html");

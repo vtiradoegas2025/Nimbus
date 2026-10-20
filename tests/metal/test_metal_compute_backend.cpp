@@ -8042,21 +8042,21 @@ TEST_CASE("Metal retained-rho positive-definite transport remains nonnegative ov
         context.accumulate(
             transport_view, rho_begin, u, v, w, dt_step, nullptr, nullptr, tmv::AcousticMassFluxPrecision::NativeFloat);
         context.complete(transport_view);
-
         for (int i = 1; i < NR - 1; ++i)
             for (int j = 1; j < NTH - 1; ++j)
                 for (int k = 0; k < NZ; ++k)
                 {
-                    const double mx        = static_cast<double>(context.mass_flux_x(i, j, k)) -
-                                             static_cast<double>(context.mass_flux_x(i - 1, j, k));
-                    const double my        = static_cast<double>(context.mass_flux_y(i, j, k)) -
-                                             static_cast<double>(context.mass_flux_y(i, j - 1, k));
+                    const double mx = static_cast<double>(context.mass_flux_x(i, j, k)) -
+                                      static_cast<double>(context.mass_flux_x(i - 1, j, k));
+                    const double my = static_cast<double>(context.mass_flux_y(i, j, k)) -
+                                      static_cast<double>(context.mass_flux_y(i, j - 1, k));
+
                     const double mz_top    = static_cast<double>(context.mass_flux_z(i, j, k));
                     const double mz_bottom = k >= 1 ? static_cast<double>(context.mass_flux_z(i, j, k - 1)) : 0.0;
+
                     rho(i, j, k) = static_cast<float>(static_cast<double>(rho_begin(i, j, k)) -
                                                       dt_step * (mx / dr + my / dtheta + (mz_top - mz_bottom) / dz));
                 }
-
         const double mass_before = interior_rho_q_sum(rho_begin, q_gpu);
         Field3D      cpu_next;
         advect_scalar_conservative_3d_cartesian(transport_view, q_cpu, cpu_next, dt_step, true, &context);

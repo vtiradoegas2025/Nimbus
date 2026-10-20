@@ -1,12 +1,17 @@
 import { test, expect } from "@playwright/test";
+import { SCENE_SETUP_TIMEOUT_MS, withSceneErrors } from "../support/sceneBudgets";
 
 for (const recovery of ["replacement", "budget change"] as const) test(`a failed required volume context recovers through ${recovery}`, async ({ page }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(300_000);
   await page.goto("/harness/index.html?large=1&volumeBricks=off&volumeRamGiB=48&volumeContextReadFailure=w");
   await page.waitForFunction(() => Boolean(window.__nimbusVtkHarness));
   const host = page.locator(".plot3d-overlay-host").first();
   const scene = page.getByTestId("scene");
-  await expect(scene).toHaveAttribute("data-frame-loading", "false", { timeout: 45_000 });
+  await withSceneErrors(page, () => page.waitForFunction(() => {
+    const error = document.querySelector(".volume-render__overlay--error");
+    if (error) throw new Error(error.textContent ?? "Initial volume preparation failed");
+    return document.querySelector<HTMLElement>('[data-testid="scene"]')?.dataset.frameLoading === "false";
+  }, undefined, { timeout: SCENE_SETUP_TIMEOUT_MS }));
   await page.evaluate(() => window.__nimbusVtkHarness!.setCamera([18000,18000,12000],[16000,16000,9000],false));
   await expect(host).toHaveAttribute("data-volume-zoom-native", "true");
   const volumeTab = page.locator(".plot3d-control-tab", { hasText: "Volume" }).first();

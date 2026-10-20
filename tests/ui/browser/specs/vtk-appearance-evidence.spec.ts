@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { SCENE_SETUP_TIMEOUT_MS, withSceneErrors } from "../support/sceneBudgets";
 import { writeFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
 import type { HarnessPlotType } from "../harness/main";
@@ -270,7 +271,7 @@ test("split 3D panes remain deterministic under concurrent worker load", async (
 
   const evidence: Array<{ plot: HarnessPlotType; fingerprint: string; canvases: number }> = [];
   for (const plot of APPEARANCE_PLOTS) {
-    await settle(page, plot);
+    await withSceneErrors(page, () => settle(page, plot, SCENE_SETUP_TIMEOUT_MS));
     const snapshot = await page.evaluate(() => window.__nimbusVtkHarness!.snapshot());
     expect(snapshot.paneCount).toBe(2);
     expect(snapshot.canvasCount).toBe(2);

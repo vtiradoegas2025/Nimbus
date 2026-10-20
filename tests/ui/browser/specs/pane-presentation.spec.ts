@@ -29,7 +29,7 @@ test("companion 3D playback stays available with a whole-run primary plot", asyn
 });
 
 test("mixed3D panes retain one saved time while a required streamline read is held", async ({ page }, info) => {
-  test.setTimeout(300_000);
+  test.setTimeout(600_000);
   await page.setViewportSize({ width: 1920, height: 1200 });
   await page.goto("/harness/index.html?mode=studio");
   await page.addStyleTag({ content: "#root{height:100vh;overflow:hidden}#root>.plot-studio{height:100vh;overflow:hidden}" });

@@ -69,13 +69,21 @@ export async function armCloudMotionClock(page: Page): Promise<void> {
 }
 
 export async function advanceCloudMotionClock(page: Page, milliseconds: number): Promise<void> {
-  await page.evaluate((duration) => {
+  const previous = await page.evaluate((duration) => {
     const before = window.__nimbusCloudMotionClock.state();
+    const fraction = Number(document.querySelector<HTMLElement>(".plot3d-overlay-host")?.dataset.cloudMotionFraction);
     const after = window.__nimbusCloudMotionClock.advance(duration);
-    if (!before.held || after !== before.now + duration || performance.now() !== after) {
+    if (!before.held || !Number.isFinite(fraction) || after !== before.now + duration || performance.now() !== after) {
       throw new Error("Cloud clock advanced inconsistently");
     }
+    return { frames: before.frames, fraction };
   }, milliseconds);
+  // Evidence rounds numeric metadata; comparing its fraction with an unchanged raw DOM value can pass early.
+  await page.waitForFunction(({ frames, fraction }) => {
+    const clock = window.__nimbusCloudMotionClock.state();
+    const current = Number(document.querySelector<HTMLElement>(".plot3d-overlay-host")?.dataset.cloudMotionFraction);
+    return clock.frames > frames && current > fraction;
+  }, previous, { timeout: 30_000 });
 }
 
 export async function resumeCloudMotionClock(page: Page): Promise<void> {
