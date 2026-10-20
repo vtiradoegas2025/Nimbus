@@ -518,6 +518,7 @@ export function SupercellRender3D({
   const scaleDisclosureRef = useRef<{ generation: string; value: Omit<ComponentProps<typeof Plot3DScaleBadge>, "zExag"> } | null>(null);
   const committedCameraTargetRef = useRef<[number, number] | null>(null);
   const releaseSceneCommitRef = useRef<(() => void) | null>(null);
+  const prepareSceneAxesRef = useRef<(() => void) | null>(null);
   appearanceEvidenceRef.current.frameIndex = renderedStepIndex;
   appearanceEvidenceRef.current.parameters = { ...appearanceEvidenceRef.current.parameters,
     requestedFrameIndex: outputHierarchySource.requestedStep?.index ?? null, renderedPublicationGeneration,
@@ -1981,7 +1982,7 @@ export function SupercellRender3D({
   useDomainBox(() => sceneRef.current?.renderWindow ?? null, displayContextGrid, sceneScale,
     vtkLifecycleGeneration, sceneAppearance.resolved.reference);
   const axisLabels = useDomainAxes(() => sceneRef.current?.renderWindow ?? null, containerRef,
-    displayContextGrid, sceneScale, vtkLifecycleGeneration, sceneAppearance.resolved.reference);
+    displayContextGrid, sceneScale, vtkLifecycleGeneration, sceneAppearance.resolved.reference, prepareSceneAxesRef);
   useEffect(() => {
     if (scenePresentationPending) return;
     activeRootContextPreparedRef.current = rootContextPreparation.prepared?.volume ?? null;
@@ -3160,7 +3161,11 @@ export function SupercellRender3D({
     if (scenePresentationPending) return;
     const scene = sceneRef.current;
     if (!scene) return;
-    radarFloor.commitData();
+    const releaseAnnotations = holdVtkSceneRendering(scene.renderWindow);
+    try {
+      radarFloor.commitData();
+      prepareSceneAxesRef.current?.();
+    } finally { releaseAnnotations(); }
     const renderedStep = loadedStep ?? (radarFrameExpected && !radarFloor.loading ? planningStep : null);
     const commitFrame = (elapsedMs?: number) => {
       if (renderedStep) {

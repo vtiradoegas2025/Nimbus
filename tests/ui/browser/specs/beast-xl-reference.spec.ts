@@ -335,6 +335,7 @@ test("Beast XL step 23 vorticity commits uncropped native structure with repeata
     .toBe(createHash("sha256").update(Buffer.from(second.pngDataUri.slice(prefix.length), "base64")).digest("hex"));
   const referenceLane = {
     "chromium-swiftshader": "chromiumSwiftShader",
+    "chromium-lavapipe": "chromiumLavapipe",
     "webkit-standard": "webkitStandard",
     "webkit-retina": "webkitRetina",
   }[testInfo.project.name];

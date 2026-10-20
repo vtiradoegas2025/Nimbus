@@ -3,6 +3,7 @@ import { defineConfig, devices } from "@playwright/test";
 import { arch, availableParallelism, cpus, platform, totalmem } from "node:os";
 
 const executablePath = process.env.NIMBUS_BROWSER_EXECUTABLE;
+const lavapipeEnabled = process.env.NIMBUS_BROWSER_LAVAPIPE === "1";
 const hardwareWebGpuEnabled = process.env.NIMBUS_WEBGPU_HARDWARE === "1";
 const windowsHardwarePerformanceEnabled = process.env.NIMBUS_WINDOWS_UI_PERFORMANCE === "1";
 const hardwareWebGpuExecutable = process.env.NIMBUS_WEBGPU_EXECUTABLE
@@ -15,6 +16,7 @@ export default defineConfig({
   // Shard individual tests while retaining one browser worker per job.
   fullyParallel: true,
   workers: 1,
+  globalSetup: "../tests/ui/browser/verify_renderer.ts",
   metadata: {
     hostOs: platform(),
     hostArchitecture: arch(),
@@ -61,16 +63,24 @@ export default defineConfig({
   }],
   projects: [
     {
-      name: "chromium-swiftshader",
+      name: lavapipeEnabled ? "chromium-lavapipe" : "chromium-swiftshader",
       use: {
         ...devices["Desktop Chrome"],
         actionTimeout: 60_000,
         launchOptions: {
           executablePath,
           args: [
-            "--use-gl=swiftshader",
-            "--enable-unsafe-swiftshader",
-            "--disable-gpu-sandbox",
+            ...(lavapipeEnabled ? [
+              "--use-angle=vulkan",
+              "--use-vulkan=native",
+              "--enable-features=Vulkan",
+              "--disable-vulkan-surface",
+              "--ignore-gpu-blocklist",
+            ] : [
+              "--use-gl=swiftshader",
+              "--enable-unsafe-swiftshader",
+              "--disable-gpu-sandbox",
+            ]),
             // Lets the soak force a collection before reading the heap.
             // usedJSHeapSize climbs between collections, so without this a
             // "did memory plateau" check is really asking where in the GC

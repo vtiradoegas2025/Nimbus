@@ -1944,7 +1944,11 @@ TEST_CASE("Native slow commits close captured momentum before acoustic stages",
     CAPTURE(backend, mapped);
     ProcessStateRestore restore;
     global_simulation_storage = make_parent();
-    REQUIRE(initialize_parent_modules(backend.c_str()));
+    if (!initialize_parent_modules(backend.c_str()))
+    {
+        WARN("native accelerator unavailable; required coverage uses NIMBUS_GPU_REQUIRED=1");
+        return;
+    }
     auto& storage                                                 = global_simulation_storage;
     storage.configuration.gpu_apply_slow                          = true;
     storage.configuration.admission.two_way_accelerator_reference = true;
@@ -7791,7 +7795,8 @@ void exercise_flat_native_late_failure(bool mixed_open)
         auto& state = global_simulation_storage;
         const auto initialize_fixed_modules = [&]()
         {
-            REQUIRE(initialize_parent_modules("metal"));
+            if (!initialize_parent_modules("metal"))
+                return false;
             tmv::BoundaryLayerConfig pbl;
             pbl.scheme_id = "none";
             pbl.apply_surface_fluxes = false;
@@ -7803,8 +7808,13 @@ void exercise_flat_native_late_failure(bool mixed_open)
             initialize_time_stepping(state.runtime.time_stepping, "split_explicit", time);
             state.runtime.time_stepping.config.max_acoustic_speed_ms = 350;
             state.runtime.time_stepping.config.min_acoustic_spacing_m = 250;
+            return true;
         };
-        initialize_fixed_modules();
+        if (!initialize_fixed_modules())
+        {
+            WARN("native Metal unavailable; required coverage uses NIMBUS_GPU_REQUIRED=1");
+            return;
+        }
         REQUIRE_FALSE(state.runtime.compute.fallback_active);
         REQUIRE(state.runtime.compute.backend->name() == "metal");
         if (mixed_open)
@@ -7927,7 +7937,7 @@ void exercise_flat_native_late_failure(bool mixed_open)
         const auto recovered_waves =
             static_cast<const tmv::BoundaryConditionWaveState&>(state.runtime.boundary_conditions);
         global_simulation_storage = flat_native_failure_state(east_radiative, mixed_open);
-        initialize_fixed_modules();
+        REQUIRE(initialize_fixed_modules());
         REQUIRE_NOTHROW(tmv::step_dynamics(make_simulation_state_view(state), 0));
         CHECK(changed_primary(state.fields, recovered_fields).empty());
         const bool west_continuation_same =
@@ -7948,6 +7958,12 @@ void exercise_flat_native_late_failure(bool mixed_open)
 void exercise_headless_native_late_failure(bool mixed_open)
 {
     ProcessStateRestore restore;
+    global_simulation_storage = make_parent();
+    if (!initialize_parent_modules("metal"))
+    {
+        WARN("native Metal unavailable; required coverage uses NIMBUS_GPU_REQUIRED=1");
+        return;
+    }
     const auto root = std::filesystem::temp_directory_path() /
         (std::string(mixed_open ? "nimbus_headless_mixed_open_failure_" : "nimbus_headless_native_failure_") +
          std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));

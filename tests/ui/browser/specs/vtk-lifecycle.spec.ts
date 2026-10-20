@@ -1895,12 +1895,9 @@ test("rapid isosurface supersession terminates stale worker geometry", async ({ 
 });
 
 test("production VTK scenes survive lifecycle, field, context, resize, and contour stress", async ({ page }, testInfo) => {
-  // This is the ordinary lane's one deliberate stress case: five plot types,
-  // mountCycles remounts apiece, 100 frame preparations, context recovery,
-  // resize storms and contour watchdogs. Brave/SwiftShader needs just under ten
-  // minutes even with mountCycles=10, so the generic ten-minute ceiling can
-  // expire after all assertions are healthy. Keep a finite, case-local guard.
-  test.setTimeout(15 * 60_000);
+  // Five plot types, 500 default remounts and 100 complete frames accumulate
+  // software-renderer work beyond 15 minutes. Frame and watchdog bounds remain separate.
+  test.setTimeout(25 * 60_000);
   const pageErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
   await page.goto("/harness/index.html");

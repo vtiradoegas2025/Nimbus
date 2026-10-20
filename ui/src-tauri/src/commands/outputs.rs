@@ -226,6 +226,7 @@ struct CachedStep {
 struct CachedTerrainGeometry {
     manifest_version: u64,
     validation_manifest: serde_json::Value,
+    validation_identity: Arc<str>,
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -518,28 +519,46 @@ fn cache_terrain_geometry(
         .into_iter()
         .filter_map(|key| vertical.get(key).map(|value| (key.to_owned(), value.clone())))
         .collect();
+    let validation_manifest = serde_json::json!({
+        "publication_generation": manifest.get("publication_generation"),
+        "data_product": { "storage_format": manifest_storage_format(manifest) },
+        "grid": {
+            "dimensions": {
+                "x": grid.pointer("/dimensions/x"),
+                "y": grid.pointer("/dimensions/y"),
+                "z": grid.pointer("/dimensions/z"),
+            },
+            "vertical_geometry": vertical,
+        },
+    });
+    let validation_identity = Arc::from(format!("{manifest_version}:{validation_manifest}"));
     Some(Arc::new(CachedTerrainGeometry {
         manifest_version,
-        validation_manifest: serde_json::json!({
-            "publication_generation": manifest.get("publication_generation"),
-            "data_product": { "storage_format": manifest_storage_format(manifest) },
-            "grid": {
-                "dimensions": {
-                    "x": grid.pointer("/dimensions/x"),
-                    "y": grid.pointer("/dimensions/y"),
-                    "z": grid.pointer("/dimensions/z"),
-                },
-                "vertical_geometry": vertical,
-            },
-        }),
+        validation_manifest,
+        validation_identity,
     }))
 }
 
-fn cached_terrain_geometry_is_complete(entry: &CachedStep, step_dir: &Path) -> bool {
-    // A directory timestamp or sealed history cursor cannot prove that external
-    // geometry still exists. Reuse the validated contract, checking only bounded
-    // manifests/NPY headers and sizes; payload validation belongs to the reader.
-    entry.terrain_geometry.as_ref().map_or(true, |geometry| {
+type TerrainValidationMemo = HashMap<(PathBuf, Arc<str>), bool>;
+
+fn cached_terrain_geometry_is_complete(
+    entry: &CachedStep,
+    step_dir: &Path,
+    memo: &mut TerrainValidationMemo,
+) -> bool {
+    let Some(geometry) = &entry.terrain_geometry else { return true; };
+    // Shared versioned paths are relative to the run; sidecars and netCDF remain
+    // step-local. The complete contract keeps distinct shapes/generations apart.
+    let base = if geometry.manifest_version >= OUTPUT_MANIFEST_VERSION
+        && geometry.validation_manifest.pointer("/grid/vertical_geometry/storage")
+            .and_then(|value| value.as_str()) == Some("versioned_npy_geometry")
+    {
+        step_dir.parent().unwrap_or(step_dir)
+    } else {
+        step_dir
+    };
+    let key = (base.to_path_buf(), Arc::clone(&geometry.validation_identity));
+    *memo.entry(key).or_insert_with(|| {
         terrain_vertical_geometry_is_complete(
             &geometry.validation_manifest,
             step_dir,
@@ -930,6 +949,7 @@ fn list_step_dirs_filtered_blocking(
     } else {
         None
     };
+    let mut terrain_validation = TerrainValidationMemo::new();
     if let (Some(cache), Some((sequence, _, _))) = (&cached, &indexed) {
         if cache.index_sequence == Some(*sequence) {
             if cache.steps.iter().all(|(index, entry)| {
@@ -937,6 +957,7 @@ fn list_step_dirs_filtered_blocking(
                     && cached_terrain_geometry_is_complete(
                         entry,
                         &dir.join(format!("step_{index:06}")),
+                        &mut terrain_validation,
                     )
             }) {
                 return Ok(cache
@@ -1037,7 +1058,7 @@ fn list_step_dirs_filtered_blocking(
                 indexed_sha256.is_some()
                     && entry.info.publication_state == StepPublicationState::Complete
                     && entry.manifest_sha256.as_ref() == indexed_sha256
-                    && cached_terrain_geometry_is_complete(entry, &path)
+                    && cached_terrain_geometry_is_complete(entry, &path, &mut terrain_validation)
             })
         {
             next_cache.insert(index, entry.clone());
@@ -1053,7 +1074,7 @@ fn list_step_dirs_filtered_blocking(
             .filter(|entry| {
                 entry.info.publication_state == StepPublicationState::Complete
                     && entry.fingerprint == fingerprint
-                    && cached_terrain_geometry_is_complete(entry, &path)
+                    && cached_terrain_geometry_is_complete(entry, &path, &mut terrain_validation)
             })
         {
             let info = entry.info.clone();
@@ -1707,11 +1728,18 @@ fn field_brick_hierarchy_dependencies_are_complete(
     true
 }
 
+#[cfg(test)]
+thread_local! {
+    static TERRAIN_GEOMETRY_VALIDATIONS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
 fn terrain_vertical_geometry_is_complete(
     manifest: &serde_json::Value,
     step_dir: &Path,
     manifest_version: u64,
 ) -> bool {
+    #[cfg(test)]
+    TERRAIN_GEOMETRY_VALIDATIONS.with(|count| count.set(count.get() + 1));
     let Some(vertical) = manifest
         .get("grid")
         .and_then(|grid| grid.get("vertical_geometry"))
@@ -7759,6 +7787,50 @@ mod tests {
         write_history_index(&run.0, GENERATION_A, 2, &[(4, &manifest), (5, &next_manifest)]);
         fs::remove_file(geometry_dir.join("physical_z_center_m.npy")).unwrap();
         assert_eq!(publication(), vec![StepPublicationState::InvalidManifest; 2]);
+    }
+
+    #[test]
+    fn cached_shared_terrain_is_validated_once_per_refresh_without_hiding_changes() {
+        let run = TestRunDir::new("shared_terrain_cache_cost");
+        run.current_indexed(GENERATION_A);
+        let digest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        let geometry_dir = publish_versioned_geometry(&run.0, GENERATION_A, digest);
+        let manifests: Vec<_> = (0..32).map(|index| {
+            let step = run.step_with_field(index);
+            let manifest = versioned_terrain_manifest(index, GENERATION_A, digest);
+            fs::write(step.join("manifest.json"), &manifest).unwrap();
+            (index, manifest)
+        }).collect();
+        let index: Vec<_> = manifests.iter().map(|(index, text)| (*index, text.as_str())).collect();
+        write_history_index(&run.0, GENERATION_A, 1, &index);
+        let refresh = || {
+            TERRAIN_GEOMETRY_VALIDATIONS.with(|count| count.set(0));
+            let steps = list_step_dirs_blocking(run.0.to_string_lossy().into_owned()).unwrap();
+            assert_eq!(steps.len(), 32);
+            steps
+        };
+        assert!(refresh().iter().all(|step| step.publication_state == StepPublicationState::Complete));
+        for _ in 0..2 {
+            assert!(refresh().iter().all(|step| step.publication_state == StepPublicationState::Complete));
+            TERRAIN_GEOMETRY_VALIDATIONS.with(|count| assert_eq!(count.get(), 1));
+        }
+
+        let cached = RUN_STEP_CACHE.lock().unwrap().get(&run.0.canonicalize().unwrap()).unwrap().clone();
+        let mut wrong_shape = cached.steps.get(&0).unwrap().clone();
+        let mut manifest: serde_json::Value = serde_json::from_str(&manifests[0].1).unwrap();
+        manifest["grid"]["dimensions"]["x"] = serde_json::json!(9);
+        wrong_shape.terrain_geometry = cache_terrain_geometry(&manifest, OUTPUT_MANIFEST_VERSION);
+        let mut memo = TerrainValidationMemo::new();
+        let step = run.0.join("step_000000");
+        assert!(cached_terrain_geometry_is_complete(cached.steps.get(&0).unwrap(), &step, &mut memo));
+        assert!(!cached_terrain_geometry_is_complete(&wrong_shape, &step, &mut memo));
+
+        fs::remove_file(geometry_dir.join("physical_z_interface_m.npy")).unwrap();
+        assert!(refresh().iter().all(|step| step.publication_state == StepPublicationState::InvalidManifest));
+        publish_versioned_geometry(&run.0, GENERATION_A, digest);
+        assert!(refresh().iter().all(|step| step.publication_state == StepPublicationState::Complete));
+        assert!(refresh().iter().all(|step| step.publication_state == StepPublicationState::Complete));
+        TERRAIN_GEOMETRY_VALIDATIONS.with(|count| assert_eq!(count.get(), 1));
     }
 
     #[test]

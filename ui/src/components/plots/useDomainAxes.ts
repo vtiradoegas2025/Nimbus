@@ -102,6 +102,7 @@ export function useDomainAxes(
   scale: SceneScale,
   lifecycleGeneration = 0,
   color: SceneRgb = [0.62, 0.67, 0.75],
+  prepareRef?: { current: (() => void) | null },
 ): ProjectedAxisLabel[] {
   const [labels, setLabels] = useState<ProjectedAxisLabel[]>([]);
   const getRwRef = useRef(getRenderWindow);
@@ -137,6 +138,7 @@ export function useDomainAxes(
     let cornerKey = "";
     let labelKey = "";
     let projectionAttempts = 0;
+    let preparing = false;
 
     const dispose = () => {
       if (ticksRef.current === scene) disposeTicks();
@@ -278,10 +280,20 @@ export function useDomainAxes(
         .join("|");
       if (nextLabelKey === labelKey) return;
       labelKey = nextLabelKey;
-      // This callback runs in RAF; publish its camera projection before a
-      // capture can snapshot labels from the previous view.
-      flushSync(() => setLabels(next));
+      if (preparing) setLabels(next);
+      // RAF projections must reach the DOM before a capture of this camera.
+      else flushSync(() => setLabels(next));
     };
+
+    const prepare = () => {
+      const host = containerRef.current;
+      if (!getRwRef.current() || !host || !(host.clientWidth > 0) || !(host.clientHeight > 0)) return;
+      if (frame) cancelAnimationFrame(frame);
+      frame = 0;
+      preparing = true;
+      try { update(); } finally { preparing = false; }
+    };
+    if (prepareRef) prepareRef.current = prepare;
 
     const schedule = () => {
       if (disposed || frame) return;
@@ -320,6 +332,7 @@ export function useDomainAxes(
 
     return () => {
       disposed = true;
+      if (prepareRef?.current === prepare) prepareRef.current = null;
       if (bindFrame) cancelAnimationFrame(bindFrame);
       if (frame) cancelAnimationFrame(frame);
       subscription?.unsubscribe();
@@ -327,7 +340,7 @@ export function useDomainAxes(
     };
     // gridKey stands in for `grid`, which is a fresh object per loaded frame.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gridKey, scale.xy, scale.z, lifecycleGeneration, colorKey]);
+  }, [gridKey, scale.xy, scale.z, lifecycleGeneration, colorKey, prepareRef]);
 
   return labels;
 }

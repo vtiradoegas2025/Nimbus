@@ -192,6 +192,15 @@ for (const plot of ["Composite", "Vertical"] as const) {
 test("plot toolbar exposes visible keyboard focus and keyboard actions", async ({ page, browserName }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await openPlot(page, "Vertical", "dark");
+  await page.evaluate(() => {
+    const rule = Array.from(document.styleSheets).flatMap(sheet => Array.from(sheet.cssRules))
+      .find(rule => rule instanceof CSSStyleRule
+        && rule.selectorText === ".js-plotly-plot .plotly .modebar-btn:focus-visible");
+    if (!rule) throw new Error("Plotly focus defaults were not loaded");
+    const lateDefaults = document.createElement("style");
+    lateDefaults.textContent = rule.cssText;
+    document.head.appendChild(lateDefaults);
+  });
   const toolbar = page.locator(".plot-canvas .modebar");
   await toolbar.getByRole("button").first().focus();
   await page.keyboard.press(browserName === "webkit" && process.platform === "darwin" ? "Alt+Tab" : "Tab");

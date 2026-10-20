@@ -184,7 +184,7 @@ jobs:
       fail-fast: false
       max-parallel: 6
       matrix:
-        project: [chromium-swiftshader, webkit-standard, webkit-retina]
+        project: [chromium-lavapipe, webkit-standard, webkit-retina]
         shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
         shardTotal: [12]
     runs-on: ubuntu-24.04
@@ -212,6 +212,16 @@ jobs:
       - name: Install Chromium, WebKit and system libraries
         working-directory: ui
         run: npx playwright install --with-deps chromium webkit
+
+      - name: Select the Chromium software Vulkan renderer
+        if: matrix.project == 'chromium-lavapipe'
+        run: |
+          sudo apt-get install -y --no-install-recommends mesa-vulkan-drivers
+          lvp_icd="$(find /usr/share/vulkan/icd.d -name 'lvp_icd*.json' -print -quit)"
+          test -n "$lvp_icd"
+          echo "VK_ICD_FILENAMES=$lvp_icd" >> "$GITHUB_ENV"
+          echo "LP_NUM_THREADS=$NIMBUS_BUILD_JOBS" >> "$GITHUB_ENV"
+          echo "NIMBUS_BROWSER_LAVAPIPE=1" >> "$GITHUB_ENV"
 
       # The Python specs boot a real interpreter. Its runtime comes from the
       # pyodide npm package, but that package ships no wheels, so ~37 MB of

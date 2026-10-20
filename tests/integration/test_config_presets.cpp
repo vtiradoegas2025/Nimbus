@@ -1407,8 +1407,9 @@ TEST_CASE("Strict YAML directly preflights native CM1 input_sounding",
     REQUIRE(WEXITSTATUS(runtime.status) == 0);
     REQUIRE(runtime.output.find("Base state initialized via file/auto") != std::string::npos);
     REQUIRE(runtime.output.find("NaN count: 0, Inf count: 0") != std::string::npos);
-    REQUIRE(runtime.output.find("Initialized dynamics scheme: klemp_wilhelmson_split_cartesian_cgrid") !=
-            std::string::npos);
+    REQUIRE(runtime.output.find("Dynamics: klemp_wilhelmson_split_cartesian_cgrid") != std::string::npos);
+    REQUIRE(runtime.output.find("Initialized BC scheme: cartesian_cgrid") != std::string::npos);
+    REQUIRE(runtime.output.find("[MEMORY MILESTONE] phase=startup_ready") != std::string::npos);
 }
 
 TEST_CASE("legacy runtime uses the shared surface ownership preflight",
@@ -1830,9 +1831,7 @@ TEST_CASE("nimbus_sim rejects an unsupported time-stepping contract before initi
     REQUIRE(result.status != -1);
     REQUIRE(WIFEXITED(result.status));
     REQUIRE(WEXITSTATUS(result.status) == 1);
-    REQUIRE(result.output.find(
-                "qualified coupled RK integration requires a ready flat CPU "
-                "C-grid or collocated A-grid profile") != std::string::npos);
-    REQUIRE(result.output.find("Initialized dynamics scheme") ==
-            std::string::npos);
+    REQUIRE(result.output.find("qualified coupled RK integration requires a ready flat CPU profile "
+                               "or native Cartesian profile with device ownership") != std::string::npos);
+    REQUIRE(result.output.find("Initialized BC scheme") == std::string::npos);
 }

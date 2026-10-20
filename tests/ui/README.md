@@ -16,17 +16,27 @@ npm --prefix ui run test:browser
 ```
 
 CI distributes adjacent rendering cases across twelve partitions per browser,
-with one browser worker per job. To reproduce one partition from the repository
-root, run `node tests/ui/run_browser_partition.mjs chromium-swiftshader 1/12`.
-Use `webkit-standard` or `webkit-retina` for the other profiles. Append
+with one browser worker per job. The Linux Chromium jobs use ANGLE over Mesa's
+lavapipe software Vulkan driver. The profile verifies the actual WebGL2 renderer
+and a rendered pixel before running tests, and retains that identity in the test
+results. Install `mesa-vulkan-drivers`, select its `lvp_icd*.json` file through
+`VK_ICD_FILENAMES`, set `LP_NUM_THREADS=2` and `NIMBUS_BROWSER_LAVAPIPE=1`, then run
+`node tests/ui/run_browser_partition.mjs chromium-lavapipe 1/12` from the root.
+Use `webkit-standard` or `webkit-retina` for the other CI profiles. Append
 `--list-only` to inspect its inventory without running a browser. The runner
 verifies the selected tests through Playwright before execution and writes the
 inventory under `ui/build/browser-partitions/` alongside the usual test reports.
 
 The unit runner discovers `unit/**/test_*.ts` and `release/test_*.ts`; it fails
 if discovery is empty. Node.js 22 or newer is required. Browser tests also need
-the applicable Playwright browsers. Chromium/SwiftShader, WebKit and native
-packaged application checks provide different coverage.
+the applicable Playwright browsers. Local Chromium commands default to
+`chromium-swiftshader` when `NIMBUS_BROWSER_LAVAPIPE` is unset. It remains useful
+for reproducing driver-specific behavior, but full-resolution, shadowed volume
+scenes can exceed its functional time limits even when the same scene completes
+with Mesa or physical GPUs. Switching CI drivers does not change the test data,
+viewport, sampling, assertions or interaction limits. Software-renderer results
+do not establish physical GPU throughput. WebKit and native packaged application
+checks provide additional coverage.
 
 `prepare.mjs` connects this test workspace to the dependency installation in
 `ui/node_modules` using an ignored directory link (a junction on Windows).
