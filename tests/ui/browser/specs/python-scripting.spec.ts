@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { installPythonStreamGate } from "../support/pythonStreamGate";
 
 /*
  * The Python scripting tab, against a real CPython 3.12 compiled to WASM.
@@ -905,34 +906,49 @@ test("load_dataset keeps exact sampled coordinates and per-variable fidelity pro
 });
 
 test("output appears while the cell is still running", async ({ page }) => {
+  await installPythonStreamGate(page);
   await openHarness(page);
+  // The queued-run banner also appears during startup, before user code can print.
+  await setEditorText(page, 'print("stream interpreter ready")');
+  await runWholeScript(page);
+  await showConsole(page);
+  await expect(stdout(page)).toContainText("stream interpreter ready");
+  await expect(stderr(page)).toHaveCount(0);
+
   await setEditorText(page, [
     "for i in range(4):",
     '    print("tick", i)',
-    "    await tick(0.6)",
+    "    if i == 0:",
+    "        await tick()",
+    '        streamed_field = await load_field("w", stride=16)',
     'print("done")',
   ].join("\n"));
-
-  // The pane has to be showing before the run starts: the tab only switches to
-  // it once a run has finished.
   await showConsole(page);
   const before = await runsCompleted(page);
-  await page.getByRole("button", { name: "Run script", exact: true }).click();
-
-  /*
-   * Both halves matter. The banner proves the run is still in flight, and the
-   * first tick proves output crossed the boundary before the cell returned --
-   * the banner alone would also show for a run that streamed nothing.
-   */
-  await expect(page.locator(".python-plot__console-live")).toBeVisible();
-  await expect(stdout(page)).toContainText("tick 0");
-
-  await expectRunAfter(page, before);
-  // Re-selected because the clean finish moved the tab to Result -- without
-  // this the "no live banner" check below would pass on an unmounted pane.
-  await showConsole(page);
-  await expect(page.locator(".python-plot__console-live")).toHaveCount(0);
-  await expect(stdout(page)).toContainText("done");
+  await page.evaluate(() => window.__nimbusPythonStreamGate.arm());
+  try {
+    await page.getByRole("button", { name: "Run script", exact: true }).click();
+    await expect.poll(() => page.evaluate(() => window.__nimbusPythonStreamGate.state()))
+      .toEqual({ armed: true, held: true, requests: 1 });
+    await expect(page.locator(TAB)).toHaveAttribute("data-running", "1");
+    await expect(page.locator(TAB)).toHaveAttribute("data-run-count", String(before));
+    await expect(page.locator(".python-plot__console-live")).toBeVisible();
+    await expect(stdout(page)).toContainText("tick 0");
+    await expect(stdout(page)).not.toContainText("done");
+    expect(await page.evaluate(() => ({
+      held: window.__nimbusPythonStreamGate.state().held,
+      running: document.querySelector<HTMLElement>(".python-plot")?.dataset.running,
+      completed: document.querySelector<HTMLElement>(".python-plot")?.dataset.runCount,
+    }))).toEqual({ held: true, running: "1", completed: String(before) });
+  } finally {
+    await page.evaluate(() => window.__nimbusPythonStreamGate.release());
+    await expectRunAfter(page, before);
+    await showConsole(page);
+    await expect(page.locator(".python-plot__console-live")).toHaveCount(0);
+    await expect(stdout(page)).toContainText("tick 3");
+    await expect(stdout(page)).toContainText("done");
+    await expect(stderr(page)).toHaveCount(0);
+  }
 });
 
 test("a traceback frame jumps the caret to that line", async ({ page }) => {
