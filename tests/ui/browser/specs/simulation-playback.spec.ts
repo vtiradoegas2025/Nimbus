@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { writeFile } from "node:fs/promises";
+import { capturedPausedFrame, clickPauseAndCaptureFrame, expectPausedFrameStable, observePauseClick } from "../support/playbackPause";
 
 interface PlaybackTimingSample { frame: number; at: number }
 interface PlaybackTimingAudit {
@@ -7,6 +8,7 @@ interface PlaybackTimingAudit {
   longTasksMs: number[];
   observer: MutationObserver;
   performanceObserver: PerformanceObserver | null;
+  pauseRequested: boolean;
 }
 
 declare global {
@@ -80,22 +82,34 @@ test("high requested 3D cadence waits for both panes and scrubbing pauses playba
   await expect(primary.locator(".plot3d-colorbar__title")).toHaveText(legend!);
   expect(await primary.locator(".plot3d-axis-labels").allTextContents()).toEqual(axes);
   await expect(selected).toHaveValue("2", { timeout: 30_000 });
-  await page.getByRole("button", { name: "Pause frame playback", exact: true }).click();
+  const pausedFrame = await clickPauseAndCaptureFrame(page);
+  const limits = await selected.evaluate(element => {
+    const slider = element as HTMLInputElement;
+    return { min: Number(slider.min), max: Number(slider.max) };
+  });
+  const previousFrame = pausedFrame === limits.min ? limits.max : pausedFrame - 1;
+  const allowedFrames = [previousFrame, pausedFrame];
+  const cohort = await page.evaluate(() => window.__nimbusStudioHarness!.inspectPaneDescriptors()
+    .map(descriptor => descriptor?.frameIndex));
+  expect(new Set(cohort).size).toBe(1);
+  expect(allowedFrames).toContain(cohort[0]);
   const committed = await page.evaluate(() => window.__nimbusStudioHarness!.capturePaneAppearances());
   for (const capture of committed) {
-    expect(capture?.evidence.descriptor.frameIndex).toBeGreaterThanOrEqual(1);
-    expect(capture?.evidence.descriptor.frameIndex).toBeLessThanOrEqual(2);
+    expect(allowedFrames).toContain(capture?.evidence.descriptor.frameIndex);
   }
   await expect.poll(async () => {
     const captures = await page.evaluate(() => window.__nimbusStudioHarness!.capturePaneAppearances());
-    return captures.every(capture => capture?.evidence.descriptor.frameIndex === 2);
+    return captures.every(capture => capture?.evidence.descriptor.frameIndex === pausedFrame);
   }, { timeout: 30_000 }).toBe(true);
+  const pause = await expectPausedFrameStable(page, pausedFrame);
+  expect(await page.evaluate(() => window.__nimbusStudioHarness!.inspectPaneDescriptors()
+    .map(descriptor => descriptor?.frameIndex))).toEqual([pausedFrame, pausedFrame]);
   await page.getByRole("button", { name: "Play frames", exact: true }).click();
   await selected.fill("1");
   await expect(page.getByRole("button", { name: "Play frames", exact: true })).toBeVisible();
   await page.waitForTimeout(250);
   await expect(selected).toHaveValue("1");
-  await info.attach("delayed-two-pane-playback", { body: JSON.stringify({ requestedFps: 60, fieldReadDelayMs: 800, before: before.map(c => c?.evidence.descriptor), pending: pending.map(c => c?.evidence.descriptor), committed: committed.map(c => c?.evidence.descriptor) }), contentType: "application/json" });
+  await info.attach("delayed-two-pane-playback", { body: JSON.stringify({ requestedFps: 60, fieldReadDelayMs: 800, pause, before: before.map(c => c?.evidence.descriptor), pending: pending.map(c => c?.evidence.descriptor), committed: committed.map(c => c?.evidence.descriptor) }), contentType: "application/json" });
   expect(errors).toEqual([]);
 });
 
@@ -113,6 +127,7 @@ test("completed volume playback records sequential presentation intervals and ma
   const frame = page.getByRole("slider", { name: "Selected frame", exact: true });
   await expect.poll(async () => Number(await frame.getAttribute("max"))).toBe(19);
   await page.getByRole("combobox", { name: "Playback speed", exact: true }).selectOption("30");
+  await observePauseClick(page);
   await page.evaluate(() => {
     const frames: PlaybackTimingSample[] = [];
     const longTasksMs: number[] = [];
@@ -121,6 +136,12 @@ test("completed volume playback records sequential presentation intervals and ma
       if (!value) return;
       const frame = Number(value[1]) / 30;
       if (frames.at(-1)?.frame !== frame) frames.push({ frame, at: performance.now() });
+      if (frames.length >= 9 && !window.__nimbusPlaybackTimingAudit?.pauseRequested) {
+        window.__nimbusPlaybackTimingAudit!.pauseRequested = true;
+        const pause = document.querySelector<HTMLButtonElement>('button[aria-label="Pause frame playback"]');
+        if (!pause || pause.disabled) throw new Error("Playback Pause was unavailable at the sampling boundary");
+        pause.click();
+      }
     };
     const observer = new MutationObserver(sample);
     observer.observe(document.querySelector(".plot-studio__meta")!, { subtree: true, childList: true, characterData: true });
@@ -128,19 +149,25 @@ test("completed volume playback records sequential presentation intervals and ma
       ? new PerformanceObserver(list => longTasksMs.push(...list.getEntries().map(entry => entry.duration)))
       : null;
     performanceObserver?.observe({ entryTypes: ["longtask"] });
-    window.__nimbusPlaybackTimingAudit = { frames, longTasksMs, observer, performanceObserver };
+    window.__nimbusPlaybackTimingAudit = { frames, longTasksMs, observer, performanceObserver, pauseRequested: false };
     sample();
   });
   await page.getByRole("button", { name: "Play frames", exact: true }).click();
   await page.waitForFunction(() => (window.__nimbusPlaybackTimingAudit?.frames.length ?? 0) >= 9, undefined, { timeout: 30_000 });
-  await page.getByRole("button", { name: "Pause frame playback", exact: true }).click();
+  const pausedFrame = await capturedPausedFrame(page);
+  await expect.poll(() => page.evaluate(() => window.__nimbusStudioHarness!.inspectPaneDescriptors()[0]?.frameIndex))
+    .toBe(pausedFrame);
   const audit = await page.evaluate(() => {
     const { frames, longTasksMs, observer, performanceObserver } = window.__nimbusPlaybackTimingAudit!;
     observer.disconnect();
     performanceObserver?.disconnect();
     return { frames, longTasksMs, longTaskObserverSupported: performanceObserver != null };
   });
+  const pause = await expectPausedFrameStable(page, pausedFrame);
+  expect(await page.evaluate(() => window.__nimbusStudioHarness!.inspectPaneDescriptors()[0]?.frameIndex)).toBe(pausedFrame);
   expect(audit.frames.length).toBeGreaterThanOrEqual(9);
+  expect(audit.frames.length).toBeLessThanOrEqual(10);
+  expect(audit.frames.at(-1)?.frame).toBe(pausedFrame);
   audit.frames.forEach((sample, index) => expect(sample.frame).toBe(index));
   const intervals = audit.frames.slice(1).map((sample, index) => sample.at - audit.frames[index].at);
   const sorted = [...intervals].sort((a, b) => a - b);
@@ -152,6 +179,7 @@ test("completed volume playback records sequential presentation intervals and ma
     viewport: page.viewportSize(),
     frameStride: 1,
     completedFrames: audit.frames,
+    pause,
     intervalMs: { p50: sorted[Math.floor(sorted.length * 0.5)], p95: sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))], values: intervals },
     completedFps: 1000 * intervals.length / intervals.reduce((sum, value) => sum + value, 0),
     longTasksMs: audit.longTasksMs,

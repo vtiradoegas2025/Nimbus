@@ -547,7 +547,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn process_memory_report_is_versioned_and_monotonic_when_available() {
+    fn process_memory_report_is_versioned_and_preserves_sample_peaks() {
         let report = process_memory_info().unwrap();
         assert_eq!(report.schema, "nimbus.studio.process-memory");
         assert_eq!(report.schema_version, 3);
@@ -570,9 +570,7 @@ mod tests {
         if let Some(tree) = report.process_tree_rss_bytes {
             assert!(tree > 0);
             assert!(report.process_tree_process_count.unwrap_or(0) >= 1);
-            if let Some(current) = report.current_rss_bytes {
-                assert!(tree >= current);
-            }
+            // Host RSS and tree RSS are separate samples; the host may shrink between them.
             assert!(report.process_tree_peak_rss_bytes.unwrap_or(0) >= tree);
         }
     }

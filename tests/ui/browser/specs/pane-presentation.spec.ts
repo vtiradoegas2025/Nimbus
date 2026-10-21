@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
+import { clickPauseAndCaptureFrame, expectPausedFrameStable } from "../support/playbackPause";
 
-test("companion 3D playback stays available with a whole-run primary plot", async ({ page }) => {
+test("companion 3D playback stays available with a whole-run primary plot", async ({ page }, info) => {
   test.setTimeout(120_000);
   await page.goto("/harness/index.html?mode=studio");
   await page.addStyleTag({ content: "#root{height:100vh;overflow:hidden}#root>.plot-studio{height:100vh;overflow:hidden}" });
@@ -18,8 +19,11 @@ test("companion 3D playback stays available with a whole-run primary plot", asyn
   await expect.poll(frames, { timeout: 60_000 }).toEqual([null, 1, 1, 1]);
   await page.getByRole("button", { name: "Play frames", exact: true }).click();
   await expect(slider).toHaveValue("2");
-  await page.getByRole("button", { name: "Pause frame playback", exact: true }).click();
-  await expect.poll(frames, { timeout: 60_000 }).toEqual([null, 2, 2, 2]);
+  const pausedFrame = await clickPauseAndCaptureFrame(page);
+  await expect.poll(frames, { timeout: 60_000 }).toEqual([null, pausedFrame, pausedFrame, pausedFrame]);
+  const pause = await expectPausedFrameStable(page, pausedFrame);
+  expect(await frames()).toEqual([null, pausedFrame, pausedFrame, pausedFrame]);
+  await info.attach("paused-requested-frame", { body: JSON.stringify(pause), contentType: "application/json" });
   await page.getByRole("button", { name: "Play frames", exact: true }).click();
   await page.getByRole("button", { name: "Exit split", exact: true }).click();
   await expect(page.locator(".plot-studio__frame-bar")).toHaveCount(0);
@@ -89,20 +93,25 @@ test("mixed3D panes retain one saved time while a required streamline read is he
   await page.waitForTimeout(1200);
   await expect(page.getByRole("slider", { name: "Selected frame", exact: true })).toHaveValue("1");
   expect(await page.evaluate(() => window.__nimbusStudioHarness!.presentationSnapshot()?.allowed)).toBe(false);
-  await page.getByRole("button", { name: "Pause frame playback", exact: true }).click();
+  const heldPause = await clickPauseAndCaptureFrame(page);
+  expect(heldPause).toBe(1);
   await page.evaluate(() => (window as unknown as { paneReadHold: { release: () => void } }).paneReadHold.release());
   await expect.poll(frames, { timeout: 90_000 }).toEqual([1, 1, 1, 1]);
+  const heldPauseReceipt = await expectPausedFrameStable(page, heldPause);
+  expect(await frames()).toEqual([1, 1, 1, 1]);
   const published = await page.evaluate(() => window.__nimbusStudioHarness!.inspectPaneDescriptors()
     .map(descriptor => descriptor?.parameters?.renderedPublicationGeneration));
   expect(published.every(generation => typeof generation === "string" && generation.length > 0)).toBe(true);
   expect(new Set(published).size).toBe(1);
   await page.getByRole("button", { name: "Play frames", exact: true }).click();
   await expect(page.getByRole("slider", { name: "Selected frame", exact: true })).toHaveValue("2");
-  await page.getByRole("button", { name: "Pause frame playback", exact: true }).click();
-  await expect.poll(frames, { timeout: 90_000 }).toEqual([2, 2, 2, 2]);
-  await info.attach("saved-time-cohort", { body: JSON.stringify({ before, pending,
+  const pausedFrame = await clickPauseAndCaptureFrame(page);
+  await expect.poll(frames, { timeout: 90_000 }).toEqual([pausedFrame, pausedFrame, pausedFrame, pausedFrame]);
+  const pause = await expectPausedFrameStable(page, pausedFrame);
+  expect(await frames()).toEqual([pausedFrame, pausedFrame, pausedFrame, pausedFrame]);
+  await info.attach("saved-time-cohort", { body: JSON.stringify({ before, pending, heldPauseReceipt, pause,
     final: await page.evaluate(() => window.__nimbusStudioHarness!.presentationSnapshot()) }), contentType: "application/json" });
   await page.locator(".plot-studio__view-menu summary").click();
   await page.locator(".plot-studio__panes-options").getByRole("button", { name: "Single", exact: true }).click();
-  await expect.poll(frames).toEqual([2]);
+  await expect.poll(frames).toEqual([pausedFrame]);
 });

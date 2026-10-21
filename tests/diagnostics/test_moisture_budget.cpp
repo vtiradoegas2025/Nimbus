@@ -75,6 +75,19 @@ struct StaggeredGeometryGuard
     bool saved;
 };
 
+struct ReductionModeGuard
+{
+    bool saved = tmv::diagnostics::deterministic_reductions_enabled();
+    explicit ReductionModeGuard(bool deterministic)
+    {
+        tmv::diagnostics::set_deterministic_reductions(deterministic);
+    }
+    ~ReductionModeGuard()
+    {
+        tmv::diagnostics::set_deterministic_reductions(saved);
+    }
+};
+
 }  // namespace
 
 TEST_CASE("moisture on empty fields returns zero", "[diagnostics][moisture_budget]")
@@ -238,7 +251,22 @@ TEST_CASE("moisture budget can compute from an explicit simulation state view",
 TEST_CASE("moisture ownership excludes C-grid and collocated closure storage",
           "[diagnostics][moisture_budget][cgrid][ghost]")
 {
-    StaggeredGeometryGuard guard(global_grid_geometry);
+    const bool         deterministic = GENERATE(false, true);
+    ReductionModeGuard reduction_guard(deterministic);
+    INFO("deterministic=" << deterministic);
+    // Binary-exact cell inventories isolate closure ownership from OpenMP merge order.
+    double       local_dx = 8.0;
+    double       local_dy = 16.0;
+    double       local_dz = 4.0;
+    GridGeometry geometry;
+    geometry.initialize(NR, NTH, NZ, local_dx, local_dz, local_dy, CoordinateSystem::Cartesian);
+    const auto          global = global_simulation_state();
+    SimulationStateView state{{NR, NTH, NZ, local_dx, local_dz, dt, local_dy, geometry},
+                              global.fields,
+                              global.base,
+                              global.tendencies,
+                              global.coriolis_f,
+                              global.time_s};
     resize_moisture_fields(0.0f);
     rho.fill(2.0f);
     qv.fill(0.125f);
@@ -248,11 +276,10 @@ TEST_CASE("moisture ownership excludes C-grid and collocated closure storage",
     qs.fill(0.0078125f);
     qg.fill(0.00390625f);
     qh.fill(0.001953125f);
-    global_grid_geometry.staggered = true;
+    geometry.staggered = true;
 
-    const double physical_volume =
-        static_cast<double>((NR - 2) * (NTH - 2) * NZ) * dr * dtheta * dz;
-    const auto clean = compute_moisture_budget();
+    const double physical_volume = static_cast<double>((NR - 2) * (NTH - 2) * NZ) * local_dx * local_dy * local_dz;
+    const auto   clean           = compute_moisture_budget(state);
     REQUIRE(clean.vapor == Approx(2.0 * 0.125 * physical_volume).epsilon(1e-12));
     REQUIRE(clean.liquid ==
             Approx(2.0 * (0.0625 + 0.03125) * physical_volume).epsilon(1e-12));
@@ -278,16 +305,16 @@ TEST_CASE("moisture ownership excludes C-grid and collocated closure storage",
             }
         }
 
-    const auto poisoned_cgrid = compute_moisture_budget();
+    const auto poisoned_cgrid = compute_moisture_budget(state);
     REQUIRE(poisoned_cgrid.vapor == clean.vapor);
     REQUIRE(poisoned_cgrid.liquid == clean.liquid);
     REQUIRE(poisoned_cgrid.ice == clean.ice);
     REQUIRE(poisoned_cgrid.total_water == clean.total_water);
 
-    global_grid_geometry.staggered = false;
-    const auto collocated = compute_moisture_budget();
-    const double collocated_volume = static_cast<double>(
-        (NR - 2) * (NTH - 2) * (NZ - 2)) * dr * dtheta * dz;
+    geometry.staggered      = false;
+    const auto   collocated = compute_moisture_budget(state);
+    const double collocated_volume =
+        static_cast<double>((NR - 2) * (NTH - 2) * (NZ - 2)) * local_dx * local_dy * local_dz;
     REQUIRE(collocated.vapor == Approx(2.0 * 0.125 * collocated_volume));
     REQUIRE(collocated.liquid == Approx(
         2.0 * (0.0625 + 0.03125) * collocated_volume));
@@ -304,10 +331,11 @@ TEST_CASE("moisture ownership excludes C-grid and collocated closure storage",
                 qc[i][j][k] = 100.0f;
                 qi[i][j][k] = 100.0f;
             }
-    const auto collocated_vertical_poison = compute_moisture_budget();
+    const auto collocated_vertical_poison = compute_moisture_budget(state);
     REQUIRE(collocated_vertical_poison.vapor == collocated.vapor);
     REQUIRE(collocated_vertical_poison.liquid == collocated.liquid);
     REQUIRE(collocated_vertical_poison.ice == collocated.ice);
+    REQUIRE(collocated_vertical_poison.total_water == collocated.total_water);
 }
 
 TEST_CASE("microphysics phase change conserves total water",
